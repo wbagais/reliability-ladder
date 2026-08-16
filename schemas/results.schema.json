@@ -1,17 +1,18 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "results.json — CONTRACT 2 (benchmark → app handoff)",
-  "description": "Marginal + cumulative quality/cost per rung per domain. The benchmark writes this; the app reads it. Freeze this shape early.",
+  "description": "Three scores per rung per domain: determinism, accuracy, cost. Benchmark writes it; app reads it.",
   "type": "object",
   "properties": {
-    "model": { "type": "string", "description": "e.g. claude-sonnet-4-6" },
+    "model": { "type": "string" },
     "temperature": { "type": "number" },
+    "k_runs": { "type": "integer", "description": "times each input was run to measure determinism" },
     "domains": {
       "type": "array",
       "items": {
         "type": "object",
         "properties": {
-          "name": { "type": "string", "description": "e.g. sroie" },
+          "name": { "type": "string" },
           "n_items": { "type": "integer" },
           "rungs": {
             "type": "array",
@@ -20,16 +21,27 @@
               "properties": {
                 "rung": { "type": "integer", "minimum": 0, "maximum": 6 },
                 "name": { "type": "string" },
-                "quality": {
+                "determinism": {
                   "type": "object",
+                  "description": "field-level exact-match agreement across k_runs (0-1)",
                   "properties": {
-                    "accuracy_on_answered": { "type": "number" },
-                    "coverage": { "type": "number", "description": "fraction answered (1.0 if never abstains)" },
-                    "delta_quality": { "type": "number", "description": "marginal accuracy gain vs previous rung" },
+                    "field_agreement": { "type": "number" },
+                    "delta": { "type": "number" },
                     "ci_low": { "type": "number" },
                     "ci_high": { "type": "number" }
                   },
-                  "required": ["accuracy_on_answered", "coverage", "delta_quality"]
+                  "required": ["field_agreement", "delta"]
+                },
+                "accuracy": {
+                  "type": "object",
+                  "properties": {
+                    "accuracy_on_answered": { "type": "number" },
+                    "coverage": { "type": "number" },
+                    "delta": { "type": "number" },
+                    "ci_low": { "type": "number" },
+                    "ci_high": { "type": "number" }
+                  },
+                  "required": ["accuracy_on_answered", "coverage", "delta"]
                 },
                 "cost": {
                   "type": "object",
@@ -38,12 +50,12 @@
                     "dollars": { "type": "number" },
                     "latency_s": { "type": "number" },
                     "human_minutes": { "type": "number" },
-                    "delta_dollars": { "type": "number", "description": "marginal cost added vs previous rung" }
+                    "delta_dollars": { "type": "number" }
                   },
                   "required": ["dollars", "delta_dollars"]
                 }
               },
-              "required": ["rung", "name", "quality", "cost"]
+              "required": ["rung", "name", "determinism", "accuracy", "cost"]
             }
           }
         },
@@ -51,5 +63,5 @@
       }
     }
   },
-  "required": ["model", "domains"]
+  "required": ["model", "k_runs", "domains"]
 }

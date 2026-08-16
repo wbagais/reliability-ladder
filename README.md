@@ -1,7 +1,7 @@
 # The Reliability Ladder
 
-Measure how much each reliability layer improves an LLM pipeline's quality — and
-what it costs. Then let a user pick the rung worth stopping at for *their* economics.
+Measure determinism + accuracy + cost of each reliability layer wrapped around
+an LLM — so a user can pick the rung worth stopping at. Then let a user pick the rung worth stopping at for *their* economics.
 
 ## The ladder
 
