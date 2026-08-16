@@ -1,0 +1,55 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "results.json — CONTRACT 2 (benchmark → app handoff)",
+  "description": "Marginal + cumulative quality/cost per rung per domain. The benchmark writes this; the app reads it. Freeze this shape early.",
+  "type": "object",
+  "properties": {
+    "model": { "type": "string", "description": "e.g. claude-sonnet-4-6" },
+    "temperature": { "type": "number" },
+    "domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "description": "e.g. sroie" },
+          "n_items": { "type": "integer" },
+          "rungs": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "rung": { "type": "integer", "minimum": 0, "maximum": 6 },
+                "name": { "type": "string" },
+                "quality": {
+                  "type": "object",
+                  "properties": {
+                    "accuracy_on_answered": { "type": "number" },
+                    "coverage": { "type": "number", "description": "fraction answered (1.0 if never abstains)" },
+                    "delta_quality": { "type": "number", "description": "marginal accuracy gain vs previous rung" },
+                    "ci_low": { "type": "number" },
+                    "ci_high": { "type": "number" }
+                  },
+                  "required": ["accuracy_on_answered", "coverage", "delta_quality"]
+                },
+                "cost": {
+                  "type": "object",
+                  "properties": {
+                    "tokens": { "type": "integer" },
+                    "dollars": { "type": "number" },
+                    "latency_s": { "type": "number" },
+                    "human_minutes": { "type": "number" },
+                    "delta_dollars": { "type": "number", "description": "marginal cost added vs previous rung" }
+                  },
+                  "required": ["dollars", "delta_dollars"]
+                }
+              },
+              "required": ["rung", "name", "quality", "cost"]
+            }
+          }
+        },
+        "required": ["name", "n_items", "rungs"]
+      }
+    }
+  },
+  "required": ["model", "domains"]
+}
