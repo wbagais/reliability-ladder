@@ -4,5 +4,9 @@ __pycache__/
 .venv/
 venv/
 data/raw/
+data/SROIE2019/
+data/private*
+.llm_cache/
+results.json
 *.log
 .DS_Store
