@@ -53,6 +53,10 @@ python3 -m venv .venv && .venv/bin/pip install openai streamlit plotly jsonschem
 .venv/bin/python -m bench.cli run --data data/sroie_v1.json \
     --model "ollama/ibm/granite4:micro-h" --k 10     # the real curve
 
+# apply a calibrated abstention gate (find yours in the app's Calibration tab)
+.venv/bin/python -m bench.cli run --data data/sroie_v1.json \
+    --model "ollama/ibm/granite4:micro-h" --k 10 --conf-threshold 0.90
+
 # hosted APIs are registry entries in bench/models.yaml, e.g.:
 #   GEMINI_API_KEY=... --model gemini/gemini-2.5-flash
 
@@ -103,9 +107,18 @@ outputs, caches, and `data/private*` are gitignored.
   - **Economics** — sliders for value/cost of correct, wrong, abstain, and
     human minutes → net utility per rung → **recommended rung** (try the
     cheap-errors vs expensive-errors presets to see the flip).
+  - **🎚️ Calibration** — where should the abstention gate sit *for your model*?
+    Sweeps the threshold over a finished run (no new model calls) and reports
+    the highest-yield gate and the **free-lunch gate**: the strictest threshold
+    that screens errors without discarding a single correct answer. Prints the
+    command to apply it.
   - **Composer** — toggle layers, estimate a custom stack from ablation deltas.
   - **Method** — exactly how every score is computed.
   - **Table** — the raw numbers + results.json export.
+
+Every run is saved to `results/<domain>_<n>x<k>_<timestamp>.json` (plus its
+outputs sidecar), so runs never overwrite each other and the sidebar lists them
+all for comparison.
 
 ## The 3 contracts (see /schemas; v2 revision logged in docs/decisions.md)
 
@@ -140,13 +153,14 @@ outputs, caches, and `data/private*` are gitignored.
 
 ```
 bench/        client+cache, normalize, flatten, prompts, rungs pipeline,
-              metrics, diagnostics, harness, cli, adapters (user upload + SROIE)
-app/          streamlit_app.py + results.stub.json
+              metrics, diagnostics, harness, cli, adapters (user upload + SROIE),
+              outputs.py (per-field sidecar), calibration.py (risk–coverage)
+app/          streamlit_app.py + review.py + results.stub.json
 schemas/      the 3 contracts
 data/         sroie_v1.json (demo) + example_upload.json (template)
-              outputs.py (per-field sidecar writer/reader)
+results/      saved runs, one file per run (gitignored)
 docs/         data-format.md · decisions.md (running log — article raw material)
-tests/        43 tests against a fake LLM, no network needed
+tests/        55 tests against a fake LLM, no network needed
 ```
 
 ## Reference run (SROIE, 60 items, K=10, ollama/ibm/granite4:micro-h)
@@ -163,9 +177,21 @@ tests/        43 tests against a fake LLM, no network needed
 
 Only the human rung beats the bare model on yield. Determinism was 1.000 at
 every rung — local greedy decoding at temperature 0 is exactly reproducible, so
-that axis only becomes interesting on hosted APIs. Full findings, including the
-model's uncalibrated confidence and the judge's precision/recall, are in
-[docs/decisions.md](docs/decisions.md).
+that axis only becomes interesting on hosted APIs.
+
+Three more results from mining that run (all replayed from cache, no new calls;
+detail in [docs/decisions.md](docs/decisions.md)):
+
+- **Errors concentrate in one field** — of 150 wrong slots: address 100,
+  total 40, date 10, company 0. Fixing one field's prompt would beat adding a
+  layer.
+- **The stack is worse than its best layer** — voting *alone* yields 0.946,
+  better than bare (0.938) and better than any cumulative rung except the human
+  one; inside the stack it drops to 0.772 because it inherits the judge's
+  damage. Cumulative stacking is the wrong default; compose deliberately.
+- **Calibrating the gate to 0.90** cuts the error rate among shipped answers
+  from 0.060 to 0.043 for a 1.7pt coverage cost — it ships fewer wrong answers,
+  it does not produce more correct ones (yield 0.9325 → 0.9330).
 
 ## Deliverables
 

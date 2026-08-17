@@ -73,11 +73,26 @@ pure **extraction**.
 
 ## What you get back
 
-`results.json` (aggregate scores per rung — yield, accuracy, coverage,
-determinism, cost) plus `results.outputs.jsonl` next to it: every field's value
-and status (correct / wrong / no answer) at every rung, which the app's Outputs
-tab renders side by side. Pass `--no-outputs` to skip the sidecar on very large
-runs. Both stay local; neither is committed.
+A results file (aggregate scores per rung — yield, accuracy, coverage,
+determinism, cost) plus a `.outputs.jsonl` sidecar next to it: every field's
+value and status (correct / wrong / no answer) at every rung, which the app's
+Outputs tab renders side by side. Pass `--no-outputs` to skip the sidecar on
+very large runs. Both stay local; neither is committed.
+
+Runs started from the app are saved as
+`results/<domain>_<items>x<k>_<timestamp>.json`, so a new run never overwrites
+an earlier one and the dashboard can compare them. From the CLI, `--out` picks
+the path.
+
+## Tuning the abstention gate
+
+Rung 2 withholds a field when its confidence falls below a threshold (default
+0.7). That default is a guess and is wrong for most models. After a run, open
+the app's **Calibration** tab: it sweeps the threshold over your own results
+and reports the *free-lunch* gate — the strictest one that screens errors
+without discarding any correct answer — then apply it with
+`--conf-threshold <value>`. Every call is cached, so re-running with a new gate
+costs nothing.
 
 ## Checking your file
 
