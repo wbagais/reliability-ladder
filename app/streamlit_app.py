@@ -54,14 +54,15 @@ def _chart_layout(fig, ytitle=""):
 
 
 # ---------------------------------------------------------------- results IO
-def available_results() -> dict[str, dict]:
-    out = {}
+def available_results() -> dict[str, tuple[dict, Path | None]]:
+    """label -> (parsed results, path on disk if any — needed for the sidecar)."""
+    out: dict[str, tuple[dict, Path | None]] = {}
     if "results" in st.session_state:
-        out["This session's run"] = st.session_state["results"]
+        out["This session's run"] = (st.session_state["results"], ROOT / "results.json")
     for p in [ROOT / "results.json", ROOT / "app" / "results.stub.json"]:
         if p.exists():
             try:
-                out[p.name] = json.loads(p.read_text())
+                out[p.name] = (json.loads(p.read_text()), p)
             except json.JSONDecodeError:
                 pass
     return out
@@ -189,6 +190,11 @@ def setup_page():
         "Otherwise the run simulates the human with the gold answers.",
         value=False,
     )
+    save_outputs = st.checkbox(
+        "Save every rung's per-field output (browsable in the Outputs tab). "
+        "Writes a sidecar file next to results.json — kept local, never committed.",
+        value=True,
+    )
 
     n_calls = n_items * k * (9 if ablations else 9)  # ~9 unique calls/item/run at the top rungs
     st.caption(f"≈ {n_calls:,} model calls (all cached — re-runs and resumed runs are free).")
@@ -207,7 +213,7 @@ def setup_page():
             results = run_benchmark(
                 ds_run, model_spec=model_spec, k=k, n_items=n_items,
                 ablations=ablations, out=str(ROOT / "results.json"),
-                api_key=api_key, progress=cb,
+                api_key=api_key, progress=cb, save_outputs=save_outputs,
             )
         except Exception as e:
             st.error(f"Run failed: {e}")
@@ -312,7 +318,7 @@ def dashboard_page():
     up = st.sidebar.file_uploader("…or load another results.json", type="json")
     if up is not None:
         try:
-            options[f"uploaded: {up.name}"] = json.load(up)
+            options[f"uploaded: {up.name}"] = (json.load(up), None)
         except json.JSONDecodeError as e:
             st.sidebar.error(f"Not valid JSON: {e}")
     if not options:
@@ -320,7 +326,7 @@ def dashboard_page():
                 "results.json in the repo root.")
         st.stop()
     choice = st.sidebar.selectbox("Results file", list(options))
-    results = options[choice]
+    results, results_path = options[choice]
     if "_note" in results:
         st.warning("These are the STUB numbers (fake placeholders) — run the "
                    "benchmark to see real ones.")
@@ -340,13 +346,19 @@ def dashboard_page():
     dollars = [r["cost"]["dollars"] for r in rungs]
     human_min = [r["cost"]["human_minutes"] for r in rungs]
 
-    (tab_ladder, tab_curve, tab_econ, tab_compose, tab_method, tab_table) = st.tabs(
-        ["🪜 Rung by rung", "The curve", "Economics", "Composer", "Method", "Table"]
+    (tab_ladder, tab_outputs, tab_curve, tab_econ, tab_compose,
+     tab_method, tab_table) = st.tabs(
+        ["🪜 Rung by rung", "🔍 Outputs", "The curve", "Economics", "Composer",
+         "Method", "Table"]
     )
 
     # ---- the walkthrough: how each rung works and what it did ------------
     with tab_ladder:
         _ladder_walkthrough(dom)
+
+    # ---- per-field outputs, rung by rung ---------------------------------
+    with tab_outputs:
+        _outputs_browser(dom, results_path)
 
     # ---- the curve ------------------------------------------------------
     with tab_curve:
@@ -691,6 +703,97 @@ def _ladder_walkthrough(dom: dict) -> None:
                 "value needs the rungs below it."
             )
         st.markdown(_verdict(r, counts))
+
+
+STATUS_MARK = {"correct": "✅", "wrong": "❌", "abstained": "—"}
+
+
+def _outputs_browser(dom: dict, results_path: Path | None) -> None:
+    """Every field's value at every rung, colour-coded by status vs gold."""
+    from bench.outputs import read_items, read_outputs, sidecar_path
+
+    path = None
+    if results_path is not None:
+        cand = results_path.parent / dom["outputs_file"] if dom.get("outputs_file") \
+            else sidecar_path(results_path)
+        if cand.exists():
+            path = cand
+    if path is None:
+        st.info("No per-field outputs saved for this run. Re-run with outputs enabled "
+                "(the Setup page's checkbox, or drop `--no-outputs` on the CLI) to "
+                "browse what every rung produced for every field.")
+        return
+
+    items = read_items(path)
+    st.caption(f"Reading {path.name} — {len(items)} items. ✅ correct · ❌ wrong · "
+               "— no answer (abstained). Status is measured against gold with the "
+               "same normalization the scores use.")
+
+    c1, c2, c3, c4 = st.columns([2, 1, 2, 1])
+    item_idx = c1.selectbox("Item", sorted(items), format_func=lambda i: f"item {i}")
+    recs_all = read_outputs(path, item=item_idx)
+    ks = sorted({r["k"] for r in recs_all})
+    k = c2.selectbox("Run (k)", ks)
+    only_problems = c3.checkbox("Only fields that are wrong or unanswered somewhere",
+                                value=False)
+    show_values = c4.checkbox("Show values", value=False,
+                              help="Off: a compact status matrix where every rung fits "
+                                   "on screen. On: the actual value each rung produced.")
+
+    with st.expander("The input document"):
+        st.text(items[item_idx]["doc"])
+
+    recs = sorted([r for r in recs_all if r["k"] == k], key=lambda r: r["rung"])
+    if not recs:
+        st.warning("No outputs recorded for that item/run.")
+        return
+
+    by_rung = {r["rung"]: {f["field"]: f for f in r["fields"]} for r in recs}
+    fields = list(by_rung[min(by_rung)].keys())
+    gold = {f["field"]: f["gold"] for f in recs[0]["fields"]}
+
+    def short(v, n=48):
+        if v is None:
+            return "(no answer)"
+        v = str(v)
+        return v if len(v) <= n else v[: n - 1] + "…"
+
+    rows = []
+    for fld in fields:
+        cells = {rn: by_rung[rn].get(fld) for rn in sorted(by_rung)}
+        if only_problems and all(c and c["status"] == "correct" for c in cells.values()):
+            continue
+        row = {"field": fld, "gold": short(gold.get(fld))}
+        for rn, cell in cells.items():
+            if cell is None:
+                row[f"R{rn}"] = ""
+            elif show_values:
+                row[f"R{rn}"] = f"{STATUS_MARK[cell['status']]} {short(cell['value'])}"
+            else:
+                row[f"R{rn}"] = STATUS_MARK[cell["status"]]
+        rows.append(row)
+
+    if not rows:
+        st.success("Every field was correct at every rung for this item and run.")
+    else:
+        st.dataframe(rows, use_container_width=True,
+                     height=min(600, 60 + 35 * len(rows)))
+        st.caption("Columns R0–R6 are the rungs. Read a row left to right to see one "
+                   "field's fate through the ladder." if not show_values else
+                   "Values are truncated for display; the full values are in the "
+                   "outputs file.")
+
+    st.markdown("**Status count per rung, for this item and run:**")
+    counts_rows = []
+    for rn in sorted(by_rung):
+        vals = list(by_rung[rn].values())
+        counts_rows.append({
+            "rung": rn,
+            "✅ correct": sum(v["status"] == "correct" for v in vals),
+            "❌ wrong": sum(v["status"] == "wrong" for v in vals),
+            "— no answer": sum(v["status"] == "abstained" for v in vals),
+        })
+    st.dataframe(counts_rows, use_container_width=True)
 
 
 def _rung_internals(r: dict, counts: dict | None) -> None:

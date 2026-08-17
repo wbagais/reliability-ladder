@@ -50,6 +50,7 @@ def cmd_run(args) -> int:
         ablations=not args.no_ablations,
         out=args.out,
         progress=progress,
+        save_outputs=not args.no_outputs,
     )
     print(f"\nwrote {args.out}")
     for r in results["domains"][0]["rungs"]:
@@ -81,6 +82,8 @@ def main() -> int:
     r.add_argument("--no-ablations", action="store_true")
     r.add_argument("--smoke", action="store_true", help="10 items, K=3")
     r.add_argument("--out", default="results.json")
+    r.add_argument("--no-outputs", action="store_true",
+                   help="skip the per-field outputs sidecar (large private runs)")
     r.set_defaults(fn=cmd_run)
 
     args = ap.parse_args()

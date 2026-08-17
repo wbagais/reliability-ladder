@@ -49,6 +49,7 @@ def run_benchmark(
     progress: ProgressCb | None = None,
     human_resolver: HumanResolver | None = None,
     client: LLMClient | None = None,  # injectable for tests (fake LLM)
+    save_outputs: bool = False,       # write the per-field outputs sidecar
 ) -> dict:
     rungs = rungs if rungs is not None else list(range(7))
     items = dataset.items[:n_items] if n_items else dataset.items
@@ -136,6 +137,12 @@ def run_benchmark(
     validate_results(results)
     if out:
         Path(out).write_text(json.dumps(results, indent=1))
+        if save_outputs:
+            from bench.outputs import sidecar_path, write_outputs
+
+            path = write_outputs(sidecar_path(out), ds, raw_runs)
+            results["domains"][0]["outputs_file"] = path.name
+            Path(out).write_text(json.dumps(results, indent=1))
     return results
 
 
