@@ -94,6 +94,10 @@ outputs, caches, and `data/private*` are gitignored.
     withdrew, with concrete examples), rung internals (confidence calibration,
     judge precision/recall, per-variant voting scores, escalation causes), its
     ablation score, and a plain-language verdict.
+  - **🔍 Outputs** — every field's value and status (✅ correct / ❌ wrong /
+    — no answer) at every rung, side by side, so you can follow one field's
+    fate through the ladder. Reads the `*.outputs.jsonl` sidecar written
+    alongside results.json (disable with `--no-outputs` for very large runs).
   - **The curve** — determinism + accuracy per rung with bootstrap CIs and the
     knee annotation; the cost frontier.
   - **Economics** — sliders for value/cost of correct, wrong, abstain, and
