@@ -1,6 +1,6 @@
 # The Reliability Ladder
 
-Measure the **determinism + accuracy + cost** of each reliability layer wrapped
+Measure the **quality + determinism + cost** of each reliability layer wrapped
 around an LLM — on *your* task, with *your* data — so you can pick the rung
 worth stopping at for your economics instead of stacking layers by intuition.
 
@@ -98,8 +98,8 @@ outputs, caches, and `data/private*` are gitignored.
     — no answer) at every rung, side by side, so you can follow one field's
     fate through the ladder. Reads the `*.outputs.jsonl` sidecar written
     alongside results.json (disable with `--no-outputs` for very large runs).
-  - **The curve** — determinism + accuracy per rung with bootstrap CIs and the
-    knee annotation; the cost frontier.
+  - **The curve** — yield, accuracy, coverage and determinism per rung with
+    bootstrap CIs and the best-yield marker; the cost frontier.
   - **Economics** — sliders for value/cost of correct, wrong, abstain, and
     human minutes → net utility per rung → **recommended rung** (try the
     cheap-errors vs expensive-errors presets to see the flip).
@@ -117,14 +117,24 @@ outputs, caches, and `data/private*` are gitignored.
 
 ## Scores (details in the app's Method tab)
 
-- **Determinism** — each item runs K times (default 10); per field, the share of
-  runs matching the modal value; averaged over fields, then items.
+- **Yield — the headline** — `accuracy_on_answered x coverage`: the share of
+  **all** field slots that came out correct. Read this one first.
 - **Accuracy on answered + coverage** — vs gold after schema-aware
   normalization (numbers numerically, dates parsed, text case-insensitive), so
   formatting never counts as wrong; abstentions lower coverage, not accuracy.
+- **Determinism** — each item runs K times (default 10); per field, the share of
+  runs matching the modal value; averaged over fields, then items.
 - **Cost** — tokens, dollars (prices in `bench/models.yaml`; local = $0),
   latency, human minutes — per single pass (the K repeats are the instrument,
   not the bill).
+
+> **Why yield leads.** Accuracy is a ratio over *answered* fields, so any layer
+> that withholds answers raises it mechanically. In the reference run the judge
+> rung lifted accuracy 0.938 → 0.960 while yield **fell** 0.938 → 0.772: it
+> deleted far more correct answers than errors, and left the user with fewer
+> correct fields. The app now warns whenever accuracy rises while yield falls.
+> Whether that trade is still worth it is an economics question — priced in the
+> Economics tab, not decided by the curve.
 
 ## Repo map
 
@@ -134,14 +144,33 @@ bench/        client+cache, normalize, flatten, prompts, rungs pipeline,
 app/          streamlit_app.py + results.stub.json
 schemas/      the 3 contracts
 data/         sroie_v1.json (demo) + example_upload.json (template)
+              outputs.py (per-field sidecar writer/reader)
 docs/         data-format.md · decisions.md (running log — article raw material)
-tests/        37 tests against a fake LLM, no network needed
+tests/        43 tests against a fake LLM, no network needed
 ```
+
+## Reference run (SROIE, 60 items, K=10, ollama/ibm/granite4:micro-h)
+
+| Rung | yield | accuracy (answered) | coverage |
+|------|-------|--------------------|----------|
+| 0 bare LLM | **0.938** | 0.938 | 1.000 |
+| 1 deterministic | 0.938 | 0.938 | 1.000 |
+| 2 abstention | 0.932 | 0.940 | 0.992 |
+| 3 self-correction | 0.934 | 0.938 | 0.996 |
+| 4 LLM-as-judge | **0.772** | 0.960 | 0.804 |
+| 5 voting | 0.772 | 0.960 | 0.804 |
+| 6 human-in-the-loop | **0.988** | 0.988 | 1.000 (+1.4 human-min/item) |
+
+Only the human rung beats the bare model on yield. Determinism was 1.000 at
+every rung — local greedy decoding at temperature 0 is exactly reproducible, so
+that axis only becomes interesting on hosted APIs. Full findings, including the
+model's uncalibrated confidence and the judge's precision/recall, are in
+[docs/decisions.md](docs/decisions.md).
 
 ## Deliverables
 
-- [x] Benchmark + measured ladder (SROIE demo; smoke run findings in decisions.md)
+- [x] Benchmark + measured ladder (SROIE, full 60-item K=10 run — table above)
 - [x] Configurator app (pick your rung / compose your stack / bring your own data)
-- [ ] Full 60-item K=10 run → the publishable curve
 - [ ] Cross-model comparison (local vs Gemini: determinism under API batching)
+- [ ] Private-dataset run (nested extraction schema)
 - [ ] InfoQ article (practitioner decision guide — outline in docs/article-outline.md)

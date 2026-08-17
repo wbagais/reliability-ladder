@@ -71,6 +71,14 @@ pure **extraction**.
 }
 ```
 
+## What you get back
+
+`results.json` (aggregate scores per rung — yield, accuracy, coverage,
+determinism, cost) plus `results.outputs.jsonl` next to it: every field's value
+and status (correct / wrong / no answer) at every rung, which the app's Outputs
+tab renders side by side. Pass `--no-outputs` to skip the sidecar on very large
+runs. Both stay local; neither is committed.
+
 ## Checking your file
 
 ```bash
