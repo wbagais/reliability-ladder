@@ -8,6 +8,7 @@ data/SROIE2019/
 data/private*
 .llm_cache/
 results.json
+results/
 *.outputs.jsonl
 *.log
 .DS_Store

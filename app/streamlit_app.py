@@ -18,7 +18,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from app.review import escalations_fit, resolver_index
+from app.review import escalations_fit, resolver_index, run_output_path
 from bench.adapters.user_upload import load_dataset, validate
 from bench.flatten import flatten_json, schema_field_names
 from bench.harness import run_benchmark
@@ -65,13 +65,23 @@ def _chart_layout(fig, ytitle=""):
 
 
 # ---------------------------------------------------------------- results IO
+RESULTS_DIR = ROOT / "results"
+
+
 def available_results() -> dict[str, tuple[dict, Path | None]]:
-    """label -> (parsed results, path on disk if any — needed for the sidecar)."""
+    """label -> (parsed results, path on disk if any — needed for the sidecar).
+
+    Every finished run in results/ stays listed; runs never overwrite each other.
+    """
     out: dict[str, tuple[dict, Path | None]] = {}
-    if "results" in st.session_state:
-        out["This session's run"] = (st.session_state["results"], ROOT / "results.json")
-    for p in [ROOT / "results.json", ROOT / "app" / "results.stub.json"]:
-        if p.exists():
+    if "results_path" in st.session_state:
+        out["This session's run"] = (st.session_state["results"],
+                                     Path(st.session_state["results_path"]))
+    candidates = sorted(RESULTS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime,
+                        reverse=True) if RESULTS_DIR.exists() else []
+    candidates += [ROOT / "results.json", ROOT / "app" / "results.stub.json"]
+    for p in candidates:
+        if p.exists() and p.name not in out:
             try:
                 out[p.name] = (json.loads(p.read_text()), p)
             except json.JSONDecodeError:
@@ -224,10 +234,12 @@ def setup_page():
         raw2 = dict(raw)
         raw2["prompt"] = prompt
         ds_run = load_dataset(raw2)
+        RESULTS_DIR.mkdir(exist_ok=True)
+        out_path = run_output_path(RESULTS_DIR, ds_run.domain, n_items, k)
         try:
             results = run_benchmark(
                 ds_run, model_spec=model_spec, k=k, n_items=n_items,
-                ablations=ablations, out=str(ROOT / "results.json"),
+                ablations=ablations, out=str(out_path),
                 api_key=api_key, progress=cb, save_outputs=save_outputs,
             )
         except Exception as e:
@@ -235,6 +247,7 @@ def setup_page():
             st.stop()
         prog.progress(1.0, text="done")
         st.session_state["results"] = results
+        st.session_state["results_path"] = str(out_path)
         st.session_state["run_ctx"] = {
             "raw": raw2, "model_spec": model_spec, "api_key": api_key,
             "k": k, "n_items": n_items,
@@ -242,7 +255,8 @@ def setup_page():
         if live_review:
             st.session_state["review_pending"] = True
             st.rerun()
-        st.success("Run complete — open the **Dashboard** page (sidebar).")
+        st.success(f"Run complete — saved to `results/{out_path.name}`. "
+                   "Open the **Dashboard** page (sidebar).")
 
     # ---- live review queue (rung 6) ------------------------------------
     if st.session_state.get("review_pending"):
@@ -320,7 +334,8 @@ def review_queue():
     results = st.session_state["results"]
     results["domains"][0]["rungs"] = redo["domains"][0]["rungs"]
     results["domains"][0]["human_mode"] = "live"
-    (ROOT / "results.json").write_text(json.dumps(results, indent=1))
+    # rewrite this run's own file, never a shared results.json
+    Path(st.session_state["results_path"]).write_text(json.dumps(results, indent=1))
     st.session_state["results"] = results
     st.session_state.pop("review_pending")
     st.session_state.pop("escalations")
