@@ -21,10 +21,24 @@ the contribution is the *method plus the shape of the result*, not a leaderboard
 4. **Confidence is real but miscalibrated**: 0.995 mean when correct vs 0.879
    when wrong, yet 140/150 errors sat above the default 0.7 gate. The mechanism
    works; the threshold has to be fitted per model.
-5. **Cross-prompt dispersion beat self-reported confidence** as an error signal:
-   the variants disagreed precisely on the wrong fields — even where the
-   majority vote then picked the wrong value.
-6. **Determinism was 1.000 everywhere** — local greedy decoding at temp 0 is
+5. **The stack is worse than its best layer.** Voting *alone* yields 0.946 —
+   above the bare model and above every cumulative rung except the human one —
+   but voting *inside* the stack yields 0.772, because cumulative stacking drags
+   the judge along. Judge alone yields 0.905, below baseline. Cumulative
+   stacking is the wrong default; this is the case for the composer.
+6. **Errors concentrate**: address 100 wrong, total 40, date 10, company 0.
+   Two thirds of the reliability problem is one field — worth saying out loud,
+   because fixing that field beats every layer in the ladder here.
+7. **The gate has to be calibrated, and calibration buys precision, not yield**:
+   at 0.90 the error rate among shipped answers falls 0.060 → 0.043 for 1.7pt
+   of coverage; yield is unchanged. Useful when a wrong answer costs more than
+   a missing one — which is exactly the economics beat.
+8. **Correction worth reporting honestly**: on the 10-item smoke run,
+   cross-prompt dispersion looked like a better error signal than self-reported
+   confidence. At n=60 it is not — thresholding on vote agreement costs yield
+   fast while confidence at 0.90 costs none. Nine errors was too small a base.
+   (Good material for a "how we nearly published a wrong finding" aside.)
+9. **Determinism was 1.000 everywhere** — local greedy decoding at temp 0 is
    exactly reproducible, so that axis is free locally and only becomes
    interesting on hosted APIs (batching nondeterminism). [needs the Gemini run]
 
@@ -41,8 +55,12 @@ the contribution is the *method plus the shape of the result*, not a leaderboard
    appeared. Report that honestly rather than forcing a knee. [B]
 5. **The flip** — whether withholding answers is worth it depends entirely on
    your cost of a wrong answer vs a missing one; the optimal rung moves with
-   your economics. Headline. [B]
-6. **Decision rule + the tool** — takeaway table + configurator link.
+   your economics (rung 1 below ~$2 per error, rung 2 at ~$5, rung 6 from ~$10).
+   Headline. [B]
+6. **Decision rule + the tool** — takeaway table + configurator link. Two
+   practical rules fall out of the findings: compose layers deliberately rather
+   than stacking cumulatively, and calibrate the abstention gate per model
+   before concluding the layer doesn't work.
 
 Discipline: write each figure's caption the day you make the figure. A caption
 you can't write = a result that isn't clear yet.
