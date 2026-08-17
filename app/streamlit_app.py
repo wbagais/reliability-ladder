@@ -30,12 +30,22 @@ import yaml
 C_DET = "#2a78d6"      # determinism — blue
 C_ACC = "#eb6834"      # accuracy — orange
 C_COST = "#1baf7a"     # cost — aqua
+C_YIELD = "#008300"    # yield — green (the headline: correct out of ALL fields)
 C_MUTED = "#898781"
 C_GRID = "#e1e0d9"
 BAND = "rgba(42,120,214,0.15)"
 BAND_ACC = "rgba(235,104,52,0.15)"
 
 RUNG_LABELS = [f"{i}·{RUNG_NAMES[i].replace('_', ' ')}" for i in range(7)]
+
+
+def yield_of(r: dict) -> float:
+    """Share of ALL fields answered correctly = accuracy_on_answered x coverage.
+
+    The honest headline: accuracy alone rises whenever a layer deletes answers,
+    because it is a ratio over answered fields only.
+    """
+    return r["accuracy"]["accuracy_on_answered"] * r["accuracy"]["coverage"]
 
 st.set_page_config(page_title="Reliability Ladder", page_icon="🪜", layout="wide")
 
@@ -362,36 +372,47 @@ def dashboard_page():
 
     # ---- the curve ------------------------------------------------------
     with tab_curve:
-        knee = _knee_index(det, acc)
+        yld = [yield_of(r) for r in rungs]
+        knee = _knee_index(yld)
+        st.markdown(
+            "**Read the green line.** *Yield* is the share of **all** fields answered "
+            "correctly. Accuracy (orange) is a ratio over *answered* fields only, so it "
+            "rises whenever a layer refuses to answer — a layer that deletes correct "
+            "answers can raise accuracy while making the output worse. Yield can't be "
+            "gamed that way."
+        )
         fig = go.Figure()
-        for series, color, band, label in [
-            (det, C_DET, BAND, "determinism (field agreement)"),
-            (acc, C_ACC, BAND_ACC, "accuracy (on answered)"),
-        ]:
-            key = "determinism" if "determinism" in label else "accuracy"
-            lo = [r[key].get("ci_low") for r in rungs]
-            hi = [r[key].get("ci_high") for r in rungs]
-            if all(v is not None for v in lo + hi):
-                fig.add_trace(go.Scatter(x=names + names[::-1], y=hi + lo[::-1],
-                                         fill="toself", fillcolor=band,
-                                         line=dict(width=0), hoverinfo="skip",
-                                         showlegend=False))
-            fig.add_trace(go.Scatter(x=names, y=series, name=label,
-                                     line=dict(color=color, width=2),
-                                     marker=dict(size=8)))
-        fig.add_trace(go.Scatter(x=names, y=cov, name="coverage",
+        lo = [r["accuracy"].get("ci_low") for r in rungs]
+        hi = [r["accuracy"].get("ci_high") for r in rungs]
+        if all(v is not None for v in lo + hi):
+            fig.add_trace(go.Scatter(x=names + names[::-1], y=hi + lo[::-1],
+                                     fill="toself", fillcolor=BAND_ACC,
+                                     line=dict(width=0), hoverinfo="skip",
+                                     showlegend=False))
+        fig.add_trace(go.Scatter(x=names, y=yld, name="yield (correct out of ALL fields)",
+                                 line=dict(color=C_YIELD, width=3),
+                                 marker=dict(size=10)))
+        fig.add_trace(go.Scatter(x=names, y=acc, name="accuracy (on answered only)",
+                                 line=dict(color=C_ACC, width=2),
+                                 marker=dict(size=8)))
+        fig.add_trace(go.Scatter(x=names, y=cov, name="coverage (share answered)",
                                  line=dict(color=C_MUTED, width=2, dash="dot"),
                                  marker=dict(size=8)))
-        fig.add_annotation(x=names[knee], y=max(det[knee], acc[knee]),
-                           text="the knee — gains flatten here", showarrow=True,
-                           arrowhead=2, ay=-40)
+        fig.add_trace(go.Scatter(x=names, y=det, name="determinism (field agreement)",
+                                 line=dict(color=C_DET, width=2, dash="dash"),
+                                 marker=dict(size=8)))
+        fig.add_annotation(x=names[knee], y=yld[knee],
+                           text="best yield", showarrow=True, arrowhead=2, ay=-40)
         fig.update_yaxes(range=[0, 1.05])
         st.plotly_chart(_chart_layout(fig, "score (0–1)"), use_container_width=True)
+        best_y = max(range(len(yld)), key=yld.__getitem__)
         st.caption(
-            f"**Figure 1 — the reliability curve.** Determinism and accuracy per "
-            f"cumulative rung (shaded = 95% bootstrap CI, K={results['k_runs']} runs/item). "
-            f"Most of the gain arrives by **{names[knee]}**; later rungs buy little "
-            "quality for their cost."
+            f"**Figure 1 — the reliability curve.** Yield, accuracy, coverage and "
+            f"determinism per cumulative rung (shaded = 95% bootstrap CI on accuracy, "
+            f"K={results['k_runs']} runs/item). Highest yield: **{names[best_y]}** "
+            f"({yld[best_y]:.3f}). Where accuracy climbs while yield falls, the rung is "
+            "buying its score by withholding answers — whether that's a good trade is "
+            "the Economics tab's question, not the curve's."
         )
 
         st.divider()
@@ -439,12 +460,22 @@ def dashboard_page():
                  - r["cost"]["dollars"] - d_human * r["cost"]["human_minutes"])
             utils.append(u)
         best = max(range(len(utils)), key=utils.__getitem__)
+        best_yield = max(range(len(rungs)), key=lambda i: yield_of(rungs[i]))
         fig = go.Figure(go.Bar(x=names, y=utils, marker_color=C_DET))
         fig.add_annotation(x=names[best], y=utils[best], text="recommended",
                            showarrow=True, arrowhead=2, ay=-35)
         st.plotly_chart(_chart_layout(fig, "net utility $ / item"), use_container_width=True)
         st.success(f"**Recommended rung: {names[best]}** — net utility "
-                   f"${utils[best]:.3f} per item under your economics.")
+                   f"${utils[best]:.3f} per field under your economics.")
+        if best != best_yield:
+            st.info(
+                f"Note: **{names[best_yield]}** has the highest raw yield "
+                f"({yield_of(rungs[best_yield]):.3f} of all fields correct), but "
+                f"**{names[best]}** wins under *your* costs — because you priced a wrong "
+                "answer at "
+                f"${c_wrong:.2f} versus ${c_abstain:.2f} for a missing one. Change those "
+                "sliders and the recommendation moves."
+            )
         st.caption("**Figure 4 — the flip.** net utility = value·correct − cost·wrong − "
                    "cost·abstain − compute$ − human$. Try both presets: cheap-error tasks "
                    "peak at a low rung; expensive-error tasks climb toward voting/human.")
@@ -490,6 +521,17 @@ def dashboard_page():
         st.markdown(f"""
 ### How each score is calculated
 
+**Yield — the headline number** — the share of **all** field slots that came out
+correct:
+
+> yield = accuracy_on_answered x coverage = (correct fields) ÷ (items x fields x K)
+
+Read this one first. Accuracy alone is a ratio over *answered* fields, so any
+layer that refuses to answer raises it mechanically — a rung can delete 18
+correct answers and 6 wrong ones, report higher accuracy, and leave you with
+fewer correct fields than before. Yield cannot be gamed that way: it only goes
+up when more fields are actually right.
+
 **Accuracy (on answered)** — every leaf field of every item is scored against the
 gold answer, in **all K={results['k_runs']} runs**:
 
@@ -527,10 +569,12 @@ P(abstain) = 1 − coverage.
     with tab_table:
         rows = [{
             "rung": r["rung"], "name": r["name"],
-            "determinism": r["determinism"]["field_agreement"],
+            "YIELD (correct/all)": round(yield_of(r), 4),
             "accuracy_on_answered": r["accuracy"]["accuracy_on_answered"],
             "coverage": r["accuracy"]["coverage"],
+            "determinism": r["determinism"]["field_agreement"],
             "$/item": r["cost"]["dollars"],
+            "latency_s/item": r["cost"].get("latency_s"),
             "human_min/item": r["cost"]["human_minutes"],
             "tokens": r["cost"].get("tokens"),
         } for r in rungs]
@@ -613,10 +657,14 @@ def _transition_story(t: dict, examples: list | None = None) -> tuple[str, dict]
                    "unchanged": unchanged, "total": total, "reformats": reformats}
 
 
-def _verdict(r: dict, counts: dict | None) -> str:
+def _verdict(r: dict, counts: dict | None, y: float, y_prev: float | None) -> str:
+    """Judge the rung on YIELD (correct out of all fields), not on accuracy —
+    accuracy rises whenever a layer withholds answers."""
     acc_d = r["accuracy"]["delta"]
     cost_d = r["cost"]["delta_dollars"]
     human = r["cost"]["human_minutes"]
+    y_d = (y - y_prev) if y_prev is not None else 0.0
+
     if counts is not None and counts["total"] and counts["unchanged"] == counts["total"]:
         if counts.get("reformats"):
             return ("**Verdict: no score effect — formatting only.** It standardized how "
@@ -626,18 +674,23 @@ def _verdict(r: dict, counts: dict | None) -> str:
         return ("**Verdict: no effect on this run.** The mechanism had nothing to act on "
                 "for this model + data — that's a finding, not a failure: you'd skip "
                 "this layer here.")
-    if human > 0:
-        return (f"**Verdict: quality bought with people's time** — {human:.1f} "
-                "human-min/item. Whether that pays depends on your economics tab.")
-    if acc_d > 0.005 and counts and (counts["screened"] + counts["withdrew"]) > 0:
-        return ("**Verdict: bought accuracy by refusing to answer.** Accuracy on what it "
-                f"still answers rose {acc_d:+.3f}, but it declined fields to get there — "
-                "check whether it withdrew more correct answers than errors above.")
-    if acc_d > 0.005:
-        return f"**Verdict: net win** — accuracy {acc_d:+.3f} at {cost_d:+.4f} $/item."
+    if y_d < -0.002 and acc_d > 0.002:
+        return (f"**Verdict: looks better, is worse.** Accuracy {acc_d:+.3f} but yield "
+                f"{y_d:+.3f} — it withheld more correct answers than errors, so fewer "
+                "fields are right than at the rung below. Only worth it if a wrong "
+                "answer costs you far more than a missing one (check Economics).")
+    if y_d < -0.002:
+        return (f"**Verdict: net loss** — yield {y_d:+.3f}. Fewer fields correct than "
+                "the rung below, at higher cost.")
+    if human > 0 and y_d > 0.002:
+        return (f"**Verdict: quality bought with people's time** — yield {y_d:+.3f} for "
+                f"{human:.1f} human-min/item. Whether that pays depends on Economics.")
+    if y_d > 0.002:
+        cost_txt = f"{cost_d:+.4f} $/item" if cost_d else "no extra $"
+        return f"**Verdict: genuine win** — yield {y_d:+.3f} at {cost_txt}."
     if cost_d > 0.0005 or (counts and counts["total"] and counts["unchanged"] < counts["total"]):
         return ("**Verdict: activity without measurable gain** — it changed outputs but "
-                "the scores didn't move. Cost without benefit on this run.")
+                "yield didn't move. Cost without benefit on this run.")
     return "**Verdict: neutral on this run.**"
 
 
@@ -649,25 +702,42 @@ def _ladder_walkthrough(dom: dict) -> None:
         "For each: how it works, what it costs, what it actually changed in this "
         "run, and whether it earned its place."
     )
+    by_rung_no = {r["rung"]: r for r in rungs}
     for r in rungs:
         st.divider()
         rung_no = r["rung"]
+        prev = by_rung_no.get(rung_no - 1)
         st.subheader(f"Rung {rung_no} — {r['name'].replace('_', ' ')}")
         st.caption(f"Adds: {RUNG_ADDS.get(rung_no, '')}")
         st.markdown(RUNG_MECHANISM.get(rung_no,
                     "**Bare model** — one call with your prompt, output taken as-is. "
                     "This is the baseline every layer above tries to improve."))
 
-        c = st.columns(4)
-        c[0].metric("accuracy (on answered)", f"{r['accuracy']['accuracy_on_answered']:.3f}",
-                    f"{r['accuracy']['delta']:+.3f}" if rung_no else None)
-        c[1].metric("coverage", f"{r['accuracy']['coverage']:.3f}")
-        c[2].metric("determinism", f"{r['determinism']['field_agreement']:.3f}",
+        y = yield_of(r)
+        y_prev = yield_of(prev) if prev is not None else None
+        c = st.columns(5)
+        c[0].metric("YIELD — correct of all fields", f"{y:.3f}",
+                    f"{y - y_prev:+.3f}" if y_prev is not None else None,
+                    help="accuracy x coverage. The honest headline: it cannot be raised "
+                         "by refusing to answer.")
+        c[1].metric("accuracy (answered only)", f"{r['accuracy']['accuracy_on_answered']:.3f}",
+                    f"{r['accuracy']['delta']:+.3f}" if rung_no else None,
+                    help="Ratio over answered fields — rises when a layer withholds answers.")
+        c[2].metric("coverage", f"{r['accuracy']['coverage']:.3f}",
+                    f"{r['accuracy']['coverage'] - prev['accuracy']['coverage']:+.3f}"
+                    if prev is not None else None)
+        c[3].metric("determinism", f"{r['determinism']['field_agreement']:.3f}",
                     f"{r['determinism']['delta']:+.3f}" if rung_no else None)
         cost_str = (f"${r['cost']['dollars']:.4f}" if r["cost"]["dollars"] > 0
                     else f"{r['cost']['latency_s']:.1f}s")
         extra = f" + {r['cost']['human_minutes']:.1f} human-min" if r["cost"]["human_minutes"] else ""
-        c[3].metric("cost / item", cost_str + extra)
+        c[4].metric("cost / item", cost_str + extra)
+        if y_prev is not None and r["accuracy"]["delta"] > 0.002 and y < y_prev - 0.002:
+            st.warning(
+                f"⚠️ Accuracy rose {r['accuracy']['delta']:+.3f} but yield **fell** "
+                f"{y - y_prev:+.3f} — this rung raised its score by withholding answers, "
+                "not by getting more right. Fewer fields are correct than before."
+            )
 
         counts = None
         if r.get("explain"):
@@ -702,7 +772,7 @@ def _ladder_walkthrough(dom: dict) -> None:
                 f"{a['determinism']['field_agreement']:.3f} — how much of this rung's "
                 "value needs the rungs below it."
             )
-        st.markdown(_verdict(r, counts))
+        st.markdown(_verdict(r, counts, y, y_prev))
 
 
 STATUS_MARK = {"correct": "✅", "wrong": "❌", "abstained": "—"}
@@ -736,9 +806,9 @@ def _outputs_browser(dom: dict, results_path: Path | None) -> None:
     k = c2.selectbox("Run (k)", ks)
     only_problems = c3.checkbox("Only fields that are wrong or unanswered somewhere",
                                 value=False)
-    show_values = c4.checkbox("Show values", value=False,
-                              help="Off: a compact status matrix where every rung fits "
-                                   "on screen. On: the actual value each rung produced.")
+    compact = c4.checkbox("Compact", value=False,
+                          help="On: status marks only, so every rung fits on screen. "
+                               "Off: the mark plus the value each rung produced.")
 
     with st.expander("The input document"):
         st.text(items[item_idx]["doc"])
@@ -767,10 +837,10 @@ def _outputs_browser(dom: dict, results_path: Path | None) -> None:
         for rn, cell in cells.items():
             if cell is None:
                 row[f"R{rn}"] = ""
-            elif show_values:
-                row[f"R{rn}"] = f"{STATUS_MARK[cell['status']]} {short(cell['value'])}"
-            else:
+            elif compact:
                 row[f"R{rn}"] = STATUS_MARK[cell["status"]]
+            else:
+                row[f"R{rn}"] = f"{STATUS_MARK[cell['status']]} {short(cell['value'], 32)}"
         rows.append(row)
 
     if not rows:
@@ -779,9 +849,9 @@ def _outputs_browser(dom: dict, results_path: Path | None) -> None:
         st.dataframe(rows, use_container_width=True,
                      height=min(600, 60 + 35 * len(rows)))
         st.caption("Columns R0–R6 are the rungs. Read a row left to right to see one "
-                   "field's fate through the ladder." if not show_values else
-                   "Values are truncated for display; the full values are in the "
-                   "outputs file.")
+                   "field's fate through the ladder. " + ("" if compact else
+                   "Values are truncated for display; full values are in the outputs "
+                   "file. Widen a column by dragging its edge, or tick Compact."))
 
     st.markdown("**Status count per rung, for this item and run:**")
     counts_rows = []
@@ -858,13 +928,12 @@ def _rung_internals(r: dict, counts: dict | None) -> None:
             st.caption("No fields were escalated — the human had nothing to review.")
 
 
-def _knee_index(det: list[float], acc: list[float]) -> int:
-    """Elbow method: the rung farthest above the first→last chord of the
-    quality curve — where marginal gains start flattening."""
-    q = [(d + a) / 2 for d, a in zip(det, acc)]
+def _knee_index(q: list[float]) -> int:
+    """Elbow method on the yield curve: the rung farthest above the first→last
+    chord — where marginal gains start flattening."""
     n = len(q) - 1
     if n < 1 or q[n] <= q[0]:
-        return 0
+        return max(range(len(q)), key=q.__getitem__)
     slope = (q[n] - q[0]) / n
     dists = [v - (q[0] + slope * i) for i, v in enumerate(q)]
     return max(range(len(q)), key=dists.__getitem__)
