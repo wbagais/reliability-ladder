@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bench.llm import DEFAULT_CACHE_DIR, LLMClient
 from bench.metrics import apply_deltas, explain_transitions, score_rung
-from bench.pipeline import RUNG_NAMES, HumanResolver, run_item
+from bench.pipeline import CONF_THRESHOLD, RUNG_NAMES, HumanResolver, run_item
 from schemas.adapter import Dataset
 
 RESULTS_SCHEMA_PATH = Path(__file__).resolve().parents[1] / "schemas" / "results.schema.json"
@@ -50,6 +50,7 @@ def run_benchmark(
     human_resolver: HumanResolver | None = None,
     client: LLMClient | None = None,  # injectable for tests (fake LLM)
     save_outputs: bool = False,       # write the per-field outputs sidecar
+    conf_threshold: float = CONF_THRESHOLD,   # rung-2 abstention gate
 ) -> dict:
     rungs = rungs if rungs is not None else list(range(7))
     items = dataset.items[:n_items] if n_items else dataset.items
@@ -76,7 +77,8 @@ def run_benchmark(
             for ki in range(k):
                 k_outputs.append(
                     run_item(client, ds, item, layers, sample_index=ki,
-                             human_resolver=human_resolver)
+                             human_resolver=human_resolver,
+                             conf_threshold=conf_threshold)
                 )
                 step += 1
                 if progress:
@@ -93,7 +95,8 @@ def run_benchmark(
     from bench.diagnostics import abstention_calibration, escalation_reasons, voting_variants
 
     if "rung2" in scored and "rung0" in raw_runs:
-        scored["rung2"]["diagnostics"] = abstention_calibration(ds, raw_runs["rung0"])
+        scored["rung2"]["diagnostics"] = abstention_calibration(
+            ds, raw_runs["rung0"], conf_threshold)
     if "rung5" in scored:
         scored["rung5"]["diagnostics"] = voting_variants(client, ds, k)
     if "rung6" in scored and "rung5" in raw_runs:
@@ -123,6 +126,7 @@ def run_benchmark(
         "model": model_spec,
         "temperature": 0.0,
         "k_runs": k,
+        "conf_threshold": conf_threshold,
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "domains": [
             {

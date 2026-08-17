@@ -379,10 +379,10 @@ def dashboard_page():
     dollars = [r["cost"]["dollars"] for r in rungs]
     human_min = [r["cost"]["human_minutes"] for r in rungs]
 
-    (tab_ladder, tab_outputs, tab_curve, tab_econ, tab_compose,
+    (tab_ladder, tab_outputs, tab_calib, tab_curve, tab_econ, tab_compose,
      tab_method, tab_table) = st.tabs(
-        ["🪜 Rung by rung", "🔍 Outputs", "The curve", "Economics", "Composer",
-         "Method", "Table"]
+        ["🪜 Rung by rung", "🔍 Outputs", "🎚️ Calibration", "The curve",
+         "Economics", "Composer", "Method", "Table"]
     )
 
     # ---- the walkthrough: how each rung works and what it did ------------
@@ -454,6 +454,10 @@ def dashboard_page():
         st.plotly_chart(_chart_layout(fig2, "accuracy (on answered)"), use_container_width=True)
         st.caption("**Figure 2 — the cost frontier.** Accuracy vs compute cost per item; "
                    "points are rungs 0→6. A flat segment = paying more for the same quality.")
+
+    # ---- calibration: where should the abstention gate sit? --------------
+    with tab_calib:
+        _calibration_tab(results, dom, results_path)
 
     # ---- economics -------------------------------------------------------
     with tab_econ:
@@ -799,6 +803,115 @@ def _ladder_walkthrough(dom: dict) -> None:
 
 
 STATUS_MARK = {"correct": "✅", "wrong": "❌", "abstained": "—"}
+
+
+def _calibration_tab(results: dict, dom: dict, results_path: Path | None) -> None:
+    """Risk–coverage: pick the abstention gate for THIS model, from this run."""
+    from bench.calibration import best_yield, free_lunch, sweep
+    from bench.outputs import read_outputs, sidecar_path
+
+    st.markdown(
+        "Rung 2 blanks a field when its confidence falls below a gate. The "
+        "default **0.7 is only a guess** — a model whose confidence never drops "
+        "below 0.8 will never abstain, and the layer looks useless when the "
+        "signal was there all along. This tab finds the gate for *your* model, "
+        "from a run you already paid for."
+    )
+    path = None
+    if results_path is not None:
+        cand = results_path.parent / dom["outputs_file"] if dom.get("outputs_file") \
+            else sidecar_path(results_path)
+        if cand.exists():
+            path = cand
+    if path is None:
+        st.info("Needs the per-field outputs sidecar — re-run with outputs enabled.")
+        return
+
+    recs = read_outputs(path, include_ablations=True)
+    sources = {}
+    if any(r["rung"] == 0 and not r["ablation"] for r in recs):
+        sources["model's self-reported confidence (rung 0)"] = [
+            f for r in recs if r["rung"] == 0 and not r["ablation"] for f in r["fields"]]
+    if any(r["rung"] == 5 and r["ablation"] for r in recs):
+        sources["agreement across the 5 prompt variants (voting)"] = [
+            f for r in recs if r["rung"] == 5 and r["ablation"] for f in r["fields"]]
+    if not sources:
+        st.info("This run has no rung-0 or voting outputs to calibrate against.")
+        return
+
+    signal = st.radio("Which confidence signal should the gate use?",
+                      list(sources), horizontal=False)
+    fields = sources[signal]
+    rows = sweep(fields)
+    if not rows:
+        st.warning("No fields to analyse.")
+        return
+
+    taus = [r["threshold"] for r in rows]
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=taus, y=[r["yield"] for r in rows], name="yield",
+                             line=dict(color=C_YIELD, width=3)))
+    fig.add_trace(go.Scatter(x=taus, y=[r["coverage"] for r in rows], name="coverage",
+                             line=dict(color=C_MUTED, width=2, dash="dot")))
+    fig.add_trace(go.Scatter(x=taus, y=[r["error_rate"] for r in rows],
+                             name="error rate among kept answers",
+                             line=dict(color=C_ACC, width=2)))
+    current = results.get("conf_threshold", 0.7)
+    fig.add_vline(x=current, line_dash="dash", line_color=C_DET,
+                  annotation_text=f"this run's gate ({current})")
+    fig.update_xaxes(title="confidence threshold")
+    st.plotly_chart(_chart_layout(fig, "score (0–1)"), use_container_width=True)
+    st.caption("**Figure — risk–coverage.** As the gate rises, coverage falls and "
+               "the error rate among the answers you keep falls with it. Yield is "
+               "what you actually take home; where it stays flat while the error "
+               "rate drops, you are screening errors for free.")
+
+    lunch, best = free_lunch(rows), best_yield(rows)
+    c1, c2 = st.columns(2)
+    with c1:
+        if lunch:
+            st.success(
+                f"**Free-lunch gate: {lunch['threshold']:.2f}** — screens "
+                f"{lunch['errors_screened']} errors while losing **zero** correct "
+                f"answers. Coverage {lunch['coverage']:.3f}, error rate among kept "
+                f"answers {lunch['error_rate']:.3f} (yield unchanged at "
+                f"{lunch['yield']:.3f})."
+            )
+        else:
+            st.warning("**No free-lunch gate exists for this signal** — every "
+                       "threshold that screens an error also discards a correct "
+                       "answer. The confidence signal isn't separating them.")
+    with c2:
+        st.info(f"**Highest-yield gate: {best['threshold']:.2f}** — yield "
+                f"{best['yield']:.3f}, coverage {best['coverage']:.3f}. (Yield "
+                "alone ignores what a wrong answer costs you; use Economics to "
+                "price that.)")
+
+    st.markdown("**Try a gate:**")
+    tau = st.slider("threshold", 0.0, 1.0, float(lunch["threshold"] if lunch else current),
+                    step=0.02)
+    row = min(rows, key=lambda r: abs(r["threshold"] - tau))
+    m = st.columns(5)
+    m[0].metric("yield", f"{row['yield']:.3f}")
+    m[1].metric("coverage", f"{row['coverage']:.3f}")
+    m[2].metric("error rate (kept)", f"{row['error_rate']:.3f}")
+    m[3].metric("errors screened", row["errors_screened"])
+    m[4].metric("correct answers lost", row["correct_lost"])
+    st.caption(
+        f"To apply it, re-run with this gate — every call is cached, so it costs "
+        f"nothing new:\n\n"
+        f"`python -m bench.cli run --data <your data> --model {results['model']} "
+        f"--k {results['k_runs']} --conf-threshold {row['threshold']:.2f}`"
+    )
+
+    with st.expander("The full sweep"):
+        st.dataframe([{
+            "threshold": r["threshold"], "yield": round(r["yield"], 4),
+            "coverage": round(r["coverage"], 4),
+            "error rate (kept)": round(r["error_rate"], 4),
+            "errors screened": r["errors_screened"],
+            "correct lost": r["correct_lost"],
+        } for r in rows], use_container_width=True, height=400)
 
 
 def _outputs_browser(dom: dict, results_path: Path | None) -> None:
