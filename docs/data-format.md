@@ -28,8 +28,15 @@ sees `gold`; it's only used to score the model's answers.
 
 ## output_schema
 
-A standard JSON Schema describing the output object. Nesting and arrays are
-allowed; every leaf becomes a scored field.
+A standard JSON Schema describing the output. Nesting and arrays are allowed —
+including a **top-level array** (`"type": "array"` with `"items"`) — and every
+leaf becomes a scored field (e.g. `materialDocument[0].weight.value`).
+
+File `$ref`s (e.g. `"$ref": "./common/measuring.json"`) are resolved relative
+to your data JSON when loading through the CLI. The app's browser upload can't
+see sibling files, so for app uploads inline the referenced schemas first (an
+unresolvable ref degrades gracefully: those fields are simply compared as
+text instead of by declared type).
 
 - `"type": "number"` or `"format": "currency"` → values are compared numerically
   ("RM42.00" equals 42.0).
