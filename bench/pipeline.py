@@ -51,6 +51,7 @@ def run_item(
     layers: set[int],
     sample_index: int = 0,
     human_resolver: HumanResolver | None = None,
+    conf_threshold: float = CONF_THRESHOLD,
 ) -> RunnerOutput:
     schema = dataset.output_schema
     prompt = dataset.prompt or (
@@ -138,7 +139,7 @@ def run_item(
     # stands, since 3-of-5 agreement is the signal voting exists to use.
     abstained: set[str] = set()
     if 2 in layers:
-        threshold = 0.5 if 5 in layers else CONF_THRESHOLD
+        threshold = 0.5 if 5 in layers else conf_threshold
         for p in gold_paths:
             node = schema_node_for_path(schema, p)
             bad_format = values[p] is not None and not format_ok(values[p], node)
@@ -162,7 +163,7 @@ def run_item(
     if 6 in layers:
         escalated = [
             p for p in gold_paths
-            if values[p] is None or verdicts[p] == "conflicts" or confs[p] < CONF_THRESHOLD
+            if values[p] is None or verdicts[p] == "conflicts" or confs[p] < conf_threshold
         ]
         if escalated:
             human_minutes = HUMAN_MINUTES_PER_ITEM

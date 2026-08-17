@@ -4,8 +4,28 @@ Regression: escalations cached in Streamlit session state survived into a later
 run with fewer items, so `ds.items[e["item"]]` raised IndexError.
 """
 
-from app.review import escalations_fit, resolver_index
+from datetime import datetime
+from pathlib import Path
+
+from app.review import escalations_fit, resolver_index, run_output_path
 from schemas.adapter import Item
+
+
+def test_run_output_path_is_unique_per_run():
+    """Regression: the app wrote every run to results.json, so a small run
+    silently destroyed a finished 60-item benchmark."""
+    d = Path("/tmp/results")
+    a = run_output_path(d, "sroie", 60, 10, now=datetime(2026, 8, 17, 3, 9, 13))
+    b = run_output_path(d, "sop_materials", 3, 3, now=datetime(2026, 8, 17, 4, 0, 0))
+    assert a.name == "sroie_60x10_20260817-030913.json"
+    assert b.name == "sop_materials_3x3_20260817-040000.json"
+    assert a != b
+
+
+def test_run_output_path_sanitises_domain():
+    p = run_output_path(Path("/tmp"), "My Task/v2!", 5, 2,
+                        now=datetime(2026, 1, 1, 0, 0, 0))
+    assert p.name == "my_task_v2_5x2_20260101-000000.json"
 
 
 def test_escalations_fit_current_run():

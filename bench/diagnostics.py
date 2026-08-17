@@ -27,7 +27,8 @@ def _mean(vals):
     return round(sum(vals) / len(vals), 4) if vals else None
 
 
-def abstention_calibration(dataset: Dataset, rung0_runs: list[list[RunnerOutput]]) -> dict:
+def abstention_calibration(dataset: Dataset, rung0_runs: list[list[RunnerOutput]],
+                           threshold: float = CONF_THRESHOLD) -> dict:
     """Is the model's self-reported confidence a usable abstention signal?"""
     conf_correct, conf_wrong = [], []
     for item, k_outputs in zip(dataset.items, rung0_runs):
@@ -40,13 +41,13 @@ def abstention_calibration(dataset: Dataset, rung0_runs: list[list[RunnerOutput]
                 (conf_correct if values_match(f.value, gold.get(f.field), node)
                  else conf_wrong).append(f.confidence)
     return {
-        "threshold": CONF_THRESHOLD,
+        "threshold": threshold,
         "n_correct": len(conf_correct),
         "n_wrong": len(conf_wrong),
         "mean_conf_correct": _mean(conf_correct),
         "mean_conf_wrong": _mean(conf_wrong),
-        "wrong_above_threshold": sum(c >= CONF_THRESHOLD for c in conf_wrong),
-        "correct_below_threshold": sum(c < CONF_THRESHOLD for c in conf_correct),
+        "wrong_above_threshold": sum(c >= threshold for c in conf_wrong),
+        "correct_below_threshold": sum(c < threshold for c in conf_correct),
     }
 
 

@@ -51,6 +51,7 @@ def cmd_run(args) -> int:
         out=args.out,
         progress=progress,
         save_outputs=not args.no_outputs,
+        conf_threshold=args.conf_threshold,
     )
     print(f"\nwrote {args.out}")
     for r in results["domains"][0]["rungs"]:
@@ -82,6 +83,9 @@ def main() -> int:
     r.add_argument("--no-ablations", action="store_true")
     r.add_argument("--smoke", action="store_true", help="10 items, K=3")
     r.add_argument("--out", default="results.json")
+    r.add_argument("--conf-threshold", type=float, default=0.7,
+                   help="rung-2 abstention gate; calibrate it in the app's "
+                        "Calibration tab (default 0.7)")
     r.add_argument("--no-outputs", action="store_true",
                    help="skip the per-field outputs sidecar (large private runs)")
     r.set_defaults(fn=cmd_run)
