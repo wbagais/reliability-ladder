@@ -25,7 +25,35 @@ bench (runs each rung via Runner contract, logs cost + quality)
 app (loads results.json + user economics → recommended rung + composer)
 ```
 
-## The 3 contracts (freeze Week 1 — see /schemas)
+## Quick start
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install openai streamlit plotly jsonschema pytest pyyaml
+
+# 1. build the SROIE dataset (one-time; needs data/SROIE2019 downloaded)
+.venv/bin/python -m bench.adapters.sroie --raw data/SROIE2019 --out data/sroie_v1.json
+
+# 2. check any data file (yours too — see docs/data-format.md)
+.venv/bin/python -m bench.cli validate data/sroie_v1.json
+
+# 3. run the ladder (local model, all 7 rungs + ablations)
+.venv/bin/python -m bench.cli run --data data/sroie_v1.json \
+    --model ollama/gpt-oss:20b --smoke          # 10 items, K=3 sanity pass
+.venv/bin/python -m bench.cli run --data data/sroie_v1.json \
+    --model ollama/gpt-oss:20b --k 10           # the real curve
+
+# hosted APIs are registry entries in bench/models.yaml, e.g.:
+#   GEMINI_API_KEY=... --model gemini/gemini-2.5-flash
+
+# 4. the app (setup form + dashboard; also runs the bench itself)
+.venv/bin/streamlit run app/streamlit_app.py
+```
+
+Every LLM call is disk-cached (`.llm_cache/`): re-runs are free and interrupted
+runs resume. Temperature is locked to 0 everywhere (see docs/decisions.md).
+Bring your own data: `docs/data-format.md` + `data/example_upload.json`.
+
+## The 3 contracts (frozen — see /schemas; v2 revision logged in docs/decisions.md)
 
 1. **runner.py** — every rung's input/output signature. Rungs are interchangeable.
 2. **results.schema.json** — the benchmark→app handoff. A writes it, B reads it.

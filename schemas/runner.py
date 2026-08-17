@@ -11,12 +11,14 @@ core coordination surface between A's rungs (0-2) and B's rungs (3-6).
 from dataclasses import dataclass
 from typing import Literal, Protocol
 
-Verdict = Literal["matches", "conflicts", "not_found"]
+Verdict = Literal["matches", "conflicts", "not_found", "n_a"]
+# "n_a" (v2, 2026-08-16): pure-extraction tasks have no trusted record to
+# verify against, so verdicts don't apply. See docs/decisions.md.
 
 
 @dataclass
 class FieldResult:
-    field: str
+    field: str                  # leaf path, e.g. "vendor.name" or "lines[0].price"
     value: str | None          # extracted value, None if abstained/not found
     verdict: Verdict
     confidence: float           # 0.0 - 1.0
@@ -38,10 +40,10 @@ class RunnerOutput:
 
 
 class Runner(Protocol):
-    """A rung. Takes one document + its trusted record, returns results + cost."""
+    """A rung. Takes one document (+ optional trusted record), returns results + cost."""
 
     rung: int
     name: str
 
-    def run(self, doc: str, record: dict) -> RunnerOutput:
+    def run(self, doc: str, record: dict | None) -> RunnerOutput:
         ...
