@@ -18,6 +18,7 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
+from app.review import escalations_fit, resolver_index
 from bench.adapters.user_upload import load_dataset, validate
 from bench.flatten import flatten_json, schema_field_names
 from bench.harness import run_benchmark
@@ -211,6 +212,10 @@ def setup_page():
 
     # ---- run ------------------------------------------------------------
     if st.button("▶ Run the ladder", type="primary"):
+        # a new run invalidates any review state from a previous one — stale
+        # escalations point at items this run may not even have
+        for key in ("escalations", "review_t0", "review_pending"):
+            st.session_state.pop(key, None)
         prog = st.progress(0.0, text="starting…")
 
         def cb(msg, frac):
@@ -252,7 +257,11 @@ def review_queue():
     ds = load_dataset(ctx["raw"])
     ds.items = ds.items[: ctx["n_items"]]
 
-    if "escalations" not in st.session_state:
+    # recompute if absent, or if cached escalations don't fit this run's items
+    esc = st.session_state.get("escalations")
+    if esc is not None and not escalations_fit(esc, len(ds.items)):
+        esc = None
+    if esc is None:
         from bench.llm import LLMClient
 
         client = LLMClient(ctx["model_spec"], api_key=ctx["api_key"])
@@ -265,8 +274,6 @@ def review_queue():
                                 "confidence": f.confidence})
         st.session_state["escalations"] = esc
         st.session_state["review_t0"] = time.monotonic()
-
-    esc = st.session_state["escalations"]
     if not esc:
         st.info("Nothing was escalated — rungs 0–5 answered everything confidently.")
         st.session_state.pop("review_pending")
@@ -291,10 +298,11 @@ def review_queue():
     minutes = (time.monotonic() - st.session_state["review_t0"]) / 60
     per_item_minutes = minutes / len({e["item"] for e in esc})
     lookup = {(e["item"], e["path"]): (answers[i] or None) for i, e in enumerate(esc)}
-    idx_of = {id(it): i for i, it in enumerate(ds.items)}
+    idx_of = resolver_index(ds.items)
 
     def resolver(item, path, value, conf):
-        return lookup.get((idx_of[id(item)], path), value)
+        idx = idx_of.get(item.doc)
+        return lookup.get((idx, path), value) if idx is not None else value
 
     import bench.pipeline as pl
 
