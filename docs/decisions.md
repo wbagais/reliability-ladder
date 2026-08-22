@@ -269,3 +269,76 @@ Model-free, whole corpus, 8,666 coded records per corruption.
   ignored its `rung` argument and counted every row in the run. It was only used
   in the fixture, where every row happened to be rung 1, so it had never been
   wrong yet. Now scoped, with a test.
+
+### Merging the GitLab scaffolding repo — 2026-08-22
+
+- 2026-08-22 — MERGED `git@gitlab.com:pushpdeep/ai-reliability-ladder.git`
+  (`partner/main`, unrelated histories). It is a scaffolding overlay, not a
+  competing fork: only three paths overlapped, and its README already describes
+  this repo's `bench/ app/ schemas/ data/ docs/ tests/` layout. Brought in
+  `scripts/preflight.py` + GitLab CI, `LICENSE`, pinned `requirements.txt`,
+  `SETUP.md`, `CLAUDE.md`, `docs/plan.html` (v17), `manifest.template.json`,
+  `bench/vocab.py`, `bench/ladder_ab.py`, `data/meddra_codes.example.csv`.
+- 2026-08-22 — BUG FOUND IN THE MERGED `.gitignore`, and it was licence-critical:
+  git only treats `#` as a comment at the START of a line, so
+  `data/*_v1.json   # built datasets embed document text` is a pattern that
+  matches nothing. Three lines were inert for that reason — `data/*_v1.json`
+  (a built CADEC dataset embeds post text and would NOT have been ignored),
+  `!data/sroie_v1.json`, and `*.ipynb`. All comments now sit on their own line
+  and the patterns are asserted against real paths.
+- 2026-08-22 — PREFLIGHT EARNED ITS PLACE ON ITS FIRST RUN: it flagged a
+  ~30-word CADEC quotation in `ladder/fixture.py`'s docstring. A code comment is
+  a committed file. Trimmed to the one clause the plan itself uses as its
+  worked example.
+- 2026-08-22 — v17 SUPERSEDES v16 ON LAYOUT. v16 §8.1 specifies a separate
+  `ladder/` package, which is what this branch built. v17 §2 folds CADEC into
+  the existing `bench/` as `bench/adapters/cadec.py` + `bench/vocab.py` as a
+  global resource, and adds a `resources` hook to the runner contract as "the
+  one extension CADEC needs". Both now exist in the tree. Not reconciled
+  unilaterally — see the open question at the end of this section.
+
+#### THE INTEGRATION FINDING: the two vocabulary backends disagree on 24% of gold
+
+`bench/vocab.py` (EBI OLS4 over the network) and `ladder/registry.py` (a local
+SNOMED CT RF2 release) answer the same three rung-1 questions and are
+interchangeable in principle. They are not in practice.
+
+Measured over all 8,666 CADEC gold mentions that carry an SCT code
+(`python -m ladder.vocab_crosscheck --live 40`):
+
+    6,593  76.1%  active international — both backends agree
+    1,420  16.4%  active, but AU-extension module only — invisible to OLS4
+      648   7.5%  retired — OLS4 indexes active concepts only
+        5   0.1%  absent from both
+
+**An OLS4-backed `exists()` reports 23.9% of the gold standard as codes that do
+not exist.** The local RF2 index reports 5. Split by entity type: reactions
+5.9% affected, drugs **100.0%** — because CADEC codes drugs to AMT, the
+Australian Medicines Terminology, which is an extension module that the
+international release OLS4 serves does not contain at all.
+
+This is a property of the SOURCE, not a bug in either implementation, and it
+cannot be patched: OLS4 cannot serve AMT. The offline classifier predicted
+OLS4's answer correctly on 40/40 sampled codes, so the 23.9% is not an estimate.
+
+Consequences, in order of importance:
+
+1. A rung 1 built on OLS4 would report a ~24% rejection rate on a *perfect*
+   answer set. That is the same failure this branch spent the day removing
+   (9.3% → 0.13%), arriving from a different direction.
+2. **Any drug-code check needs the AU release.** There is no configuration of
+   OLS4 that can validate an AMT code.
+3. Retired concepts are the recurring theme: OLS4 drops them, and a naive
+   active-only hierarchy walk cannot place them. Both cost ~7% of gold.
+
+Not resolved here, because `bench/vocab.py` is not this owner's file. The
+measurement is a runnable script rather than an assertion so it can be checked
+rather than argued.
+
+#### Open question for the joint block
+
+Two implementations of rung 1 and of the vocabulary now sit in the tree:
+`ladder/` (this branch, local RF2, measured) and `bench/vocab.py` +
+`bench/ladder_ab.py` (the scaffolding, OLS4). v17's layout says the CADEC track
+should live in `bench/` as an adapter. Reconciling them is a joint decision, not
+a merge conflict — deliberately left for one.

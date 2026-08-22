@@ -354,7 +354,45 @@ will score perfectly and tell you nothing.* The tell is cheap to check — count
 how many entries in your reference list never appear in your answer key. Here
 the answer was zero.
 
-### 4.7 The plan's record shape encoded the claim its own safety constraint forbade
+### 4.7 The same check, two vocabulary sources, 24% disagreement
+
+Merging the partner's scaffolding put a second implementation of rung 1's
+vocabulary questions in the tree: `bench/vocab.py` queries EBI OLS4 over the
+network — free, no key, no 5 GB download, which is a genuinely better
+onboarding story than ours. Same three questions, interchangeable in principle.
+
+Cross-checking them over all 8,666 CADEC gold mentions that carry a code:
+
+| | | |
+|---|---|---|
+| 6,593 | 76.1% | active international — both agree |
+| 1,420 | 16.4% | active, but AU-extension only — invisible to OLS4 |
+| 648 | 7.5% | retired — OLS4 indexes active concepts only |
+| 5 | 0.1% | absent from both |
+
+**An OLS4-backed `exists()` calls 23.9% of the answer key hallucinated.** The
+local release calls 5 of 8,666 hallucinated. Reactions 5.9% affected, drugs
+**100%** — CADEC codes drugs to AMT, the Australian Medicines Terminology, which
+is an extension module the international release simply does not contain.
+
+Two things make this worth a paragraph in the article rather than a footnote.
+
+First, **it is not a bug in either implementation.** Both correctly report what
+their source knows. The source decides the answer, and a reader who swaps one
+free vocabulary API for another gets a completely different rung 1 rejection rate
+with no code change and no error message. The version pin in the manifest is not
+bureaucracy; it is the difference between 0.06% and 24%.
+
+Second, **it reproduces §4.2 and §4.3 from a third direction.** Retired concepts
+again: OLS4 drops them, and an active-only hierarchy walk cannot place them.
+Three independent ways to get the same 7% wrong, all of them looking exactly like
+model error. If a measurement study has one recurring failure mode, on this
+corpus it is *the vocabulary moved and nobody noticed*.
+
+The offline classifier predicted OLS4's answer on 40/40 sampled codes, so the
+figure is measured, not estimated: `python -m ladder.vocab_crosscheck --live 40`.
+
+### 4.8 The plan's record shape encoded the claim its own safety constraint forbade
 
 The plan's example record pairs `drug_text` with `reaction_text` in one object.
 Its own safety constraint 3 says drug and reaction mentions are extracted
@@ -375,7 +413,7 @@ types collapse to `reaction`; only reaction-vs-drug is asked for or scored.
 data model three pages later. The ones that hold are the ones with no way to
 express the forbidden thing — a missing interface, not a warning.
 
-### 4.8 Corpus facts the plan got wrong, and what they cost
+### 4.9 Corpus facts the plan got wrong, and what they cost
 
 | plan says | corpus says | consequence |
 |---|---|---|
@@ -396,7 +434,7 @@ And: **CADEC's own gold fails span grounding 4 times in 9,111** — `rena  failu
 cheapest check on the ladder can never get below on this corpus. Every benchmark
 has one; almost nobody reports it.
 
-### 4.9 Replacing the critical-path dependency instead of mitigating it
+### 4.10 Replacing the critical-path dependency instead of mitigating it
 
 The plan names vocabulary lookup as the critical path, puts "no working
 vocabulary lookup" at the top of its risk table, and routes it through the
@@ -413,7 +451,7 @@ the risk's cause, not to plan around it. The plan's mitigation (cache every
 response, never call twice) is good engineering for a dependency that did not
 need to exist.
 
-### 4.10 Process choices that paid for themselves
+### 4.11 Process choices that paid for themselves
 
 - **The fixture gate caught our own wrong expectation on its first run.** Ten
   hand-made records against one real archived post, several deliberately broken.
@@ -522,6 +560,8 @@ python -m ladder.probe --split all --json out/rung1_detection.json
 python -m ladder.probe --split all --lexical-mode contained --json out/rung1_detection_contained.json
 python -m ladder.probe --split all --meddra-check reject --json out/rung1_detection_meddra.json
 python -m ladder.run ladder --split test --source gold --run-id gold_control
+python -m ladder.vocab_crosscheck --live 40
+python scripts/preflight.py --history
 ```
 
 Track 1's numbers are in `docs/decisions.md` and reproduce from the cached run in

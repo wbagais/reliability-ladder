@@ -378,7 +378,7 @@ footer{
     <div class="rail"><b>03</b>Iterations<div class="note">The differentiator. Most measurement pieces present the finished number; the value is in the corrections.</div></div>
     <div class="col">
       <h2>What we changed, and why</h2>
-      <p class="lede">Rung 1 as the plan specifies it rejected <strong>9.3% of the gold standard</strong>. A validation gate with a 9% false-positive rate does not measure a model — it manufactures errors, and every rung above inherits them. Three causes, all fixed. Then two more changes: rung 1 stopped filtering, and a vocabulary turned out to be the answer key wearing a hat.</p>
+      <p class="lede">Rung 1 as the plan specifies it rejected <strong>9.3% of the gold standard</strong>. A validation gate with a 9% false-positive rate does not measure a model — it manufactures errors, and every rung above inherits them. Three causes, all fixed. Then three more: rung 1 stopped filtering, one vocabulary turned out to be the answer key wearing a hat, and a second one disagreed with the first about a quarter of the corpus.</p>
 
       <div class="iter">
         <h3>1 · The plan said negation was a free win. The corpus said it rejects 4.7% of correct answers.</h3>
@@ -459,6 +459,34 @@ footer{
           <dd>MedDRA is wired in properly — table, sixth check, fixture cases, probe class — and <code>meddra_check</code> defaults to <code>"flag"</code>: recorded and counted in rung 1's comparison, never a rejection reason. <code>"reject"</code> is one manifest line away and the leakage figure prints wherever the number appears.</dd>
           <dt>Why it matters</dt>
           <dd>A 1.000 is the most seductive number a benchmark can produce, and this one is worthless. The general form: <strong>if your validator's reference data was derived from your evaluation data, your validator will score perfectly and tell you nothing.</strong> The tell is cheap — count how many entries in your reference list never appear in your answer key. Here it was zero.</dd>
+        </dl>
+      </div>
+
+      <div class="iter">
+        <h3>6 · The same check, two vocabulary sources, 24% disagreement</h3>
+        <dl>
+          <dt>Setup</dt>
+          <dd>Merging the partner's scaffolding put a second implementation of rung 1's vocabulary questions in the tree: <code>bench/vocab.py</code> queries EBI OLS4 over the network — free, no key, no 5&nbsp;GB download, a genuinely better onboarding story than ours. Same three questions, interchangeable in principle.</dd>
+          <dt>Data</dt>
+          <dd>
+            <div class="scroll" style="margin-bottom:0">
+              <table>
+                <thead><tr><th class="num">mentions</th><th class="num">share</th><th>class</th></tr></thead>
+                <tbody>
+                  <tr><td class="num">6,593</td><td class="num">76.1%</td><td>active international — both agree</td></tr>
+                  <tr><td class="num">1,420</td><td class="num">16.4%</td><td>active, but AU-extension only — invisible to OLS4</td></tr>
+                  <tr><td class="num">648</td><td class="num">7.5%</td><td>retired — OLS4 indexes active concepts only</td></tr>
+                  <tr><td class="num">5</td><td class="num">0.1%</td><td>absent from both</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </dd>
+          <dt>The number</dt>
+          <dd>An OLS4-backed <code>exists()</code> calls <strong>23.9% of the answer key hallucinated</strong>. The local release calls 5 of 8,666 hallucinated. Reactions 5.9% affected; drugs <strong>100%</strong> — CADEC codes drugs to AMT, the Australian Medicines Terminology, an extension module the international release does not contain.</dd>
+          <dt>Not a bug</dt>
+          <dd>Both implementations correctly report what their source knows. <strong>The source decides the answer</strong>, and a reader who swaps one free vocabulary API for another gets a completely different rung 1 rejection rate with no code change and no error message. The version pin in the manifest is not bureaucracy; it is the difference between 0.06% and 24%.</dd>
+          <dt>Why it matters</dt>
+          <dd>It reproduces iterations 2 and 3 from a third direction — retired concepts again. Three independent ways to get the same 7% wrong, every one of them looking exactly like model error. If this study has one recurring failure mode, it is <em>the vocabulary moved and nobody noticed</em>. Verified live: the offline classifier predicted OLS4's answer on 40/40 sampled codes.</dd>
         </dl>
       </div>
 
@@ -574,7 +602,9 @@ python -m ladder.calibrate --split all --sweep --json out/rung1_floor.json
 python -m ladder.probe     --split all           --json out/rung1_detection.json
 python -m ladder.probe     --split all --lexical-mode contained
 python -m ladder.probe     --split all --meddra-check reject
-python -m ladder.run ladder --split test --source gold --run-id gold_control</code></pre>
+python -m ladder.run ladder --split test --source gold --run-id gold_control
+python -m ladder.vocab_crosscheck --live 40
+python scripts/preflight.py --history</code></pre>
       <p>Track 1's numbers live in <code>docs/decisions.md</code> and replay from the cached run. Neither corpus is redistributable: CADEC carries the CSIRO Data Licence — non-commercial and non-transferable — and SNOMED needs an affiliate licence. See <code>docs/licences.md</code>.</p>
     </div>
   </div>

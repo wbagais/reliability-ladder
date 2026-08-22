@@ -122,6 +122,35 @@ not a rejection reason; `MeddraTable.leakage()` prints the caveat wherever the
 number appears. Point `vocabulary.meddra_csv` at a subscription release and
 `"reject"` becomes honest.
 
+## Two vocabulary backends, and they disagree on 24% of gold
+
+The merged scaffolding brings `bench/vocab.py` (EBI OLS4 over the network, free,
+no download) alongside `ladder/registry.py` (a local SNOMED CT RF2 release
+indexed into SQLite). Same three questions, interchangeable in principle:
+
+```bash
+python -m ladder.vocab_crosscheck --live 40
+```
+
+Over all 8,666 CADEC gold mentions carrying an SCT code:
+
+| | | |
+|---|---|---|
+| 6,593 | 76.1% | active international — both backends agree |
+| 1,420 | 16.4% | active, but AU-extension module only — invisible to OLS4 |
+| 648 | 7.5% | retired — OLS4 indexes active concepts only |
+| 5 | 0.1% | absent from both |
+
+**An OLS4-backed `exists()` reports 23.9% of the gold standard as codes that do
+not exist**; the local index reports 5. Reactions are 5.9% affected, drugs
+**100%** — CADEC codes drugs to AMT, the Australian Medicines Terminology, an
+extension module the international release does not contain.
+
+That is a property of the source, not a bug: there is no configuration of OLS4
+that validates an AMT code. If drug codes are ever to be checked, the AU RF2
+release is not optional. The offline classifier predicted OLS4's answer on 40/40
+sampled codes, so this is measured rather than estimated.
+
 ## Rung 1 judges; it does not filter
 
 `manifest.rungs.1.mode` is `"observe"` by default. Rung 1 computes a verdict per
