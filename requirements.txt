@@ -1,0 +1,13 @@
+# Pinned. Streamlit Community Cloud reads ONLY this file.
+# Unpinned versions can auto-upgrade and break a deployed app with no warning.
+
+streamlit==1.41.0
+plotly==5.24.1
+jsonschema==4.23.0
+pyyaml==6.0.2
+pandas==2.2.3
+
+# Local-only extras — keep OUT of the hosted build.
+# The deployed app is a results viewer and must not be able to call a model.
+# openai==1.59.6
+# pytest==8.3.4

@@ -1,19 +1,99 @@
-# You can override the included template(s) by including variable overrides
-# SAST customization: https://docs.gitlab.com/user/application_security/sast/#available-cicd-variables
-# Secret Detection customization: https://docs.gitlab.com/user/application_security/secret_detection/pipeline/configure/
-# Dependency Scanning customization: https://docs.gitlab.com/user/application_security/dependency_scanning/dependency_scanning_sbom/#customizing-analyzer-behavior
-# Container Scanning customization: https://docs.gitlab.com/user/application_security/container_scanning/#customizing-analyzer-behavior
-# Note that environment variables can be set in several places
-# See https://docs.gitlab.com/ci/variables/#cicd-variable-precedence
+# .gitlab-ci.yml
+#
+# The preflight job is rung 1 applied to this repository: a deterministic
+# check that costs nothing and blocks a whole class of error before it can
+# reach main. A licensed corpus committed once is in the history permanently,
+# so the check has to run BEFORE the merge, not after.
+
 stages:
-- test
-- secret-detection
-sast:
-  stage: test
-include:
-- template: Security/SAST.gitlab-ci.yml
-- template: Security/Secret-Detection.gitlab-ci.yml
+  - check
+  - test
+  - deploy
+
+default:
+  image: python:3.12-slim
+  interruptible: true
+
 variables:
-  SECRET_DETECTION_ENABLED: 'true'
-secret_detection:
-  stage: secret-detection
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pipcache"
+  GIT_DEPTH: 0            # preflight --history needs the full history
+
+cache:
+  key: "$CI_COMMIT_REF_SLUG"
+  paths: [.pipcache]
+
+# ───────────────────────────────────────────────────────── check
+preflight:
+  stage: check
+  script:
+    - python scripts/preflight.py --history
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  # deliberately NOT allow_failure — a licence breach must stop the pipeline
+
+licence-scan:
+  stage: check
+  script:
+    - |
+      echo "Paths that must never be tracked:"
+      FAIL=0
+      for p in data/cadec data/CADEC data/meddra_codes.csv .llm_cache cache .env .streamlit/secrets.toml; do
+        if git ls-files --error-unmatch "$p" >/dev/null 2>&1 || \
+           [ -n "$(git ls-files "$p" 2>/dev/null)" ]; then
+          echo "  BLOCK  $p is tracked"; FAIL=1
+        else
+          echo "  ok     $p"
+        fi
+      done
+      exit $FAIL
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ───────────────────────────────────────────────────────── test
+tests:
+  stage: test
+  script:
+    - pip install --quiet -r requirements.txt pytest
+    - python -m pytest tests/ -q
+  rules:
+    - exists: [tests/**/*.py]
+  # tests run against a fake LLM — no network, no keys, no corpus
+
+vocab-smoke:
+  stage: test
+  script:
+    - pip install --quiet -r requirements.txt
+    - |
+      python - <<'PY'
+      import bench.vocab as v
+      assert v.exists("60862001"),        "real code should exist"
+      assert not v.exists("999999999"),   "invented code must not"
+      assert v.is_finding("60862001"),    "Tinnitus is a clinical finding"
+      assert not v.is_finding("71388002"),"a procedure is not a finding"
+      src = "so far no gastric problems."
+      i = src.find("gastric problems")
+      assert v.negated(src, (i, i+16)),   "negation cue must fire"
+      print("vocab: 5/5 checks pass")
+      PY
+  allow_failure: true      # OLS4 is an external service; a flake must not block a merge
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+# ───────────────────────────────────────────────────────── deploy
+# GitLab Pages serves whatever the `pages` job puts in public/.
+# Static only — no Python runs here, which is exactly what we want:
+# the published page is structurally incapable of touching the corpus.
+pages:
+  stage: deploy
+  script:
+    - mkdir -p public
+    - cp docs/plan.html public/index.html
+    - cp -r docs/assets public/assets 2>/dev/null || true
+    - test -f app/results.reference.json && cp app/results.reference.json public/ || true
+    - echo "published $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  artifacts:
+    paths: [public]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

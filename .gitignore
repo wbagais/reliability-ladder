@@ -1,0 +1,44 @@
+# ── LICENCE-CRITICAL ────────────────────────────────────────────────
+# CADEC is non-commercial and NON-TRANSFERABLE. No redistribution, ever.
+data/cadec/
+data/CADEC*/
+data/private*
+data/*_v1.json          # built datasets embed post text
+!data/sroie_v1.json     # SROIE is redistributable — keep this one
+!data/example_upload.json
+
+# MedDRA is subscription-licensed. Ship the 10-row example, not the full list.
+data/meddra_codes.csv
+
+# ── CACHES: large, and they contain document text ───────────────────
+.llm_cache/
+cache/
+.vocab_cache/
+
+# ── RUN OUTPUT: changes every run, merges are meaningless ───────────
+results/
+*.outputs.jsonl
+!app/results.reference.json   # the one committed run the hosted app reads
+
+# ── SECRETS ─────────────────────────────────────────────────────────
+.env
+.env.*
+.streamlit/secrets.toml
+*.key
+
+# ── PYTHON ──────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+*.ipynb          # notebook OUTPUT CELLS are the classic leak. Strip or exclude.
+
+# ── OS ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── GITLAB ──────────────────────────────────────────────────────────
+public/          # built by the pages CI job, never committed
+.pipcache/

@@ -1,93 +1,93 @@
-# reliability-ladder
+# AI Reliability Ladder
 
+Measure what each reliability layer around an LLM actually buys you — and what it
+costs — so you can stop at the rung your economics justify instead of stacking
+layers by intuition.
 
+**Task.** Pharmacovigilance triage: read an archived patient report, identify the
+adverse reactions the writer describes, and normalise each to a SNOMED CT code.
+The system reports *what a document says*. It never asserts that a drug caused an
+effect.
 
-## Getting started
+📄 **[Plan, architecture and interactive demo](https://pushpdeep.gitlab.io/ai-reliability-ladder/)** — published by CI on every push to `main`.
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+---
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+## The ladder
 
-## Add your files
+| Rung | Layer | Mechanism | Extra cost |
+|---|---|---|---|
+| 0 | bare LLM | one call; emits a code (with or without a lookup tool — see `rung0_mode`) | 1 call/item |
+| 1 | deterministic | schema · **span grounding** · **negation** · code exists · semantic type | **none** |
+| 2 | abstention | decline anything still unresolved below threshold | none |
+| 3 | self-correction | one bounded retry, fired **only by a rung 1 failure**, reason stated as fact | +1 call |
+| 4 | LLM-as-judge | second model, **different family**, scores the record | +1 call |
+| 5 | voting | k samples, majority on the **normalised code**, never the string | k calls |
+| 6 | human-in-the-loop | a person settles it — simulated, or timed in the review queue | human minutes |
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+Runtime order is `[0, 1, 3, 5, 4, 2, 6]`, not numeric — abstaining before you have
+tried correction and voting throws away recoverable records. Order lives in
+`manifest.json`, so it is a testable ablation rather than an assertion.
+
+## Cost, in three measures that are never fused
+
+**Tokens per record** · **latency p95** · **records routed to a person**.
+
+No dollar figure: a single `$/100` needs a price table that shifts under you, and
+it silently merges three costs that are not interchangeable. Keeping them apart
+forces the honest question — *would you rather spend tokens or human attention?*
+
+## Quick start
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# 0 · the critical-path dependency: does the vocabulary lookup work?
+.venv/bin/python -c "import bench.vocab as v; print(v.exists('60862001'), v.is_finding('60862001'))"
+
+# 1 · rung 0 + rung 1, both tool modes, side by side
+.venv/bin/python -m bench.ladder_ab --compare
+
+# 2 · before every push
+python scripts/preflight.py --history
+```
+
+## Data — read before you clone
+
+The corpus is **not in this repository and cannot be**.
+
+| Source | Terms | Where it lives |
+|---|---|---|
+| **CADEC v3** | CSIRO Data Licence — non-commercial, **non-transferable**, no redistribution | [csiro:10948](https://data.csiro.au/collection/csiro:10948). Each team member accepts it individually. `data/cadec/` is gitignored. |
+| **SNOMED CT** | affiliate licence for full releases | queried at run time via [EBI OLS4](https://www.ebi.ac.uk/ols4) — free, no API key |
+| **MedDRA** | subscription (MSSO) | only `data/meddra_codes.example.csv` (10 rows, for tests) is committed |
+
+`scripts/preflight.py` scans the working tree *and* git history for corpus text,
+API keys and forbidden paths. It runs in CI on every merge request and blocks the
+pipeline on a breach — deleting a file later does not remove it from history.
+
+## Layout
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/pushpdeep/reliability-ladder.git
-git branch -M main
-git push -uf origin main
+bench/      vocab.py (SNOMED + MedDRA) · ladder_ab.py · rungs/ · metrics · cli
+app/        dashboard (local: run + review queue; published: results viewer)
+schemas/    runner · results.schema.json · adapter
+data/       example files only — real corpora are gitignored
+docs/       plan.html (published) · decisions.md (the article's raw material)
+scripts/    preflight.py
+tests/      against a fake LLM — no network, no keys, no corpus
 ```
 
-## Integrate with your tools
+## Hosting
 
-* [Set up project integrations](https://gitlab.com/pushpdeep/reliability-ladder/-/settings/integrations)
+**GitLab Pages** serves `docs/plan.html` as a static page — no Python, no corpus,
+no key. It is *structurally* incapable of leaking anything, rather than merely
+configured not to.
 
-## Collaborate with your team
+Streamlit Community Cloud is **GitHub-only**, so the interactive dashboard runs
+locally. If you want it hosted later, the options are a push-mirror to GitHub or
+Hugging Face Spaces.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Licence
 
-## Test and Deploy
-
-Use the built-in continuous integration in GitLab.
-
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
-
-***
-
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Code: MIT. Third-party data keeps its own terms — see `LICENSE`.
