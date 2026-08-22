@@ -672,6 +672,61 @@ Also fixed: sub-threshold cells were left in the cost matrix, so the assignment
 could be steered by pairs the threshold then discarded. Now zeroed before
 matching. The scipy fallback silently downgraded bipartite matching to greedy;
 the matcher is now reported in every result.
+## 2026-08-22 — rung 0 A/B on the dev split (40 docs), granite4:micro-h
+
+Offsets recovered by search in both arms so span grounding does not mask the
+code check. Reactions only; drugs are span-checked, never code-scored.
+
+| | A — recall only | B — tool prompt |
+|---|---|---|
+| mentions emitted | 176 | 159 |
+| rejected by rung 1 | 176 (100%) | 92 (58%) |
+| accept / band | 0 / 0 | 0 / 67 |
+| **code correct** | **0 / 107** | **0 / 96** |
+| null codes emitted | 0 | 59 |
+| span precision / recall | 0.679 / 0.459 | 0.645 / 0.410 |
+| tokens | 19,701 | 20,431 |
+| wall clock | 276s | 2,410s |
+| JSON parse failures | 0 | 2 |
+| overrode its own lookup | — | 29 / 29 |
+
+### The rejection rate is not the result
+
+B's rejection rate halves. Its code accuracy does not move: zero in both arms,
+across 203 graded mentions. The entire difference is 59 null codes — B declines
+a third of the time, and a record with no code cannot be rejected for a bad one,
+so it lands in BAND. Those 67 BAND records are abstentions, not successes.
+
+**The tool prompt bought abstention, not accuracy**, at 8.7x the latency and
+slightly worse span recall. This is the failure mode `compare()` was written to
+catch: the errors moved rather than disappeared. Reading the rejection rate
+alone would have reported tool access as a 42-point improvement.
+
+### The tool was never called
+
+`honoured_tool` is never True: 130 None, 29 False. `vocab.search` runs AFTER
+generation, so the tool block is prompt text and nothing more. Where a search
+did return candidates, the model overrode its own lookup 29 times out of 29.
+
+So the A/B contrast measures PROMPT WORDING, not tool access. The docstring at
+rung0_ab.py:113 says "the model searched, got candidates back" — it did not.
+Either build a real tool loop or rename the ablation. Do not publish the current
+framing.
+
+### The model cannot code, in either arm
+
+0 correct out of 203 graded mentions. Not poor — categorically incapable. It
+locates reactions at F1 0.548 and never once produces the right SNOMED code.
+164 of 176 codes in mode A do not exist at all, so it cannot be right by
+accident.
+
+Extraction and normalisation are different capabilities. A single accuracy
+number over both would report roughly half the task working as one middling
+score, and would hide that the half a vocabulary lookup solves is at zero. Same
+pooling error as drugs/reactions, one level up.
+
+Scope: one model, one size, 40 dev documents, greedy decoding. This says nothing
+about what LLMs can do; it says what the harness can now distinguish.
 
 ### An HTML wiki, and why not plan.html — 2026-08-22
 

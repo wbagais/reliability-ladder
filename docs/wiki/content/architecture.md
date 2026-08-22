@@ -54,31 +54,32 @@ Reverse none of these silently. Each is recorded in `docs/decisions.md` with the
 - **Three outcomes, not two.** REJECT / ACCEPT / BAND. BAND holds 56.8 % of even a perfect answer set.
 - **Cost is three measures.** Tokens, latency p95, human minutes. Never fused into a currency figure.
 - **One accounting path.** Everything reported is a `GROUP BY` over [[ledger]]. Two accounting paths is how a benchmark gets two numbers for one run.
-- **One file per rung, one owner per file.** Owner B (Pushpdeep) adds `ladder/rungs/rN.py` and never edits `run.py`.
+- **One file per rung.** A rung is registered by adding `ladder/rungs/rN.py`; `run.py` is never edited to register one.
 - **Schemas append, never reorder.** `schema.py` enums are the contract between owners.
 
 ## Module map
 
-| File | Role | Owner |
-|---|---|---|
-| `ladder/run.py` | pipeline, CLI, reporting | A |
-| `ladder/schema.py` | `Record`, zones, reject reasons — the contract | A |
-| `ladder/ledger.py` | append-only ledger + cost meter | A |
-| `ladder/corpus.py` | CADEC parsing, splits | A |
-| `ladder/registry.py` | SNOMED RF2 → SQLite, `MeddraTable` | A |
-| `ladder/vocab.py` | backend selection, OLS4 fallback | A |
-| `ladder/negation.py` | cue list + window | A |
-| `ladder/fixture.py` | the 13-record harness gate | A |
-| `ladder/calibrate.py` | rung 1 vs gold, setting sweep | A |
-| `ladder/probe.py` | rung 1 vs planted corruptions | A |
-| `ladder/vocab_crosscheck.py` | local-rf2 vs OLS4 | A |
-| `ladder/rungs/r1.py` | [[r1]] | A |
-| `ladder/rungs/r2.py` | [[r2]] | A |
-| `ladder/rung0_ab.py` | rung 0 recall-vs-search ablation | B |
-| `ladder/stub_llm.py` | Ollama client for rung 0 | B |
-| `ladder/rungs/r0.py` `r3` `r4` `r5` | not written | B |
-| `ladder/score.py` | shared scorer — not written | B |
-| `schemas/vocabulary.py` | the `Vocabulary` contract | A |
+| File | Role |
+|---|---|
+| `ladder/run.py` | pipeline, CLI, reporting |
+| `ladder/schema.py` | `Record`, zones, reject reasons — the contract |
+| `ladder/ledger.py` | append-only ledger + cost meter |
+| `ladder/corpus.py` | CADEC parsing, splits |
+| `ladder/registry.py` | SNOMED RF2 → SQLite, `MeddraTable` |
+| `ladder/vocab.py` | backend selection, OLS4 fallback |
+| `ladder/negation.py` | cue list + window |
+| `ladder/fixture.py` | the 13-record harness gate |
+| `ladder/calibrate.py` | rung 1 vs gold, setting sweep |
+| `ladder/probe.py` | rung 1 vs planted corruptions |
+| `ladder/vocab_crosscheck.py` | local-rf2 vs OLS4 |
+| `ladder/rungs/r1.py` | [[r1]] |
+| `ladder/rungs/r2.py` | [[r2]] |
+| `ladder/rung0_ab.py` | rung 0 recall-vs-search ablation |
+| `ladder/stub_llm.py` | Ollama client for rung 0 |
+| `bench/align.py` | pairs predictions with gold; bipartite, IoU 0.5 |
+| `ladder/rungs/r0.py` `r3` `r4` `r5` | not written |
+| `ladder/score.py` | shared scorer — not written |
+| `schemas/vocabulary.py` | the `Vocabulary` contract |
 
 ## Data boundary
 

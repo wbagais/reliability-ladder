@@ -7,14 +7,24 @@
 - **Never put a real API key in a tracked file.** Preflight scans for key-shaped strings.
 - **Never regenerate the frozen splits.** `--force` on `run init` is not a normal operation.
 
-## Ownership
+## File conventions
 
-- One file per rung, one owner per file.
-- **Owner A — Wejdan Bagais**: harness, schema, ledger, corpus, registry, rungs 1–2, measurement tools.
-- **Owner B — Pushpdeep Mishra**: rungs 0, 3, 4, 5, `ladder/score.py`; in practice also the licence/CI boundary and the model client.
-- Owner B registers a rung by adding `ladder/rungs/rN.py` and telling A the number. **B never edits `run.py`.**
-- What each has actually written, measured from git: [[authorship]].
-- `manifest.json` is append-only and edited jointly.
+Who owns what changes too often to be worth writing down. These do not:
+
+- **One file per rung.** A rung is registered by adding `ladder/rungs/rN.py` — never by editing `run.py`.
+- `manifest.json` is **append-only** and edited jointly. It is the likeliest conflict in the repo.
+- `ladder/score.py` is a **single** shared scorer. Nothing may import a second one.
+- Schemas append, never reorder.
+
+To find who wrote something, ask git rather than a doc:
+
+```bash
+git log --diff-filter=A --format='%an %ad' -- <path> | tail -1
+```
+
+```bash
+git blame --line-porcelain HEAD -- <path> | grep '^author ' | sort | uniq -c | sort -rn
+```
 
 ## Branching
 

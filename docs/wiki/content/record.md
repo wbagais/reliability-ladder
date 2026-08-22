@@ -1,6 +1,6 @@
 # Record & zones
 
-`ladder/schema.py` · owner A · Wejdan Bagais · **FROZEN** after the fixture gate.
+`ladder/schema.py` · **FROZEN** after the fixture gate.
 
 A silent change here costs an hour neither owner has. If it must change, both owners agree out loud first, and the change is **appended, never reordered**.
 

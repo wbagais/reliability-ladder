@@ -62,6 +62,18 @@ python -m ladder.rung0_ab --compare
 - Mode A (`recall`) vs mode B (`search`). One implementation, one flag.
 - Needs `ladder/stub_llm.py` and a running Ollama.
 
+## align — pairing predictions with gold
+
+`bench/align.py`. Without it precision and recall are undefined: a post has an unknown number of reactions, so *which prediction corresponds to which gold* must be decided before anything is scored.
+
+Three decisions, explicit because they move the numbers more than any rung:
+
+- **Bipartite, not greedy.** CADEC golds overlap each other — two can start at the same offset. Greedy matching depends on file order; maximum-weight bipartite matching gives each gold at most one prediction and is order-independent.
+- **Character-level IoU over fragment sets.** Discontinuous mentions are ~16 % of ADRs, so a mention is a *set* of character positions, not a range. One formula handles both.
+- **Threshold 0.5, and it is reported.** A threshold chosen silently is a thumb on the scale.
+
+Error classes kept separate: `matched_correct` · `matched_wrong_code` (the interesting one) · `spurious` · `missed`.
+
 ## What cannot be measured yet
 
 - **Accuracy.** `ladder/score.py` does not exist, so `f1_sct_strict`, `yield` and `err_per_100` are written empty.

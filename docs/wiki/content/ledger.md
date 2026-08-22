@@ -1,6 +1,6 @@
 # Ledger & cost
 
-`ladder/ledger.py` · owner A · Wejdan Bagais · append-only JSONL.
+`ladder/ledger.py` · append-only JSONL.
 
 **One row per (rung, record).** Nothing in this project is measured anywhere else: the results table, the marginal-cost curve and the rung-1 reason breakdown are all a `GROUP BY` over this file.
 

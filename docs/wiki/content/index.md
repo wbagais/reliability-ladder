@@ -17,19 +17,18 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 - Something broke → [[troubleshooting]]
 - Unfamiliar term → [[glossary]]
 - About to open an MR → [[contributing]]
-- Who wrote what → [[authorship]]
 
 ## Build status
 
-| Rung | Layer | Owner | State |
-|---|---|---|---|
-| 0 | [[r0]] bare LLM | B | in progress — `stub_llm.py` and `rung0_ab.py` landed, `rungs/r0.py` not yet |
-| 1 | [[r1]] deterministic | A | built and measured |
-| 2 | [[r2]] abstention | A | built and measured |
-| 3 | [[r3]] self-correction | B | not started |
-| 4 | [[r4]] LLM-as-judge | B | not started |
-| 5 | [[r5]] voting | B | not started |
-| 6 | [[r6]] human-in-the-loop | joint | not started |
+| Rung | Layer | State |
+|---|---|---|
+| 0 | [[r0]] bare LLM | in progress — `stub_llm.py`, `rung0_ab.py` and `bench/align.py` landed and the A/B is measured; `rungs/r0.py` not yet |
+| 1 | [[r1]] deterministic | built and measured |
+| 2 | [[r2]] abstention | built and measured |
+| 3 | [[r3]] self-correction | not started |
+| 4 | [[r4]] LLM-as-judge | not started |
+| 5 | [[r5]] voting | not started |
+| 6 | [[r6]] human-in-the-loop | not started |
 
 - Shared scorer `ladder/score.py` — not written. Accuracy columns stay empty until it is.
 - `run.py` reports a missing rung rather than faking it.
@@ -57,3 +56,4 @@ Whole corpus, 9,111 gold mentions, SNOMED `AU1000036_20260731`, no model calls.
 | detection: hallucinated code, span shift, fabricated quote | 1.000 each |
 | detection: plausible wrong finding | 0.000 |
 | OLS4 vs local index disagreement on gold | 23.9 % |
+| rung 0 code accuracy, both A/B arms, dev | **0 / 203** — see [[r0]] |

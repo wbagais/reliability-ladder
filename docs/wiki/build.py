@@ -33,7 +33,6 @@ PAGES: list[tuple[str, str, str]] = [
     ("contributing",    "Contributing",          ""),
     ("glossary",        "Glossary",              ""),
     ("troubleshooting", "Troubleshooting",       ""),
-    ("authorship",      "Authorship",            ""),
 
     ("rungs",           "The Ladder",            "Rungs"),
     ("r0",              "Rung 0 · bare LLM",     "Rungs"),
@@ -285,6 +284,14 @@ def build(check: bool = False) -> int:
         (SITE / f"{slug}.html").write_text(
             SHELL.format(title=html.escape(title), css=CSS, nav=sidebar(slug),
                          crumb=crumb, body=body), encoding="utf-8")
+
+    # Drop output for pages that no longer exist, or a deleted page keeps
+    # serving from site/ long after its source is gone.
+    keep = {f"{s}.html" for s, _, _ in PAGES}
+    for stale in SITE.glob("*.html"):
+        if stale.name not in keep:
+            stale.unlink()
+            print(f"  pruned stale {stale.name}")
 
     orphans = [s for s, _, _ in PAGES if s not in seen_links and s != "index"]
     if orphans:

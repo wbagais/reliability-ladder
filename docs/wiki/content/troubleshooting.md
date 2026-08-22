@@ -23,13 +23,13 @@
 
 ## Runtime
 
-**`rung 0 is not implemented yet (owner B)`**
+**`rung 0 is not implemented yet`**
 
 - Expected. Use `--source gold` for the control, or `--predictions out/r0.jsonl`. See [[runner]].
 
 **`NO SCORER: accuracy columns are empty`**
 
-- Expected. `ladder/score.py` is Pushpdeep's and unwritten. Zone and cost numbers are still valid.
+- Expected. `ladder/score.py` is unwritten. Zone and cost numbers are still valid.
 
 **`NOT IN THIS RUN: rungs [3, 5, 4, 6]`**
 
