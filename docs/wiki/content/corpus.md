@@ -15,10 +15,12 @@
 
 | Directory | Contributes | Human-authored? |
 |---|---|---|
-| `text/` | the post body | no — the raw post |
-| `original/` | entity type (ADR/Symptom/Disease/Finding/Drug) **and span offsets** | **yes** |
-| `sct/` | the gold SNOMED codes | **yes** |
-| `meddra/` | the gold MedDRA codes | **yes** |
+| `text/` | the post body — becomes `sources` | no — the raw post |
+| `original/` | the CADEC label only (ADR/Symptom/Disease/Finding/Drug), joined `TTn` → `Tn` | **yes** |
+| `sct/` | **drives the mention list** — one `GoldMention` per `TTn`, and supplies `text`, `spans`, `sct`, `gold_kind` | **yes** |
+| `meddra/` | the gold MedDRA codes, joined on `TTn` | **yes** |
+
+`original/` carries the same offsets but the parser does not read them. A span annotated in `original/` with no `sct/` entry never becomes a `GoldMention`.
 
 - Three of the four are answer key. Only `text/` is available to [[r0]] at inference time.
 - The annotator's label in `sct/` (`267036007 | Dyspnoea | ...`) is **discarded at parse time**. `GoldMention` keeps only the code, so nothing downstream can depend on an annotator's wording. Keeping it would let [[r1]] match against the label and ACCEPT everything.
