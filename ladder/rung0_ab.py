@@ -150,11 +150,27 @@ def report(mode, recs, agg):
     print(f"  mentions emitted by R0     {n}")
     print(f"  rejected by R1             {len(rej)}  ({(len(rej) / n * 100 if n else 0):.0f}%)")
     print(f"  accepted / band            {verdicts.count(ZONE_ACCEPT)} / {verdicts.count(ZONE_BAND)}")
-    print("  rejection reasons — the number that matters:")
     reasons = {w: sum(1 for r in rej if r.checks.get("r1_reason") == w) for w in REJECT_REASONS}
-    for why, k in reasons.items():
-        if k:
-            print(f"     {why:22s} {k}")
+    audited = {
+        w: sum(1 for r in recs
+               if w in (r.checks.get("r1_audit", {}) or {}).get("reasons", []))
+        for w in REJECT_REASONS
+    }
+    masked = sum(max(0, audited[w] - reasons[w]) for w in REJECT_REASONS)
+    print("  rejection reasons — verdict (first failure) vs every failure:")
+    print(f"     {'':22s} {'verdict':>8s} {'all':>6s}")
+    for why in REJECT_REASONS:
+        if reasons[why] or audited[why]:
+            flag = "  <- hidden by check order" if audited[why] > reasons[why] else ""
+            print(f"     {why:22s} {reasons[why]:8d} {audited[why]:6d}{flag}")
+    if masked:
+        print(f"  failures the verdict table did not show: {masked}")
+    unevaluable = {}
+    for r in recs:
+        for k, v in ((r.checks.get("r1_audit", {}) or {}).get("unevaluable") or {}).items():
+            unevaluable[f"{k}: {v}"] = unevaluable.get(f"{k}: {v}", 0) + 1
+    for k, v in sorted(unevaluable.items()):
+        print(f"  could not be checked: {k}  ({v})")
     if mode == "B":
         print(f"  overrode its own lookup    {overrode}")
     print(
@@ -168,6 +184,8 @@ def report(mode, recs, agg):
         "n": n,
         "rejected": len(rej),
         "reasons": reasons,
+        "reasons_all": audited,
+        "masked": masked,
         "overrode_tool": overrode,
         "tokens": agg["tokens_in"] + agg["tokens_out"],
         "tool_calls": agg["tool_calls"],
