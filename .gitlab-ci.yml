@@ -51,6 +51,19 @@ licence-scan:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
 
+wiki:
+  stage: check
+  script:
+    # Standard library only — no install step. --check fails on a broken
+    # [[link]] and on any page nothing links to, so the wiki cannot rot
+    # quietly while the code moves under it.
+    - python docs/wiki/build.py --check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes: [docs/wiki/**/*]
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes: [docs/wiki/**/*]
+
 # ───────────────────────────────────────────────────────── test
 tests:
   stage: test

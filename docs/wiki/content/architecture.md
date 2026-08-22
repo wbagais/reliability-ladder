@@ -1,0 +1,102 @@
+# Architecture
+
+## System flow
+
+```mermaid
+flowchart TD
+    subgraph SRC["Licensed inputs — never committed"]
+        CAD["CADEC v2<br/>text · original · sct · meddra"]
+        RF2["SNOMED RF2 release"]
+        MDR["meddra_codes.csv"]
+    end
+
+    CAD --> CORP["corpus.py<br/>load_corpus / read_split"]
+    RF2 --> REG["registry.py --build<br/>-> snomed.sqlite"]
+    MDR --> MED["MeddraTable"]
+
+    CORP -->|"text only"| SOURCES["sources<br/>{doc_id: text}"]
+    CORP -->|"gold control only"| GOLD["gold_as_records()"]
+
+    SOURCES --> R0["rung 0<br/>bare LLM"]
+    R0 --> RECS["list[Record]"]
+    GOLD --> RECS
+    PRED["--predictions r0.jsonl"] --> RECS
+
+    RECS --> ORDER{"rung_order<br/>[0,1,3,5,4,2,6]"}
+    ORDER --> R1["rung 1 deterministic"]
+    ORDER --> R3["rung 3 self-correct"]
+    ORDER --> R5["rung 5 voting"]
+    ORDER --> R4["rung 4 judge"]
+    ORDER --> R2["rung 2 abstention"]
+    ORDER --> R6["rung 6 human"]
+
+    REG -.-> R1
+    MED -.-> R1
+
+    R1 --> LED[("ledger.jsonl<br/>one row per rung x record")]
+    R2 --> LED
+    R3 --> LED
+    R4 --> LED
+    R5 --> LED
+    R6 --> LED
+
+    LED --> RES["results.csv<br/>zones · cost · accuracy"]
+    RECS --> OUTR["records.jsonl"]
+```
+
+## Design invariants
+
+Reverse none of these silently. Each is recorded in `docs/decisions.md` with the measurement that settled it.
+
+- **Rung IDs are identity, order is configuration.** IDs come from the brief and are shared with other groups; renumbering breaks comparability. Execution order lives in `manifest.rung_order` as `[0,1,3,5,4,2,6]`, making ordering a testable ablation.
+- **Rung 1 judges, it does not route.** Default `mode: observe`. A filtering rung 1 confounds every rung above it. See [[r1]].
+- **Rung 2 runs last.** Abstaining before correction and voting throws away recoverable records. See [[r2]].
+- **Three outcomes, not two.** REJECT / ACCEPT / BAND. BAND holds 56.8 % of even a perfect answer set.
+- **Cost is three measures.** Tokens, latency p95, human minutes. Never fused into a currency figure.
+- **One accounting path.** Everything reported is a `GROUP BY` over [[ledger]]. Two accounting paths is how a benchmark gets two numbers for one run.
+- **One file per rung, one owner per file.** Owner B adds `ladder/rungs/rN.py` and never edits `run.py`.
+- **Schemas append, never reorder.** `schema.py` enums are the contract between owners.
+
+## Module map
+
+| File | Role | Owner |
+|---|---|---|
+| `ladder/run.py` | pipeline, CLI, reporting | A |
+| `ladder/schema.py` | `Record`, zones, reject reasons — the contract | A |
+| `ladder/ledger.py` | append-only ledger + cost meter | A |
+| `ladder/corpus.py` | CADEC parsing, splits | A |
+| `ladder/registry.py` | SNOMED RF2 → SQLite, `MeddraTable` | A |
+| `ladder/vocab.py` | backend selection, OLS4 fallback | A |
+| `ladder/negation.py` | cue list + window | A |
+| `ladder/fixture.py` | the 13-record harness gate | A |
+| `ladder/calibrate.py` | rung 1 vs gold, setting sweep | A |
+| `ladder/probe.py` | rung 1 vs planted corruptions | A |
+| `ladder/vocab_crosscheck.py` | local-rf2 vs OLS4 | A |
+| `ladder/rungs/r1.py` | [[r1]] | A |
+| `ladder/rungs/r2.py` | [[r2]] | A |
+| `ladder/rung0_ab.py` | rung 0 recall-vs-search ablation | B |
+| `ladder/stub_llm.py` | Ollama client for rung 0 | B |
+| `ladder/rungs/r0.py` `r3` `r4` `r5` | not written | B |
+| `ladder/score.py` | shared scorer — not written | B |
+| `schemas/vocabulary.py` | the `Vocabulary` contract | A |
+
+## Data boundary
+
+- Rung 0 receives `sources` — `{doc_id: text}` — and an **empty** record list. It builds records from the post alone.
+- Rung 0 must never receive `docs`. That object carries gold spans and codes; a rung 0 that reads them makes rung 1's span check vacuous.
+- Rungs 3 and 4 may read `checks["r1_verdict"]` and `checks["r1_reason"]`, **and nothing else from `checks`**. `meddra_term` is derived from the answer key; putting it in a prompt leaks the answer.
+
+## Rung contract
+
+```python
+def apply(records: list[Record], sources: dict[str, str], cfg: dict) -> list[Record]
+```
+
+- `cfg` carries manifest settings plus `ledger`, `registry`, `meddra`, `manifest`, `split`.
+- Mutate only `zone`, `reason`, `provenance`, `checks`. Use `Record.mark()`.
+- Log one ledger row per record touched.
+- Rung 0 is the exception: it is handed `[]` and returns the records everything else routes.
+
+## Related
+
+- [[record]] · [[ledger]] · [[manifest]] · [[runner]] · [[rungs]]
