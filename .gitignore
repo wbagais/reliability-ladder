@@ -71,3 +71,6 @@ data/raw/
 # public/ is built by the pages CI job and never committed
 public/
 .pipcache/
+data/*
+!data/splits/
+!data/splits/**
