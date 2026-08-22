@@ -1,5 +1,8 @@
 # InfoQ article — the build log
 
+> A typeset version of this document, for reading away from the terminal, is
+> `docs/article-build-log.html` (published privately as a Claude artifact).
+
 Raw material for the article, organised the way the piece needs it rather than
 the way the work happened. `decisions.md` is the chronological log; this is the
 narrative layer on top of it, with the numbers pulled forward and the process

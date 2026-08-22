@@ -1,0 +1,546 @@
+<title>Reliability Ladder Build Log</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,500;0,600;1,6..72,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F4F6F7;
+  --surface:#FFFFFF;
+  --surface-2:#EDF1F2;
+  --ink:#121A1E;
+  --ink-2:#31434B;
+  --muted:#61757D;
+  --rule:#D8E0E3;
+  --rule-soft:#E6ECEE;
+  --accent:#0C6469;
+  --accent-soft:#0C646914;
+  --reject:#9E3B2A;
+  --band:#8C6210;
+  --accept:#2C6349;
+  --on-zone:#FFFFFF;
+  --shadow:0 1px 2px rgba(18,26,30,.05), 0 8px 24px -16px rgba(18,26,30,.22);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1418;
+    --surface:#141D22;
+    --surface-2:#1A252B;
+    --ink:#E7EEF0;
+    --ink-2:#B7C7CD;
+    --muted:#8A9DA5;
+    --rule:#26343B;
+    --rule-soft:#1E2A31;
+    --accent:#54BFC3;
+    --accent-soft:#54bfc31f;
+    --reject:#E08976;
+    --band:#D6A947;
+    --accept:#77BE9C;
+    --on-zone:#0E1418;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1418;
+  --surface:#141D22;
+  --surface-2:#1A252B;
+  --ink:#E7EEF0;
+  --ink-2:#B7C7CD;
+  --muted:#8A9DA5;
+  --rule:#26343B;
+  --rule-soft:#1E2A31;
+  --accent:#54BFC3;
+  --accent-soft:#54bfc31f;
+  --reject:#E08976;
+  --band:#D6A947;
+  --accept:#77BE9C;
+  --on-zone:#0E1418;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  font-size:16.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- layout ---------- */
+.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+main{display:block}
+.band-row{
+  display:grid;
+  grid-template-columns:168px minmax(0,68ch);
+  gap:0 40px;
+  align-items:start;
+  justify-content:center;
+}
+@media (max-width:900px){
+  .band-row{grid-template-columns:minmax(0,1fr);gap:0}
+  .rail{margin-bottom:10px}
+}
+.rail{
+  font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px;
+  line-height:1.55;
+  letter-spacing:.02em;
+  color:var(--muted);
+  padding-top:.55em;
+  text-transform:uppercase;
+}
+.rail b{display:block;color:var(--accent);font-weight:500}
+.rail .note{text-transform:none;letter-spacing:0;font-family:"Public Sans",sans-serif;font-size:13px;margin-top:.7em;color:var(--muted)}
+.col{min-width:0}
+
+/* ---------- header ---------- */
+header.hero{
+  border-bottom:1px solid var(--rule);
+  background:var(--surface);
+  padding:64px 0 44px;
+}
+.eyebrow{
+  font-family:"JetBrains Mono",monospace;
+  font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 20px;
+}
+h1{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:500;
+  font-size:clamp(38px,6vw,62px);
+  line-height:1.04;
+  letter-spacing:-.018em;
+  margin:0 0 22px;
+  text-wrap:balance;
+  max-width:16ch;
+}
+.standfirst{
+  font-family:"Newsreader",Georgia,serif;
+  font-size:clamp(18px,2.2vw,21px);
+  line-height:1.5;
+  color:var(--ink-2);
+  max-width:62ch;margin:0;
+}
+.meta{
+  margin-top:34px;display:flex;flex-wrap:wrap;gap:10px 28px;
+  font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);
+  letter-spacing:.03em;
+}
+.meta span b{color:var(--ink-2);font-weight:500}
+
+/* ---------- sections ---------- */
+section{padding:52px 0;border-bottom:1px solid var(--rule-soft)}
+section:last-of-type{border-bottom:0}
+h2{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:600;font-size:clamp(25px,3.4vw,33px);
+  line-height:1.15;letter-spacing:-.012em;
+  margin:0 0 8px;text-wrap:balance;
+}
+h3{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:600;font-size:20.5px;line-height:1.25;
+  margin:38px 0 6px;text-wrap:balance;
+}
+h3:first-of-type{margin-top:18px}
+h4{
+  font-family:"JetBrains Mono",monospace;
+  font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;margin:30px 0 10px;
+}
+p{margin:0 0 1.05em}
+.col > p:last-child{margin-bottom:0}
+strong{font-weight:600;color:var(--ink)}
+em{font-style:italic}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+code{
+  font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:.855em;
+  background:var(--surface-2);
+  padding:.14em .38em;border-radius:3px;
+  color:var(--ink-2);
+}
+ul,ol{margin:0 0 1.05em;padding-left:1.15em}
+li{margin-bottom:.5em}
+li::marker{color:var(--muted)}
+
+.lede{font-size:17.5px;color:var(--ink-2)}
+
+/* ---------- pull number ---------- */
+.stat{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--accent);
+  border-radius:3px;padding:20px 22px;margin:0 0 22px;
+  box-shadow:var(--shadow);
+}
+.stat .n{
+  font-family:"Newsreader",Georgia,serif;font-weight:600;
+  font-size:clamp(30px,5vw,42px);line-height:1;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.stat .n.warn{color:var(--reject)}
+.stat .lbl{font-size:15px;color:var(--muted);flex:1 1 220px;min-width:0}
+
+/* ---------- tables ---------- */
+.scroll{overflow-x:auto;margin:0 0 22px;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{
+  text-align:left;padding:9px 14px;
+  border-bottom:1px solid var(--rule-soft);vertical-align:top;
+}
+thead th{
+  font-family:"JetBrains Mono",monospace;font-size:10.5px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+  font-weight:500;background:var(--surface-2);
+  border-bottom:1px solid var(--rule);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.hi{color:var(--reject);font-weight:500}
+td.ok{color:var(--accept);font-weight:500}
+
+/* ---------- zone strip ---------- */
+figure{margin:0 0 24px}
+.strip{display:flex;height:38px;border-radius:3px;overflow:hidden;border:1px solid var(--rule)}
+.strip div{display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--on-zone);font-weight:500}
+.z-accept{background:var(--accept)}
+.z-band{background:var(--band)}
+.z-reject{background:var(--reject);min-width:3px}
+.strip-key{
+  display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:10px;
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted);
+}
+.strip-key span{display:flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+figcaption{font-size:14px;color:var(--muted);margin-top:12px;font-style:italic;max-width:60ch}
+
+/* ---------- iteration card ---------- */
+.iter{
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:22px 24px;margin:0 0 20px;box-shadow:var(--shadow);
+}
+.iter h3{margin:0 0 12px;font-size:19px}
+.iter dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;align-items:baseline}
+.iter dt{
+  font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);white-space:nowrap;padding-top:.32em;
+}
+.iter dd{margin:0}
+.iter dd:last-child{margin-bottom:0}
+@media (max-width:620px){
+  .iter dl{grid-template-columns:1fr;gap:2px}
+  .iter dt{padding-top:.6em}
+}
+
+/* ---------- caption list ---------- */
+.figs{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:18px}
+.figs li{
+  margin:0;padding-left:16px;border-left:2px solid var(--rule);
+}
+.figs .ftitle{font-weight:600;display:block;margin-bottom:4px}
+.figs .fcap{font-family:"Newsreader",Georgia,serif;font-style:italic;color:var(--ink-2);font-size:16.5px}
+
+/* ---------- code block ---------- */
+pre{
+  font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:13px;line-height:1.75;
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:16px 18px;overflow-x:auto;margin:0 0 20px;color:var(--ink-2);
+}
+pre code{background:none;padding:0;font-size:inherit}
+
+footer{
+  padding:40px 0 64px;color:var(--muted);font-size:14px;
+  border-top:1px solid var(--rule);
+}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="band-row">
+      <div class="rail"><b>Build log</b>2026-08-22</div>
+      <div class="col">
+        <p class="eyebrow">The Reliability Ladder · article raw material</p>
+        <h1>What the corpus said about the plan</h1>
+        <p class="standfirst">Seven reliability layers wrapped around an LLM, and a measurement of what each one actually buys. This is the layer underneath the article: the numbers worth quoting, and every place the plan and the data disagreed.</p>
+        <div class="meta">
+          <span><b>Corpus</b> CADEC v3 · 1,250 posts · 9,111 gold mentions</span>
+          <span><b>Vocabulary</b> SNOMED CT AU1000036_20260731</span>
+          <span><b>Model calls</b> zero</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>01</b>Thesis</div>
+    <div class="col">
+      <h2>The thesis, in one paragraph</h2>
+      <p class="lede">Every LLM agent is roughly 10% model and 90% harness, and that harness gets built by intuition: teams stack retries, validators, judges, voting and human review because each one sounds like it should help. The seven layers are known. What nobody publishes is the <strong>measured trade-off per layer</strong> — what each buys, in which currency, and where it stops being worth paying for. That curve is the contribution; everything else exists to keep it clean.</p>
+      <p>Two tracks. <strong>Track 1</strong> is the data-agnostic ladder with SROIE receipts as its demo dataset — shipped, with a full 60×10 run measured. <strong>Track 2</strong> is the CADEC pharmacovigilance instance, where rung 1 stops being a format check and becomes a real validation gate against a clinical terminology. Owner A's half of track 2 is built and measured; the model-facing rungs are outstanding.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>02</b>Findings<div class="note">Ranked by how quotable they are, not by when they were found.</div></div>
+    <div class="col">
+      <h2>The findings worth a pull-quote</h2>
+
+      <h3>A gate's leniency setting decides whether it protects you or lies to you</h3>
+      <div class="stat">
+        <span class="n warn">19.0%</span>
+        <span class="lbl">of planted near-miss codes are put in <strong>ACCEPT</strong> by the intuitive lexical setting — records the validation gate actively vouches for. The strict setting puts 0.1% there.</span>
+      </div>
+      <p>Rung 1 sorts each record into REJECT (provably wrong), ACCEPT (the vocabulary uses these very words) or BAND (plausible, unverifiable). The ACCEPT/BAND divider is a string comparison between the quoted patient text and SNOMED's terms for the predicted code, and it has one obvious knob: exact equality, or token containment.</p>
+      <p>Containment is the intuitive choice. Patients write <em>“bit drowsy”</em> where SNOMED says <em>“Drowsy”</em>; being strict looks pedantic, and being lenient lifts the share of a <em>perfect</em> answer set that rung 1 settles for free from 43.1% to 54.5%.</p>
+      <p>Then we planted <strong>near-miss codes</strong> — a real, active clinical finding sharing its head word with the right one, which is the confusion a normalisation model actually makes — and asked what the gate did with them.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Lexical setting</th><th class="num">Near-misses caught</th><th class="num">Near-misses put in ACCEPT</th><th class="num">ACCEPT lane on gold</th></tr></thead>
+          <tbody>
+            <tr><td><code>contained</code></td><td class="num">0.1%</td><td class="num hi">19.0%</td><td class="num">54.5%</td></tr>
+            <tr><td><code>exact</code></td><td class="num">0.1%</td><td class="num ok">0.1%</td><td class="num">43.1%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Neither setting <em>catches</em> near-misses — deterministic checks can't, and the plan said so. But the lenient one endorses one in five, because the span text is a subset of the wrong concept's term. It doesn't fail to protect you; it hands you false confidence.</p>
+      <p>We changed the default to <code>exact</code> and paid eleven points of free settlement for it. <strong>The rule worth writing down: for any validation gate, measure the permissive setting's false-vouch rate on planted near-misses before you ship it.</strong> “Be lenient with colloquial input” is a reasonable instinct that here converts a gate into an endorsement machine.</p>
+
+      <h3>Deterministic checks are exact, and blind</h3>
+      <p>Six corruption classes, one at a time, 8,666 gold records each, zero model calls.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Planted error</th><th class="num">Rung 1 rejects</th></tr></thead>
+          <tbody>
+            <tr><td>Hallucinated code — in no release</td><td class="num ok">1.000</td></tr>
+            <tr><td>Span shifted two characters</td><td class="num ok">1.000</td></tr>
+            <tr><td>Fabricated quote</td><td class="num ok">1.000</td></tr>
+            <tr><td>Real code, wrong branch of the hierarchy</td><td class="num ok">1.000</td></tr>
+            <tr><td>Random plausible clinical finding</td><td class="num hi">0.000</td></tr>
+            <tr><td>Near-miss clinical finding</td><td class="num hi">0.001</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Deterministic checks are not “pretty good” at their job. On the classes they are designed for they are <em>exact</em>, at zero model cost — and on the one class that matters most, a real, well-typed, wrong code, they are blind by construction, because the code is not in the source text and nothing mechanical can put it there.</p>
+      <p>That reframes the ladder, and it beats “a stack of improvements”: <strong>rung 1 is a free, exact filter for a specific set of failure modes, and everything above it is a paid resolver for the one class the filter cannot see.</strong> The economic question is not whether rung 1 helps — it does, for free — but what the paid rungs charge for the residue.</p>
+
+      <h3>Over half of a perfect answer set is unverifiable</h3>
+      <figure>
+        <div class="strip" role="img" aria-label="Zone occupancy on the gold standard: ACCEPT 43.1 percent, BAND 56.8 percent, REJECT 0.13 percent">
+          <div class="z-accept" style="flex:43.1">ACCEPT 43.1%</div>
+          <div class="z-band" style="flex:56.8">BAND 56.8%</div>
+          <div class="z-reject" style="flex:.13"></div>
+        </div>
+        <div class="strip-key">
+          <span><i class="dot z-accept"></i>settled free — vocabulary corroborates</span>
+          <span><i class="dot z-band"></i>plausible, unverifiable</span>
+          <span><i class="dot z-reject"></i>rejected — 0.13%</span>
+        </div>
+        <figcaption>Even when every answer is correct, 57% of records are unverifiable by string comparison. That fraction is the bill the paid rungs have to work through, and it is knowable before the first token is spent.</figcaption>
+      </figure>
+      <p>Worth stating as a planning tool: <strong>run your deterministic layer over your answer key first — the BAND fraction is your bill.</strong></p>
+
+      <h3>The metric trap <span style="color:var(--muted);font-weight:400">(track 1, SROIE)</span></h3>
+      <div class="stat">
+        <span class="n">0.938&nbsp;→&nbsp;0.772</span>
+        <span class="lbl">Yield across the judge rung, while <em>accuracy</em> rose 0.938&nbsp;→&nbsp;0.960. The layer improved the metric most teams watch and produced 17% fewer correct fields.</span>
+      </div>
+      <p>Accuracy is a ratio over <em>answered</em> items, so any layer that withholds answers raises it for free. Yield — the share of <em>all</em> field slots that came out correct — is the honest headline. Yield by rung on the full run: 0.938 / 0.938 / 0.932 / 0.934 / 0.772 / 0.772 / 0.988. Only the human rung beat the bare model.</p>
+      <p>This is the most transferable finding in the project: it costs nothing to adopt and it invalidates a lot of published layer comparisons.</p>
+
+      <h3>The stack is worse than its best layer</h3>
+      <p>Voting <em>alone</em> yields 0.946 — above the bare model and above every cumulative rung except the human one. Voting <em>inside</em> the cumulative stack yields 0.772, because it inherits the judge's damage. Judge alone yields 0.905, below baseline. Cumulative stacking is the wrong default; compose deliberately.</p>
+
+      <h3>Self-referential layers are inert against a confidently wrong model</h3>
+      <p>Format checks, self-confidence abstention and self-correction moved accuracy by 0.000 on track 1's smoke run and barely more at scale — every rung-0 error was a wrong <em>value</em> at self-reported confidence 0.9–1.0. The first gain came from the first layer with an <strong>independent</strong> signal.</p>
+      <p>Track 2 predicts the same shape for a different reason and will test it: rung 3 fires only on a rung 1 failure, and the gate's false-rejection floor is 0.13%. <strong>Self-correction needs a stated fact, and a validation gate that is honest about not knowing produces very few of them.</strong></p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>03</b>Iterations<div class="note">The differentiator. Most measurement pieces present the finished number; the value is in the corrections.</div></div>
+    <div class="col">
+      <h2>What we changed, and why</h2>
+      <p class="lede">Rung 1 as the plan specifies it rejected <strong>9.3% of the gold standard</strong>. A validation gate with a 9% false-positive rate does not measure a model — it manufactures errors, and every rung above inherits them. Three causes, all fixed.</p>
+
+      <div class="iter">
+        <h3>1 · The plan said negation was a free win. The corpus said it rejects 4.7% of correct answers.</h3>
+        <dl>
+          <dt>Plan</dt>
+          <dd>Negation gets its own boxed section: a cue list and a window catch “so far no gastric problems” extracted as a reported reaction, at zero cost, logged as its own rejection reason.</dd>
+          <dt>Data</dt>
+          <dd>The check rejected <strong>427 gold-correct mentions</strong>, from two independent causes. First, the plan's worked example is post <code>ARTHROTEC.1</code>, and CADEC annotates <em>gastric problems</em> in that very sentence as an ADR coded <code>162076009</code> — <strong>CADEC annotates a mention regardless of polarity</strong>. Second, NegEx scope misfires on forum prose: “I can't describe the horrible stomach pain”, “I can finally clean my house without pain”, “doctors deny that there is a connection between joint pain … and Lipitor”. Each negates something; in none of them is it the mention.</dd>
+          <dt>Change</dt>
+          <dd>Demoted from a rejection to an audit flag. The detector still runs and the rate is still reported — polarity is a real safety class — but under this answer key it may not reject. <code>negation_action:&nbsp;"reject"</code> reproduces the plan as written, and costs 427 mentions.</dd>
+          <dt>Why it matters</dt>
+          <dd>The cleanest example of a check that is <em>correct</em> and still wrong to enforce, because the ground truth encodes a different policy. You do not find this in the plan; you find it by running your check against the answer key.</dd>
+        </dl>
+      </div>
+
+      <div class="iter">
+        <h3>2 · The semantic-type check was rejecting retired concepts, not wrong ones</h3>
+        <dl>
+          <dt>Data</dt>
+          <dd>“Is this code a descendant of |Clinical finding|?” rejected <strong>416 gold-correct mentions</strong> — and 413 of them for a reason with nothing to do with semantics. |Knee pain| (63 mentions), |Weakness of limb| (53), |Mentally dull| (38), |Bloating symptom| (34): all clinically right, all <strong>retired from SNOMED since CADEC was coded in 2015</strong>.</dd>
+          <dt>Mechanism</dt>
+          <dd>When SNOMED retires a concept it also retires that concept's is-a relationships. A walk over active relationships cannot place a retired concept anywhere — and “cannot place” was being read as “is in the wrong branch”.</dd>
+          <dt>Change</dt>
+          <dd>The index stores the |Clinical finding| descendant set twice: over active is-a rows (129,675 concepts) and over every is-a row ever published (177,603). <code>finding_status()</code> returns finding / not_finding / unknown, and rung 1 may reject only on a positive <em>not_finding</em>. <strong>Absence of evidence is not evidence of a wrong slot.</strong></dd>
+          <dt>Residual</dt>
+          <dd>3 rejections in 9,111 — and all three are the check working: |Eruption|, a morphologic abnormality, coded for “Abdominal rash”; an observable entity coded for “abdominal pressure”.</dd>
+        </dl>
+      </div>
+
+      <div class="iter">
+        <h3>3 · “Does the code exist?” is ambiguous, and the two readings differ by 11%</h3>
+        <dl>
+          <dt>Data</dt>
+          <dd>Of the 1,046 distinct SNOMED codes CADEC uses, in the 2026-07 release: <strong>927 active, 115 present but inactive (11%), 4 absent entirely</strong>. Reading <em>exists</em> as “active in the current release” rejects 6.9% of the gold standard.</dd>
+          <dt>Change</dt>
+          <dd><code>exists()</code> means present in the release, active or not; inactivity is recorded as an audit fact rather than a verdict. <code>reject_inactive</code> is a manifest setting, because it is exactly the kind of choice that silently moves the headline number.</dd>
+          <dt>General point</dt>
+          <dd><strong>Vocabulary drift is a measurement artefact that looks exactly like a model error.</strong> Any benchmark that normalises to a versioned terminology and does not pin the release is reporting the terminology's release notes as its model's performance.</dd>
+        </dl>
+      </div>
+
+      <h3>The gate's own error floor</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Rung 1 configuration</th><th class="num">False rejections on gold</th><th class="num">Rate</th></tr></thead>
+          <tbody>
+            <tr><td>As the plan specifies it</td><td class="num">845 / 9,111</td><td class="num hi">9.3%</td></tr>
+            <tr><td>After the three fixes</td><td class="num">12 / 9,111</td><td class="num ok">0.13%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The residual 12 are 5 codes absent from the release, 4 genuine typos in CADEC's own annotations, and 3 real gold miscodings. <strong>The method is the transferable part, and it costs nothing: replay your deterministic layer over your answer key.</strong> Every rejection there is false by construction, so you get the gate's false-positive rate exactly, before any model output exists. None of the three causes would have been visible in model output — they would have shown up as a plausible-looking 9% rejection rate and been written up as a finding.</p>
+
+      <h3>The plan's record shape encoded the claim its own safety constraint forbade</h3>
+      <p>The plan's example record pairs <code>drug_text</code> with <code>reaction_text</code> in one object. Its own safety constraint says drug and reaction mentions are extracted independently and the system never emits “drug X causes Y”. Pairing them makes every output a causal claim by construction, so the unit became <strong>one record = one mention</strong>.</p>
+      <p>The same reasoning killed a second thing: CADEC's most common entity label is <code>ADR</code> — <em>adverse drug reaction</em> — which is a causal attribution made by a human annotator. Asking a model to reproduce that label is asking for exactly the claim the constraint forbids. The four clinical types collapse to <code>reaction</code>; only reaction-vs-drug is asked for or scored.</p>
+      <p><strong>Article angle:</strong> safety constraints written as prose get contradicted by the data model three pages later. The ones that hold are the ones with no way to express the forbidden thing — a missing interface, not a warning.</p>
+
+      <h3>Corpus facts the plan got wrong</h3>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Plan says</th><th>Corpus says</th><th>Consequence</th></tr></thead>
+          <tbody>
+            <tr><td>“~6,754 entity mentions”</td><td><strong>9,111</strong> in v3's annotation files</td><td>Manifest records the real number</td></tr>
+            <tr><td>“CADEC codes reactions, not drugs”</td><td><strong>1,657 of 1,800</strong> drug mentions carry codes</td><td>Rung 1 had to learn that a product concept is not a semantic-type error — applying the gate to drugs costs 1,423 gold mentions</td></tr>
+            <tr><td>“strict = exact SCT code equality”</td><td><strong>252 mentions are post-coordinated</strong> (needs both codes), 3 are disjunctions</td><td>The gold rule is undefined for 2.8% of the corpus; rewritten as “the predicted code is in the gold set”</td></tr>
+            <tr><td>The <code>concept_less</code> gift</td><td>Real — <strong>445 mentions</strong> — but the literal is uppercase</td><td>Grepping for <code>concept_less</code> finds nothing. A nice ten-minute trap</td></tr>
+            <tr><td>BioPortal is the critical path</td><td>A local SNOMED RF2 release removes the dependency</td><td>No key, no rate limit, no network in the measurement loop; 5 GB → a 365 MB index in 8 seconds</td></tr>
+            <tr><td>MedDRA as a secondary check</td><td>The only MedDRA artefact available ships <em>inside</em> CADEC and is derived <em>from</em> it</td><td>Using it as an existence check is precisely the leakage the plan's own risk section warns against. Parsed, carried, not scored</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Two more that shape the code. <strong>1,065 mentions (11.7%) have discontinuous spans</strong>, and 45 of them quote the segments in reading order rather than offset order — a span check that compares string concatenations calls the answer key ungrounded. And <strong>CADEC's own gold fails span grounding 4 times in 9,111</strong>: <code>rena&nbsp;&nbsp;failure</code>, <code>microabrasion</code> vs <code>microabrasions</code>, <code>pain i stomach</code>. That 0.04% is the floor the cheapest check on the ladder can never get below. Every benchmark has one; almost nobody reports it.</p>
+
+      <h3>Process choices that paid for themselves</h3>
+      <ul>
+        <li><strong>The fixture gate caught our own wrong expectation on its first run.</strong> The failing case was one we had asserted should ACCEPT: “little blurred vision”, coded <code>246636008</code>. SNOMED's terms for that concept are Foggy / Hazy / Misty / Cloudy vision — it never uses the word “blurred”. Correct code, zero lexical evidence, correctly BAND.</li>
+        <li><strong>Every open choice became a manifest setting, not a default argument.</strong> Four settings in rung 1 each move the rejection rate by 5–15 points. A number produced by a hard-coded opinion is not reproducible even by its author.</li>
+        <li><strong>Splits are by document, not by mention</strong> — mentions from one post share its wording and its annotator — and stratified by drug family, because CADEC is 80% Lipitor and the human-agreement ceiling we cite was measured on the other one.</li>
+        <li><strong>Missing rungs are reported, never faked.</strong> Half a ladder honestly labelled is a result. The scorer is injected the same way, so accuracy columns are written empty rather than guessed.</li>
+        <li><strong>An earlier incident (track 1):</strong> the app wrote every run to a single results file, so a 3-item run silently destroyed a finished 60-item benchmark — recovered for free by replaying from the call cache. <em>If your eval harness caches model calls, results files are disposable; if it doesn't, one careless rerun costs you the experiment.</em></li>
+        <li><strong>A finding we published to ourselves and retracted:</strong> on a 10-item smoke run, cross-prompt vote dispersion looked like a better abstention signal than self-reported confidence. At n=60 it isn't. Nine errors was too small a base.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>04</b>Structure<div class="note">Six beats, practitioner voice.</div></div>
+    <div class="col">
+      <h2>Suggested article structure</h2>
+      <p>Reordered from the original outline on purpose: lead with the finding that is cheapest for a reader to act on.</p>
+      <ol>
+        <li><strong>Every agent is 90% harness, built by vibes.</strong> The hook. Name the seven layers in a paragraph each and move on — they are not the contribution.</li>
+        <li><strong>The metric trap.</strong> Short, concrete, immediately actionable, and it earns the reader's trust for the harder material.</li>
+        <li><strong>What a free layer actually buys.</strong> Exact on its own classes, blind on the interesting one, and 57% of even a perfect answer set left unverifiable. Reframe: free filter plus paid resolvers.</li>
+        <li><strong>The gate that vouches for the error.</strong> The strongest single number, and a process story: the obvious setting, the measurement, the reversal. This is where the piece earns its “we measured it”.</li>
+        <li><strong>The flip.</strong> Whether withholding is worth it depends entirely on your cost of a wrong answer versus a missing one — rung 1 below ~$2 per error, rung 2 at ~$5, human review from ~$10 up.</li>
+        <li><strong>Decision rules and the tool.</strong> Compose deliberately, not cumulatively. Calibrate the abstention gate per model before concluding the layer doesn't work. Run your deterministic layer over your answer key before you trust it. Measure the permissive setting's false-vouch rate.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>05</b>Figures<div class="note">If you can't write the caption, the result isn't clear yet.</div></div>
+    <div class="col">
+      <h2>Figures, with captions written now</h2>
+      <ul class="figs">
+        <li><span class="ftitle">1 · Yield vs accuracy across the seven rungs</span><span class="fcap">“At the judge rung accuracy rises and yield falls. The layer improved the metric most teams watch and reduced the number of correct fields the user actually receives by 17%.”</span></li>
+        <li><span class="ftitle">2 · Rung 1 detection profile, six planted error classes</span><span class="fcap">“Deterministic checks are exact on the classes they are built for and blind to the one that matters. Rejection rate by planted error type, 8,666 records per class, zero model calls.”</span></li>
+        <li><span class="ftitle">3 · The lexical knob</span><span class="fcap">“Token containment lifts the free-settlement lane from 43% to 55% of a perfect answer set, and puts 19% of near-miss errors into ACCEPT — records the gate actively vouches for. Exact matching puts 0.1% there.”</span></li>
+        <li><span class="ftitle">4 · Zone occupancy on the gold standard</span><span class="fcap">“Even when every answer is correct, 57% of records are unverifiable by string comparison. That fraction is the bill the paid rungs have to work through, and it is knowable before the first token is spent.”</span></li>
+        <li><span class="ftitle">5 · The gate's own error floor, before and after</span><span class="fcap">“Rung 1 as specified rejected 9.3% of the answer key. Three fixes — negation demoted to a flag, retired concepts distinguished from misplaced ones, inactive codes from nonexistent ones — took it to 0.13%.”</span></li>
+        <li><span class="ftitle">6 · Net utility by cost of a wrong answer</span><span class="fcap">“The optimal rung is a function of your economics, not of the model: rung 1 below ~$2 per error, rung 2 at ~$5, human review from ~$10 up.”</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>06</b>Limits</div>
+    <div class="col">
+      <h2>Limitations to state plainly</h2>
+      <ul>
+        <li><strong>Track 2 is half a ladder.</strong> Rungs 0, 3, 4 and 5 are outstanding. Everything in section 2's first three findings is a property of the <em>gate</em>, measured against the gold standard and against planted errors — not a model result. Saying so makes the claim stronger, not weaker.</li>
+        <li><strong>Track 1 is one model on one task.</strong> The contribution is the method and the shape, not a leaderboard.</li>
+        <li><strong>Determinism was 1.000 at every rung</strong> on the local model — greedy decoding at temperature 0 is exactly reproducible, so that axis is free locally and only gets interesting on hosted APIs with batching nondeterminism. The cross-model run is not done.</li>
+        <li><strong>Contamination.</strong> CADEC is public and from 2015, so it is almost certainly in pretraining. It inflates rung 0, which makes the ladder's gains look <em>smaller</em> — the conclusion is conservative. The v2 slice is the check, and is not run yet.</li>
+        <li><strong>Human ceiling.</strong> Strict span agreement between CADEC's own annotators was about 68.7 on the diclofenac posts. A system near 0.69 strict span F1 is at the noise floor of the answer key, not underperforming.</li>
+        <li><strong>The abstention target is thin</strong> at 60 test documents: 7 <code>CONCEPT_LESS</code> mentions in 393. Abstention accuracy cannot be separated from noise there.</li>
+        <li><strong>Near-miss corruption is synthetic.</strong> The pool is built from concepts sharing a head word — a proxy for the confusions a normalisation model makes, not a sample of them. The 19% is a property of the check under a plausible error model, and should be quoted that way.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>07</b>Reproduce</div>
+    <div class="col">
+      <h2>Every number here, reproduced</h2>
+      <pre><code>python -m ladder.registry --build --release data/SnomedCT_Release_&lt;yours&gt;
+python -m ladder.run init
+python -m ladder.run gate
+python -m ladder.calibrate --split all --sweep --json out/rung1_floor.json
+python -m ladder.probe     --split all           --json out/rung1_detection.json
+python -m ladder.probe     --split all --lexical-mode contained
+python -m ladder.run ladder --split test --source gold --run-id gold_control</code></pre>
+      <p>Track 1's numbers live in <code>docs/decisions.md</code> and replay from the cached run. Neither corpus is redistributable: CADEC carries the CSIRO Data Licence — non-commercial and non-transferable — and SNOMED needs an affiliate licence. See <code>docs/licences.md</code>.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="band-row">
+      <div class="rail">End</div>
+      <div class="col">Build log for the InfoQ article · the chronological version is <code>docs/decisions.md</code>, the full text is <code>docs/article-iterations.md</code>.</div>
+    </div>
+  </div>
+</footer>
