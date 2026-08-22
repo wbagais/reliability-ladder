@@ -15,6 +15,9 @@ than in a JSON Schema — which is what makes it possible to measure what a *rea
 validation gate catches, and what it cannot. Jump to
 [the CADEC track](#the-cadec-track-ladder).
 
+📄 **[Plan, architecture and interactive demo](https://pushpdeep.gitlab.io/ai-reliability-ladder/)**
+— `docs/plan.html`, published by CI on every push to `main`.
+
 ## The ladder
 
 | Rung | Layer | Mechanism | Extra cost |
@@ -45,7 +48,12 @@ app (dashboard: rung-by-rung story + curve + your economics → recommended rung
 ## Quick start
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install openai streamlit plotly jsonschema pytest pyyaml
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# local-only extras (the hosted build must not be able to call a model):
+.venv/bin/pip install openai pytest
+
+# before every push — scans the tree AND git history for corpus text and keys
+.venv/bin/python scripts/preflight.py --history
 
 # the app: upload/validate data, run the bench, explore the dashboard
 .venv/bin/streamlit run app/streamlit_app.py
@@ -207,6 +215,22 @@ detail in [docs/decisions.md](docs/decisions.md)):
   from 0.060 to 0.043 for a 1.7pt coverage cost — it ships fewer wrong answers,
   it does not produce more correct ones (yield 0.9325 → 0.9330).
 
+## Data — read before you clone
+
+No corpus is in this repository, and none can be.
+
+| Source | Terms | Where it lives |
+|---|---|---|
+| **CADEC v3** | CSIRO Data Licence — non-commercial, **non-transferable**, no redistribution | [csiro:10948](https://data.csiro.au/collection/csiro:10948). Each team member accepts it individually; `data/cadec/` and the download directory are gitignored. |
+| **SNOMED CT** | affiliate licence for full releases | either a local RF2 release indexed by `ladder/registry.py`, or [EBI OLS4](https://www.ebi.ac.uk/ols4) at run time via `bench/vocab.py` — free, no key |
+| **MedDRA** | subscription (MSSO) | only `data/meddra_codes.example.csv` (10 rows, for tests) is committed. See [docs/licences.md](docs/licences.md) for why the 666-row list that ships inside CADEC is not a usable substitute |
+| SROIE | redistributable | `data/sroie_v1.json`, committed |
+
+`scripts/preflight.py` scans the working tree **and git history** for corpus
+text, API keys and forbidden paths, and exits 1 on a breach. CI runs it on every
+merge request and blocks the pipeline — deleting a file later does not remove it
+from history. Full detail: [docs/licences.md](docs/licences.md).
+
 ## The CADEC track (`ladder/`)
 
 The same seven rungs on a fixed archived corpus of patient-reported adverse-event
@@ -277,3 +301,23 @@ build log, including every place the plan and the data disagreed, is in
 - [ ] CADEC track: rungs 0/3/4/5 + the shared scorer (owner B)
 - [ ] InfoQ article (practitioner decision guide — beats and numbers in
       docs/article-iterations.md, earlier outline in docs/article-outline.md)
+
+## Hosting
+
+Three planes, and the separation is what makes this safe to publish (plan §1):
+
+- **Data plane — your machine only.** Corpus text, model calls, caches. Never leaves.
+- **Results plane — git.** `results.json`, `manifest.json`, `docs/decisions.md`. Derived numbers, no document text.
+- **Presentation plane — public.** Reads the results plane and nothing else.
+
+**GitLab Pages** serves `docs/plan.html` as a static page — no Python, no corpus,
+no key. It is *structurally* incapable of leaking anything rather than merely
+configured not to. Streamlit Community Cloud is GitHub-only, so the interactive
+dashboard runs locally; gate the local-only tabs behind `LADDER_HOSTED=1` if it
+is ever deployed.
+
+## Licence
+
+Code: MIT (see [LICENSE](LICENSE)). Third-party data keeps its own terms — CADEC,
+SNOMED CT and MedDRA are each named explicitly in the licence carve-out and in
+[docs/licences.md](docs/licences.md).

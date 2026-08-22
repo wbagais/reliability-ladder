@@ -40,11 +40,11 @@ from ladder.schema import (
 
 FIXTURE_DOC = "ARTHROTEC.1"
 
-#: (label, record kwargs, expected zone, expected reason)
-#: Offsets are into ARTHROTEC.1, which begins:
-#:   "I feel a bit drowsy & have a little blurred vision, so far no gastric
-#:    problems. I've been on Arthrotec 50 for over 10 years ... Due to my
-#:    arthritis getting progressively worse ..."
+#: (label, record kwargs, expected verdict, expected reason)
+#: Offsets are into ARTHROTEC.1. Its opening clause — "so far no gastric
+#: problems" — is the plan's own worked example for the negation check; the
+#: rest of the post is not reproduced here, because a code comment is a
+#: committed file and the corpus is non-redistributable.
 CASES = [
     (
         # 3723001's terms include "Arthritis" verbatim — the vocabulary uses
