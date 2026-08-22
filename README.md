@@ -183,11 +183,9 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
 - [ ] Rung 6, joint
 - [ ] InfoQ article — beats and numbers in `docs/article-iterations.md`
 
-**Retired 2026-08-22:** the data-agnostic SROIE track (`bench/` pipeline,
-`app/`, its adapters, schemas and tests). The CADEC track imported none of it.
-Its measured results are kept in [docs/decisions.md](docs/decisions.md) and
-[docs/article-outline.md](docs/article-outline.md); the code is recoverable from
-git history at `e938f8d`.
+**Retired 2026-08-22:** an earlier data-agnostic track (its pipeline, dashboard,
+adapters, schemas and tests), together with its results. The CADEC track imported
+none of it. Every number in this repo is measured on CADEC.
 
 ## Licence
 

@@ -8,7 +8,7 @@ execution order a config value, and a new rung twenty minutes' work rather than
 an hour. Do not change the signature without both owners agreeing.
 
 History: this file used to carry a second, field-level `Runner` shape (one
-document in, per-field results + cost out) for the data-agnostic SROIE track.
+document in, per-field results + cost out) for an earlier data-agnostic track.
 That track was retired on 2026-08-22 — see docs/decisions.md — and the shape
 went with it.
 """

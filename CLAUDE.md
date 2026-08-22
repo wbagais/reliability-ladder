@@ -64,9 +64,10 @@
   characterisations of rung 1. 148 tests, CI green.
 - Rungs 0/3/4/5 and the shared scorer are owner B's and outstanding. `run.py`
   reports a missing rung rather than faking it.
-- **The data-agnostic SROIE track was retired on 2026-08-22.** The CADEC track
-  imported none of it. Its measured numbers live in `docs/decisions.md`; the code
-  is recoverable from git history at `e938f8d`.
+- **An earlier data-agnostic track was retired on 2026-08-22**, along with its
+  results. The CADEC track imported none of it. Do not reintroduce its numbers:
+  nothing in this repo is runnable that would reproduce them. Git history at
+  `e938f8d` if you ever need them.
 - Numbers in `docs/plan.html` are still illustrative placeholders EXCEPT where a
   "measured" note says otherwise. Everything measured so far is in
   `docs/decisions.md` and `docs/article-iterations.md`.

@@ -15,9 +15,6 @@ data/private*
 data/2016-04-15_Karimi_Sarvnaz_*
 # built datasets embed document text
 data/*_v1.json
-# ...except SROIE, which is redistributable
-!data/sroie_v1.json
-!data/example_upload.json
 
 # MedDRA is subscription-licensed, and the 666-row list that ships inside CADEC
 # is a substantial extract covered by CADEC's terms either way. Commit the
@@ -69,7 +66,6 @@ venv/
 Thumbs.db
 *.log
 data/raw/
-data/SROIE2019/
 
 # ── GITLAB ──────────────────────────────────────────────────────────
 # public/ is built by the pages CI job and never committed

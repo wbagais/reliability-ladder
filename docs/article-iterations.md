@@ -9,12 +9,15 @@ narrative layer on top of it, with the numbers pulled forward and the process
 beats — what we tried, what the data contradicted, what we changed — made
 explicit, because those are the parts that cannot be reconstructed later.
 
-Two tracks exist. **Track 1** is the data-agnostic ladder with SROIE receipts as
-its demo dataset (`bench/`, shipped, full 60×10 run measured). **Track 2** is the
-CADEC pharmacovigilance instance (`ladder/`, owner A's half built and measured;
-the model-facing rungs are owner B's and outstanding). The article can lead with
-either. Section 3 argues for leading with track 2's rung-1 result and using
-track 1's yield trap as the second beat.
+Everything here is measured on **CADEC** — patient-reported adverse-event posts,
+normalised to SNOMED CT. Owner A's half of the ladder is built and measured; the
+model-facing rungs (0, 3, 4, 5) are owner B's and outstanding, so every number
+below is a property of the *deterministic* layer, measured against the gold
+standard and against planted errors. That is a narrower claim than a full ladder
+curve, and a stronger one for being checkable.
+
+An earlier data-agnostic track was retired on 2026-08-22 along with its results;
+nothing here is derived from it.
 
 ---
 
@@ -111,78 +114,33 @@ and it is the size of the pool the paid rungs have to work through — known bef
 a single token is spent. Worth stating as a planning tool: **run your
 deterministic layer over your answer key first; the BAND fraction is your bill.**
 
-### 2.4 The metric trap (track 1, SROIE)
-
-**Accuracy is a ratio over answered items, so any layer that withholds answers
-raises it for free.** On the full SROIE run the judge rung lifted accuracy
-0.938 → 0.960 while **yield** — the share of *all* field slots that came out
-correct — collapsed 0.938 → 0.772. It deleted far more correct answers than
-errors. A team watching accuracy ships a layer that produces ~17% fewer correct
-fields and reports it as an improvement.
-
-Yield by rung: 0.938 / 0.938 / 0.932 / 0.934 / 0.772 / 0.772 / 0.988. Only the
-human rung beat the bare model.
-
-The dashboard now leads with yield and warns whenever accuracy rises while yield
-falls. This is the single most transferable finding in the project: it costs
-nothing to adopt and it invalidates a lot of published layer comparisons.
-
-### 2.5 The stack is worse than its best layer (track 1)
-
-Voting *alone* yields 0.946 — above the bare model and above every cumulative
-rung except the human one. Voting *inside* the cumulative stack yields 0.772,
-because it inherits the judge's damage. Judge alone yields 0.905, below baseline.
-
-Cumulative stacking is the wrong default. Compose deliberately. This is the
-argument for the configurator, and it is why the CADEC track keeps `rung_order`
-as a manifest list rather than a hard-coded sequence.
-
-### 2.6 Self-referential layers are inert against a confidently wrong model (track 1)
-
-Format checks, self-confidence abstention and self-correction moved accuracy by
-0.000 on the smoke run, and barely more at scale. All the rung-0 errors were
-wrong *values* at self-reported confidence 0.9–1.0. The first gain came from the
-first layer with an **independent** signal.
-
-The CADEC track predicts the same shape for a different reason and will test it:
-rung 3 (self-correction) is fired only by a rung 1 failure, so on this corpus it
-will see almost nothing — the false-rejection floor is 0.13% and BAND records
-give the model no fact to feed back. **Self-correction needs a stated fact, and
-a validation gate that is honest about not knowing produces very few of them.**
-
 ---
 
 ## 3. Suggested structure
 
-Six beats, practitioner voice. The reordering versus the original outline is
-deliberate: lead with the finding that is cheapest for a reader to act on.
+Five beats, practitioner voice. The ladder is not fully measured yet, so the
+piece leads with what *is*: a validation gate characterised end to end before a
+single model call.
 
 1. **Every agent is 90% harness, built by vibes.** The hook. Name the seven
-   layers in one paragraph each; do not dwell — they are not the contribution.
-2. **The metric trap.** §2.4. Short, concrete, immediately actionable, and it
-   earns the reader's trust for the harder material. Figure: the yield-vs-accuracy
-   divergence at the judge rung.
+   layers in a paragraph each and move on — they are not the contribution.
+2. **You can measure a layer before you build the layer above it.** §4.4's
+   method: replay your deterministic gate over the answer key, where every
+   rejection is false by construction. It costs nothing and it caught three
+   faults that would otherwise have shipped as a plausible 9.3% rejection rate.
 3. **What a free layer actually buys.** §2.2 and §2.3. Rung 1 is exact on its own
-   classes, blind on the interesting one, and leaves 57% of even a perfect answer
-   set unverifiable. Reframe: free filter + paid resolvers, not a stack of
-   improvements.
+   error classes, blind on the interesting one, and leaves 57% of even a perfect
+   answer set unverifiable. Reframe: a free, exact filter plus paid resolvers —
+   not a stack of improvements.
 4. **The gate that vouches for the error.** §2.1. The strongest single number,
-   and a process story: the obvious setting, the measurement, the reversal. This
-   is where the article earns its "we measured it" claim.
-5. **The flip.** Whether withholding is worth it depends entirely on your cost of
-   a wrong answer versus a missing one; the optimal rung moves with your
-   economics (rung 1 below ~$2 per error, rung 2 at ~$5, rung 6 from ~$10 on the
-   SROIE run).
-6. **Decision rules + the tool.** Compose deliberately, not cumulatively.
-   Calibrate the abstention gate per model before concluding the layer does not
-   work. Run your deterministic layer over your answer key before you trust it.
-   Measure the permissive setting's false-vouch rate.
+   and a process story: the obvious setting, the measurement, the reversal.
+5. **Decision rules.** Measure the permissive setting's false-vouch rate before
+   shipping it. Pin your vocabulary release — §4.7 shows the same check giving
+   23.9% different answers across two sources. Don't let a validation layer
+   filter the input to the layers you are trying to measure (§4.5). And check
+   whether your reference list came from your answer key (§4.6).
 
-**The process section** — §4 below — is the differentiator. Most measurement
-articles present the finished number. The value here is in the corrections, and
-six of the entries below are things that were wrong and got fixed.
-
----
+Beats 2–4 are the article. Beat 5 is what a reader takes to work on Monday.
 
 ## 4. Implementation iterations — what we changed, and why
 
@@ -302,10 +260,9 @@ allowed to cost coverage — so the change **defers** rung 1's cost rather than
 cancelling it, and a test asserts both modes reach the same end state.
 `mode: "gate"` reproduces the original flow in one manifest line.
 
-**Why it belongs in the article.** It is the same lesson as "the stack is worse
-than its best layer" (§2.5) arriving from the other direction. Cumulative
-stacking is not just a bad *default* for production — it is a bad *experimental
-design*, because it destroys attribution. If you want to know what a layer buys,
+**Why it belongs in the article.** Cumulative stacking is not just a
+questionable *default* for production — it is a bad *experimental design*,
+because it destroys attribution. If you want to know what a layer buys,
 the layers below it must not be allowed to change its input.
 
 Two mechanical notes worth a line, because they are what made it cheap: the
@@ -472,16 +429,10 @@ need to exist.
 - **Missing rungs are reported, never faked.** Half a ladder honestly labelled is
   a result. The scorer is injected the same way, so accuracy columns are written
   empty rather than guessed.
-- **An earlier incident, worth one line (track 1):** the app wrote every run to a
-  single `results.json`, so a 3-item run silently destroyed a finished 60-item
-  benchmark. It was recovered for free by replaying from the call cache. Lesson:
-  *if your eval harness caches model calls, results files are disposable; if it
-  does not, one careless rerun costs you the experiment.*
-- **A finding we published to ourselves and then retracted (track 1):** on a
-  10-item smoke run, cross-prompt vote dispersion looked like a better abstention
-  signal than self-reported confidence. At n=60 it is not — thresholding on vote
-  agreement costs yield fast while confidence at τ=0.90 costs none. Nine errors
-  was too small a base. Good honest-aside material.
+- **The call cache is architecture, not convenience.** Every model call is keyed
+  and written to disk, so a re-run costs nothing, an interrupted run resumes, and
+  results files become disposable derivatives rather than the only copy of an
+  experiment.
 
 ---
 
@@ -490,43 +441,40 @@ need to exist.
 Discipline from the plan, and it holds: if you cannot write the caption, the
 result is not clear yet.
 
-1. **Yield vs accuracy across the seven rungs (track 1).**
-   *"At the judge rung accuracy rises and yield falls. The layer improved the
-   metric most teams watch and reduced the number of correct fields the user
-   actually receives by 17%."*
-2. **Rung 1 detection profile — six planted error classes (track 2).**
+1. **Rung 1's own error floor, before and after (§4.4).**
+   *"The gate as specified rejected 9.3% of the answer key. Three fixes —
+   negation demoted to a flag, retired concepts distinguished from misplaced
+   ones, inactive codes from nonexistent ones — took it to 0.13%."*
+2. **Rung 1 detection profile — six planted error classes (§2.2).**
    *"Deterministic checks are exact on the classes they are built for and blind
    to the one that matters. Rejection rate by planted error type, 8,666 records
    per class, zero model calls."*
-3. **The lexical knob (track 2).**
+3. **The lexical knob (§2.1).**
    *"Token containment lifts the free-settlement lane from 43% to 55% of a
    perfect answer set, and puts 19% of near-miss errors into ACCEPT — records the
    gate actively vouches for. Exact matching puts 0.1% there."*
-4. **Zone occupancy on the gold standard (track 2).**
+4. **Zone occupancy on the gold standard (§2.3).**
    *"Even when every answer is correct, 57% of records are unverifiable by string
    comparison. That fraction is the bill the paid rungs have to work through, and
    it is knowable before the first token is spent."*
-5. **The gate's own error floor, before and after (track 2).**
-   *"Rung 1 as specified rejected 9.3% of the answer key. Three fixes — negation
-   demoted to a flag, retired concepts distinguished from misplaced ones,
-   inactive codes distinguished from nonexistent ones — took it to 0.13%."*
-6. **Net utility by cost-of-a-wrong-answer (track 1).**
-   *"The optimal rung is a function of your economics, not of the model: rung 1
-   below ~$2 per error, rung 2 at ~$5, human review from ~$10 up."*
+5. **The same check, two vocabulary sources (§4.7).**
+   *"An OLS4-backed existence check calls 23.9% of the answer key hallucinated;
+   a local release calls 5 of 8,666. Neither implementation is wrong — the source
+   decides the answer."*
 
----
+Still to come, once owner B's rungs land: the marginal cost curve (tokens and
+human reviews per prevented error, per rung) — the headline the whole ladder
+exists to produce.
 
 ## 6. Limitations to state plainly
 
 - **The MedDRA check cannot be trusted as configured.** Its reference table is
   derived from the answer key. It is reported, not scored, and any number from
   it carries the caveat.
-- **Track 2 is half a ladder.** Rungs 0, 3, 4, 5 are owner B's and outstanding.
-  Everything in §2.1–2.3 is a property of the *gate*, measured against the gold
-  standard and against planted errors — not a model result. Say so; it is a
-  stronger claim for being narrower.
-- **Track 1 is one model on one task** (granite4:micro-h, SROIE). The
-  contribution is the method and the shape, not a leaderboard.
+- **This is half a ladder.** Rungs 0, 3, 4 and 5 are owner B's and outstanding.
+  Everything in §2 is a property of the *gate*, measured against the gold
+  standard and against planted errors — not a model result, and not yet a
+  cost curve. Say so; it is a stronger claim for being narrower.
 - **Determinism was 1.000 at every rung on the local model** — greedy decoding at
   temperature 0 is exactly reproducible, so that axis is free locally and only
   becomes interesting on hosted APIs with batching nondeterminism. The
@@ -564,5 +512,6 @@ python -m ladder.vocab_crosscheck --live 40
 python scripts/preflight.py --history
 ```
 
-Track 1's numbers are in `docs/decisions.md` and reproduce from the cached run in
-`results/`. Neither corpus is redistributable — see `docs/licences.md`.
+The corpus is not redistributable and the SNOMED release needs an affiliate
+licence — see `docs/licences.md`. Every figure above comes from the commands
+here; nothing is quoted from a pipeline that is no longer in the repo.

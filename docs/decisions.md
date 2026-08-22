@@ -7,36 +7,16 @@ Format: date — decision/surprise — why.
 
 ---
 
-- 2026-08-16 — Dataset = SROIE2019 (626 train receipts, fields company/date/address/total) — already downloaded; gold entities included; the system itself is data-agnostic and SROIE is just the first "user" of the pipeline.
-- 2026-08-16 — Temperature locked to 0 for EVERY call in EVERY rung — determinism is the headline metric; any sampling noise would confound it.
-- 2026-08-16 — Consequence: rung 5 (voting) cannot use sampling diversity at temp 0. It votes across 5 fixed prompt VARIANTS (different framings/orderings of the harness wrapper around the unchanged user prompt) — deterministic diversity.
-- 2026-08-16 — Adapter contract revised to v2 — `output_schema` (JSON Schema, nesting allowed) replaces flat `fields`; `gold` = full output object; `trusted_record` optional (absent = pure extraction, new verdict "n_a"). Reason: user's private dataset is nested-JSON extraction with no trusted source; flat verification-only contract wasn't data-agnostic. Flat v1 still accepted.
-- 2026-08-16 — Internally, nested outputs are flattened to leaf paths (vendor.name, lines[0].price); each leaf path is a "field" for metrics + Runner. Arrays compared by index (order-insensitive matching = future work).
-- 2026-08-16 — Rung 6 has two modes: simulated (gold value + fixed 2 human-min; reproducible, used for the published SROIE curve) and live (app review queue where the user confirms/corrects escalated fields; measured review time replaces the assumed minutes).
-- 2026-08-16 — Accuracy scoring for SROIE is purely mechanical (normalize + exact match); LLM-judge-as-scorer stays a hook for semantic fields in future datasets. Rung-4 judge and scorer-judge must never share a prompt.
-- 2026-08-16 — SURPRISE (first smoke run, granite4:micro-h, 10 items K=3): determinism = 1.000 at every rung — local greedy decoding at temp 0 is perfectly deterministic, so for local models the determinism axis is free and the curve rides on accuracy/coverage. Hosted APIs (batching nondeterminism) are where the determinism axis should move; measure the same curve on Gemini to compare. Also: local compute is $0, so the cost frontier for local runs is latency + human-minutes, not dollars.
-- 2026-08-16 — SURPRISE (smoke run): rungs 1–3 moved accuracy 0.000. Cause, verified per-field: all 3 rung-0 errors were wrong VALUES at self-reported confidence 0.9–1.0 — not format errors (rung 1 inert for accuracy; scorer is normalization-tolerant anyway), nothing under the 0.7 abstention threshold (rung 2 inert; confidence is uncalibrated), and self-review kept all 3 errors and raised confidence on 2 (rung 3 inert). First accuracy gain came at rung 4 — the first layer with an INDEPENDENT signal. Candidate thesis for the article: self-referential layers are cheap but inert when the model is confidently wrong; gains start where independent signal enters (judge / variant-voting / human).
-- 2026-08-16 — ANALYSIS (smoke run, replayed from cache): (a) granite's self-reported confidence is nearly binary — 1.000 when correct, 0.933 when wrong — so the 0.7 abstention threshold catches nothing, but a ~0.95 threshold would have screened 6/9 errors at zero coverage cost: abstention isn't broken, its THRESHOLD is miscalibrated per-model. (b) The 5 prompt variants disagreed on only 2/40 fields — but those 2 are exactly the persistently-wrong fields; variant DISPERSION is a well-calibrated error signal even though the majority vote itself picked the wrong value (3-2 for the wrong total). (c) The judge as an error detector: precision 0.25, recall 0.67 — it caught 6 real errors but withdrew 18 correct answers; all 24 rung-6 escalations trace back to it. K (runs/item) is irrelevant to these findings at temp 0; n_items only tightens their CIs.
-- 2026-08-17 — INCIDENT + FIX: the app wrote every run to a single results.json, so a 3-item app run silently destroyed the finished 60-item benchmark. Recovered for free by replaying from the call cache (the cache is the real source of truth; results.json is derived). Runs now go to results/<domain>_<n>x<k>_<timestamp>.json and the dashboard lists them all. Lesson worth a line in the article: if your eval harness caches calls, results files are disposable — if it doesn't, one careless rerun costs you the experiment.
-- 2026-08-17 — MINED THE FULL RUN (no new model calls; all four analyses replay from cache):
-  (a) ERRORS ARE CONCENTRATED: address 100 wrong / 600, total 40, date 10, company 0. One field carries 2/3 of all errors — a per-field fix beats a whole reliability layer here.
-  (b) ABSTENTION THRESHOLD FOUND: at tau=0.90 (not the default 0.70) coverage only drops 1.000 -> 0.979 while the error rate on kept answers falls 0.062 -> 0.043 and yield stays 0.938. About a third of the errors are screened at zero cost to correct answers. The default gate sits below almost every confidence this model emits, which is why rung 2 looked inert.
-  (c) CORRECTION to the smoke-run claim: vote dispersion does NOT beat self-reported confidence as an abstention signal at scale. Thresholding on vote agreement costs yield fast (tau=0.7 -> yield 0.838) while self-confidence at tau=0.9 costs nothing. The smoke run's n=9 errors was too small to support the earlier claim.
-  (d) THE STACK IS WORSE THAN ITS BEST LAYER: voting ALONE yields 0.946 — better than bare (0.938) and the best single layer — but voting inside the cumulative stack yields 0.772 because it inherits the judge's damage. Judge alone yields 0.905, below baseline. Best configuration measured: bare + voting (+ human = 0.988), not the top rung. This is the strongest argument for the composer view.
-  (e) THE FLIP IS REAL: optimal rung by cost of a wrong answer — rung 1 up to ~$2, rung 2 at ~$5, rung 6 from ~$10 up. Article beat 5 has its numbers.
-- 2026-08-17 — METRIC FIX: the dashboard now leads with YIELD = accuracy_on_answered x coverage (share of ALL fields correct), not accuracy. Reason: accuracy is a ratio over answered fields, so any layer that withholds answers raises it mechanically. On the full run the judge (rung 4) raised accuracy 0.938 -> 0.960 while yield COLLAPSED 0.938 -> 0.772: it deleted far more correct answers than errors. A user reading the accuracy line alone concludes rung 4 is better; it produces fewer correct fields. The app now shows yield first, warns when accuracy rises while yield falls, judges verdicts on yield, and puts the knee on the yield curve.
-- 2026-08-17 — FULL RUN (60 items, K=10, granite4:micro-h). Yield by rung: 0.938 / 0.938 / 0.932 / 0.934 / 0.772 / 0.772 / 0.988. Only rung 6 (human) beats the bare model on yield. Rung 2's confidence gap widened with n: mean confidence 0.995 when correct vs 0.879 when wrong — a real signal, but 140/150 errors still sit above the 0.7 gate, so the threshold (not the mechanism) is what's miscalibrated. Confirms the smoke-run findings at scale.
-- 2026-08-16 — Models: local-first via Ollama (data never leaves the machine); hosted APIs (Gemini first) are just registry entries behind the same OpenAI-compatible client. All calls disk-cached by (model, messages, temp, sample) → reruns free, runs resumable.
-
----
+The log starts at the CADEC track. An earlier data-agnostic track on receipt
+scans was retired on 2026-08-22 together with its results — see the retirement
+entry below. Nothing in this file is derived from it.
 
 ## CADEC pharmacovigilance track (`ladder/`) — owner A, 2026-08-22
 
-The v16 plan retargets the ladder from SROIE receipts to CADEC adverse-event
-posts. The two tracks coexist: `bench/` is the data-agnostic ladder with SROIE
-as its demo dataset; `ladder/` is the CADEC instance, where rung 1 is grounded
-in a real clinical vocabulary rather than in a JSON Schema. Only `ladder/` is
-in scope below.
+The v16 plan retargets the ladder to CADEC adverse-event posts, where rung 1 is
+grounded in a real clinical vocabulary rather than in a JSON Schema. (At the time
+of these entries an earlier data-agnostic track still existed alongside it; it
+was retired on 2026-08-22 — see below.)
 
 Format: date — decision/surprise — why.
 
@@ -234,9 +214,7 @@ Model-free, whole corpus, 8,666 coded records per corruption.
   above it. If rung 1 removes the records it dislikes, rung 4's judge is graded
   on a set rung 1 pre-cleaned, and the marginal contribution of rung 4 stops
   being attributable to rung 4. Observational rung 1 makes every rung a
-  single-rung ablation on identical input — which is also what the SROIE track's
-  "the stack is worse than its best layer" finding says you should have been
-  doing all along.
+  single-rung ablation on identical input.
   Mechanics: `Record.checks["r1_verdict"]` / `["r1_reason"]` carry the judgement,
   a `verdict` column was appended to the ledger, and reporting reads verdicts for
   rung 1 and zones for every other rung. Rung 2 — which runs last — reads the
@@ -411,20 +389,19 @@ move easier: one vocabulary module to relocate instead of two to merge.
   `flatten.py`, `prompts.py`, `parse.py`, `outputs.py`, `calibration.py`,
   `diagnostics.py`, `adapters/` (sroie + user_upload), `schemas/adapter.py`,
   `schemas/results.schema.json`, `data/sroie_v1.json`, `data/example_upload.json`,
-  `spec.md`, `docs/data-format.md`, `.claude/launch.json`, and nine test files.
-  ~4,000 lines.
+  `spec.md`, `docs/data-format.md`, `.claude/launch.json`, `docs/article-outline.md`
+  and nine test files. ~4,000 lines of code plus its results.
 - 2026-08-22 — WHAT WAS DELIBERATELY KEPT: `ladder/llm.py` and `models.yaml` —
-  the disk-cached model client is not SROIE-specific and is what owner B's rungs
+  the disk-cached model client is not task-specific and is what owner B's rungs
   0/3/4/5 will call. Plan v17 §3.1 is right that the cache is architectural, not
-  a convenience. And `docs/article-outline.md`, which holds the measured SROIE
-  findings — the yield trap, the stack-worse-than-its-best-layer, the flip. Those
-  are still the article's strongest material; deleting the code does not delete
-  the result.
-- 2026-08-22 — **The SROIE numbers are no longer reproducible from this tree.**
-  That was the stated cost of the decision. The code is recoverable from git
-  history at `e938f8d`, and the numbers themselves are in this file and in
-  `docs/article-outline.md`. Anything quoting them in the article must say they
-  come from a retired track.
+  a convenience.
+- 2026-08-22 — **AND THE RESULTS WENT TOO.** Retiring the track but keeping its
+  numbers would have left the article quoting figures from a pipeline no longer
+  in the repo and no longer runnable — a claim nobody could check. So the earlier
+  track's measurements are deleted from this log, from the article notes and from
+  the README. The code and its numbers remain in git history at `e938f8d` for
+  anyone who wants them; nothing forward of this point cites them, and the
+  article stands on the CADEC measurements alone.
 - 2026-08-22 — CONSEQUENCE, then cleanup: with SROIE gone, `bench/` held four
   files that were all CADEC. Consolidated into `ladder/` and deleted `bench/`.
   `bench/vocab.py` → `ladder/vocab.py`, `llm.py` → `ladder/llm.py`,

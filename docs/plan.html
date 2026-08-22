@@ -956,7 +956,7 @@ The corpus is licensed <b>non-commercial and non-transferable, with no redistrib
 │   ├── normalize.py  flatten.py  prompts.py
 │   ├── rungs/                #   r0 … r6, one file per rung, one owner per file
 │   ├── metrics.py  diagnostics.py  calibration.py  outputs.py
-│   ├── adapters/             #   sroie.py · cadec.py · user upload
+│   ├── corpus.py             #   CADEC reader + frozen splits
 │   ├── models.yaml           #   model registry + prices
 │   └── cli.py
 ├── app/
@@ -965,7 +965,7 @@ The corpus is licensed <b>non-commercial and non-transferable, with no redistrib
 │   └── results.reference.json#   committed run, so the hosted app shows real numbers
 ├── schemas/                  # runner.py · results.schema.json · adapter.py
 ├── data/
-│   ├── sroie_v1.json         # demo dataset — safe to commit
+│   ├── meddra_codes.example.csv  # 10 rows for tests
 │   ├── example_upload.json   # template
 │   ├── meddra_codes.example.csv  # ~10 rows for tests
 │   └── cadec/                # GITIGNORED — licence forbids redistribution
@@ -1012,19 +1012,19 @@ data/meddra_codes.csv</pre>
 .venv/bin/python -c "import bench.vocab as v; print(v.exists('60862001'), v.is_finding('60862001'))"
 
 # 1 · validate the data file before spending a single model call
-.venv/bin/python -m bench.cli validate data/cadec_v1.json
+.venv/bin/python -m ladder.run init
 
 # 2 · smoke run: 10 items, K=3 — catches wiring faults cheaply
-.venv/bin/python -m bench.cli run --data data/cadec_v1.json \
-    --model "ollama/ibm/granite4:micro-h" --smoke
+.venv/bin/python -m ladder.run ladder --split test \
+    --model "<provider/model>" --smoke
 
 # 3 · the real curve
-.venv/bin/python -m bench.cli run --data data/cadec_v1.json \
-    --model "ollama/ibm/granite4:micro-h" --k 10
+.venv/bin/python -m ladder.run ladder --split test \
+    --model "<provider/model>" --k 10
 
 # 4 · the A/B ablation — rung 0 with and without the search tool
-.venv/bin/python -m bench.cli run --data data/cadec_v1.json --rung0-mode recall --rungs 0-1
-.venv/bin/python -m bench.cli run --data data/cadec_v1.json --rung0-mode search --rungs 0-1
+.venv/bin/python -m ladder.run ladder --split test --rung0-mode recall --rungs 0-1
+.venv/bin/python -m ladder.run ladder --split test --rung0-mode search --rungs 0-1
 
 .venv/bin/python -m pytest tests/          # fake LLM, no network</pre>
 <div class="note">

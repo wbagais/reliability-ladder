@@ -1,17 +1,16 @@
 # The CADEC track (`ladder/`) — what is built, how to run it, what is next
 
-The v16 plan retargets the ladder from SROIE receipts to pharmacovigilance
-triage on CADEC. The two tracks coexist and answer different questions:
+Pharmacovigilance triage on CADEC: read an archived patient report, identify the
+adverse reactions the writer describes, normalise each to a SNOMED CT code.
 
-| | `bench/` (shipped) | `ladder/` (this) |
-|---|---|---|
-| task | any structured extraction; SROIE is the demo | one task: CADEC mention normalisation |
-| rung 1 | schema-driven normalisation + verdicts | **vocabulary-grounded**: span, negation, SNOMED existence, semantic type, MedDRA |
-| gold | a value per field | a SNOMED code per mention, or `CONCEPT_LESS` |
-| unit | one field slot | one mention record |
-| what it shows | which layers pay on your own data | what a *real* validation gate catches, and what it cannot |
+What makes it worth measuring rather than a schema check: rung 1 is grounded in a
+real clinical vocabulary, so it can ask whether a code exists and whether it sits
+in the right branch of the hierarchy — questions a format validator cannot pose.
+The unit is one **mention**, not one document and not a field slot, and the gold
+answer is a SNOMED code or `CONCEPT_LESS`.
 
-Nothing in `bench/` was changed.
+An earlier data-agnostic track was retired on 2026-08-22 along with its results;
+see `docs/decisions.md`. Everything here is measured on CADEC.
 
 ## Safety, by construction rather than by disclaimer
 
