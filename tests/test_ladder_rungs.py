@@ -170,8 +170,19 @@ def test_concept_less_is_an_answer_not_an_error():
     assert checks["concept_less"] is True
 
 
-def test_without_a_vocabulary_nothing_is_rejected_for_its_code():
-    zone, _, checks = r1.zone(rec(sct="999999999"), SOURCE, None, {})
+def test_missing_vocabulary_is_an_error_not_a_band():
+    """BAND here would make "unverifiable" and "never checked" the same value.
+
+    Nothing above rung 1 could tell them apart, so a misconfigured run would
+    produce a plausible verdict for every record and say nothing. Strict by
+    default; allow_no_vocab is the deliberate opt-out.
+    """
+    import pytest
+    with pytest.raises(RuntimeError, match="no vocabulary backend"):
+        r1.zone(rec(sct="999999999"), SOURCE, None, {})
+
+    zone, _, checks = r1.zone(rec(sct="999999999"), SOURCE, None,
+                              {"allow_no_vocab": True})
     assert zone == ZONE_BAND and checks["vocab"] == "unavailable"
 
 

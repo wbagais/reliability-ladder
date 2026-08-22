@@ -177,6 +177,13 @@ def zone(
 
     if vocab is None:
         checks["vocab"] = "unavailable"
+        if not cfg.get("allow_no_vocab"):
+            raise RuntimeError(
+                "rung 1 has no vocabulary backend. Returning BAND here would make "
+                "'plausible but unverifiable' and 'never checked' the same value, "
+                "and nothing above rung 1 could tell them apart. Pass a registry "
+                "in cfg, or set allow_no_vocab=True to measure without one."
+            )
         return ZONE_BAND, None, checks
 
     # 4 — does the code exist at all?
