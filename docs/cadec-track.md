@@ -125,15 +125,15 @@ number appears. Point `vocabulary.meddra_csv` at a subscription release and
 ## Two vocabulary backends behind one contract
 
 `schemas/vocabulary.py` is contract 4 — the global vocabulary resource v17 §4
-asks for. Two backends implement it and `bench.vocab.select()` picks one:
+asks for. Two backends implement it and `ladder.vocab.select()` picks one:
 
 | backend | source | needs | `lossy` |
 |---|---|---|---|
 | `local-rf2` | a SNOMED CT RF2 release indexed to SQLite (`ladder/registry.py`) | ~5 GB download + affiliate licence | **False** — sees retired concepts and extension modules |
-| `ols4` | EBI OLS4 over the network (`bench/vocab.py`) | nothing | **True** — active international SNOMED only |
+| `ols4` | EBI OLS4 over the network (`ladder/vocab.py`) | nothing | **True** — active international SNOMED only |
 
 The local one wins when an index exists; otherwise the run falls back and warns.
-`bench/vocab.py`'s module-level functions are unchanged in signature and
+`ladder/vocab.py`'s module-level functions are unchanged in signature and
 delegate to whichever was selected, so anything already importing them keeps
 working. The manifest records `vocabulary.snomed_backend`, because:
 

@@ -104,9 +104,14 @@ def main() -> int:
                       ("LICENSE", "no licence means all rights reserved")]:
         if not Path(need).exists():
             issues.append(("WARN", need, "missing — " + why))
-    if not Path("app/results.reference.json").exists():
-        issues.append(("WARN", "app/results.reference.json",
-                       "missing — the hosted app will show stub numbers as if real"))
+    if not Path("manifest.json").exists():
+        issues.append(("WARN", "manifest.json",
+                       "missing — a result without a pinned corpus, vocabulary release "
+                       "and seed is not reproducible"))
+    if not Path("data/splits/test.json").exists():
+        issues.append(("WARN", "data/splits/test.json",
+                       "missing — run `python -m ladder.run init` once; the frozen split "
+                       "is what makes iteration 2 comparable to iteration 1"))
     if Path("requirements.txt").exists():
         for line in Path("requirements.txt").read_text().splitlines():
             s = line.strip()

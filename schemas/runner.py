@@ -1,68 +1,19 @@
 """
-CONTRACT 1 — Runner interface. Two shapes, one per track.
+CONTRACT 1 — the rung interface.
 
-Every rung (0-6) implements one of these. Any rung is interchangeable: the
-harness calls a rung without knowing which one it is, which is what makes
-execution order a config value and a new rung twenty minutes' work.
+    apply(records, sources, cfg) -> records
 
-Do not change either signature without both people agreeing — this is the
-coordination surface between A's rungs and B's.
+Every rung (0-6) implements it, which is what makes rungs interchangeable,
+execution order a config value, and a new rung twenty minutes' work rather than
+an hour. Do not change the signature without both owners agreeing.
 
-  Runner   the field-level shape: one document in, field results + cost out.
-           Used by the data-agnostic bench/ track (SROIE and user uploads).
-  Rung     the record-level shape from v17 §4: a whole batch of mention
-           records in, the same records back with zones and reasons updated.
-           Used by the CADEC track.
-
-They are not variants of each other. The first scores a fixed set of field
-slots per document; the second routes a variable-length set of mentions whose
-membership is itself part of what is being measured.
+History: this file used to carry a second, field-level `Runner` shape (one
+document in, per-field results + cost out) for the data-agnostic SROIE track.
+That track was retired on 2026-08-22 — see docs/decisions.md — and the shape
+went with it.
 """
 
-from dataclasses import dataclass
-from typing import Any, Literal, Protocol
-
-Verdict = Literal["matches", "conflicts", "not_found", "n_a"]
-# "n_a" (v2, 2026-08-16): pure-extraction tasks have no trusted record to
-# verify against, so verdicts don't apply. See docs/decisions.md.
-
-
-@dataclass
-class FieldResult:
-    field: str                  # leaf path, e.g. "vendor.name" or "lines[0].price"
-    value: str | None          # extracted value, None if abstained/not found
-    verdict: Verdict
-    confidence: float           # 0.0 - 1.0
-
-
-@dataclass
-class Cost:
-    tokens: int = 0
-    dollars: float = 0.0
-    latency_s: float = 0.0
-    human_minutes: float = 0.0  # only rung 6 sets this
-
-
-@dataclass
-class RunnerOutput:
-    fields: list[FieldResult]
-    cost: Cost
-    abstained: bool = False     # True if the rung declined to answer
-
-
-class Runner(Protocol):
-    """A rung. Takes one document (+ optional trusted record), returns results + cost."""
-
-    rung: int
-    name: str
-
-    def run(self, doc: str, record: dict | None) -> RunnerOutput:
-        ...
-
-
-# ---------------------------------------------------------------------------
-# The record-level shape (v17 §4). One batch in, the same batch back.
-# ---------------------------------------------------------------------------
+from typing import Any, Protocol
 
 
 class Rung(Protocol):

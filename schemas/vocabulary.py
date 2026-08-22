@@ -11,7 +11,7 @@ and `python -m ladder.vocab_crosscheck`:
                                        Needs a ~5 GB download and an affiliate
                                        licence. Sees retired concepts and
                                        extension modules.
-    OLS4    bench.vocab.Ols4Vocabulary EBI OLS4 over the network. Free, no key,
+    OLS4    ladder.vocab.Ols4Vocabulary EBI OLS4 over the network. Free, no key,
                                        nothing to download. Serves ACTIVE
                                        INTERNATIONAL SNOMED only.
 

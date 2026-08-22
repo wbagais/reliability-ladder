@@ -47,6 +47,35 @@
     6
   ],
   "rung_order_note": "Execution order, not numbering. Rung IDs come from the brief and are identity; renumbering would break comparability with other groups. Abstention runs last because abstaining before correction and voting throws away recoverable records.",
+  "rung0_mode": "recall",
+  "rung0_mode_note": "recall | search. Plan v16 \u00a72.1 recommends 'recall' for iteration 1 \u2014 the model emits a code from memory, no tools \u2014 because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
+  "ablations": [
+    {
+      "name": "rung0 search vs recall",
+      "rung0_mode": "search",
+      "scope": "R0+R1 only",
+      "why": "does a lookup tool remove errors, or just move them into 'overrode_tool'?"
+    },
+    {
+      "name": "rung order",
+      "rung_order": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        4,
+        6
+      ],
+      "why": "abstention early. Turns 'abstention should run last' from an assertion into a measurement."
+    },
+    {
+      "name": "vocabulary backend",
+      "snomed_backend": "ols4",
+      "scope": "R0+R1 only",
+      "why": "the two backends disagree on 23.9% of gold; this prices that difference in rung-1 terms."
+    }
+  ],
   "rungs": {
     "1": {
       "mode": "observe",

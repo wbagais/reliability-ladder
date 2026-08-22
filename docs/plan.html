@@ -329,10 +329,10 @@ Everything numeric in this document is an <b>illustrative placeholder</b> except
 <tr><td>5</td><td><b>Semantic type</b> — descendant of <code>404684003 |Clinical finding|</code>?</td><td>vocabulary hierarchy</td><td>Real codes in the wrong slot — a procedure where a finding belongs.</td></tr>
 </table>
 
-<p>Two outcomes only: <b>REJECTED</b> with a reason code, or <b>PASSED VALIDATION</b> and carried on. Passing validation is not a claim of correctness.</p>
+<p>Two outcomes only: <b>REJECTED</b> with a reason code, or <b>PASSED VALIDATION</b> and carried on. Passing validation is not a claim of correctness.</p><p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> <strong>Three</strong> outcomes in the implementation: REJECT, ACCEPT (the vocabulary uses these very words) and BAND (plausible, unverifiable). Two cannot express BAND, and BAND is where <strong>57%</strong> of even a <em>perfect</em> answer set lands — that fraction is the bill the paid rungs work through. Rung 1 also now <em>judges without routing</em> by default: a filtering rung 1 makes every rung above it unattributable. <em>See docs/decisions.md.</em></p>
 
 <div class="note warn">
-<b>The negation check earns its place on real text</b>
+<b>The negation check earns its place on real text</b><p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> As a <em>rejection</em> this costs <strong>427 gold-correct mentions (4.7%)</strong>. CADEC annotates a mention regardless of polarity &mdash; the example below, &ldquo;so far no gastric problems&rdquo;, is annotated in ARTHROTEC.1 as an ADR coded 162076009 &mdash; and NegEx scope misfires on forum prose. Negation is now an audit <em>flag</em>: the cue still fires and is still reported, but it does not reject. <em>See docs/decisions.md.</em></p>
 From an actual reporter: <i>"I feel a bit drowsy &amp; have a little blurred vision, so far no gastric problems."</i> A model will happily extract <i>gastric problems</i> as a reported reaction. It is explicitly denied. No vocabulary is needed to catch that — a cue list and a window around the span is enough, and it costs nothing.<br><br>
 Log it as its own rejection reason. <b>Negation errors are a distinct class</b> and worth reporting separately, because a system that gets codes right but polarity wrong is dangerous in a way an F1 score hides.
 </div>
@@ -363,11 +363,11 @@ They are now hard-coded into the Triage desk, so changing them means changing th
 
 <h2>4. Dataset and sources</h2>
 <h3>Primary: CADEC</h3>
-<p>CSIRO Adverse Drug Event Corpus. 1,250 patient posts from AskaPatient, in two groups by active ingredient (Diclofenac and Lipitor). Annotation ran in two stages — <b>human</b> entity identification, then terminology association — with guidelines, multi-stage annotation, inter-annotator agreement and final review by a clinical terminologist. ~6,754 entity mentions across five types.</p>
+<p>CSIRO Adverse Drug Event Corpus. 1,250 patient posts from AskaPatient, in two groups by active ingredient (Diclofenac and Lipitor). Annotation ran in two stages — <b>human</b> entity identification, then terminology association — with guidelines, multi-stage annotation, inter-annotator agreement and final review by a clinical terminologist. ~6,754 entity mentions across five types.<p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> v3&rsquo;s <code>sct/</code> files carry <strong>9,111</strong> mentions &mdash; ADR 6,318, Drug 1,800, Finding 435, Disease 283, Symptom 275. <em>See docs/decisions.md.</em></p></p>
 
 <div class="note stop">
 <b>Two corpus facts that change the design — verify both at 0:00</b>
-<b>1 · CADEC codes reactions, not drugs.</b> Mentions are normalised to <b>SNOMED CT (SCT)</b> and <b>MedDRA</b>. There are no drug codes to score, so the drug field is <b>span-checked only</b> — see §6.1 for how scoring splits by field.<br><br>
+<b>1 · CADEC codes reactions, not drugs.</b><p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> v3&rsquo;s <code>sct/</code> files code <strong>1,657 of 1,800</strong> drug mentions, mostly to AMT product concepts. Drugs stay span-scored by choice, not by absence &mdash; but rung 1 must not treat a product concept as a semantic-type error, or it rejects every correct drug code (measured: 1,423 gold mentions). <em>See docs/decisions.md.</em></p> Mentions are normalised to <b>SNOMED CT (SCT)</b> and <b>MedDRA</b>. There are no drug codes to score, so the drug field is <b>span-checked only</b> — see §6.1 for how scoring splits by field.<br><br>
 <b>2 · Strict span agreement between human annotators was about 68.7</b> on the Diclofenac posts, with mention-boundary disagreement the main source. <b>That is a ceiling on your strict span F1.</b> A system scoring near 0.69 is not underperforming — it is at the noise floor of the gold standard. Report relaxed alongside strict and cite this in limitations.
 </div>
 
@@ -404,7 +404,7 @@ Three consequences: <b>(a)</b> you cannot redistribute the corpus — not in you
 </table>
 <div class="note warn">
 <b>Verify vocabulary access at 0:00 — this is the new critical-path dependency</b>
-Rung 1 needs a code-existence lookup, and where it comes from decides whether rung 1 works at all. Try in order: <b>BioPortal API</b> (free, hosts both, no login to search) → <b>EBI OLS4</b> → a local release if your institution holds a licence.<br><br>
+Rung 1 needs a code-existence lookup, and where it comes from decides whether rung 1 works at all.<p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> A <strong>local RF2 release</strong> removes this dependency rather than mitigating it &mdash; no key, no rate limit, no network in the measurement loop. It also matters which: an OLS4-backed <code>exists()</code> reports <strong>23.9%</strong> of CADEC gold as nonexistent codes (7.5% retired, 16.4% AU-extension = <strong>100% of drug mentions</strong>, which are AMT). A rejection rate is not comparable across backends. <em>See docs/decisions.md.</em></p> Try in order: <b>BioPortal API</b> (free, hosts both, no login to search) → <b>EBI OLS4</b> → a local release if your institution holds a licence.<br><br>
 <b>Do not build the check from CADEC's own gold codes.</b> That is leakage — the check would accept exactly the codes the answer key uses and reject everything else, and your rung 1 numbers would mean nothing.
 </div>
 
@@ -595,7 +595,7 @@ Rungs mutate <code>zone</code>, <code>reason</code> and <code>provenance</code>,
 <li>Open the annotation files. Confirm reaction codes are <b>SCT and MedDRA</b>, that drugs carry no RxCUI, and find <code>concept_less</code>.</li>
 <li><b>Confirm vocabulary access and pin the release version</b> — BioPortal first, then EBI OLS4. This is the critical-path dependency: without a code-existence lookup, rung 1 does not exist.</li>
 <li>Splits at seed 42: <b>dev 40, test 60</b>. Write <code>test.json</code> to disk; never regenerate it. Record <code>n</code> in the manifest so iteration 2 can supersede it cleanly.</li>
-<li><b>Write the gold rule in one sentence:</b> "strict = exact SCT code equality on the reaction field." Both of you read it aloud.</li>
+<li><b>Write the gold rule in one sentence:</b> "strict = exact SCT code equality on the reaction field.<p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> Undefined for <strong>2.8%</strong> of the corpus: 252 mentions are post-coordinated (<code>A + B</code>, the mention needs both) and 3 are disjunctions. The rule is now &ldquo;the predicted code is IN the gold code set&rdquo;, with the affected records flagged. <em>See docs/decisions.md.</em></p>" Both of you read it aloud.</li>
 <li>Open <code>out/decisions.md</code>. One line per decision from here on — it is the spine of the article and the input to iteration 2.</li>
 </ul>
 <div class="gate"><b>Gate:</b> manifest exists with vocabulary releases, seed, n and the gold rule. A code-existence lookup returns true for a real code and false for a fake one. Corpus gitignored.</div>

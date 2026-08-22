@@ -2,7 +2,7 @@
 
 The repo now has two implementations of the same three rung-1 questions:
 
-    bench/vocab.py       EBI OLS4 over the network — free, no key, no download
+    ladder/vocab.py       EBI OLS4 over the network — free, no key, no download
     ladder/registry.py   a local SNOMED CT RF2 release, indexed into SQLite
 
 They are interchangeable in principle. They are not in practice, and the gap is
@@ -103,7 +103,7 @@ def live(man: dict, n: int) -> dict:
     """Confirm the offline prediction against the real service."""
     import random
 
-    import bench.vocab as ols
+    import ladder.vocab as ols
 
     reg = Registry(man["vocabulary"]["snomed_db"])
     concepts = _concept_table(Path(man["vocabulary"]["snomed_release_dir"]))

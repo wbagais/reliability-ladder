@@ -278,7 +278,7 @@ Model-free, whole corpus, 8,666 coded records per corruption.
   this repo's `bench/ app/ schemas/ data/ docs/ tests/` layout. Brought in
   `scripts/preflight.py` + GitLab CI, `LICENSE`, pinned `requirements.txt`,
   `SETUP.md`, `CLAUDE.md`, `docs/plan.html` (v17), `manifest.template.json`,
-  `bench/vocab.py`, `bench/ladder_ab.py`, `data/meddra_codes.example.csv`.
+  `ladder/vocab.py`, `ladder/rung0_ab.py`, `data/meddra_codes.example.csv`.
 - 2026-08-22 — BUG FOUND IN THE MERGED `.gitignore`, and it was licence-critical:
   git only treats `#` as a comment at the START of a line, so
   `data/*_v1.json   # built datasets embed document text` is a pattern that
@@ -292,14 +292,14 @@ Model-free, whole corpus, 8,666 coded records per corruption.
   worked example.
 - 2026-08-22 — v17 SUPERSEDES v16 ON LAYOUT. v16 §8.1 specifies a separate
   `ladder/` package, which is what this branch built. v17 §2 folds CADEC into
-  the existing `bench/` as `bench/adapters/cadec.py` + `bench/vocab.py` as a
+  the existing `bench/` as `bench/adapters/cadec.py` + `ladder/vocab.py` as a
   global resource, and adds a `resources` hook to the runner contract as "the
   one extension CADEC needs". Both now exist in the tree. Not reconciled
   unilaterally — see the open question at the end of this section.
 
 #### THE INTEGRATION FINDING: the two vocabulary backends disagree on 24% of gold
 
-`bench/vocab.py` (EBI OLS4 over the network) and `ladder/registry.py` (a local
+`ladder/vocab.py` (EBI OLS4 over the network) and `ladder/registry.py` (a local
 SNOMED CT RF2 release) answer the same three rung-1 questions and are
 interchangeable in principle. They are not in practice.
 
@@ -331,15 +331,15 @@ Consequences, in order of importance:
 3. Retired concepts are the recurring theme: OLS4 drops them, and a naive
    active-only hierarchy walk cannot place them. Both cost ~7% of gold.
 
-Not resolved here, because `bench/vocab.py` is not this owner's file. The
+Not resolved here, because `ladder/vocab.py` is not this owner's file. The
 measurement is a runnable script rather than an assertion so it can be checked
 rather than argued.
 
 #### Open question for the joint block
 
 Two implementations of rung 1 and of the vocabulary now sit in the tree:
-`ladder/` (this branch, local RF2, measured) and `bench/vocab.py` +
-`bench/ladder_ab.py` (the scaffolding, OLS4). v17's layout says the CADEC track
+`ladder/` (this branch, local RF2, measured) and `ladder/vocab.py` +
+`ladder/rung0_ab.py` (the scaffolding, OLS4). v17's layout says the CADEC track
 should live in `bench/` as an adapter. Reconciling them is a joint decision, not
 a merge conflict — deliberately left for one.
 
@@ -357,12 +357,12 @@ move easier: one vocabulary module to relocate instead of two to merge.
   v17 §4 calls this "the one extension CADEC needs" — SNOMED and MedDRA are
   global resources injected once per run, not per-item `trusted_record` fields.
   Two backends implement it: `ladder.registry.Registry` (local RF2, `lossy =
-  False`) and `bench.vocab.Ols4Vocabulary` (the network path, `lossy = True`).
-  `bench.vocab.select()` picks the local one when an index exists and warns
+  False`) and `ladder.vocab.Ols4Vocabulary` (the network path, `lossy = True`).
+  `ladder.vocab.select()` picks the local one when an index exists and warns
   loudly when it falls back, quoting the 23.9%. Every backend declares `name`,
   `release` and `lossy`, and the manifest records which one produced a number.
-- 2026-08-22 — `bench/vocab.py`'s public functions are unchanged in signature
-  and now delegate to the selected backend, so `ladder_ab.py` and the CI smoke
+- 2026-08-22 — `ladder/vocab.py`'s public functions are unchanged in signature
+  and now delegate to the selected backend, so `rung0_ab.py` and the CI smoke
   test keep working — and start getting the non-lossy answer. Caught mid-change:
   the first version rewired only `negated`/`grounded` and left `exists()` bound
   to the raw OLS4 call, so selecting the local backend silently did nothing for
@@ -374,14 +374,14 @@ move easier: one vocabulary module to relocate instead of two to merge.
   cannot express one. `Record.valid()`'s token-bag comparison false-rejects 4
   (0.04%). Same for negation — the character-window version has no notion of a
   cue inside the mention ("no energy" IS the symptom) or of a terminator ("but").
-  Both now delegate; `bench.vocab.negated`'s `window` is tokens, not characters.
+  Both now delegate; `ladder.vocab.negated`'s `window` is tokens, not characters.
 - 2026-08-22 — ONE MedDRA CLASS. It had been written twice, here and in the
   scaffolding, with the same leakage analysis reached independently.
   `MeddraTable` survives because it also has `leakage()`, which turns the
   analysis into a number. It absorbs the scaffolding's sharper half — `mode`:
   `"reference"` (cross-check only; `search()` raises) vs `"answer_space"` (the
   task IS closed-set assignment over the list, which is a different and much
-  easier task and must be declared). `bench.vocab.MedDRA` is an alias.
+  easier task and must be declared). `ladder.vocab.MedDRA` is an alias.
   `agrees_with_sct()` is the one MedDRA use that carries no leakage at all,
   because it compares two predictions rather than a prediction against the key.
 - 2026-08-22 — DELETED, as unused: `ladder/rungs/base.py` (its `Rung` protocol
@@ -397,3 +397,73 @@ move easier: one vocabulary module to relocate instead of two to merge.
   `schema.VERDICTS` and `schema.REJECT_REASONS` were enumerations nothing read.
   Rung 1 now asserts against them, so adding a reason without declaring it in
   the contract fails in the fixture gate rather than quietly in a results table.
+
+### Retiring the SROIE track — 2026-08-22
+
+- 2026-08-22 — MEASURED FIRST, THEN DELETED. An import-reachability scan from
+  each track's entry points found **zero shared modules**: eighteen pre-v16
+  modules were reachable only from the SROIE/app entry points, and the CADEC
+  track imported not one line of them. The two tracks were not coupled; they were
+  co-located.
+- 2026-08-22 — DECISION: retire the SROIE track. CADEC is the study. Deleted
+  `app/` (streamlit dashboard + review queue), `bench/pipeline.py` (a SECOND,
+  field-shaped ladder), `metrics.py`, `harness.py`, `cli.py`, `normalize.py`,
+  `flatten.py`, `prompts.py`, `parse.py`, `outputs.py`, `calibration.py`,
+  `diagnostics.py`, `adapters/` (sroie + user_upload), `schemas/adapter.py`,
+  `schemas/results.schema.json`, `data/sroie_v1.json`, `data/example_upload.json`,
+  `spec.md`, `docs/data-format.md`, `.claude/launch.json`, and nine test files.
+  ~4,000 lines.
+- 2026-08-22 — WHAT WAS DELIBERATELY KEPT: `ladder/llm.py` and `models.yaml` —
+  the disk-cached model client is not SROIE-specific and is what owner B's rungs
+  0/3/4/5 will call. Plan v17 §3.1 is right that the cache is architectural, not
+  a convenience. And `docs/article-outline.md`, which holds the measured SROIE
+  findings — the yield trap, the stack-worse-than-its-best-layer, the flip. Those
+  are still the article's strongest material; deleting the code does not delete
+  the result.
+- 2026-08-22 — **The SROIE numbers are no longer reproducible from this tree.**
+  That was the stated cost of the decision. The code is recoverable from git
+  history at `e938f8d`, and the numbers themselves are in this file and in
+  `docs/article-outline.md`. Anything quoting them in the article must say they
+  come from a retired track.
+- 2026-08-22 — CONSEQUENCE, then cleanup: with SROIE gone, `bench/` held four
+  files that were all CADEC. Consolidated into `ladder/` and deleted `bench/`.
+  `bench/vocab.py` → `ladder/vocab.py`, `llm.py` → `ladder/llm.py`,
+  `ladder_ab.py` → `ladder/rung0_ab.py`.
+- 2026-08-22 — `schemas/runner.py` stripped to the `Rung` protocol. Its
+  field-level `Runner` / `FieldResult` / `Cost` / `RunnerOutput` shape existed
+  only for the retired track. `schemas/results.schema.json` deleted outright: it
+  described a field-level `results.json` for a dashboard that no longer exists,
+  and nothing read or wrote it. The CADEC track's output contract is the
+  `results.csv` column list in `run.py`, which plan §8 step 7 specifies.
+- 2026-08-22 — THE LAST DUPLICATE RUNG 1 IS GONE. `rung0_ab.py` carried its own
+  `Rec` dataclass, its own `rung1()` and its own `REASONS` list, all predating
+  the measurements — and that rung 1 reproduced three faults the measured one had
+  already fixed: it rejected on negation (427 gold mentions), it rejected any
+  code the active hierarchy could not place (every retired concept, 413 more),
+  and it had two outcomes so it could not express BAND. It now uses
+  `schema.Record`, calls `r1.apply`, and reports with `schema.REJECT_REASONS`.
+  What it uniquely owns — the rung-0 A/B harness and the `honoured_tool` check —
+  is kept, which is what the file is actually for.
+- 2026-08-22 — Dependency footprint went from streamlit + plotly + pandas +
+  jsonschema + pyyaml to **pyyaml**. Nothing in the measurement path needed the
+  rest; they were the deleted dashboard's.
+- 2026-08-22 — `scripts/preflight.py` checked for `app/results.reference.json`.
+  With the app gone that warning was meaningless, so it now checks the two things
+  that actually make a result reproducible: `manifest.json` and the frozen
+  `data/splits/test.json`.
+
+### The plan now matches the code — 2026-08-22
+
+`docs/plan.html` and `CLAUDE.md` still described the pre-measurement design, and
+`CLAUDE.md` listed the rung-1 two-outcome design under "do not silently reverse
+these" — which this branch had reversed, with evidence, but only in this file.
+Six claims in the plan now carry a MEASURED note pointing here: the mention count
+(6,754 → 9,111), "no drug codes to score" (1,657 of 1,800 are coded), the
+negation box (costs 427 gold-correct mentions as a rejection), the gold rule
+(undefined for 2.8%), BioPortal as the vocabulary (and the 23.9% backend gap),
+and rung 1's two outcomes (three, and it no longer routes). `CLAUDE.md`'s
+decision list records each reversal with its measurement.
+
+A plan that contradicts the code is a bug in the plan. Correcting it in place —
+rather than only in a log — is what stops the next person rebuilding the thing
+that was already measured and rejected.
