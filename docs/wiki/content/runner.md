@@ -67,6 +67,8 @@ python -m ladder.run ablate --split test --source gold
 - Marginal-cost columns stay empty: "marginal" is only meaningful cumulatively.
 - Both commands build rows through one `snapshot_row()`, so there is still exactly one accounting path.
 
+See [[troubleshooting]] if a step fails.
+
 ## Related
 
-- [[getting-started]] · [[ledger]] · [[manifest]] · [[measurement]]
+- [[getting-started]] · [[ledger]] · [[manifest]] · [[measurement]] · [[glossary]]

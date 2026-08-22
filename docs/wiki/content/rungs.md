@@ -62,4 +62,4 @@ python -m ladder.run ablate --split test --source gold
 
 ## Related
 
-- [[architecture]] · [[record]] · [[ledger]] · [[manifest]] · [[runner]]
+- [[architecture]] · [[record]] · [[ledger]] · [[manifest]] · [[runner]] · [[glossary]]

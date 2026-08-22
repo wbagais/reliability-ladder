@@ -18,6 +18,25 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 - Unfamiliar term → [[glossary]]
 - About to open an MR → [[contributing]]
 
+## How do I…
+
+| I want to | Go to |
+|---|---|
+| set the repo up and run it once | [[getting-started]] |
+| run the ladder over a split | [[runner]] |
+| see what rung 1 concluded, record by record | [[r1]], and `out/<run>.records.jsonl` |
+| feed my own rung-0 predictions in | [[runner]] — `--predictions` |
+| measure one rung on its own | [[runner]] — `run ablate` |
+| know what a rung 1 setting costs | [[measurement]] — `calibrate --sweep` |
+| know what rung 1 can catch | [[measurement]] — `probe` |
+| find out why a record was abstained | [[r2]], then `checks.withheld` |
+| understand a cost column | [[ledger]] |
+| change a setting without breaking comparability | [[manifest]] |
+| implement a missing rung | [[rungs]], then that rung's page |
+| check what I may commit | [[data-licences]] |
+| fix a failure | [[troubleshooting]] |
+| look up a term | [[glossary]] |
+
 ## Build status
 
 | Rung | Layer | State |
@@ -47,7 +66,9 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 
 ## Headline measurements
 
-Whole corpus, 9,111 gold mentions, SNOMED `AU1000036_20260731`, no model calls.
+Whole corpus, 9,111 gold mentions, no model calls.
+
+> **Provenance.** Measured 2026-08-22 against CADEC v2 and SNOMED `AU1000036_20260731`. Both are pinned in [[manifest]]. Change either release and these move — regenerate with the commands on [[measurement]] rather than trusting the table.
 
 | | |
 |---|---|

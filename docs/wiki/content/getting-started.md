@@ -104,3 +104,7 @@ python scripts/preflight.py --history
 - Understand the flow → [[architecture]]
 - Understand a rung → [[rungs]]
 - Something failed → [[troubleshooting]]
+
+## Related
+
+- [[index]] · [[glossary]]

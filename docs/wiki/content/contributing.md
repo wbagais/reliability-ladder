@@ -74,3 +74,7 @@ git blame --line-porcelain HEAD -- <path> | grep '^author ' | sort | uniq -c | s
 - Navigation comes from `PAGES` in `build.py` — one line per page, single source of truth.
 - Cross-link with double-bracket wiki links naming a page slug. `python docs/wiki/build.py --check` fails on broken links and orphan pages.
 - Synthetic examples only. Never paste corpus text into a wiki page.
+
+## Related
+
+- [[index]] · [[glossary]]

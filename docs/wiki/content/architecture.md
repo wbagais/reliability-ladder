@@ -100,4 +100,4 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict) -> list[Rec
 
 ## Related
 
-- [[record]] · [[ledger]] · [[manifest]] · [[runner]] · [[rungs]]
+- [[record]] · [[ledger]] · [[manifest]] · [[runner]] · [[rungs]] · [[glossary]]

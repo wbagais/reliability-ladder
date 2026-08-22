@@ -82,4 +82,4 @@ CADEC labels five (ADR / Symptom / Disease / Finding / Drug). Four collapse to `
 
 ## Related
 
-- [[r1]] · [[r2]] · [[ledger]] · [[corpus]]
+- [[r1]] · [[r2]] · [[ledger]] · [[corpus]] · [[glossary]]

@@ -59,4 +59,4 @@ python -c "from ladder.ledger import Ledger; from collections import Counter; ro
 
 ## Related
 
-- [[record]] · [[runner]] · [[rungs]]
+- [[record]] · [[runner]] · [[rungs]] · [[glossary]]

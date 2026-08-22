@@ -63,4 +63,4 @@
 
 ## Related
 
-- [[data-licences]] · [[record]] · [[measurement]] · [[manifest]]
+- [[data-licences]] · [[record]] · [[measurement]] · [[manifest]] · [[glossary]]

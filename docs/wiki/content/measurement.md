@@ -2,6 +2,8 @@
 
 Both halves of a validation gate can be measured against the answer key alone, **with no model calls**.
 
+> **Provenance.** Every figure on this page: 2026-08-22, CADEC v2, SNOMED `AU1000036_20260731`, backend `local-rf2`. All are pinned in [[manifest]]. The commands below regenerate them.
+
 ## calibrate — the cost half
 
 ```bash
@@ -81,4 +83,4 @@ Error classes kept separate: `matched_correct` · `matched_wrong_code` (the inte
 
 ## Related
 
-- [[r1]] · [[corpus]] · [[vocabulary]] · [[runner]]
+- [[r1]] · [[corpus]] · [[vocabulary]] · [[runner]] · [[glossary]] · [[troubleshooting]]

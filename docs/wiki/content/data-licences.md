@@ -47,4 +47,4 @@ Preflight blocks these in the tree **and in history**:
 
 ## Related
 
-- [[corpus]] · [[contributing]] · [[testing]]
+- [[corpus]] · [[contributing]] · [[testing]] · [[glossary]]

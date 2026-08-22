@@ -58,4 +58,4 @@ Currently the rung-order ablation is a no-op: with rungs 3–6 absent, both orde
 
 ## Related
 
-- [[architecture]] · [[rungs]] · [[vocabulary]] · [[corpus]]
+- [[architecture]] · [[rungs]] · [[vocabulary]] · [[corpus]] · [[glossary]]

@@ -59,4 +59,4 @@ python scripts/preflight.py --history
 
 ## Related
 
-- [[contributing]] · [[measurement]] · [[data-licences]]
+- [[contributing]] · [[measurement]] · [[data-licences]] · [[glossary]] · [[troubleshooting]]
