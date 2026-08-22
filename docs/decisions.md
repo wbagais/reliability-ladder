@@ -224,3 +224,48 @@ Model-free, whole corpus, 8,666 coded records per corruption.
   `data/splits/*.json` stores document IDs only — no post text, no annotations.
   The CSIRO Data Licence is non-commercial and non-transferable, so the corpus
   cannot appear in the repo, in a release asset, or in a notebook output cell.
+
+### Two changes asked for on 2026-08-22, after the first pass
+
+- 2026-08-22 — CHANGE (requested): **rung 1 no longer filters.** It judges, and
+  the verdict is recorded, counted and reported; the record's zone is untouched.
+  `manifest.rungs.1.mode` = `"observe"` (new default) or `"gate"` (the plan's
+  flow). Reason, and it is a good one: a filtering rung 1 confounds every rung
+  above it. If rung 1 removes the records it dislikes, rung 4's judge is graded
+  on a set rung 1 pre-cleaned, and the marginal contribution of rung 4 stops
+  being attributable to rung 4. Observational rung 1 makes every rung a
+  single-rung ablation on identical input — which is also what the SROIE track's
+  "the stack is worse than its best layer" finding says you should have been
+  doing all along.
+  Mechanics: `Record.checks["r1_verdict"]` / `["r1_reason"]` carry the judgement,
+  a `verdict` column was appended to the ledger, and reporting reads verdicts for
+  rung 1 and zones for every other rung. Rung 2 — which runs last — reads the
+  verdict rather than the zone, so **observe mode defers rung 1's coverage cost
+  to rung 2 rather than cancelling it**; a test asserts both modes reach the same
+  end state. Owner B's rung 3 fires on `checks["r1_verdict"] == "REJECT"`, which
+  is now available in either mode.
+- 2026-08-22 — CHANGE (requested): **MedDRA is wired in** — `MeddraTable`, a
+  sixth rung-1 check, a `meddra_check` setting, fixture cases and a probe class.
+  The leaked columns (`occurrences`, `posts`, `example_mentions`) were removed
+  from `data/meddra_codes.csv`, which is what prompted this.
+- 2026-08-22 — MEASURED, and the reason `meddra_check` defaults to `"flag"`
+  rather than `"reject"`: removing those columns removes the *evidence* of
+  derivation, not the derivation. The table is **666 codes, all 666 of which
+  appear in CADEC's gold annotations and none of which do not** — the answer
+  key's code inventory, about 3% of MedDRA's preferred terms. Two consequences,
+  both now measured rather than argued:
+    * On gold it looks harmless: `meddra_check="reject"` costs only 3 false
+      rejections in 9,111. It looks harmless *because* the table is the gold.
+    * On planted errors it looks miraculous: a hallucinated MedDRA code is caught
+      **1.000** of the time with `"reject"` versus 0.002 with `"flag"`. Perfect
+      detection by construction — anything outside the 666 is rejected — and it
+      says nothing about whether a real MedDRA check would work.
+  So the verdict is recorded and counted in rung 1's comparison, and is not a
+  rejection reason. One manifest line switches it, and `MeddraTable.leakage()`
+  prints the caveat wherever the number appears. A subscription MedDRA release
+  makes all of this moot: point `vocabulary.meddra_csv` at one and `"reject"`
+  becomes honest.
+- 2026-08-22 — BUG found while adding the verdict column: `Ledger.zone_counts()`
+  ignored its `rung` argument and counted every row in the run. It was only used
+  in the fixture, where every row happened to be rung 1, so it had never been
+  wrong yet. Now scoped, with a test.

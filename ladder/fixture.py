@@ -20,10 +20,11 @@ from pathlib import Path
 from ladder.corpus import load_corpus
 from ladder.ledger import Ledger
 from ladder.manifest import load_manifest
-from ladder.registry import Registry
+from ladder.registry import MeddraTable, Registry
 from ladder.rungs import r1, r2
 from ladder.schema import (
     CONCEPT_LESS,
+    ZONE_NEW,
     DRUG,
     R_CODE_UNKNOWN,
     R_SPAN_UNGROUNDED,
@@ -131,6 +132,37 @@ CASES = [
         ZONE_BAND,
         None,
     ),
+    (
+        # 10013649 |Somnolence| is CADEC's MedDRA code for this mention. The
+        # check records that the table knows it; it is not what decides the
+        # verdict, which still comes from SNOMED.
+        "MedDRA code the table knows — recorded, not decisive",
+        dict(
+            entity_type=REACTION,
+            text="arthritis",
+            spans=[(179, 188)],
+            sct="3723001",
+            meddra="10013649",
+        ),
+        ZONE_ACCEPT,
+        None,
+    ),
+    (
+        # The default meddra_check is "flag", so an unknown MedDRA code is an
+        # audit fact and not a rejection — the available table is 666 codes
+        # lifted from the answer key, so "unknown" mostly means "not one the
+        # annotators used". See registry.MeddraTable.
+        "MedDRA code the table does not know — flagged, NOT rejected by default",
+        dict(
+            entity_type=REACTION,
+            text="arthritis",
+            spans=[(179, 188)],
+            sct="3723001",
+            meddra="10999999",
+        ),
+        ZONE_ACCEPT,
+        None,
+    ),
 ]
 
 
@@ -152,21 +184,45 @@ def run_gate(manifest_path: str = "manifest.json") -> int:
     out = Path(man["output"]["dir"]) / "gate.ledger.jsonl"
     ledger = Ledger(out, run_id="gate")
 
+    meddra = None
+    csv_path = man.get("vocabulary", {}).get("meddra_csv")
+    if csv_path and Path(csv_path).exists():
+        meddra = MeddraTable(csv_path, name=man["vocabulary"].get("meddra_release", ""))
+
     records = build()
-    cfg = {**man["rungs"].get("1", {}), "ledger": ledger, "registry": registry}
+    params = dict(man["rungs"].get("1", {}))
+    mode = params.get("mode", r1.DEFAULTS["mode"])
+    cfg = {**params, "ledger": ledger, "registry": registry, "meddra": meddra}
     r1.apply(records, {FIXTURE_DOC: source}, cfg)
 
     failures = 0
-    print(f"fixture: {FIXTURE_DOC} ({len(source)} chars), vocabulary {registry.release}\n")
-    for rec, (label, _, want_zone, want_reason) in zip(records, CASES):
-        ok = rec.zone == want_zone and (want_reason is None or rec.reason == want_reason)
+    print(f"fixture: {FIXTURE_DOC} ({len(source)} chars), vocabulary {registry.release}")
+    print(f"rung 1 mode: {mode}" + ("  (judges, does not route)" if mode == "observe" else ""))
+    if meddra:
+        print(f"meddra    : {meddra.name} — {len(meddra)} codes, check={params.get('meddra_check')}")
+    print()
+    for rec, (label, _, want_verdict, want_reason) in zip(records, CASES):
+        got_verdict = rec.checks.get("r1_verdict")
+        got_reason = rec.checks.get("r1_reason")
+        ok = got_verdict == want_verdict and (want_reason is None or got_reason == want_reason)
+        # In observe mode the verdict must NOT have moved the record.
+        if mode == "observe" and rec.zone != ZONE_NEW:
+            ok = False
+            label += "  [FAILED TO STAY OBSERVATIONAL]"
         failures += 0 if ok else 1
         flag = "  ok " if ok else "FAIL"
-        got = f"{rec.zone}" + (f"/{rec.reason}" if rec.reason else "")
-        want = f"{want_zone}" + (f"/{want_reason}" if want_reason else "")
+        got = f"{got_verdict}" + (f"/{got_reason}" if got_reason else "")
+        want = f"{want_verdict}" + (f"/{want_reason}" if want_reason else "")
         print(f"  {flag}  {got:34s} {'' if ok else '(want ' + want + ') '}{label}")
         if rec.checks.get("negated"):
             print(f"        flagged negated (cue {rec.checks.get('negation_cue')!r}) — audit only")
+        if "meddra_exists" in rec.checks:
+            known = rec.checks["meddra_exists"]
+            term = rec.checks.get("meddra_term") or "not in table"
+            print(f"        meddra {rec.meddra}: {'known' if known else 'UNKNOWN'} ({term}) — audit only")
+
+    if mode == "observe" and all(r.zone == ZONE_NEW for r in records):
+        print("\n  ok  every record still in NEW — rungs 3-6 would see the unfiltered set")
 
     # Rung 2 runs last: everything unresolved is withdrawn, nothing is deleted.
     cfg2 = {**man["rungs"].get("2", {}), "ledger": ledger}
@@ -186,6 +242,10 @@ def run_gate(manifest_path: str = "manifest.json") -> int:
         failures += 1
 
     rows = Ledger.read(out)
+    r1_rows = [r for r in rows if r.rung == 1]
+    if not all(r.verdict for r in r1_rows):
+        print("  FAIL  a rung 1 ledger row has no verdict — the comparison would be empty")
+        failures += 1
     if len(rows) != 2 * len(CASES):
         print(f"  FAIL  ledger has {len(rows)} rows, expected {2 * len(CASES)}")
         failures += 1

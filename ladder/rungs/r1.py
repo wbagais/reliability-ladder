@@ -1,6 +1,22 @@
-"""Rung 1 — the deterministic validation gate. Owner A. Zero model calls.
+"""Rung 1 — the deterministic validation layer. Owner A. Zero model calls.
 
-Rung 1 cannot tell you a code is RIGHT — nothing deterministic can, because the
+Rung 1 JUDGES; whether it also ROUTES is a manifest setting.
+
+    mode: "observe"  (default)  verdicts are recorded and reported; the record's
+                                zone is untouched, so rungs 3-6 see the full
+                                unfiltered set
+    mode: "gate"                the verdict becomes the record's zone, and the
+                                rest of the ladder only ever sees what survived
+
+Observe is the default because a filtering rung 1 confounds every rung above it.
+If rung 1 removes the records it dislikes, rung 4's judge is graded on a set
+rung 1 pre-cleaned, and the marginal contribution of rung 4 is no longer
+attributable to rung 4. Keeping rung 1 observational makes every rung a
+single-rung ablation on identical input, and rung 1's verdicts stay in the
+comparison as their own column. Rung 2, which runs last, is where a rung 1
+verdict is finally allowed to cost coverage.
+
+The judgement itself, either way: rung 1 cannot tell you a code is RIGHT — nothing deterministic can, because the
 code is not in the source text. It can tell you a code is WRONG, and it does
 that for free. Passing validation is not a claim of correctness, which is why
 the pass state is split into ACCEPT (the vocabulary uses these very words) and
@@ -13,6 +29,7 @@ Five checks, in cost order — the free ones fire before any lookup:
     3  negation           a cue list           "so far no gastric problems"
     4  code exists        vocabulary lookup    hallucinated codes
     5  semantic type      vocabulary hierarchy a procedure where a finding goes
+    6  MedDRA existence   a MedDRA table       a code outside the table
        (then)  lexical match                   ACCEPT vs BAND
 
 Four choices this file makes that the plan left open, each of which moves the
@@ -53,6 +70,16 @@ CADEC's own gold, where every rejection is by construction a FALSE rejection
       retired, all clinically right. `Registry.finding_status()` returns
       finding / not_finding / unknown and only the middle one rejects.
 
+  meddra_check (default "flag", NOT "reject")
+      The only MedDRA table available here is the code list CADEC ships with the
+      corpus: 666 codes, every one of which appears in the gold annotations and
+      none of which do not (`MeddraTable.leakage()`). As an existence check it
+      asks "is this one of the codes the annotators happened to use?", which
+      rejects hallucinated codes trivially and rejects real MedDRA codes the
+      annotators did not reach for. Both inflate rung 1. So the verdict is
+      recorded and counted, and is not a rejection reason. Point `meddra_csv` at
+      a subscription release and "reject" becomes honest.
+
   lexical_mode (default "exact", after measuring the alternative)
       "contained" (span tokens a subset of a vocabulary term's, or vice versa)
       looks obviously right for colloquial text: it accepts "bit drowsy" for
@@ -75,6 +102,7 @@ from ladder.schema import (
     CONCEPT_LESS,
     R_CODE_INACTIVE,
     R_CODE_UNKNOWN,
+    R_MEDDRA_UNKNOWN,
     R_NEGATED,
     R_WRONG_SEMANTIC_TYPE,
     REACTION,
@@ -88,7 +116,9 @@ RUNG = 1
 NAME = "deterministic"
 
 DEFAULTS = {
+    "mode": "observe",  # "observe" | "gate"
     "reject_inactive": False,
+    "meddra_check": "flag",  # "off" | "flag" | "reject"
     "check_negation": True,
     "negation_action": "flag",  # "flag" | "reject"
     "negation_window": 6,
@@ -98,12 +128,22 @@ DEFAULTS = {
 }
 
 
-def zone(rec: Record, source: str, vocab: Any, cfg: dict[str, Any] | None = None) -> tuple[str, str | None, dict]:
-    """The gate, as one pure function. Returns (zone, reason, audit trail).
+def zone(
+    rec: Record,
+    source: str,
+    vocab: Any,
+    cfg: dict[str, Any] | None = None,
+    meddra: Any = None,
+) -> tuple[str, str | None, dict]:
+    """The verdict, as one pure function. Returns (verdict, reason, audit trail).
+
+    Returns what rung 1 CONCLUDES — ACCEPT, BAND or REJECT — and never touches
+    the record. Whether that verdict becomes the record's zone is `apply`'s
+    business, and the manifest's.
 
     Pure so it can be unit-tested against hand-made records and replayed over
     the gold standard to measure its own false-rejection rate — which is how the
-    three settings above were chosen.
+    settings above were chosen.
     """
     cfg = {**DEFAULTS, **(cfg or {})}
     checks: dict[str, Any] = {}
@@ -155,6 +195,18 @@ def zone(rec: Record, source: str, vocab: Any, cfg: dict[str, Any] | None = None
     if cfg["finding_check"] and scope_hit and status == "not_finding":
         return ZONE_REJECT, R_WRONG_SEMANTIC_TYPE, checks
 
+    # 6 — MedDRA, when a table is configured. Recorded either way; a rejection
+    # only when the manifest says so, because the available table is derived
+    # from the answer key.
+    if meddra is not None and cfg["meddra_check"] != "off" and rec.meddra:
+        checks["meddra_exists"] = meddra.exists(rec.meddra)
+        checks["meddra_term"] = meddra.term(rec.meddra)
+        if not checks["meddra_exists"] and cfg["meddra_check"] == "reject":
+            return ZONE_REJECT, R_MEDDRA_UNKNOWN, checks
+        checks["meddra_lexical_match"] = meddra.lexical_match(
+            rec.text, rec.meddra, mode=cfg["lexical_mode"]
+        )
+
     # Pass. ACCEPT only where the vocabulary uses these very words.
     checks["lexical_match"] = vocab.lexical_match(rec.text, rec.sct, mode=cfg["lexical_mode"])
     if checks["lexical_match"]:
@@ -166,24 +218,35 @@ def zone(rec: Record, source: str, vocab: Any, cfg: dict[str, Any] | None = None
 def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> list[Record]:
     ledger = cfg.get("ledger")
     vocab = cfg.get("registry")
+    meddra = cfg.get("meddra")
     params = {k: v for k, v in cfg.items() if k in DEFAULTS}
+    gating = params.get("mode", DEFAULTS["mode"]) == "gate"
     for rec in records:
         t0 = time.perf_counter()
         source = sources.get(rec.doc_id, "")
-        new_zone, reason, checks = zone(rec, source, vocab, params)
+        verdict, reason, checks = zone(rec, source, vocab, params, meddra)
         rec.checks.update(checks)
-        rec.mark(RUNG, new_zone, reason)
+        # The verdict always lands on the record — rung 2 reads it, rung 3 needs
+        # it to have a fact to feed back, and the report counts it. Only the
+        # ZONE is conditional.
+        rec.checks["r1_verdict"] = verdict
+        rec.checks["r1_reason"] = reason
+        if gating:
+            rec.mark(RUNG, verdict, reason)
         if ledger:
             ledger.log(
                 RUNG,
                 rec.doc_id,
                 rec.record_id,
-                new_zone,
-                "rejected" if new_zone == ZONE_REJECT else "passed",
+                rec.zone,
+                "rejected" if (gating and verdict == ZONE_REJECT) else "judged",
                 reason=reason,
+                verdict=verdict,
                 latency_ms=(time.perf_counter() - t0) * 1000,
+                mode=params.get("mode", DEFAULTS["mode"]),
                 lexical_match=bool(checks.get("lexical_match")),
                 sct_active=checks.get("sct_active"),
                 negated=checks.get("negated"),
+                meddra_exists=checks.get("meddra_exists"),
             )
     return records

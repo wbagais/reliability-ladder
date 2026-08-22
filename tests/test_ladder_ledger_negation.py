@@ -100,3 +100,27 @@ def test_pseudo_negation_does_not_fire():
 def test_contraction_cue_fires():
     text = "I did not get any rash and I don't have nausea now."
     assert is_negated(text, spans_of(text, "nausea"))[0]
+
+
+def test_a_verdict_is_not_a_zone(tmp_path):
+    """Rung 1 in observe mode judges REJECT while the record stays in NEW.
+
+    Reporting reads verdicts for rung 1 and zones for everything else; conflating
+    them would report an observational rung 1 as having done nothing.
+    """
+    with Ledger(tmp_path / "l.jsonl", run_id="r") as led:
+        led.log(1, "D1", "x", "NEW", "judged", reason="code_unknown", verdict="REJECT")
+        led.log(1, "D1", "y", "NEW", "judged", verdict="ACCEPT")
+        led.log(2, "D1", "x", "ABSTAIN", "abstained", reason="code_unknown")
+        assert dict(led.verdicts(1)) == {"REJECT": 1, "ACCEPT": 1}
+        assert dict(led.zone_counts(1)) == {"NEW": 2}
+        assert dict(led.zone_counts(2)) == {"ABSTAIN": 1}
+        assert led.verdicts(2) == {}
+    assert Ledger.read(tmp_path / "l.jsonl")[0].verdict == "REJECT"
+
+
+def test_zone_counts_are_scoped_to_the_rung(tmp_path):
+    with Ledger(tmp_path / "l.jsonl", run_id="r") as led:
+        led.log(1, "D1", "x", "ACCEPT", "judged")
+        led.log(2, "D1", "x", "VERIFIED", "settled")
+        assert dict(led.zone_counts(1)) == {"ACCEPT": 1}

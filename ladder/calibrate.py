@@ -23,9 +23,17 @@ from typing import Any
 
 from ladder import corpus as corpus_mod
 from ladder.manifest import friendly, load_manifest
-from ladder.registry import Registry
+from ladder.registry import MeddraTable, Registry
 from ladder.rungs import r1
 from ladder.schema import CONCEPT_LESS, DRUG, REACTION, Record, ZONE_ACCEPT, ZONE_BAND, ZONE_REJECT
+
+
+def load_meddra(man: dict) -> MeddraTable | None:
+    """The MedDRA table, if one is configured and present."""
+    path = man.get("vocabulary", {}).get("meddra_csv")
+    if not path or not Path(path).exists():
+        return None
+    return MeddraTable(path, name=man["vocabulary"].get("meddra_release", ""))
 
 
 def gold_to_record(m: Any) -> Record:
@@ -41,12 +49,13 @@ def gold_to_record(m: Any) -> Record:
         text=m.text,
         spans=list(m.spans),
         sct=(m.sct[0] if m.sct else CONCEPT_LESS),
+        meddra=(m.meddra[0] if m.meddra else None),
         record_id=m.record_id,
         confidence=1.0,
     )
 
 
-def run(docs, doc_ids, registry, params: dict[str, Any]) -> dict[str, Any]:
+def run(docs, doc_ids, registry, params: dict[str, Any], meddra=None) -> dict[str, Any]:
     zones = Counter()
     reasons = Counter()
     by_type: dict[str, Counter] = {REACTION: Counter(), DRUG: Counter()}
@@ -59,7 +68,7 @@ def run(docs, doc_ids, registry, params: dict[str, Any]) -> dict[str, Any]:
         doc = docs[doc_id]
         for m in doc.mentions:
             rec = gold_to_record(m)
-            z, reason, checks = r1.zone(rec, doc.text, registry, params)
+            z, reason, checks = r1.zone(rec, doc.text, registry, params, meddra)
             n += 1
             zones[z] += 1
             by_type[m.entity_type][z] += 1
@@ -121,7 +130,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         doc_ids = corpus_mod.read_split(man["corpus"]["splits_dir"], a.split)
 
-    base = {**r1.DEFAULTS, **man["rungs"].get("1", {})}
+    meddra = load_meddra(man)
+    base = {**r1.DEFAULTS, **{k: v for k, v in man["rungs"].get("1", {}).items() if k in r1.DEFAULTS}}
     variants = {"manifest": base}
     if a.sweep:
         variants = {
@@ -130,14 +140,27 @@ def main(argv: list[str] | None = None) -> int:
             "finding_scope=all": {**base, "finding_scope": "all"},
             "lexical_mode=contained": {**base, "lexical_mode": "contained"},
             "negation_action=reject": {**base, "negation_action": "reject"},
+            "meddra_check=reject": {**base, "meddra_check": "reject"},
             "no negation check": {**base, "check_negation": False},
         }
 
-    out = {}
+    out: dict[str, Any] = {}
+    meta: dict[str, Any] = {}
     for name, params in variants.items():
-        out[name] = run(docs, doc_ids, registry, dict(params))
+        out[name] = run(docs, doc_ids, registry, dict(params), meddra)
 
-    print(f"corpus: {len(doc_ids)} docs, split={a.split}, release={registry.release}\n")
+    print(f"corpus: {len(doc_ids)} docs, split={a.split}, release={registry.release}")
+    if meddra:
+        gold_meddra = {c for d in docs.values() for m in d.mentions for c in m.meddra}
+        leak = meddra.leakage(gold_meddra)
+        meta["meddra_leakage"] = leak
+        print(
+            f"meddra: {leak['n_codes']} codes, {leak['n_independent_of_gold']} of them "
+            f"independent of the gold annotations"
+        )
+        if leak["derived_from_gold"]:
+            print(f"        CAVEAT: {leak['caveat']}")
+    print()
     for name, r in out.items():
         print(f"--- {name}")
         print(
@@ -151,7 +174,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"        {reason:22s} {k:5d}")
     if a.json:
         Path(a.json).parent.mkdir(parents=True, exist_ok=True)
-        Path(a.json).write_text(json.dumps(out, indent=2))
+        Path(a.json).write_text(json.dumps({"variants": out, "meta": meta}, indent=2))
         print(f"\nwrote {a.json}")
     return 0
 

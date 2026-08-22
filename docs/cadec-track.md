@@ -6,7 +6,7 @@ triage on CADEC. The two tracks coexist and answer different questions:
 | | `bench/` (shipped) | `ladder/` (this) |
 |---|---|---|
 | task | any structured extraction; SROIE is the demo | one task: CADEC mention normalisation |
-| rung 1 | schema-driven normalisation + verdicts | **vocabulary-grounded**: span, negation, SNOMED existence, semantic type |
+| rung 1 | schema-driven normalisation + verdicts | **vocabulary-grounded**: span, negation, SNOMED existence, semantic type, MedDRA |
 | gold | a value per field | a SNOMED code per mention, or `CONCEPT_LESS` |
 | unit | one field slot | one mention record |
 | what it shows | which layers pay on your own data | what a *real* validation gate catches, and what it cannot |
@@ -106,6 +106,43 @@ blind to the interesting one, and the ACCEPT lane's leniency setting is the
 difference between a gate that declines to have an opinion and a gate that
 endorses one near-miss in five.
 
+### The MedDRA caveat, in one paragraph
+
+That 1.000 is perfect **by construction**, and is the reason `meddra_check`
+defaults to `"flag"`. The only MedDRA table available here is the code list CADEC
+ships with the corpus: 666 codes, all 666 of which appear in the gold
+annotations and none of which do not — roughly 3% of MedDRA's preferred terms.
+Used as an existence check it asks "is this one of the codes the annotators
+happened to use?", so it rejects hallucinated codes trivially *and* rejects real
+MedDRA codes the annotators did not reach for. On gold it looks harmless (3 false
+rejections in 9,111) precisely because the table *is* the gold. Stripping the
+`occurrences` / `posts` / `example_mentions` columns removes the evidence of
+derivation, not the derivation. So the verdict is recorded and counted, and is
+not a rejection reason; `MeddraTable.leakage()` prints the caveat wherever the
+number appears. Point `vocabulary.meddra_csv` at a subscription release and
+`"reject"` becomes honest.
+
+## Rung 1 judges; it does not filter
+
+`manifest.rungs.1.mode` is `"observe"` by default. Rung 1 computes a verdict per
+record — ACCEPT, BAND or REJECT, with a reason — records it on the record and in
+the ledger, and **leaves the record's zone alone**. Rungs 3-6 therefore see the
+full unfiltered set that rung 0 produced.
+
+That is deliberate. A filtering rung 1 confounds every rung above it: if it
+removes the records it dislikes, rung 4's judge is graded on a set rung 1
+pre-cleaned, and rung 4's marginal contribution stops being attributable to rung
+4. Observational rung 1 keeps every rung a single-rung ablation on identical
+input, and rung 1's verdicts stay in the comparison as their own columns
+(`accept` / `band` / `reject` / `r1_reject_pct` in `results.csv`, read from the
+ledger's `verdict` column rather than from zones).
+
+Rung 2, which runs last, is where a rung 1 verdict is finally allowed to cost
+coverage — so observe mode **defers** rung 1's cost rather than cancelling it. A
+test asserts both modes reach the same end state.
+
+Set `"gate"` to reproduce the plan's flow, where the verdict becomes the zone.
+
 ## Running the ladder
 
 ```bash
@@ -124,6 +161,10 @@ Outputs land in `out/<run_id>.{ledger.jsonl,results.csv,records.jsonl,manifest.j
 
 ## What owner B needs from this
 
+- **Rung 3's trigger** — `record.checks["r1_verdict"] == "REJECT"`, with the
+  fact to state in `checks["r1_reason"]` plus the specific check fields
+  (`sct_exists`, `sct_finding_status`, `span_grounded`, ...). Available in both
+  rung 1 modes, so r3 does not care whether rung 1 routed.
 - **`rungs/r0.py`** — `apply(records, sources, cfg)`. Rung 0 is the one rung
   handed an *empty* record list: build `Record`s from `sources` and return them.
   One call, one JSON, temp 0, no validation, and do not repair malformed JSON —

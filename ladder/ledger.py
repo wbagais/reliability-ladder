@@ -46,6 +46,11 @@ class Entry:
     human_minutes: float = 0.0
     ts: float = field(default_factory=time.time)
     extra: dict[str, Any] = field(default_factory=dict)
+    # Appended 2026-08-22. A rung that judges without routing (rung 1 in
+    # "observe" mode) records what it WOULD have done here, while `zone` keeps
+    # showing where the record actually is. Reporting reads verdicts for rung 1
+    # and zones for everything else.
+    verdict: str | None = None
 
 
 class Ledger:
@@ -74,6 +79,7 @@ class Ledger:
         latency_ms: float = 0.0,
         usd: float = 0.0,
         human_minutes: float = 0.0,
+        verdict: str | None = None,
         **extra: Any,
     ) -> Entry:
         e = Entry(
@@ -90,6 +96,7 @@ class Ledger:
             latency_ms=latency_ms,
             usd=usd,
             human_minutes=human_minutes,
+            verdict=verdict,
             extra=extra,
         )
         self.rows.append(e)
@@ -164,6 +171,10 @@ class Ledger:
     def reasons(self, rung: int) -> Counter:
         """The rung-1 headline: not the rate, the breakdown."""
         return Counter(r.reason for r in self.rows if r.rung == rung and r.reason)
+
+    def verdicts(self, rung: int) -> Counter:
+        """What a rung JUDGED, which is not always what it did to the record."""
+        return Counter(r.verdict for r in self.rows if r.rung == rung and r.verdict)
 
     def zone_counts(self, rung: int) -> Counter:
         return Counter(r.zone for r in self.rows if r.rung == rung)

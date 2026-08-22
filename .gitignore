@@ -19,6 +19,8 @@ results/
 data/2016-04-15_Karimi_Sarvnaz_*
 data/cadec
 data/CADEC*
+# the MedDRA code list ships inside CADEC and is covered by the same licence
+data/meddra_codes.csv
 # SNOMED CT release files (affiliate licence; also 5 GB)
 data/SnomedCT_Release_*
 # derived corpus artefacts. data/splits/ is deliberately NOT ignored: it holds

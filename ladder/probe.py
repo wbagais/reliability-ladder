@@ -20,6 +20,11 @@ Six corruptions, chosen to separate what the plan asserts:
                          code -- real, well-typed, and wrong
     sibling_wrong        a finding sharing a parent with the gold code -- the
                          near-miss a normalisation model actually makes
+    meddra_hallucinated  a MedDRA code no table has. Only meaningful with
+                         meddra_check="reject", and included to show WHY the
+                         default is "flag": the available table is the answer
+                         key's 666 codes, so this scores 1.000 by construction
+                         and says nothing about a real MedDRA check
 
 The first four are what a deterministic check exists for. The last two are the
 class the plan says nothing deterministic can catch; this measures how right
@@ -38,7 +43,7 @@ from pathlib import Path
 from typing import Any
 
 from ladder import corpus as corpus_mod
-from ladder.calibrate import gold_to_record
+from ladder.calibrate import gold_to_record, load_meddra
 from ladder.manifest import friendly, load_manifest
 from ladder.registry import Registry
 from ladder.rungs import r1
@@ -51,6 +56,7 @@ CORRUPTIONS = (
     "span_fabricate",
     "plausible_wrong",
     "sibling_wrong",
+    "meddra_hallucinated",
 )
 
 
@@ -79,6 +85,10 @@ def corrupt(rec: Record, kind: str, rng: random.Random, pools: dict[str, list[st
         if not sibs:
             return None
         out.sct = rng.choice(sibs)
+    elif kind == "meddra_hallucinated":
+        if not rec.meddra:
+            return None
+        out.meddra = str(rng.randint(10_000_000, 99_999_999))
     else:
         raise ValueError(kind)
     return out
@@ -113,7 +123,7 @@ def build_pools(registry: Registry, gold_codes: list[str]) -> dict[str, Any]:
     return {"finding": findings, "not_finding": not_findings, "siblings": siblings}
 
 
-def run(docs, doc_ids, registry, params, seed: int = 42) -> dict[str, Any]:
+def run(docs, doc_ids, registry, params, seed: int = 42, meddra=None) -> dict[str, Any]:
     rng = random.Random(seed)
     mentions = [m for d in doc_ids for m in docs[d].mentions if m.sct]
     pools = build_pools(registry, [m.sct[0] for m in mentions])
@@ -130,7 +140,7 @@ def run(docs, doc_ids, registry, params, seed: int = 42) -> dict[str, Any]:
             if rec is None:
                 skipped += 1
                 continue
-            z, reason, checks = r1.zone(rec, docs[m.doc_id].text, registry, params)
+            z, reason, checks = r1.zone(rec, docs[m.doc_id].text, registry, params, meddra)
             zones[z] += 1
             by_type[m.entity_type][z] += 1
             if reason:
@@ -179,6 +189,7 @@ def main(argv: list[str] | None = None) -> int:
         "--lexical-mode",
         help="override the manifest, to compare what the ACCEPT/BAND divider costs",
     )
+    ap.add_argument("--meddra-check", choices=["off", "flag", "reject"])
     a = ap.parse_args(argv)
 
     man = load_manifest(a.manifest)
@@ -187,14 +198,17 @@ def main(argv: list[str] | None = None) -> int:
     doc_ids = sorted(docs) if a.split == "all" else corpus_mod.read_split(
         man["corpus"]["splits_dir"], a.split
     )
-    params = {**r1.DEFAULTS, **man["rungs"].get("1", {})}
+    params = {**r1.DEFAULTS, **{k: v for k, v in man["rungs"].get("1", {}).items() if k in r1.DEFAULTS}}
     if a.lexical_mode:
         params["lexical_mode"] = a.lexical_mode
-    res = run(docs, doc_ids, registry, params, seed=man["seed"])
+    if a.meddra_check:
+        params["meddra_check"] = a.meddra_check
+    meddra = load_meddra(man)
+    res = run(docs, doc_ids, registry, params, seed=man["seed"], meddra=meddra)
 
     print(
         f"split={a.split}  {res['n_records']} coded gold records, one corruption each  "
-        f"(lexical_mode={params['lexical_mode']})\n"
+        f"(lexical_mode={params['lexical_mode']}, meddra_check={params['meddra_check']})\n"
     )
     print(f"{'corruption':20s} {'n':>6} {'REJECT':>8} {'BAND':>7} {'ACCEPT':>8}   caught   shipped")
     for kind, r in res["corruptions"].items():

@@ -39,6 +39,7 @@ def _resolve_paths(man: dict[str, Any], base: Path) -> None:
         ("corpus", "splits_dir"),
         ("vocabulary", "snomed_db"),
         ("vocabulary", "snomed_release_dir"),
+        ("vocabulary", "meddra_csv"),
         ("output", "dir"),
     ):
         val = man.get(section, {}).get(key)

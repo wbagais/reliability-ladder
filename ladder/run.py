@@ -32,7 +32,7 @@ from typing import Any, Callable
 from ladder import corpus as corpus_mod
 from ladder.ledger import Ledger
 from ladder.manifest import friendly, load_manifest
-from ladder.registry import Registry
+from ladder.registry import MeddraTable, Registry
 from ladder.schema import (
     OPEN_ZONES,
     Record,
@@ -137,7 +137,7 @@ def run_ladder(
     registry: Registry | None,
     out_dir: Path,
     run_id: str,
-    cumulative: bool = True,
+    meddra: MeddraTable | None = None,
 ) -> dict[str, Any]:
     order = [n for n in man["rung_order"] if n in rungs]
     ledger = Ledger(out_dir / f"{run_id}.ledger.jsonl", run_id=run_id)
@@ -152,14 +152,19 @@ def run_ladder(
             print(f"[run] rung {n} ({RUNG_NAMES[n]}) — not implemented, skipped")
             continue
         cfg: dict[str, Any] = dict(man["rungs"].get(str(n), {}))
-        cfg.update(ledger=ledger, registry=registry, manifest=man, split=split)
+        cfg.update(
+            ledger=ledger, registry=registry, meddra=meddra, manifest=man, split=split
+        )
         t0 = time.perf_counter()
         records = mod.apply(records, sources, cfg)
         dt = time.perf_counter() - t0
-        counts = Counter(r.zone for r in records)
         snapshots[n] = [r.copy() for r in records]
+        verdicts = ledger.verdicts(n)
+        routed = any(p.get("rung") == n for r in records for p in r.provenance)
+        counts = verdicts if verdicts else Counter(r.zone for r in records)
+        label = "judged  " if verdicts and not routed else "routed  "
         print(
-            f"[run] rung {n} ({RUNG_NAMES[n]:14s}) {dt:6.2f}s  "
+            f"[run] rung {n} ({RUNG_NAMES[n]:14s}) {dt:6.2f}s  {label}"
             + "  ".join(f"{z}={c}" for z, c in sorted(counts.items()))
         )
     ledger.close()
@@ -188,6 +193,7 @@ CSV_COLUMNS = [
     "escalated",
     "verified",
     "r1_reject_pct",
+    "r1_mode",
     "coverage",
     "f1_sct_strict",
     "yield",
@@ -214,7 +220,12 @@ def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dic
         snap = result["snapshots"].get(rung)
         if snap is None:
             continue
-        z = Counter(r.zone for r in snap)
+        # A rung that judges without routing (rung 1 in "observe" mode) has to be
+        # reported on what it CONCLUDED; every other rung on where records ended
+        # up. Reading zones for rung 1 in observe mode would report all-zeroes
+        # and quietly drop the rung 1 rejection rate, which is the milestone.
+        verdicts = ledger.verdicts(rung)
+        z = verdicts if verdicts else Counter(r.zone for r in snap)
         cost = costs.get(rung, {})
         # "Would this ship if the run stopped at this rung?" A rejected record
         # has been called wrong by the gate, so it is not an answer even though
@@ -240,6 +251,9 @@ def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dic
         )
         if rung == 1:
             row["r1_reject_pct"] = round(100 * z[ZONE_REJECT] / len(snap), 3) if snap else ""
+            row["r1_mode"] = next(
+                (e.extra.get("mode") for e in ledger.rows if e.rung == 1), ""
+            )
         if is_correct and gold is not None:
             correct = sum(1 for r in answered if is_correct(r, gold))
             errors = len(answered) - correct
@@ -330,6 +344,7 @@ def cmd_ladder(a) -> int:
     doc_ids = corpus_mod.read_split(man["corpus"]["splits_dir"], a.split)
     sources = {d: docs[d].text for d in doc_ids}
     registry = Registry(man["vocabulary"]["snomed_db"])
+    meddra = _load_meddra(man)
     rungs = _parse_rungs(a.rungs)
 
     if a.source == "gold":
@@ -350,7 +365,9 @@ def cmd_ladder(a) -> int:
 
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_{time.strftime('%Y%m%d-%H%M%S')}"
-    result = run_ladder(man, a.split, rungs, records, sources, registry, out_dir, run_id)
+    result = run_ladder(
+        man, a.split, rungs, records, sources, registry, out_dir, run_id, meddra=meddra
+    )
 
     gold = {m.record_id: m for d in doc_ids for m in docs[d].mentions}
     scorer = load_scorer(a.scorer)
@@ -359,11 +376,15 @@ def cmd_ladder(a) -> int:
     (out_dir / f"{run_id}.records.jsonl").write_text(dumps(result["records"]), encoding="utf-8")
     (out_dir / f"{run_id}.manifest.json").write_text(json.dumps(man, indent=2))
 
-    print(f"\n{'rung':>4}  {'layer':14s} {'accept':>7} {'band':>6} {'reject':>7} {'abstain':>8} {'cov':>6}")
+    print(
+        f"\n{'rung':>4}  {'layer':14s} {'accept':>7} {'band':>6} {'reject':>7} "
+        f"{'abstain':>8} {'cov':>6}"
+    )
     for r in rows:
         print(
             f"{r['rung']:>4}  {r['layer']:14s} {r['accept']:>7} {r['band']:>6} "
             f"{r['reject']:>7} {r['abstained']:>8} {r['coverage']:>6}"
+            + (f"   (rung 1 {r['r1_mode']}: judged, not routed)" if r.get("r1_mode") == "observe" else "")
         )
     if result["missing_rungs"]:
         print(f"\nNOT IN THIS RUN: rungs {result['missing_rungs']} (not implemented)")
@@ -371,6 +392,17 @@ def cmd_ladder(a) -> int:
         print("NO SCORER: accuracy columns are empty. Wire ladder/score.py (owner B).")
     print(f"\nwrote {out_dir}/{run_id}.*")
     return 0
+
+
+def _load_meddra(man: dict[str, Any]) -> MeddraTable | None:
+    path = man.get("vocabulary", {}).get("meddra_csv")
+    if not path:
+        return None
+    p = Path(path)  # already absolutised by manifest._resolve_paths
+    if not p.exists():
+        print(f"[run] meddra table {p} not found — MedDRA checks are off", file=sys.stderr)
+        return None
+    return MeddraTable(p, name=man["vocabulary"].get("meddra_release") or p.name)
 
 
 def _parse_rungs(spec: str) -> list[int]:

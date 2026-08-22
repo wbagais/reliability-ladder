@@ -23,8 +23,9 @@
     "snomed_release": "SnomedCT_Release_AU1000036_20260731",
     "snomed_release_dir": "data/SnomedCT_Release_AU1000036_20260731",
     "snomed_db": "ladder/cache/snomed.sqlite",
-    "meddra_release": null,
-    "meddra_note": "No independent MedDRA release is available to this project. CADEC ships a meddra_codes.csv derived FROM the corpus, so using it as an existence check would be leakage (the check would accept exactly the answer key). MedDRA is therefore not checked in rung 1 and not scored; SNOMED CT is the only vocabulary gate."
+    "meddra_release": "CADEC-derived code list (NOT a MedDRA release)",
+    "meddra_note": "The only MedDRA table available is the code list CADEC ships with the corpus. Measured 2026-08-22: 666 codes, all 666 appear in CADEC's gold annotations, 0 do not - it is the answer key's code inventory (~3% of MedDRA PT), not a vocabulary. Removing its occurrences/posts/example_mentions columns removes the evidence of derivation, not the derivation. So rungs.1.meddra_check defaults to 'flag': the verdict is recorded and counted in rung 1's comparison and is not a rejection reason. Set 'reject' to include it as one, or point meddra_csv at a subscription release and the caveat goes away.",
+    "meddra_csv": "data/meddra_codes.csv"
   },
   "model": {
     "extractor": null,
@@ -44,13 +45,16 @@
   "rung_order_note": "Execution order, not numbering. Rung IDs come from the brief and are identity; renumbering would break comparability with other groups. Abstention runs last because abstaining before correction and voting throws away recoverable records.",
   "rungs": {
     "1": {
+      "mode": "observe",
+      "mode_note": "Rung 1 judges without routing. Its verdicts are recorded, counted and reported, but the record's zone is untouched, so rungs 3-6 see the full unfiltered set and each rung's marginal contribution stays attributable to that rung. Rung 2, which runs last, is where a rung 1 verdict is allowed to cost coverage. Set 'gate' to make rung 1 filter, as the plan's flow implies.",
       "reject_inactive": false,
       "check_negation": true,
       "negation_window": 6,
       "finding_check": true,
       "finding_scope": "reaction",
       "lexical_mode": "exact",
-      "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json."
+      "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
+      "meddra_check": "flag"
     },
     "2": {
       "tau": 0.0,

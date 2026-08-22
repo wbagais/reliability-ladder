@@ -199,6 +199,89 @@ class Registry:
         return {k: v for k, v in self._db.execute("SELECT key, value FROM meta")}
 
 
+class MeddraTable:
+    """MedDRA code -> term, from a CSV with `meddra_code` and `meddra_term`.
+
+    KNOW WHAT THIS TABLE IS BEFORE YOU TRUST A NUMBER FROM IT. The only MedDRA
+    artefact available to this project is the code list CADEC ships alongside
+    the corpus, and it is derived FROM the corpus. Measured 2026-08-22:
+
+        666  codes in the table
+        666  of them appear in CADEC's gold annotations
+          0  of them do not
+
+    It is the answer key's code inventory, not a vocabulary — roughly 3% of
+    MedDRA's preferred terms. Used as an existence check it answers "is this one
+    of the 666 codes the annotators happened to use?", so it rejects hallucinated
+    codes trivially (any code outside the list) AND rejects real MedDRA codes the
+    annotators did not reach for. Both directions inflate what rung 1 looks like
+    it can do. Stripping the `occurrences` / `posts` / `example_mentions` columns
+    removes the evidence of derivation, not the derivation.
+
+    So `meddra_check` defaults to "flag": the verdict is recorded and counted in
+    rung 1's comparison, and is not a rejection reason. `"reject"` is one
+    manifest line away, and `leakage()` prints the caveat wherever the number
+    appears. A subscription MedDRA release would make all of this moot; point
+    `meddra_csv` at one and the caveat goes away with it.
+    """
+
+    def __init__(self, path: str | os.PathLike, name: str = ""):
+        import csv
+
+        self.path = Path(path)
+        self.name = name or self.path.name
+        self.terms_by_code: dict[str, str] = {}
+        self.types: dict[str, str] = {}
+        with self.path.open(encoding="utf-8-sig", newline="") as fh:
+            for row in csv.DictReader(fh):
+                code = (row.get("meddra_code") or "").strip()
+                if not code:
+                    continue
+                self.terms_by_code[code] = (row.get("meddra_term") or "").strip()
+                self.types[code] = (row.get("term_type") or "").strip()
+
+    def __len__(self) -> int:
+        return len(self.terms_by_code)
+
+    def exists(self, code: str | None) -> bool:
+        return bool(code) and str(code) in self.terms_by_code
+
+    def term(self, code: str | None) -> str | None:
+        return self.terms_by_code.get(str(code)) if code else None
+
+    def lexical_match(self, text: str, code: str | None, mode: str = "exact") -> bool:
+        term = self.term(code)
+        if not term:
+            return False
+        want, got = normalise_term(text), normalise_term(term)
+        if not want or not got:
+            return False
+        if got == want:
+            return True
+        if mode == "contained":
+            a, b = set(want.split()), set(got.split())
+            return a <= b or b <= a
+        return False
+
+    def leakage(self, gold_codes: set[str]) -> dict[str, object]:
+        """How much of this table is just the answer key? Report it, always."""
+        codes = set(self.terms_by_code)
+        outside = codes - gold_codes
+        return {
+            "table": self.name,
+            "n_codes": len(codes),
+            "n_also_in_gold": len(codes & gold_codes),
+            "n_independent_of_gold": len(outside),
+            "derived_from_gold": not outside,
+            "caveat": (
+                "every code in this table appears in the gold annotations and none "
+                "do not: it is the answer key's code inventory, not a vocabulary"
+            )
+            if not outside
+            else "",
+        }
+
+
 # --- index builder ----------------------------------------------------------
 
 

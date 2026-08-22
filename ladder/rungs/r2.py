@@ -4,6 +4,13 @@ Rung 2 declines rather than resolves. It runs LAST (order 0-1-3-5-4-2-6):
 abstaining before self-correction and voting have had their turn throws away
 records those rungs would have recovered.
 
+Rung 2 is where a rung 1 verdict is finally allowed to cost coverage. Rung 1
+runs in "observe" mode by default — it judges without routing, so rungs 3-6 see
+the full unfiltered set — which means the BAND and REJECT records are still in
+flight when rung 2 arrives. Rung 2 therefore reads `checks["r1_verdict"]`
+rather than the zone, and falls back to the zone when rung 1 was gating (or
+absent). One mechanism, both modes.
+
 Three things a record can be abstained for, each logged separately because they
 are different failures:
 
@@ -41,6 +48,7 @@ from ladder.schema import (
     ZONE_ABSTAIN,
     ZONE_ACCEPT,
     ZONE_BAND,
+    ZONE_NEW,
     ZONE_REJECT,
     ZONE_VERIFIED,
 )
@@ -55,19 +63,31 @@ DEFAULTS = {
 }
 
 
+def _r1_verdict(rec: Record) -> str | None:
+    """What rung 1 concluded, whether or not it acted on it."""
+    return rec.checks.get("r1_verdict")
+
+
 def decide(rec: Record, cfg: dict[str, Any] | None = None) -> tuple[str, str | None]:
     """(zone, reason) for one record. Pure, so the sweep can replay it."""
     cfg = {**DEFAULTS, **(cfg or {})}
-    if rec.zone == ZONE_REJECT:
+    # Rung 1's verdict wins over the zone: in observe mode the zone never moved,
+    # and in gate mode the two agree unless a later rung changed the zone — in
+    # which case that later rung's routing is the more recent fact.
+    standing = rec.zone if rec.zone not in (ZONE_NEW,) else None
+    verdict = standing if standing in (ZONE_ACCEPT, ZONE_BAND, ZONE_REJECT) else _r1_verdict(rec)
+
+    if verdict == ZONE_REJECT:
+        reason = rec.reason or rec.checks.get("r1_reason")
         if cfg["abstain_on_reject"]:
-            return ZONE_ABSTAIN, rec.reason
-        return rec.zone, rec.reason
+            return ZONE_ABSTAIN, reason
+        return rec.zone, reason
     tau = float(cfg["tau"] or 0.0)
     if tau > 0 and rec.confidence is not None and rec.confidence < tau:
         return ZONE_ABSTAIN, R_LOW_CONFIDENCE
-    if rec.zone in cfg["abstain_zones"]:
+    if verdict in cfg["abstain_zones"]:
         return ZONE_ABSTAIN, R_UNRESOLVED
-    if rec.zone == ZONE_ACCEPT:
+    if verdict == ZONE_ACCEPT:
         return ZONE_VERIFIED, None
     return rec.zone, rec.reason
 

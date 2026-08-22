@@ -73,6 +73,9 @@ R_CODE_INACTIVE = "code_inactive"  # code was real once; retired since. NOT a re
 R_WRONG_SEMANTIC_TYPE = "wrong_semantic_type"  # real code, wrong branch of the hierarchy
 R_LOW_CONFIDENCE = "low_confidence"  # rung 2 only
 R_UNRESOLVED = "unresolved"  # rung 2 only: still in BAND when the ladder ran out
+# Appended 2026-08-22 with the MedDRA check. See registry.MeddraTable for why
+# this is not a rejection reason by default.
+R_MEDDRA_UNKNOWN = "meddra_code_unknown"  # code is not in the MedDRA table
 
 REJECT_REASONS = (
     R_SCHEMA_INVALID,
@@ -82,7 +85,11 @@ REJECT_REASONS = (
     R_CODE_UNKNOWN,
     R_CODE_INACTIVE,
     R_WRONG_SEMANTIC_TYPE,
+    R_MEDDRA_UNKNOWN,
 )
+
+#: What rung 1 concluded about a record, independent of whether it acted on it.
+VERDICTS = (ZONE_ACCEPT, ZONE_BAND, ZONE_REJECT)
 
 # --- entity types -----------------------------------------------------------
 # CADEC labels five types (ADR / Symptom / Disease / Finding / Drug). ADR is a

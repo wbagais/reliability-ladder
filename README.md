@@ -242,7 +242,22 @@ SNOMED AU1000036_20260731):
 
 Read together: deterministic checks are *exact* on their own error classes and
 blind to the interesting one, and a validation gate's leniency setting decides
-whether it declines to have an opinion or endorses one near-miss in five. The
+whether it declines to have an opinion or endorses one near-miss in five.
+
+**Rung 1 judges, it does not filter.** `manifest.rungs.1.mode` defaults to
+`"observe"`: the verdict is recorded, counted and reported, and the record's
+zone is untouched, so rungs 3–6 see the full unfiltered set and each rung stays a
+single-rung ablation on identical input. Rung 2, which runs last, is where a
+rung 1 verdict is allowed to cost coverage. `"gate"` reproduces the plan's flow.
+
+**MedDRA is recorded, not scored.** The only table available is the code list
+CADEC ships with the corpus — 666 codes, every one of which appears in the gold
+annotations and none of which do not. As an existence check it scores **1.000**
+against hallucinated codes by construction and means nothing, so `meddra_check`
+defaults to `"flag"`. Point `vocabulary.meddra_csv` at a subscription release and
+`"reject"` becomes honest.
+
+The
 build log, including every place the plan and the data disagreed, is in
 [docs/decisions.md](docs/decisions.md) and
 [docs/article-iterations.md](docs/article-iterations.md).

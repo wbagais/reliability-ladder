@@ -283,7 +283,78 @@ output exists and without spending a token. We would not have found any of the
 three causes by inspecting model output — they would have shown up as a
 plausible-looking 9% rejection rate and been written up as a finding.
 
-### 4.5 The plan's record shape encoded the claim its own safety constraint forbade
+### 4.5 A filtering rung 1 makes every rung above it unattributable
+
+**What we had.** Rung 1 rejected records, and everything above it ran on the
+survivors — which is what the plan's flow implies and what almost every
+"validation layer" does in practice.
+
+**Why that's a measurement bug.** If rung 1 removes the records it dislikes,
+rung 4's judge is graded on a set rung 1 already cleaned. Rung 4's marginal
+contribution is then partly rung 1's, and no amount of care further up recovers
+it. The same confound runs through rungs 3, 5 and 6.
+
+**What we changed.** Rung 1 now *judges* without *routing*: the verdict is
+recorded, counted and reported, the record's zone is untouched, and rungs 3-6 see
+the full set rung 0 produced. Every rung becomes a single-rung ablation on
+identical input. Rung 2, which runs last, is where a rung 1 verdict is finally
+allowed to cost coverage — so the change **defers** rung 1's cost rather than
+cancelling it, and a test asserts both modes reach the same end state.
+`mode: "gate"` reproduces the original flow in one manifest line.
+
+**Why it belongs in the article.** It is the same lesson as "the stack is worse
+than its best layer" (§2.5) arriving from the other direction. Cumulative
+stacking is not just a bad *default* for production — it is a bad *experimental
+design*, because it destroys attribution. If you want to know what a layer buys,
+the layers below it must not be allowed to change its input.
+
+Two mechanical notes worth a line, because they are what made it cheap: the
+ledger grew a `verdict` column (append-only, so nothing downstream broke), and
+reporting reads verdicts for rung 1 and zones for every other rung. Conflating
+the two would have reported an observational rung 1 as having done nothing —
+silently dropping the rung-1 rejection rate, which is the project's 2:20
+milestone.
+
+### 4.6 A vocabulary made from the answer key scores 1.000 and means nothing
+
+**What happened.** The plan wants MedDRA as a second vocabulary. The only MedDRA
+artefact available ships *inside* CADEC and is derived *from* it, so the first
+pass left it out as leakage. The derived columns — `occurrences`, `posts`,
+`example_mentions` — were then deleted, which looks like it fixes the problem.
+
+**What we measured.** It does not. The table is **666 codes, all 666 of which
+appear in CADEC's gold annotations and none of which do not** — the answer key's
+code inventory, about 3% of MedDRA's preferred terms. Deleting the columns
+removes the *evidence* of derivation, not the derivation.
+
+The two measurements that make it concrete:
+
+| | `meddra_check="flag"` | `meddra_check="reject"` |
+|---|---|---|
+| false rejections on gold (of 9,111) | 0 | **3** |
+| hallucinated MedDRA code caught | 0.002 | **1.000** |
+
+Both numbers are the leak. The check looks *harmless* on gold — three false
+rejections — precisely because the table **is** the gold. And it looks
+*miraculous* on planted errors — perfect detection — because anything outside
+the 666 is rejected by construction. A real MedDRA release would score somewhere
+in between, and neither of these numbers predicts where.
+
+**What we changed.** MedDRA is wired in properly — a table, a sixth rung-1 check,
+fixture cases, a probe class — and `meddra_check` defaults to `"flag"`: the
+verdict is recorded and counted in rung 1's comparison, and is not a rejection
+reason. `"reject"` is one manifest line away, and the leakage figure prints
+wherever the number appears. Point the manifest at a subscription release and the
+caveat goes away with it.
+
+**Why it belongs in the article.** A 1.000 is the most seductive number a
+benchmark can produce, and this one is worthless. The general form: *if your
+validator's reference data was derived from your evaluation data, your validator
+will score perfectly and tell you nothing.* The tell is cheap to check — count
+how many entries in your reference list never appear in your answer key. Here
+the answer was zero.
+
+### 4.7 The plan's record shape encoded the claim its own safety constraint forbade
 
 The plan's example record pairs `drug_text` with `reaction_text` in one object.
 Its own safety constraint 3 says drug and reaction mentions are extracted
@@ -304,7 +375,7 @@ types collapse to `reaction`; only reaction-vs-drug is asked for or scored.
 data model three pages later. The ones that hold are the ones with no way to
 express the forbidden thing — a missing interface, not a warning.
 
-### 4.6 Corpus facts the plan got wrong, and what they cost
+### 4.8 Corpus facts the plan got wrong, and what they cost
 
 | plan says | corpus says | consequence |
 |---|---|---|
@@ -325,7 +396,7 @@ And: **CADEC's own gold fails span grounding 4 times in 9,111** — `rena  failu
 cheapest check on the ladder can never get below on this corpus. Every benchmark
 has one; almost nobody reports it.
 
-### 4.7 Replacing the critical-path dependency instead of mitigating it
+### 4.9 Replacing the critical-path dependency instead of mitigating it
 
 The plan names vocabulary lookup as the critical path, puts "no working
 vocabulary lookup" at the top of its risk table, and routes it through the
@@ -342,7 +413,7 @@ the risk's cause, not to plan around it. The plan's mitigation (cache every
 response, never call twice) is good engineering for a dependency that did not
 need to exist.
 
-### 4.8 Process choices that paid for themselves
+### 4.10 Process choices that paid for themselves
 
 - **The fixture gate caught our own wrong expectation on its first run.** Ten
   hand-made records against one real archived post, several deliberately broken.
@@ -409,6 +480,9 @@ result is not clear yet.
 
 ## 6. Limitations to state plainly
 
+- **The MedDRA check cannot be trusted as configured.** Its reference table is
+  derived from the answer key. It is reported, not scored, and any number from
+  it carries the caveat.
 - **Track 2 is half a ladder.** Rungs 0, 3, 4, 5 are owner B's and outstanding.
   Everything in §2.1–2.3 is a property of the *gate*, measured against the gold
   standard and against planted errors — not a model result. Say so; it is a
@@ -446,6 +520,7 @@ python -m ladder.run gate
 python -m ladder.calibrate --split all --sweep --json out/rung1_floor.json
 python -m ladder.probe --split all --json out/rung1_detection.json
 python -m ladder.probe --split all --lexical-mode contained --json out/rung1_detection_contained.json
+python -m ladder.probe --split all --meddra-check reject --json out/rung1_detection_meddra.json
 python -m ladder.run ladder --split test --source gold --run-id gold_control
 ```
 

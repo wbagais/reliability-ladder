@@ -11,6 +11,8 @@ from ladder.ledger import Ledger
 from ladder.rungs import r1, r2
 from ladder.schema import (
     CONCEPT_LESS,
+    R_MEDDRA_UNKNOWN,
+    ZONE_NEW,
     DRUG,
     R_CODE_INACTIVE,
     R_CODE_UNKNOWN,
@@ -229,3 +231,138 @@ def test_sweep_never_touches_the_records_it_scores():
     r.mark(1, ZONE_ACCEPT)
     r2.sweep([r], is_correct=lambda _r: True)
     assert r.zone == ZONE_ACCEPT and r.sct == "271782001"
+
+
+# --- rung 1 judges; whether it routes is a setting ---------------------------
+
+
+class StubMeddra:
+    """Two codes, standing in for the CADEC-derived table."""
+
+    TERMS = {"10013649": "Drowsiness", "10033371": "Pain"}
+
+    def exists(self, code):
+        return str(code) in self.TERMS
+
+    def term(self, code):
+        return self.TERMS.get(str(code))
+
+    def lexical_match(self, text, code, mode="exact"):
+        t = self.term(code)
+        return bool(t) and t.lower() == " ".join(text.lower().split())
+
+
+def _run_r1(records, tmp_path, **cfg):
+    ledger = Ledger(tmp_path / "l.jsonl", run_id="t")
+    r1.apply(records, {"D1": SOURCE}, {"registry": StubVocab(), "ledger": ledger, **cfg})
+    ledger.close()
+    return ledger
+
+
+def test_observe_mode_judges_without_touching_the_record(tmp_path):
+    """Rungs 3-6 must see the set rung 0 produced, not the set rung 1 approved."""
+    bad = rec(sct="999999999")
+    good = rec(text="drowsy", spans=[(13, 19)], sct="271782001")
+    _run_r1([bad, good], tmp_path, mode="observe")
+
+    assert bad.zone == ZONE_NEW and good.zone == ZONE_NEW
+    assert bad.provenance == [] and good.provenance == []
+    assert bad.sct == "999999999", "observe mode must not withdraw an answer"
+    # ...but the verdict is on the record, for rung 2 and rung 3 to read.
+    assert bad.checks["r1_verdict"] == ZONE_REJECT
+    assert bad.checks["r1_reason"] == R_CODE_UNKNOWN
+    assert good.checks["r1_verdict"] == ZONE_ACCEPT
+
+
+def test_gate_mode_routes(tmp_path):
+    bad = rec(sct="999999999")
+    _run_r1([bad], tmp_path, mode="gate")
+    assert bad.zone == ZONE_REJECT and bad.reason == R_CODE_UNKNOWN
+    assert [p["rung"] for p in bad.provenance] == [1]
+
+
+def test_the_verdict_is_identical_in_both_modes(tmp_path):
+    """Only the routing differs — otherwise the comparison is not a comparison."""
+    for mode in ("observe", "gate"):
+        recs = [
+            rec(sct="999999999"),
+            rec(sct="71388002"),
+            rec(text="drowsy", spans=[(13, 19)], sct="271782001"),
+            rec(spans=[(11, 21)], sct="271782001"),
+        ]
+        _run_r1(recs, tmp_path, mode=mode)
+        got = [r.checks["r1_verdict"] for r in recs]
+        assert got == [ZONE_REJECT, ZONE_REJECT, ZONE_ACCEPT, ZONE_REJECT], mode
+
+
+def test_the_ledger_carries_the_verdict_so_the_rate_survives_observe_mode(tmp_path):
+    """The rung 1 rejection rate is the milestone; it must not depend on routing."""
+    recs = [rec(sct="999999999"), rec(text="drowsy", spans=[(13, 19)], sct="271782001")]
+    ledger = _run_r1(recs, tmp_path, mode="observe")
+    assert dict(ledger.verdicts(1)) == {ZONE_REJECT: 1, ZONE_ACCEPT: 1}
+    assert dict(ledger.reasons(1)) == {R_CODE_UNKNOWN: 1}
+    assert dict(ledger.zone_counts(1)) == {ZONE_NEW: 2}
+
+
+def test_rung_2_abstains_on_the_verdict_when_rung_1_did_not_route(tmp_path):
+    bad = rec(sct="999999999")
+    band = rec(text="a bit drowsy", spans=[(7, 19)], sct="271782001")
+    good = rec(text="drowsy", spans=[(13, 19)], sct="271782001")
+    _run_r1([bad, band, good], tmp_path, mode="observe")
+
+    ledger = Ledger(tmp_path / "l2.jsonl", run_id="t")
+    r2.apply([bad, band, good], {"D1": SOURCE}, {"ledger": ledger, **r2.DEFAULTS})
+    ledger.close()
+    assert bad.zone == ZONE_ABSTAIN and bad.reason == R_CODE_UNKNOWN
+    assert band.zone == ZONE_ABSTAIN and band.reason == R_UNRESOLVED
+    assert good.zone == ZONE_VERIFIED and good.sct == "271782001"
+
+
+def test_rung_2_reaches_the_same_end_state_in_either_mode(tmp_path):
+    """Observe mode defers rung 1's cost to rung 2; it does not cancel it."""
+    ends = {}
+    for mode in ("observe", "gate"):
+        recs = [rec(sct="999999999"), rec(text="drowsy", spans=[(13, 19)], sct="271782001")]
+        _run_r1(recs, tmp_path, mode=mode)
+        ledger = Ledger(tmp_path / f"l_{mode}.jsonl", run_id="t")
+        r2.apply(recs, {"D1": SOURCE}, {"ledger": ledger, **r2.DEFAULTS})
+        ledger.close()
+        ends[mode] = [r.zone for r in recs]
+    assert ends["observe"] == ends["gate"] == [ZONE_ABSTAIN, ZONE_VERIFIED]
+
+
+# --- MedDRA -----------------------------------------------------------------
+
+
+def zm(record, **cfg):
+    return r1.zone(record, SOURCE, StubVocab(), cfg, StubMeddra())
+
+
+def test_meddra_is_recorded_but_does_not_reject_by_default():
+    """The available table is the answer key's code list — see MeddraTable."""
+    r = rec(text="drowsy", spans=[(13, 19)], sct="271782001", meddra="10999999")
+    zone, reason, checks = zm(r)
+    assert zone == ZONE_ACCEPT and reason is None
+    assert checks["meddra_exists"] is False
+
+
+def test_meddra_rejects_only_when_the_manifest_says_so():
+    r = rec(text="drowsy", spans=[(13, 19)], sct="271782001", meddra="10999999")
+    assert zm(r, meddra_check="reject")[:2] == (ZONE_REJECT, R_MEDDRA_UNKNOWN)
+
+
+def test_meddra_off_records_nothing():
+    r = rec(text="drowsy", spans=[(13, 19)], sct="271782001", meddra="10999999")
+    assert "meddra_exists" not in zm(r, meddra_check="off")[2]
+
+
+def test_a_known_meddra_code_is_recorded_with_its_term():
+    r = rec(text="drowsy", spans=[(13, 19)], sct="271782001", meddra="10013649")
+    checks = zm(r)[2]
+    assert checks["meddra_exists"] is True and checks["meddra_term"] == "Drowsiness"
+
+
+def test_meddra_never_overrides_a_snomed_rejection():
+    """Order matters: the SCT checks are the gate, MedDRA is a secondary note."""
+    r = rec(sct="999999999", meddra="10013649")
+    assert zm(r, meddra_check="reject")[:2] == (ZONE_REJECT, R_CODE_UNKNOWN)

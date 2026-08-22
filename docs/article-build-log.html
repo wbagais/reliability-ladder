@@ -331,9 +331,11 @@ footer{
             <tr><td>Real code, wrong branch of the hierarchy</td><td class="num ok">1.000</td></tr>
             <tr><td>Random plausible clinical finding</td><td class="num hi">0.000</td></tr>
             <tr><td>Near-miss clinical finding</td><td class="num hi">0.001</td></tr>
+            <tr><td>Hallucinated <em>MedDRA</em> code (derived table — see 5 below)</td><td class="num">1.000<span style="color:var(--muted)"> ✻</span></td></tr>
           </tbody>
         </table>
       </div>
+      <p style="font-size:14px;color:var(--muted)">✻ perfect by construction, and worthless — the MedDRA reference table is the answer key's own code list. See iteration 5.</p>
       <p>Deterministic checks are not “pretty good” at their job. On the classes they are designed for they are <em>exact</em>, at zero model cost — and on the one class that matters most, a real, well-typed, wrong code, they are blind by construction, because the code is not in the source text and nothing mechanical can put it there.</p>
       <p>That reframes the ladder, and it beats “a stack of improvements”: <strong>rung 1 is a free, exact filter for a specific set of failure modes, and everything above it is a paid resolver for the one class the filter cannot see.</strong> The economic question is not whether rung 1 helps — it does, for free — but what the paid rungs charge for the residue.</p>
 
@@ -376,7 +378,7 @@ footer{
     <div class="rail"><b>03</b>Iterations<div class="note">The differentiator. Most measurement pieces present the finished number; the value is in the corrections.</div></div>
     <div class="col">
       <h2>What we changed, and why</h2>
-      <p class="lede">Rung 1 as the plan specifies it rejected <strong>9.3% of the gold standard</strong>. A validation gate with a 9% false-positive rate does not measure a model — it manufactures errors, and every rung above inherits them. Three causes, all fixed.</p>
+      <p class="lede">Rung 1 as the plan specifies it rejected <strong>9.3% of the gold standard</strong>. A validation gate with a 9% false-positive rate does not measure a model — it manufactures errors, and every rung above inherits them. Three causes, all fixed. Then two more changes: rung 1 stopped filtering, and a vocabulary turned out to be the answer key wearing a hat.</p>
 
       <div class="iter">
         <h3>1 · The plan said negation was a free win. The corpus said it rejects 4.7% of correct answers.</h3>
@@ -415,6 +417,48 @@ footer{
           <dd><code>exists()</code> means present in the release, active or not; inactivity is recorded as an audit fact rather than a verdict. <code>reject_inactive</code> is a manifest setting, because it is exactly the kind of choice that silently moves the headline number.</dd>
           <dt>General point</dt>
           <dd><strong>Vocabulary drift is a measurement artefact that looks exactly like a model error.</strong> Any benchmark that normalises to a versioned terminology and does not pin the release is reporting the terminology's release notes as its model's performance.</dd>
+        </dl>
+      </div>
+
+      <div class="iter">
+        <h3>4 · A filtering rung 1 makes every rung above it unattributable</h3>
+        <dl>
+          <dt>What we had</dt>
+          <dd>Rung 1 rejected records and everything above it ran on the survivors — what the plan's flow implies, and what almost every “validation layer” does in practice.</dd>
+          <dt>The bug</dt>
+          <dd>If rung 1 removes the records it dislikes, rung 4's judge is graded on a set rung 1 already cleaned. Rung 4's marginal contribution is then partly rung 1's, and no care further up recovers it. The same confound runs through rungs 3, 5 and 6.</dd>
+          <dt>Change</dt>
+          <dd>Rung 1 now <em>judges</em> without <em>routing</em>: the verdict is recorded, counted and reported, the zone is untouched, and rungs 3–6 see the full set rung 0 produced. Rung 2, which runs last, is where a verdict is finally allowed to cost coverage — so the change <strong>defers</strong> rung 1's cost rather than cancelling it, and a test asserts both modes reach the same end state. <code>mode:&nbsp;"gate"</code> restores the original flow in one line.</dd>
+          <dt>Why it matters</dt>
+          <dd>The same lesson as “the stack is worse than its best layer”, arriving from the other direction. Cumulative stacking is not just a bad <em>default</em> for production — it is a bad <em>experimental design</em>, because it destroys attribution. <strong>If you want to know what a layer buys, the layers below it must not be allowed to change its input.</strong></dd>
+        </dl>
+      </div>
+
+      <div class="iter">
+        <h3>5 · A vocabulary made from the answer key scores 1.000 and means nothing</h3>
+        <dl>
+          <dt>Setup</dt>
+          <dd>The plan wants MedDRA as a second vocabulary. The only MedDRA artefact available ships <em>inside</em> CADEC and is derived <em>from</em> it. Its giveaway columns — <code>occurrences</code>, <code>posts</code>, <code>example_mentions</code> — were deleted, which looks like it fixes the problem.</dd>
+          <dt>Data</dt>
+          <dd>It does not. The table is <strong>666 codes, all 666 of which appear in CADEC's gold and none of which do not</strong> — the answer key's code inventory, about 3% of MedDRA's preferred terms. Deleting the columns removes the <em>evidence</em> of derivation, not the derivation.</dd>
+          <dt>The two numbers</dt>
+          <dd>
+            <div class="scroll" style="margin-bottom:0">
+              <table>
+                <thead><tr><th></th><th class="num">check = flag</th><th class="num">check = reject</th></tr></thead>
+                <tbody>
+                  <tr><td>False rejections on gold (of 9,111)</td><td class="num">0</td><td class="num">3</td></tr>
+                  <tr><td>Hallucinated MedDRA code caught</td><td class="num">0.002</td><td class="num hi">1.000</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </dd>
+          <dt>Reading it</dt>
+          <dd>Both numbers <em>are</em> the leak. The check looks harmless on gold — three false rejections — precisely because the table <strong>is</strong> the gold. And it looks miraculous on planted errors, because anything outside the 666 is rejected by construction. A real MedDRA release would land somewhere in between and neither number predicts where.</dd>
+          <dt>Change</dt>
+          <dd>MedDRA is wired in properly — table, sixth check, fixture cases, probe class — and <code>meddra_check</code> defaults to <code>"flag"</code>: recorded and counted in rung 1's comparison, never a rejection reason. <code>"reject"</code> is one manifest line away and the leakage figure prints wherever the number appears.</dd>
+          <dt>Why it matters</dt>
+          <dd>A 1.000 is the most seductive number a benchmark can produce, and this one is worthless. The general form: <strong>if your validator's reference data was derived from your evaluation data, your validator will score perfectly and tell you nothing.</strong> The tell is cheap — count how many entries in your reference list never appear in your answer key. Here it was zero.</dd>
         </dl>
       </div>
 
@@ -505,6 +549,7 @@ footer{
     <div class="col">
       <h2>Limitations to state plainly</h2>
       <ul>
+        <li><strong>The MedDRA check cannot be trusted as configured.</strong> Its reference table is derived from the answer key. It is reported, not scored, and any number from it carries the caveat.</li>
         <li><strong>Track 2 is half a ladder.</strong> Rungs 0, 3, 4 and 5 are outstanding. Everything in section 2's first three findings is a property of the <em>gate</em>, measured against the gold standard and against planted errors — not a model result. Saying so makes the claim stronger, not weaker.</li>
         <li><strong>Track 1 is one model on one task.</strong> The contribution is the method and the shape, not a leaderboard.</li>
         <li><strong>Determinism was 1.000 at every rung</strong> on the local model — greedy decoding at temperature 0 is exactly reproducible, so that axis is free locally and only gets interesting on hosted APIs with batching nondeterminism. The cross-model run is not done.</li>
@@ -528,6 +573,7 @@ python -m ladder.run gate
 python -m ladder.calibrate --split all --sweep --json out/rung1_floor.json
 python -m ladder.probe     --split all           --json out/rung1_detection.json
 python -m ladder.probe     --split all --lexical-mode contained
+python -m ladder.probe     --split all --meddra-check reject
 python -m ladder.run ladder --split test --source gold --run-id gold_control</code></pre>
       <p>Track 1's numbers live in <code>docs/decisions.md</code> and replay from the cached run. Neither corpus is redistributable: CADEC carries the CSIRO Data Licence — non-commercial and non-transferable — and SNOMED needs an affiliate licence. See <code>docs/licences.md</code>.</p>
     </div>
