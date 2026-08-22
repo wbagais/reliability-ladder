@@ -10,9 +10,10 @@
 ## Ownership
 
 - One file per rung, one owner per file.
-- Owner A: harness, schema, ledger, corpus, registry, rungs 1–2, measurement tools.
-- Owner B: rungs 0, 3, 4, 5, `ladder/score.py`.
+- **Owner A — Wejdan Bagais**: harness, schema, ledger, corpus, registry, rungs 1–2, measurement tools.
+- **Owner B — Pushpdeep Mishra**: rungs 0, 3, 4, 5, `ladder/score.py`; in practice also the licence/CI boundary and the model client.
 - Owner B registers a rung by adding `ladder/rungs/rN.py` and telling A the number. **B never edits `run.py`.**
+- What each has actually written, measured from git: [[authorship]].
 - `manifest.json` is append-only and edited jointly.
 
 ## Branching

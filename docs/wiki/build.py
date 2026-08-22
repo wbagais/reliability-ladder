@@ -33,6 +33,7 @@ PAGES: list[tuple[str, str, str]] = [
     ("contributing",    "Contributing",          ""),
     ("glossary",        "Glossary",              ""),
     ("troubleshooting", "Troubleshooting",       ""),
+    ("authorship",      "Authorship",            ""),
 
     ("rungs",           "The Ladder",            "Rungs"),
     ("r0",              "Rung 0 · bare LLM",     "Rungs"),

@@ -17,6 +17,7 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 - Something broke → [[troubleshooting]]
 - Unfamiliar term → [[glossary]]
 - About to open an MR → [[contributing]]
+- Who wrote what → [[authorship]]
 
 ## Build status
 

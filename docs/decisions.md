@@ -710,3 +710,33 @@ exactly the stale-data problem the wiki exists to avoid.
 `docs/rung1.md`, written an hour earlier, was deleted rather than left beside
 `docs/wiki/content/r1.md`. Two copies of one explanation is the failure mode,
 not the deliverable.
+
+### Ownership, measured rather than asserted — 2026-08-22
+
+The wiki now names the owners — owner A is Wejdan Bagais, owner B is Pushpdeep
+Mishra — and `docs/wiki/content/authorship.md` records who has written what,
+taken from `git blame` and `git shortlog` rather than from the plan.
+
+The two disagree, in both directions.
+
+The plan assigns owner B rungs 0, 3, 4, 5 and `ladder/score.py`. None of those
+files exist. What owner B has actually written is the licence and CI boundary
+plus the model client: `scripts/preflight.py` (147 of 155 surviving lines),
+`.gitlab-ci.yml` (97 of 112), `ladder/stub_llm.py` (all 123), and substantial
+edits into two of owner A's files — `ladder/vocab.py` (136 lines) and
+`ladder/rungs/r1.py` (91). And owner A wrote `ladder/rung0_ab.py`, 230 of 288
+lines and the file's creation, which the plan lists under rung 0 as B's.
+
+Owner A built the ladder; owner B built the guard rails around it and the client
+that will drive rung 0. The plan's division of the RUNGS has not been exercised
+yet, because rungs 3-5 are unwritten. Both statements are descriptions, not
+criticisms: the plan is forward-looking and blame is backward-looking.
+
+Recorded because the plan's owner labels are load-bearing in a paper about who
+built what, and a reader who takes them at face value would attribute preflight
+and the CI licence gate to the wrong person.
+
+One caveat kept with the numbers: 22 of 52 commits carry a
+`Co-Authored-By: Claude` trailer, all authored under Wejdan's git identity, so
+blame attributes those lines to Wejdan. The authorship page says so rather than
+presenting the column as hand-typed lines.

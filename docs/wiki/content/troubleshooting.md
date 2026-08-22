@@ -29,7 +29,7 @@
 
 **`NO SCORER: accuracy columns are empty`**
 
-- Expected. `ladder/score.py` is owner B's and unwritten. Zone and cost numbers are still valid.
+- Expected. `ladder/score.py` is Pushpdeep's and unwritten. Zone and cost numbers are still valid.
 
 **`NOT IN THIS RUN: rungs [3, 5, 4, 6]`**
 

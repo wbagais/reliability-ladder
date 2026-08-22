@@ -1,6 +1,6 @@
 # Corpus & splits
 
-`ladder/corpus.py` · owner A.
+`ladder/corpus.py` · owner A · Wejdan Bagais.
 
 ## CADEC
 

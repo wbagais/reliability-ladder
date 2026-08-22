@@ -54,7 +54,7 @@ Reverse none of these silently. Each is recorded in `docs/decisions.md` with the
 - **Three outcomes, not two.** REJECT / ACCEPT / BAND. BAND holds 56.8 % of even a perfect answer set.
 - **Cost is three measures.** Tokens, latency p95, human minutes. Never fused into a currency figure.
 - **One accounting path.** Everything reported is a `GROUP BY` over [[ledger]]. Two accounting paths is how a benchmark gets two numbers for one run.
-- **One file per rung, one owner per file.** Owner B adds `ladder/rungs/rN.py` and never edits `run.py`.
+- **One file per rung, one owner per file.** Owner B (Pushpdeep) adds `ladder/rungs/rN.py` and never edits `run.py`.
 - **Schemas append, never reorder.** `schema.py` enums are the contract between owners.
 
 ## Module map

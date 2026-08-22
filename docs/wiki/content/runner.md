@@ -1,6 +1,6 @@
 # Runner & CLI
 
-`ladder/run.py` · owner A. **Owner B never edits this file** — B registers a rung by adding `ladder/rungs/rN.py` and telling A the number.
+`ladder/run.py` · owner A · Wejdan Bagais. **Owner B never edits this file** — B registers a rung by adding `ladder/rungs/rN.py` and telling A the number.
 
 > There is no free-text entry point. `--split` takes a split identifier; the runner reads documents out of the licensed corpus by ID and nothing else.
 
@@ -40,7 +40,7 @@ python -m ladder.run ladder --split test --source gold --run-id demo
 ### Three ways records enter
 
 - `--source gold` — the answer key dressed as rung-0 output. A **control**, not an accuracy test.
-- `--predictions out/r0.jsonl` — owner B's output. Enforces **split discipline**: a file carrying a document outside the split is refused, exit 1. Blank `record_id`s are backfilled.
+- `--predictions out/r0.jsonl` — owner B's output ([[authorship|who wrote what]]). Enforces **split discipline**: a file carrying a document outside the split is refused, exit 1. Blank `record_id`s are backfilled.
 - neither — [[r0]] generates records from `sources`. Currently exits with a message, because `r0.py` does not exist.
 
 ### Output
