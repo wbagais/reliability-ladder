@@ -217,6 +217,89 @@ def zone(
     return ZONE_BAND, None, checks
 
 
+
+# ---------------------------------------------------------------- audit pass
+def all_reasons(rec, source, vocab, cfg=None, meddra=None) -> dict:
+    """Every check, run unconditionally. Does NOT decide the verdict.
+
+    `zone()` short-circuits on the first failure, which is correct for a verdict
+    and wrong for a reason table: on model output the cheapest check fires first
+    and hides everything above it. Measured 2026-08-22 on 2 dev docs, mode A —
+    6/6 records rejected as span_ungrounded, and all 3 distinct codes emitted
+    were absent from SNOMED. Not one appeared in the reason table.
+
+    So the table rung 1 reports is a distribution over FIRST failures, weighted
+    by check order. On gold the bias is latent (gold spans ground by
+    construction); on model output it dominates. A validator tuned on gold can
+    carry an ordering bias that only appears once something actually fails.
+
+    Returns reasons (every rejection that applies), unevaluable (checks that
+    could not run, and why), and the full check dict. The verdict still comes
+    from zone(); this only makes the audit trail complete.
+    """
+    cfg = {**DEFAULTS, **(cfg or {})}
+    reasons: list[str] = []
+    unevaluable: dict[str, str] = {}
+    checks: dict[str, Any] = {}
+
+    # --- span grounding ----------------------------------------------------
+    ok, reason = rec.valid(source)
+    checks["span_grounded"] = ok
+    if not ok:
+        reasons.append(reason)
+
+    # --- negation: needs a grounded span to read a window around -----------
+    if cfg["check_negation"]:
+        if not ok:
+            unevaluable["negation"] = "span not grounded"
+        else:
+            negated, cue = is_negated(source, rec.spans, window=cfg["negation_window"])
+            checks["negated"] = negated
+            checks["negation_cue"] = cue
+            if negated and cfg["negation_action"] == "reject":
+                reasons.append(R_NEGATED)
+
+    # --- code checks: independent of the span. This is the masked branch. ---
+    if rec.sct == CONCEPT_LESS:
+        checks["concept_less"] = True
+    elif not rec.sct:
+        checks["no_code"] = True
+    elif vocab is None:
+        unevaluable["code"] = "vocab unavailable"
+    else:
+        checks["sct_exists"] = vocab.exists(rec.sct)
+        if not checks["sct_exists"]:
+            reasons.append(R_CODE_UNKNOWN)
+        else:
+            checks["sct_active"] = vocab.is_active(rec.sct)
+            if not checks["sct_active"] and cfg["reject_inactive"]:
+                reasons.append(R_CODE_INACTIVE)
+
+            status = vocab.finding_status(rec.sct)
+            checks["sct_finding_status"] = status
+            checks["sct_is_finding"] = status == "finding"
+            scope_hit = cfg["finding_scope"] == "all" or rec.entity_type == REACTION
+            if cfg["finding_check"] and scope_hit and status == "not_finding":
+                reasons.append(R_WRONG_SEMANTIC_TYPE)
+
+            checks["lexical_match"] = vocab.lexical_match(
+                rec.text, rec.sct, mode=cfg["lexical_mode"]
+            )
+
+    # --- MedDRA ------------------------------------------------------------
+    if meddra is not None and cfg["meddra_check"] != "off" and rec.meddra:
+        checks["meddra_exists"] = meddra.exists(rec.meddra)
+        checks["meddra_term"] = meddra.term(rec.meddra)
+        if not checks["meddra_exists"] and cfg["meddra_check"] == "reject":
+            reasons.append(R_MEDDRA_UNKNOWN)
+
+    for r in reasons:
+        assert r in REJECT_REASONS, f"undeclared reason {r!r}"
+
+    return {"reasons": reasons, "unevaluable": unevaluable, "checks": checks,
+            "n_reasons": len(reasons)}
+
+
 def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> list[Record]:
     ledger = cfg.get("ledger")
     vocab = cfg.get("registry")
@@ -241,6 +324,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         # ZONE is conditional.
         rec.checks["r1_verdict"] = verdict
         rec.checks["r1_reason"] = reason
+        rec.checks["r1_audit"] = all_reasons(rec, source, vocab, cfg, meddra)
         if gating:
             rec.mark(RUNG, verdict, reason)
         if ledger:
