@@ -534,3 +534,141 @@ is not is worse than no field. Same class as the `--live` bug fixed today.
 Not wired in this pass: it needs `Ols4Vocabulary` checked against everything
 rung 1 calls, not merely against the `Vocabulary` contract, and it changes what
 a manifest key MEANS — which is a joint decision, per this file's own rule.
+
+## 2026-08-22 — independent reproduction, second machine
+
+First run of the pipeline outside A's machine. New SNOMED CT-AU build, freshly
+extracted corpus, `data/` populated from scratch. Everything below is measured
+locally and reproducible with the commands recorded beside each figure.
+
+### Provenance corrected
+
+- **Corpus is CADEC v2, not v3.** The DAP collection `csiro:10948` is at edition
+  v3, and the collection's own `collection_import_sha256sum.txt` lists exactly
+  two files: `CADEC.v1.zip` and `CADEC.v2.zip`. There is no v3 corpus. The
+  manifest pinned the collection edition as if it were the corpus version.
+  Now recorded as both, distinguished. Checksums committed to
+  `docs/cadec-checksums.txt`.
+- **Working copy verified byte-identical to the archive.** `diff -rq` against a
+  clean extraction of `CADEC.v2.zip`: zero differences. Six `.ann` files differ
+  between v1 and v2 — that is the corpus revision, not local edits. Example,
+  `LIPITOR.320`: `T1 ADR 0 17 cognitive ability` became
+  `T1 ADR 0 28 cognitive ability deminished`. v1 truncated the span before the
+  word that makes the mention a reaction.
+- **`cadec_root` path was wrong** in the manifest and is corrected.
+- **`.gitignore` enumerated spellings of the corpus path**, so any unanticipated
+  extraction layout was a hole. `unzip -d data/` created `data/data/` holding
+  both corpus zips, untracked and unignored. Replaced with `data/*` plus an
+  explicit exception for `data/splits/`.
+
+### Reproduced exactly
+
+| Figure | Documented | Measured here |
+|---|---|---|
+| Zone occupancy on gold | 3,926 / 5,173 / 12 | **identical** |
+| | 43.1% / 56.8% / 0.13% | **identical** |
+| CADEC codes inactive in the release | 115 | **115** |
+
+### Reproduced with a discrepancy
+
+Active codes measured 928 against a documented 927; distinct codes 1,047 against
+1,046. The two move together, so one distinct code separates the counts.
+`any_of` occurs exactly 3 times in gold; if only the first alternative was
+counted previously, and one alternative is otherwise unique, that produces
+precisely this difference. **Open.**
+
+### Gold defect, identified with evidence
+
+`data/cadec/sct/LIPITOR.511.ann` line 3:
+
+    TT3   67849003 | Excruciating pain | + 20070731 | pain in lower limb |   38 66   excruciating pain in my legs
+
+`20070731` is a date, not an SCTID, and is not a well-formed identifier. The
+term beside it is a real concept, so a code was dropped and a release date left
+in its place. Survived the v1→v2 revision. The parser reads it faithfully — this
+is a corpus defect, not a parsing bug. Genuine absent codes: **3, not 4.**
+Handling: a documented gold-defect list, never a silent filter.
+
+### FINDING — pooled ratios across drugs and reactions describe neither
+
+Drugs are span-checked only, never code-scored: CADEC codes them to AMT. But
+every headline ratio pools drugs and reactions into one denominator. Split:
+
+| Pooled figure | Drugs | Reactions |
+|---|---|---|
+| 11% of CADEC codes inactive | 46.8% (58/124) | **6.2%** (57/923) |
+| 23.9% backend disagreement | ~100% | **5.9%** |
+| 43.1% ACCEPT on gold | 76.0% | **35.0%** |
+
+Same cause each time. Drug names appear in patient text as printed, so they
+match lexically; reactions are written in the reporter's own words. Any
+denominator containing both is a drug-weighted average reported as if it
+described the surface the pipeline grades.
+
+**The headline claim changes.** Deterministic checking confirms 43% of a perfect
+answer set pooled — but **35% on reactions**. The pooled figure understates the
+problem by 8 points.
+
+Caution: drug BAND occupancy is 23.9%, numerically identical to the backend
+disagreement figure and completely unrelated. Reword one if both appear.
+
+### FINDING — check order determines the reason table
+
+`r1.zone()` returns on first failure. Correct for a verdict; wrong for a reason
+table. First model output ever produced (granite4:micro-h, 2 dev docs, mode A):
+
+    verdict reasons: span_ungrounded 6 (100%)
+    full audit set : span_ungrounded 6, code_unknown 6
+
+100% of the code failures were invisible. The model fabricated every code it
+emitted — 3/3 distinct codes absent from a ~400k-concept release — and the
+harness reported a span problem.
+
+**The bias is latent on gold and only appears on model output.** Measured: on
+all 9,111 gold mentions the verdict reason set and the full audit set are
+identical, because gold spans ground by construction. It is invisible in exactly
+the regime the validator was tuned in.
+
+Fix: `zone()` unchanged — its ordered short-circuit is correct and its numbers
+are measured. Added `all_reasons()`, a parallel pass running every check
+unconditionally into `checks["r1_audit"]`. 93 tests still pass; no measured
+figure moved.
+
+### FINDING — missing vocabulary degrades silently to BAND
+
+`zone()` returns `ZONE_BAND` when `vocab is None`. No warning. A run configured
+without a registry produces plausible verdicts for every record. Nothing above
+rung 1 can distinguish "plausible but unverifiable" from "never checked" — they
+are the same value. Should be a hard failure. **Open.**
+
+### First model run — granite4:micro-h, mode A, 2 dev docs
+
+| | Result |
+|---|---|
+| JSON parsed | 2/2 |
+| Span text verbatim in post | 6/6 |
+| Character offsets correct | **0/6** |
+| Codes existing in SNOMED | **0/3 distinct** |
+
+The model finds reactions correctly and invents both mechanically checkable
+fields. Offsets are wrong but recoverable by string search — every span text was
+present in the source. Whether rung 0 should compute offsets deterministically
+instead of asking for them is a manifest flag with both arms measured, not a
+silent fix: it changes what rung 0 means.
+
+Sample size is 2 documents. Nothing here is a claim about the model.
+
+### Aligner
+
+`concept_less` is a real `gold_kind`, 445 mentions (4.9%) — 302 reaction, 143
+drug. Findable but not gradable. A single F1 must either drop them, handing the
+model a lane where wrong codes cost nothing, or grade them, penalising it for an
+answer that does not exist.
+
+Split into two scorings, never fused, on the same principle as the cost triple:
+`span_*` over every gold, `code_*` over gradable golds only.
+
+Also fixed: sub-threshold cells were left in the cost matrix, so the assignment
+could be steered by pairs the threshold then discarded. Now zeroed before
+matching. The scipy fallback silently downgraded bipartite matching to greedy;
+the matcher is now reported in every result.
