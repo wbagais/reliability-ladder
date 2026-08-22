@@ -444,3 +444,44 @@ decision list records each reversal with its measurement.
 A plan that contradicts the code is a bug in the plan. Correcting it in place —
 rather than only in a log — is what stops the next person rebuilding the thing
 that was already measured and rejected.
+
+### `--live` was never live — 2026-08-22
+
+`vocab_crosscheck.live()` called the module-level `ols.exists()`, which delegates
+to the SELECTED backend. Whenever `snomed.sqlite` exists — that is, on any
+machine that can run the crosscheck at all — `select()` returns the local
+Registry, so `--live` compared the local backend against itself: it agreed 40/40
+and reported the offline prediction as wrong on 12. No HTTP was made; the
+`cache/vocab` directory the transport writes to did not exist afterwards.
+
+The failure mode is the dangerous one: it produced a REASSURING wrong answer. It
+said the two backends were interchangeable, which is the exact claim this module
+exists to refute. Fixed by instantiating `Ols4Vocabulary()` explicitly. Against
+the real service the numbers invert — backends agree 28/40, the offline
+prediction is right 40/40 — and all 12 disagreements are retired or
+AU-extension codes, the two classes the offline mode predicts and nothing else.
+
+A public delegating function and a backend-specific one that share a name is the
+trap. `ladder/vocab.py`'s own docstring warns about it in the other direction
+("calling these directly gets you the lossy answer"); this was the same hazard
+mirrored.
+
+### `run.py ablate` now exists — 2026-08-22
+
+`run.py`'s docstring had advertised `python -m ladder.run ablate` since the
+scaffolding merge; the subcommand was never registered, so it exited 2 on an
+argparse error. Implemented rather than deleted, because the single-rung
+ablation is what the README's "each rung stays a single-rung ablation on
+identical input" actually requires: `ladder` measures a stack, where rung 4's
+row is rung 4 applied to whatever rungs 1, 3 and 5 already did, while `ablate`
+holds the input fixed and varies one rung. Each rung gets `[r.copy() for r in
+base]`; rung 0 is not ablatable (it MAKES the records) so it is the `input` row;
+marginal-cost columns stay empty because "marginal" is only meaningful
+cumulatively. Both commands build rows through one extracted `snapshot_row()`,
+so there is still exactly one accounting path over the ledger.
+
+First thing it showed: rung 2 ALONE abstains nothing (coverage 1.000, all 393
+still NEW), against 222 abstentions in the stacked run. Rung 2 reads
+`checks["r1_verdict"]` and tau is 0.0, so with no rung 1 upstream it has nothing
+to withdraw on. True, correct, and invisible in the stacked view — which is the
+argument for having the command.

@@ -105,6 +105,12 @@ def live(man: dict, n: int) -> dict:
 
     import ladder.vocab as ols
 
+    # The OLS4 backend EXPLICITLY, never the module-level `ols.exists`. That
+    # one delegates to the SELECTED backend, which is the local index whenever
+    # snomed.sqlite exists — so it would compare the local backend against
+    # itself, agree 40/40, and report the two backends as interchangeable.
+    # Which is the exact claim this module exists to refute.
+    ols4 = ols.Ols4Vocabulary()
     reg = Registry(man["vocabulary"]["snomed_db"])
     concepts = _concept_table(Path(man["vocabulary"]["snomed_release_dir"]))
     docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
@@ -114,7 +120,7 @@ def live(man: dict, n: int) -> dict:
     rows, agree, predicted = [], 0, 0
     for code in codes[:n]:
         try:
-            ols_exists = ols.exists(code)
+            ols_exists = ols4.exists(code)
         except Exception as exc:  # the service is external; a flake is not a result
             print(f"  OLS4 error on {code}: {exc}", file=sys.stderr)
             continue

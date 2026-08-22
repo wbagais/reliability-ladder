@@ -61,7 +61,7 @@
 ## Current state
 - Owner A's half is built and measured: corpus + frozen splits, SNOMED index,
   ledger, rung 1, rung 2, harness, fixture gate, and two model-free
-  characterisations of rung 1. 148 tests, CI green.
+  characterisations of rung 1. 93 tests, CI green.
 - Rungs 0/3/4/5 and the shared scorer are owner B's and outstanding. `run.py`
   reports a missing rung rather than faking it.
 - **An earlier data-agnostic track was retired on 2026-08-22**, along with its
