@@ -9,10 +9,10 @@ the tool block. Two implementations would confound tool access with prompting.
     python ladder_ab.py --compare        # both, side by side
 """
 from __future__ import annotations
-import argparse, json, re, sys, time
-from dataclasses import dataclass, field, asdict
-from pathlib import Path
-import vocab
+import argparse, json, sys, time
+from dataclasses import dataclass, field
+
+from bench import vocab
 
 # ------------------------------------------------------------------ prompts
 BASE = """Extract every adverse reaction the reporter describes in the post below.
@@ -180,7 +180,14 @@ if __name__ == "__main__":
     ap.add_argument("--compare", action="store_true")
     ap.add_argument("--data", default="items.json")
     a = ap.parse_args()
-    from stub_llm import stub, load_items
+    try:
+        from bench.stub_llm import stub, load_items
+    except ModuleNotFoundError:
+        sys.exit(
+            "bench/stub_llm.py is not in the repo yet — it is the fake client this\n"
+            "module runs against. Supply `stub(prompt, text, mode) -> (raw, usage)`\n"
+            "and `load_items(path) -> [{doc_id, text}]`, or drive run() directly."
+        )
     items = load_items(a.data)
     if a.compare:
         ra, ga = run(items, "A", stub); rb, gb = run(items, "B", stub)

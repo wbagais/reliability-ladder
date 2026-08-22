@@ -1,0 +1,84 @@
+{
+  "iteration": 1,
+  "frozen": "2026-08-22",
+  "task": "cadec-pharmacovigilance-triage",
+  "gold_rule": "strict = the predicted SNOMED CT code is in the gold code set for that mention; CONCEPT_LESS is correct only against CONCEPT_LESS gold",
+  "gold_rule_note": "CADEC gold is not always a single code: 252 mentions are post-coordinated (A + B) and 3 are disjunctions (A or B). Scoring 'in the gold set' gives credit for either half of a post-coordinated pair. 2.8% of mentions are affected; report them separately.",
+  "unit_of_evaluation": "one mention record",
+  "seed": 42,
+  "corpus": {
+    "name": "CADEC",
+    "version": "v3 (csiro:10948, 10.4225/08/570FB102BDAD2)",
+    "licence": "CSIRO Data Licence - non-commercial, NON-TRANSFERABLE, not redistributable",
+    "cadec_root": "data/2016-04-15_Karimi_Sarvnaz_10948v3/data/cadec",
+    "splits_dir": "data/splits",
+    "n_docs_total": 1250,
+    "n_mentions_total": 9111,
+    "split_unit": "document",
+    "n_dev_docs": 40,
+    "n_test_docs": 60,
+    "stratified_by": "drug family (lipitor | diclofenac)"
+  },
+  "vocabulary": {
+    "snomed_release": "SnomedCT_Release_AU1000036_20260731",
+    "snomed_release_dir": "data/SnomedCT_Release_AU1000036_20260731",
+    "snomed_db": "ladder/cache/snomed.sqlite",
+    "meddra_release": "CADEC-derived code list (NOT a MedDRA release)",
+    "meddra_note": "The only MedDRA table available is the code list CADEC ships with the corpus. Measured 2026-08-22: 666 codes, all 666 appear in CADEC's gold annotations, 0 do not - it is the answer key's code inventory (~3% of MedDRA PT), not a vocabulary. Removing its occurrences/posts/example_mentions columns removes the evidence of derivation, not the derivation. So rungs.1.meddra_check defaults to 'flag': the verdict is recorded and counted in rung 1's comparison and is not a rejection reason. Set 'reject' to include it as one, or point meddra_csv at a subscription release and the caveat goes away.",
+    "meddra_csv": "data/meddra_codes.csv",
+    "snomed_backend": "local-rf2",
+    "snomed_backend_note": "local-rf2 | ols4. Not interchangeable: an OLS4-backed exists() reports 23.9% of CADEC gold as nonexistent codes (7.5% retired, 16.4% AU-extension = 100% of drug mentions). A rung 1 rejection rate is not comparable across backends. See schemas/vocabulary.py and `python -m ladder.vocab_crosscheck`.",
+    "meddra_mode": "reference",
+    "meddra_mode_note": "reference | answer_space. reference = the list only cross-checks a code produced by other means; retrieval from it is refused. answer_space = the task IS closed-set assignment over this list, which is a DIFFERENT and much easier task and must be declared in the method section."
+  },
+  "model": {
+    "extractor": null,
+    "judge": null,
+    "temperature": 0,
+    "note": "Owner B fills these in. Judge must be a different model family from the extractor."
+  },
+  "rung_order": [
+    0,
+    1,
+    3,
+    5,
+    4,
+    2,
+    6
+  ],
+  "rung_order_note": "Execution order, not numbering. Rung IDs come from the brief and are identity; renumbering would break comparability with other groups. Abstention runs last because abstaining before correction and voting throws away recoverable records.",
+  "rungs": {
+    "1": {
+      "mode": "observe",
+      "mode_note": "Rung 1 judges without routing. Its verdicts are recorded, counted and reported, but the record's zone is untouched, so rungs 3-6 see the full unfiltered set and each rung's marginal contribution stays attributable to that rung. Rung 2, which runs last, is where a rung 1 verdict is allowed to cost coverage. Set 'gate' to make rung 1 filter, as the plan's flow implies.",
+      "reject_inactive": false,
+      "check_negation": true,
+      "negation_window": 6,
+      "finding_check": true,
+      "finding_scope": "reaction",
+      "lexical_mode": "exact",
+      "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
+      "meddra_check": "flag"
+    },
+    "2": {
+      "tau": 0.0,
+      "abstain_zones": [
+        "BAND"
+      ],
+      "abstain_on_reject": true,
+      "tau_tuned_on": "dev",
+      "tau_note": "tau is swept on dev only and written here BEFORE the first test run. 0.0 means the confidence gate is off until a real rung-0 confidence distribution exists to calibrate against."
+    },
+    "5": {
+      "k": 3,
+      "temperature": 0.7
+    },
+    "6": {
+      "mode": "simulated",
+      "minutes_per_record": 2.0
+    }
+  },
+  "output": {
+    "dir": "out"
+  }
+}

@@ -1,0 +1,39 @@
+# Model registry. A model spec is "provider/model-name", e.g. "ollama/gpt-oss:20b".
+# Prices are $ per million tokens. local: true means data never leaves the machine.
+providers:
+  ollama:
+    base_url: http://localhost:11434/v1
+    api_key_env: null
+    local: true
+    input_per_mtok: 0.0
+    output_per_mtok: 0.0
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    api_key_env: GEMINI_API_KEY
+    local: false
+    input_per_mtok: 0.30      # default; override per model below
+    output_per_mtok: 2.50
+    models:
+      gemini-2.5-flash: { input_per_mtok: 0.30, output_per_mtok: 2.50 }
+      gemini-2.5-flash-lite: { input_per_mtok: 0.10, output_per_mtok: 0.40 }
+      gemini-2.5-pro: { input_per_mtok: 1.25, output_per_mtok: 10.00 }
+  openrouter:
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    local: false
+    input_per_mtok: 0.20
+    output_per_mtok: 0.20
+  groq:
+    base_url: https://api.groq.com/openai/v1
+    api_key_env: GROQ_API_KEY
+    local: false
+    input_per_mtok: 0.05
+    output_per_mtok: 0.08
+  anthropic:
+    base_url: https://api.anthropic.com/v1/
+    api_key_env: ANTHROPIC_API_KEY
+    local: false
+    input_per_mtok: 1.00
+    output_per_mtok: 5.00
+    models:
+      claude-haiku-4-5-20251001: { input_per_mtok: 1.00, output_per_mtok: 5.00 }
