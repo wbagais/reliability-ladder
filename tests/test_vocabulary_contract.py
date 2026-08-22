@@ -10,7 +10,7 @@ No network: the OLS4 backend is exercised through a stubbed transport.
 
 import pytest
 
-import bench.vocab as vocab
+import ladder.vocab as vocab
 from ladder.registry import MeddraTable
 from schemas.vocabulary import FINDING, NOT_FINDING, UNKNOWN, conforms
 

@@ -19,8 +19,8 @@ git push
 | `LICENSE` | MIT for the code, with an explicit carve-out naming CADEC, MedDRA and SNOMED. |
 | `requirements.txt` | Pinned. |
 | `scripts/preflight.py` | Scans tree **and history** for corpus text, keys, forbidden paths, unpinned deps. |
-| `bench/vocab.py` | SNOMED via EBI OLS4 (free, no key) + MedDRA local. A **global resource**, not a per-item trusted_record. |
-| `bench/ladder_ab.py` | Rung 0 modes A/B + rung 1. One file, one flag — two implementations would confound tool access with prompting. |
+| `ladder/vocab.py` | SNOMED via EBI OLS4 (free, no key) + MedDRA local. A **global resource**, not a per-item trusted_record. |
+| `ladder/rung0_ab.py` | Rung 0 modes A/B + rung 1. One file, one flag — two implementations would confound tool access with prompting. |
 | `bench/__init__.py` | Makes `bench` importable for CI. |
 | `data/meddra_codes.example.csv` | 10 rows for tests. Full list stays gitignored. |
 | `docs/plan.html` | v17 — plan, architecture, demo, glossary. **Published by CI to Pages.** |

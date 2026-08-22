@@ -67,7 +67,7 @@ vocab-smoke:
     - pip install --quiet -r requirements.txt
     - |
       python - <<'PY'
-      import bench.vocab as v
+      import ladder.vocab as v
       assert v.exists("60862001"),        "real code should exist"
       assert not v.exists("999999999"),   "invented code must not"
       assert v.is_finding("60862001"),    "Tinnitus is a clinical finding"
@@ -91,7 +91,7 @@ pages:
     - mkdir -p public
     - cp docs/plan.html public/index.html
     - cp -r docs/assets public/assets 2>/dev/null || true
-    - test -f app/results.reference.json && cp app/results.reference.json public/ || true
+    - test -f out/results.csv && cp out/results.csv public/ || true
     - echo "published $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   artifacts:
     paths: [public]

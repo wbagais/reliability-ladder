@@ -182,9 +182,8 @@ def aurc(curve: list[dict[str, float]]) -> float:
 def free_lunch(curve: list[dict[str, float]]) -> dict[str, float] | None:
     """The strictest tau that screens errors without losing a single correct answer.
 
-    Borrowed from the SROIE track's calibration tab, where it was the single
-    most useful number the abstention analysis produced: it separates "the gate
-    is miscalibrated" from "the mechanism does not work".
+    It separates "the gate is miscalibrated" from "the mechanism does not
+    work" — two conclusions that look identical from a coverage number alone.
     """
     best = None
     for point in curve:

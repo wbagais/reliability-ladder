@@ -29,7 +29,7 @@ OLS4 closes it. The backend is therefore recorded in the manifest, and a rung-1
 rejection rate is not comparable across backends.
 
 The module-level functions below are the stable surface: they delegate to the
-selected backend, so `ladder_ab.py`, the CI smoke test and anything else that
+selected backend, so `rung0_ab.py`, the CI smoke test and anything else that
 already imports them keep working unchanged.
 
 Every OLS4 response is disk-cached, so a re-run costs nothing and the ladder's
@@ -292,7 +292,7 @@ def select(manifest: dict | None = None, prefer: str | None = None, quiet: bool 
 
 # ---------------------------------------------------------------------------
 # THE PUBLIC SURFACE — delegates to the selected backend.
-# Stable signatures: ladder_ab.py, the CI smoke test and anything else that
+# Stable signatures: rung0_ab.py, the CI smoke test and anything else that
 # already imports these keep working, and now get the non-lossy answer when a
 # local release is built.
 # ---------------------------------------------------------------------------

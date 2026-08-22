@@ -1,13 +1,10 @@
-# Pinned. Streamlit Community Cloud reads ONLY this file.
-# Unpinned versions can auto-upgrade and break a deployed app with no warning.
+# Pinned. An unpinned version can auto-upgrade and change a measured number
+# with no warning, which is the same class of problem as an unpinned vocabulary
+# release — see docs/decisions.md.
 
-streamlit==1.41.0
-plotly==5.24.1
-jsonschema==4.23.0
 pyyaml==6.0.2
-pandas==2.2.3
 
-# Local-only extras — keep OUT of the hosted build.
-# The deployed app is a results viewer and must not be able to call a model.
-# openai==1.59.6
+# Local-only extras. Nothing here is needed to READ results; they are needed to
+# produce them, which happens on your machine and nowhere else (plan §1).
+# openai==1.59.6      # rungs 0/3/4/5 — owner B
 # pytest==8.3.4

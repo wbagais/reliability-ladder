@@ -78,7 +78,9 @@ and reject everything else. MedDRA annotations are parsed and carried on each
 record, and are neither checked nor scored. See `manifest.json` →
 `vocabulary.meddra_note`.
 
-## SROIE (the other track)
+## Nothing else is committed
 
-`data/sroie_v1.json` is the derived demo dataset for the data-agnostic `bench/`
-track and is committed. It is unaffected by any of the above.
+There is no other dataset in this repository. An earlier track shipped a
+redistributable demo dataset; it was retired on 2026-08-22 and removed. If you
+add one, put it through the same three questions: may it be redistributed, does
+it embed document text, and is the licence transferable to your co-authors.
