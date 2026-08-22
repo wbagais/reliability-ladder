@@ -5,7 +5,8 @@
     python -m ladder.run gate                       # step 3: the fixture gate
     python -m ladder.run ladder --split test        # the run
     python -m ladder.run ladder --split test --rungs 1,2 --predictions out/r0.jsonl
-    python -m ladder.run ablate --split test        # each rung alone on rung-0 output
+    python -m ladder.run ablate --split test        # each rung ALONE on the same input
+    python -m ladder.run ablate --split test --source gold --rungs 1,2
 
 There is no free-text entry point. `--split` takes a split identifier; the
 runner reads documents out of the licensed corpus by ID and nothing else.
@@ -210,6 +211,55 @@ CSV_COLUMNS = [
 ]
 
 
+def snapshot_row(
+    rung: Any,
+    layer: str,
+    snap: list[Record],
+    z: Counter,
+    cost: dict[str, float],
+    is_correct=None,
+    gold=None,
+) -> tuple[dict[str, Any], int | None]:
+    """One results row from one snapshot of the record set.
+
+    Returns (row, errors). `errors` is what the marginal columns divide into,
+    and only a CUMULATIVE run can compute those — so this function does not.
+    Both `ladder` and `ablate` build their rows here, because two accounting
+    paths is how a benchmark ends up with two numbers for the same run.
+    """
+    # "Would this ship if the run stopped at this rung?" A rejected record has
+    # been called wrong by the gate, so it is not an answer even though rung 2
+    # has not withdrawn it yet.
+    answered = [r for r in snap if r.zone not in (ZONE_ABSTAIN, ZONE_REJECT) and r.sct]
+    settled = [r for r in snap if r.zone not in OPEN_ZONES]
+    row = {c: "" for c in CSV_COLUMNS}
+    row.update(
+        rung=rung,
+        layer=layer,
+        n_records=len(snap),
+        accept=z[ZONE_ACCEPT],
+        band=z[ZONE_BAND],
+        reject=z[ZONE_REJECT],
+        abstained=z[ZONE_ABSTAIN],
+        escalated=z[ZONE_ESCALATE],
+        verified=z[ZONE_VERIFIED] + z[ZONE_RESOLVED],
+        settled=len(settled),
+        coverage=round(len(answered) / len(snap), 5) if snap else "",
+        tokens_per_record=round(cost.get("tokens_per_record", 0.0), 2),
+        p95_s=round(cost.get("p95_latency_s", 0.0), 4),
+        reviews_per_100=round(cost.get("reviews_per_100", 0.0), 2),
+    )
+    errors = None
+    if is_correct and gold is not None:
+        correct = sum(1 for r in answered if is_correct(r, gold))
+        errors = len(answered) - correct
+        row["f1_sct_strict"] = round(correct / len(answered), 5) if answered else 0.0
+        row["yield"] = round(correct / len(snap), 5) if snap else 0.0
+        row["corrupted"] = errors
+        row["err_per_100"] = round(100 * errors / len(snap), 3) if snap else ""
+    return row, errors
+
+
 def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dict[str, Any]]:
     ledger: Ledger = result["ledger"]
     n = len(result["records"])
@@ -227,40 +277,13 @@ def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dic
         verdicts = ledger.verdicts(rung)
         z = verdicts if verdicts else Counter(r.zone for r in snap)
         cost = costs.get(rung, {})
-        # "Would this ship if the run stopped at this rung?" A rejected record
-        # has been called wrong by the gate, so it is not an answer even though
-        # rung 2 has not withdrawn it yet.
-        answered = [r for r in snap if r.zone not in (ZONE_ABSTAIN, ZONE_REJECT) and r.sct]
-        settled = [r for r in snap if r.zone not in OPEN_ZONES]
-        row = {c: "" for c in CSV_COLUMNS}
-        row.update(
-            rung=rung,
-            layer=RUNG_NAMES[rung],
-            n_records=len(snap),
-            accept=z[ZONE_ACCEPT],
-            band=z[ZONE_BAND],
-            reject=z[ZONE_REJECT],
-            abstained=z[ZONE_ABSTAIN],
-            escalated=z[ZONE_ESCALATE],
-            verified=z[ZONE_VERIFIED] + z[ZONE_RESOLVED],
-            settled=len(settled),
-            coverage=round(len(answered) / len(snap), 5) if snap else "",
-            tokens_per_record=round(cost.get("tokens_per_record", 0.0), 2),
-            p95_s=round(cost.get("p95_latency_s", 0.0), 4),
-            reviews_per_100=round(cost.get("reviews_per_100", 0.0), 2),
-        )
+        row, errors = snapshot_row(rung, RUNG_NAMES[rung], snap, z, cost, is_correct, gold)
         if rung == 1:
             row["r1_reject_pct"] = round(100 * z[ZONE_REJECT] / len(snap), 3) if snap else ""
             row["r1_mode"] = next(
                 (e.extra.get("mode") for e in ledger.rows if e.rung == 1), ""
             )
-        if is_correct and gold is not None:
-            correct = sum(1 for r in answered if is_correct(r, gold))
-            errors = len(answered) - correct
-            row["f1_sct_strict"] = round(correct / len(answered), 5) if answered else 0.0
-            row["yield"] = round(correct / len(snap), 5) if snap else 0.0
-            row["corrupted"] = errors
-            row["err_per_100"] = round(100 * errors / len(snap), 3) if snap else ""
+        if errors is not None:
             # The rungs are cumulative, so a rung's OWN spend is the marginal
             # spend. Dividing by the errors it prevented gives the exchange rate
             # the article is actually about — in two currencies, never fused.
@@ -338,13 +361,25 @@ def cmd_gate(a) -> int:
     return run_gate(a.manifest)
 
 
-def cmd_ladder(a) -> int:
-    man = load_manifest(a.manifest)
+NO_RUNG0 = (
+    "rung 0 is not implemented yet (owner B). Run against a prediction\n"
+    "file with --predictions out/r0.jsonl, or measure the deterministic\n"
+    "gate's own error floor with --source gold."
+)
+
+
+def _load_inputs(man: dict[str, Any], split: str):
+    """Corpus, split, sources and the two vocabularies. One reader, two commands."""
     docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
-    doc_ids = corpus_mod.read_split(man["corpus"]["splits_dir"], a.split)
+    doc_ids = corpus_mod.read_split(man["corpus"]["splits_dir"], split)
     sources = {d: docs[d].text for d in doc_ids}
     registry = Registry(man["vocabulary"]["snomed_db"])
-    meddra = _load_meddra(man)
+    return docs, doc_ids, sources, registry, _load_meddra(man)
+
+
+def cmd_ladder(a) -> int:
+    man = load_manifest(a.manifest)
+    docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
     rungs = _parse_rungs(a.rungs)
 
     if a.source == "gold":
@@ -354,13 +389,8 @@ def cmd_ladder(a) -> int:
         records = read_predictions(a.predictions, set(doc_ids))
         rungs = [n for n in rungs if n != 0]
     else:
-        r0 = load_rung(0)
-        if r0 is None:
-            raise SystemExit(
-                "rung 0 is not implemented yet (owner B). Run against a prediction\n"
-                "file with --predictions out/r0.jsonl, or measure the deterministic\n"
-                "gate's own error floor with --source gold."
-            )
+        if load_rung(0) is None:
+            raise SystemExit(NO_RUNG0)
         records = []  # rung 0 generates them from `sources`
 
     out_dir = Path(man["output"]["dir"])
@@ -391,6 +421,91 @@ def cmd_ladder(a) -> int:
     if scorer is None:
         print("NO SCORER: accuracy columns are empty. Wire ladder/score.py (owner B).")
     print(f"\nwrote {out_dir}/{run_id}.*")
+    return 0
+
+
+def cmd_ablate(a) -> int:
+    """Each rung ALONE on identical input — the single-rung ablation.
+
+    `ladder` measures a STACK: its rung 4 row is rung 4 applied to whatever
+    rungs 1, 3 and 5 already did to the records, so a difference there is
+    attributable to the stack and not to rung 4. `ablate` holds the input fixed
+    and varies one rung at a time, which is the comparison the article needs
+    when it claims a rung bought something.
+
+    Rung 0 is not ablatable — it MAKES the records every other rung is varied
+    over. It runs once (or `--source gold` / `--predictions` supplies its
+    output) and is reported as the `input` row the other rows are read against.
+    """
+    man = load_manifest(a.manifest)
+    docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
+    out_dir = Path(man["output"]["dir"])
+    run_id = a.run_id or f"{a.split}_{a.source}_ablate_{time.strftime('%Y%m%d-%H%M%S')}"
+
+    if a.source == "gold":
+        base = gold_as_records(docs, doc_ids)
+    elif a.predictions:
+        base = read_predictions(a.predictions, set(doc_ids))
+    else:
+        if load_rung(0) is None:
+            raise SystemExit(NO_RUNG0)
+        seed = run_ladder(
+            man, a.split, [0], [], sources, registry, out_dir, f"{run_id}.r0", meddra=meddra
+        )
+        base = seed["records"]
+
+    gold = {m.record_id: m for d in doc_ids for m in docs[d].mentions}
+    scorer = load_scorer(a.scorer)
+    rows = [
+        snapshot_row(
+            "", f"input ({a.source})", base, Counter(r.zone for r in base), {}, scorer, gold
+        )[0]
+    ]
+    missing: list[int] = []
+
+    print(f"[ablate] {run_id}  split={a.split}  input={len(base)} records, source={a.source}")
+    for n in _parse_rungs(a.rungs):
+        if n == 0:
+            continue
+        if load_rung(n) is None:
+            missing.append(n)
+            print(f"[ablate] rung {n} ({RUNG_NAMES[n]}) — not implemented, skipped")
+            continue
+        # A fresh copy per rung: an ablation that let rung N see rung N-1's
+        # mutations would be measuring the pair, which is what `ladder` is for.
+        result = run_ladder(
+            man,
+            a.split,
+            [n],
+            [r.copy() for r in base],
+            sources,
+            registry,
+            out_dir,
+            f"{run_id}.r{n}",
+            meddra=meddra,
+        )
+        rows.extend(results_rows(result, is_correct=scorer, gold=gold))
+
+    write_results(rows, out_dir / f"{run_id}.results.csv")
+    (out_dir / f"{run_id}.manifest.json").write_text(json.dumps(man, indent=2))
+
+    print(
+        f"\n{'rung':>4}  {'layer':14s} {'accept':>7} {'band':>6} {'reject':>7} "
+        f"{'abstain':>8} {'cov':>6}"
+    )
+    for r in rows:
+        print(
+            f"{r['rung']:>4}  {r['layer']:14s} {r['accept']:>7} {r['band']:>6} "
+            f"{r['reject']:>7} {r['abstained']:>8} {r['coverage']:>6}"
+        )
+    if missing:
+        print(f"\nNOT IN THIS ABLATION: rungs {missing} (not implemented)")
+    if scorer is None:
+        print("NO SCORER: accuracy columns are empty. Wire ladder/score.py (owner B).")
+    print(
+        "\nEach row is that rung applied to the SAME input, not to the row above it.\n"
+        f"wrote {out_dir}/{run_id}.*"
+    )
     return 0
 
 
@@ -429,14 +544,20 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("gate", help="step 3 — the fixture gate")
     p.set_defaults(fn=cmd_gate)
 
-    p = sub.add_parser("ladder", help="run the ladder over a split")
-    p.add_argument("--split", default="test")
-    p.add_argument("--rungs", default="0-6")
-    p.add_argument("--source", default="model", choices=["model", "gold"])
-    p.add_argument("--predictions", help="JSONL of rung-0 records (owner B's output)")
-    p.add_argument("--scorer", help="module:function, defaults to ladder.score if present")
-    p.add_argument("--run-id")
+    def _run_args(p):
+        p.add_argument("--split", default="test")
+        p.add_argument("--rungs", default="0-6")
+        p.add_argument("--source", default="model", choices=["model", "gold"])
+        p.add_argument("--predictions", help="JSONL of rung-0 records (owner B's output)")
+        p.add_argument("--scorer", help="module:function, defaults to ladder.score if present")
+        p.add_argument("--run-id")
+        return p
+
+    p = _run_args(sub.add_parser("ladder", help="run the ladder over a split"))
     p.set_defaults(fn=cmd_ladder)
+
+    p = _run_args(sub.add_parser("ablate", help="each rung ALONE on the same input"))
+    p.set_defaults(fn=cmd_ablate)
 
     a = ap.parse_args(argv)
     return friendly(a.fn, a)

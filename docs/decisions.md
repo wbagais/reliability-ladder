@@ -444,3 +444,93 @@ decision list records each reversal with its measurement.
 A plan that contradicts the code is a bug in the plan. Correcting it in place —
 rather than only in a log — is what stops the next person rebuilding the thing
 that was already measured and rejected.
+
+### `--live` was never live — 2026-08-22
+
+`vocab_crosscheck.live()` called the module-level `ols.exists()`, which delegates
+to the SELECTED backend. Whenever `snomed.sqlite` exists — that is, on any
+machine that can run the crosscheck at all — `select()` returns the local
+Registry, so `--live` compared the local backend against itself: it agreed 40/40
+and reported the offline prediction as wrong on 12. No HTTP was made; the
+`cache/vocab` directory the transport writes to did not exist afterwards.
+
+The failure mode is the dangerous one: it produced a REASSURING wrong answer. It
+said the two backends were interchangeable, which is the exact claim this module
+exists to refute. Fixed by instantiating `Ols4Vocabulary()` explicitly. Against
+the real service the numbers invert — backends agree 28/40, the offline
+prediction is right 40/40 — and all 12 disagreements are retired or
+AU-extension codes, the two classes the offline mode predicts and nothing else.
+
+A public delegating function and a backend-specific one that share a name is the
+trap. `ladder/vocab.py`'s own docstring warns about it in the other direction
+("calling these directly gets you the lossy answer"); this was the same hazard
+mirrored.
+
+### `run.py ablate` now exists — 2026-08-22
+
+`run.py`'s docstring had advertised `python -m ladder.run ablate` since the
+scaffolding merge; the subcommand was never registered, so it exited 2 on an
+argparse error. Implemented rather than deleted, because the single-rung
+ablation is what the README's "each rung stays a single-rung ablation on
+identical input" actually requires: `ladder` measures a stack, where rung 4's
+row is rung 4 applied to whatever rungs 1, 3 and 5 already did, while `ablate`
+holds the input fixed and varies one rung. Each rung gets `[r.copy() for r in
+base]`; rung 0 is not ablatable (it MAKES the records) so it is the `input` row;
+marginal-cost columns stay empty because "marginal" is only meaningful
+cumulatively. Both commands build rows through one extracted `snapshot_row()`,
+so there is still exactly one accounting path over the ledger.
+
+First thing it showed: rung 2 ALONE abstains nothing (coverage 1.000, all 393
+still NEW), against 222 abstentions in the stacked run. Rung 2 reads
+`checks["r1_verdict"]` and tau is 0.0, so with no rung 1 upstream it has nothing
+to withdraw on. True, correct, and invisible in the stacked view — which is the
+argument for having the command.
+
+### Verification sweep over owner A's half — 2026-08-22
+
+Every command owner A has shipped was run end to end against the licensed
+corpus and a real SNOMED AU index, and all four measured claims in `README.md`
+reproduce exactly: the false-rejection floor (12 / 9,111 = 0.13%), zone
+occupancy on gold (ACCEPT 3,926 = 43.1%, BAND 5,173 = 56.8%, REJECT 12 =
+0.13%), detection of hallucinated codes, span shifts and fabricated quotes
+(1.000 each), and the lenient-vs-strict near-miss gap (0.18979 wrongly
+ACCEPTED under `contained`, 0.0012 under `exact`).
+
+Paths that had never executed before, and now have:
+
+- `--predictions`. 393 synthetic rung-0 records with 49 planted corruptions
+  came back as 30 `code_unknown` + 19 `span_ungrounded` — the 49, and nothing
+  else. Blank `record_id`s were backfilled. This is the first non-zero rung 1
+  rejection through `run.py`; the gold control cannot produce one.
+- The split-discipline guard in `read_predictions`, which refuses a file
+  carrying a POOL document and exits 1.
+- `--scorer` injection, and with it the accuracy and marginal-cost columns.
+- `rungs.1.mode = "gate"`. Rung 1 routes (coverage 0.875 at rung 1) and the
+  FINAL coverage is identical to observe mode's, which is the design claim
+  made concrete: observe defers rung 1's cost to rung 2, it does not cancel it.
+- `registry --build` into a scratch DB: 8.5s, and stats and spot-check lookups
+  are identical to the committed index. The build is reproducible.
+- `preflight --history`: a real scan, 41 commits and 94 distinct paths.
+
+`rung_order` cannot yet be ablated — `[0,1,2,3,5,4,6]` and `[0,1,3,5,4,2,6]`
+both collapse to `[1,2]` while rungs 3-6 are missing, so the two orders produce
+identical output. It becomes a real experiment when owner B lands.
+
+### `vocabulary.snomed_backend` is inert — 2026-08-22
+
+The manifest declares the backend and carries a long note on why the two are
+not interchangeable, and `ablations` lists an `ols4` run. The key is read by
+NOTHING: it appears in zero Python files, and all eight `Registry(...)`
+construction sites take `vocabulary.snomed_db` directly.
+
+No number published so far is wrong — the field happens to describe what
+actually runs. The hazard is forward-looking, and it is the shape of failure
+this repo keeps finding: set it to `"ols4"` and the run silently keeps using
+the local index while the run's own output manifest labels it `ols4`. Against
+`CLAUDE.md`'s rule that a rung 1 rejection rate must never be reported without
+naming the backend that produced it, a backend field that looks honoured and
+is not is worse than no field. Same class as the `--live` bug fixed today.
+
+Not wired in this pass: it needs `Ols4Vocabulary` checked against everything
+rung 1 calls, not merely against the `Vocabulary` contract, and it changes what
+a manifest key MEANS — which is a joint decision, per this file's own rule.
