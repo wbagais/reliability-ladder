@@ -35,7 +35,7 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ladder.schema import CADEC_TYPE_MAP, CONCEPT_LESS, DRUG, REACTION
+from ladder.schema import CADEC_TYPE_MAP, CONCEPT_LESS, REACTION
 
 # Offsets, possibly discontinuous: "9 19" or "40 44;54 62". Anchored to the end
 # of the body, because a MedDRA body is all digits ("10013649 9 19") and an
@@ -275,11 +275,3 @@ def read_split(out_dir: str | os.PathLike, name: str) -> list[str]:
 
 def gold_records(docs: dict[str, Document], doc_ids: list[str]) -> list[GoldMention]:
     return [m for d in doc_ids for m in docs[d].mentions]
-
-
-def reaction_records(mentions: list[GoldMention]) -> list[GoldMention]:
-    return [m for m in mentions if m.entity_type == REACTION]
-
-
-def drug_records(mentions: list[GoldMention]) -> list[GoldMention]:
-    return [m for m in mentions if m.entity_type == DRUG]

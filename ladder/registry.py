@@ -56,7 +56,6 @@ from pathlib import Path
 from ladder.schema import CLINICAL_FINDING
 
 IS_A = "116680003"
-SNOMED_ROOT = "138875005"
 
 DEFAULT_CACHE = Path(__file__).parent / "cache"
 
@@ -74,7 +73,16 @@ def normalise_term(s: str) -> str:
 
 
 class Registry:
-    """Read-only view over the SQLite index. Cheap to construct, safe to share."""
+    """Read-only view over the SQLite index. Cheap to construct, safe to share.
+
+    Implements `schemas.vocabulary.Vocabulary`. This is the non-lossy backend:
+    it sees retired concepts and extension modules, both of which the OLS4
+    backend cannot. See schemas/vocabulary.py for what that costs.
+    """
+
+    #: schemas.vocabulary.Vocabulary
+    name = "local-rf2"
+    lossy = False
 
     def __init__(self, db_path: str | os.PathLike):
         db_path = Path(db_path)
@@ -186,6 +194,24 @@ class Registry:
                     return True
         return False
 
+    def label(self, code: str | None) -> str | None:
+        """Alias for `preferred`, for parity with the OLS4 backend's surface."""
+        return self.preferred(code)
+
+    def search(self, term: str, rows: int = 5) -> list[dict]:
+        """Exact-term retrieval over the local index. Rung 0 mode B only.
+
+        Exact rather than fuzzy: a local index has no relevance ranking, and a
+        fuzzy local search would quietly become a different experiment from the
+        OLS4 one it is meant to be comparable with.
+        """
+        out = []
+        for code in dict.fromkeys(self.codes_for_term(term)):
+            if len(out) >= rows:
+                break
+            out.append({"code": code, "label": self.preferred(code)})
+        return out
+
     def codes_for_term(self, text: str) -> list[str]:
         """Reverse lookup — every concept with this exact normalised term."""
         return [
@@ -223,9 +249,25 @@ class MeddraTable:
     manifest line away, and `leakage()` prints the caveat wherever the number
     appears. A subscription MedDRA release would make all of this moot; point
     `meddra_csv` at one and the caveat goes away with it.
+
+    `mode` makes the same choice explicit for RETRIEVAL, which is the sharper
+    end of it:
+
+      "reference"    (default) the list only cross-checks a code the model
+                     produced by other means. Never used for search, never used
+                     to reject. The task stays open-vocabulary.
+      "answer_space" the task IS closed-set assignment over this list. That is
+                     legitimate and much easier — and it is a different task,
+                     so it has to be declared in the manifest and in the method
+                     section. `search()` requires it.
     """
 
-    def __init__(self, path: str | os.PathLike, name: str = ""):
+    MODES = ("reference", "answer_space")
+
+    def __init__(self, path: str | os.PathLike, name: str = "", mode: str = "reference"):
+        if mode not in self.MODES:
+            raise ValueError(f"mode must be one of {self.MODES}, got {mode!r}")
+        self.mode = mode
         import csv
 
         self.path = Path(path)
@@ -262,6 +304,49 @@ class MeddraTable:
             a, b = set(want.split()), set(got.split())
             return a <= b or b <= a
         return False
+
+    def search(self, text: str, k: int = 5) -> list[dict]:
+        """Closed-set retrieval. Requires mode="answer_space" — see the note above.
+
+        Refusing to search in "reference" mode is the whole safeguard: a list
+        derived from the answer key makes retrieval trivially correct, and the
+        refusal is what stops that happening by accident.
+        """
+        if self.mode != "answer_space":
+            raise RuntimeError(
+                "MeddraTable.search() needs mode='answer_space'. In 'reference' mode "
+                "the list may only cross-check a code produced by other means — "
+                "searching it would be retrieving from the answer key."
+            )
+        want = set(normalise_term(text).split())
+        if not want:
+            return []
+        scored = []
+        for code, term in self.terms_by_code.items():
+            got = set(normalise_term(term).split())
+            if not got:
+                continue
+            j = len(want & got) / len(want | got)
+            if j > 0:
+                scored.append((j, code))
+        scored.sort(key=lambda x: (-x[0], x[1]))
+        return [
+            {"code": c, "label": self.terms_by_code[c], "score": round(j, 3)}
+            for j, c in scored[:k]
+        ]
+
+    def agrees_with_sct(self, meddra_code: str | None, sct_code: str | None, snomed) -> bool | None:
+        """Cross-vocabulary agreement — reference mode's real job.
+
+        Compares the two preferred terms lexically. Weak, but it costs nothing,
+        needs no mapping table, and unlike an existence check it compares two
+        PREDICTIONS rather than a prediction against the answer key — so it
+        carries no leakage. None when either term is unavailable.
+        """
+        m, s = self.term(meddra_code), snomed.preferred(sct_code) if snomed else None
+        if not m or not s:
+            return None
+        return bool(set(normalise_term(m).split()) & set(normalise_term(s).split()))
 
     def leakage(self, gold_codes: set[str]) -> dict[str, object]:
         """How much of this table is just the answer key? Report it, always."""

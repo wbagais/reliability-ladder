@@ -9,9 +9,8 @@ the tool block. Two implementations would confound tool access with prompting.
     python ladder_ab.py --compare        # both, side by side
 """
 from __future__ import annotations
-import argparse, json, re, sys, time
-from dataclasses import dataclass, field, asdict
-from pathlib import Path
+import argparse, json, sys, time
+from dataclasses import dataclass, field
 
 from bench import vocab
 

@@ -100,6 +100,8 @@ from typing import Any
 from ladder.negation import is_negated
 from ladder.schema import (
     CONCEPT_LESS,
+    REJECT_REASONS,
+    VERDICTS,
     R_CODE_INACTIVE,
     R_CODE_UNKNOWN,
     R_MEDDRA_UNKNOWN,
@@ -225,6 +227,14 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         t0 = time.perf_counter()
         source = sources.get(rec.doc_id, "")
         verdict, reason, checks = zone(rec, source, vocab, params, meddra)
+        # The enumerations in schema.py are the contract owner B reads. Assert
+        # against them here so adding a reason without declaring it fails loudly
+        # in the fixture gate rather than quietly in a results table.
+        assert verdict in VERDICTS, f"rung 1 emitted an undeclared verdict {verdict!r}"
+        assert reason is None or reason in REJECT_REASONS, (
+            f"rung 1 emitted an undeclared reason {reason!r} — add it to "
+            "schema.REJECT_REASONS (append, never reorder)"
+        )
         rec.checks.update(checks)
         # The verdict always lands on the record — rung 2 reads it, rung 3 needs
         # it to have a fact to feed back, and the report counts it. Only the

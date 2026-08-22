@@ -135,13 +135,21 @@ Every run is saved to `results/<domain>_<n>x<k>_<timestamp>.json` (plus its
 outputs sidecar), so runs never overwrite each other and the sidebar lists them
 all for comparison.
 
-## The 3 contracts (see /schemas; v2 revision logged in docs/decisions.md)
+## The 4 contracts (see /schemas; revisions logged in docs/decisions.md)
 
-1. **runner.py** — every rung's input/output signature. Rungs are interchangeable.
+1. **runner.py** — every rung's signature. Two shapes: `Runner` (field-level,
+   one document in) for the `bench/` track, `Rung` (`apply(records, sources,
+   cfg)`, per v17 §4) for the CADEC ladder. Rungs are interchangeable within a
+   track, which is what makes execution order a config value.
 2. **results.schema.json** — the benchmark→app handoff; every emitted
    results.json is validated against it.
 3. **adapter.py** — how any dataset (including user uploads) plugs in; v2 adds
    nested `output_schema`, gold as a full object, and optional trusted_record.
+4. **vocabulary.py** — the global vocabulary resource (SNOMED, MedDRA),
+   injected once per run rather than per item. Two backends implement it and
+   they are **not** equivalent: an OLS4-backed `exists()` reports 23.9% of CADEC
+   gold as nonexistent codes. Every backend declares whether it is `lossy`, and
+   a rejection rate is not comparable across them.
 
 ## Scores (details in the app's Method tab)
 

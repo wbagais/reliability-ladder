@@ -122,11 +122,24 @@ not a rejection reason; `MeddraTable.leakage()` prints the caveat wherever the
 number appears. Point `vocabulary.meddra_csv` at a subscription release and
 `"reject"` becomes honest.
 
-## Two vocabulary backends, and they disagree on 24% of gold
+## Two vocabulary backends behind one contract
 
-The merged scaffolding brings `bench/vocab.py` (EBI OLS4 over the network, free,
-no download) alongside `ladder/registry.py` (a local SNOMED CT RF2 release
-indexed into SQLite). Same three questions, interchangeable in principle:
+`schemas/vocabulary.py` is contract 4 — the global vocabulary resource v17 §4
+asks for. Two backends implement it and `bench.vocab.select()` picks one:
+
+| backend | source | needs | `lossy` |
+|---|---|---|---|
+| `local-rf2` | a SNOMED CT RF2 release indexed to SQLite (`ladder/registry.py`) | ~5 GB download + affiliate licence | **False** — sees retired concepts and extension modules |
+| `ols4` | EBI OLS4 over the network (`bench/vocab.py`) | nothing | **True** — active international SNOMED only |
+
+The local one wins when an index exists; otherwise the run falls back and warns.
+`bench/vocab.py`'s module-level functions are unchanged in signature and
+delegate to whichever was selected, so anything already importing them keeps
+working. The manifest records `vocabulary.snomed_backend`, because:
+
+### They disagree on 24% of gold
+
+Same three questions, interchangeable in principle:
 
 ```bash
 python -m ladder.vocab_crosscheck --live 40
@@ -150,6 +163,15 @@ That is a property of the source, not a bug: there is no configuration of OLS4
 that validates an AMT code. If drug codes are ever to be checked, the AU RF2
 release is not optional. The offline classifier predicted OLS4's answer on 40/40
 sampled codes, so this is measured rather than estimated.
+
+**A rung 1 rejection rate is not comparable across backends.** Never report one
+without saying which produced it — hence `lossy` on every backend, and the
+warning when the lossy one is chosen.
+
+The two checks that need no vocabulary — span grounding and negation — unified
+the same way, and for the same reason: exact-substring grounding false-rejects
+8.0% of gold (1,066 mentions are discontinuous and a single offset pair cannot
+express one) against 0.04% for `Record.valid()`'s token bag.
 
 ## Rung 1 judges; it does not filter
 

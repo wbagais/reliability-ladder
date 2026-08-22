@@ -342,3 +342,58 @@ Two implementations of rung 1 and of the vocabulary now sit in the tree:
 `bench/ladder_ab.py` (the scaffolding, OLS4). v17's layout says the CADEC track
 should live in `bench/` as an adapter. Reconciling them is a joint decision, not
 a merge conflict — deliberately left for one.
+
+### Unifying the two implementations — 2026-08-22
+
+Decision: unify the vocabulary **backend** now; leave the v17 §2 package move
+(`ladder/` → `bench/adapters/cadec.py`) for a joint block. The duplication that
+actually hurts is two implementations answering the same question differently —
+that is a correctness hazard, and it is small and testable to fix. The package
+move is ~2,000 lines across ownership boundaries and would collide with whatever
+owner B is writing in `bench/rungs/` right now. Unifying first also makes that
+move easier: one vocabulary module to relocate instead of two to merge.
+
+- 2026-08-22 — NEW CONTRACT: `schemas/vocabulary.py`, the `Vocabulary` protocol.
+  v17 §4 calls this "the one extension CADEC needs" — SNOMED and MedDRA are
+  global resources injected once per run, not per-item `trusted_record` fields.
+  Two backends implement it: `ladder.registry.Registry` (local RF2, `lossy =
+  False`) and `bench.vocab.Ols4Vocabulary` (the network path, `lossy = True`).
+  `bench.vocab.select()` picks the local one when an index exists and warns
+  loudly when it falls back, quoting the 23.9%. Every backend declares `name`,
+  `release` and `lossy`, and the manifest records which one produced a number.
+- 2026-08-22 — `bench/vocab.py`'s public functions are unchanged in signature
+  and now delegate to the selected backend, so `ladder_ab.py` and the CI smoke
+  test keep working — and start getting the non-lossy answer. Caught mid-change:
+  the first version rewired only `negated`/`grounded` and left `exists()` bound
+  to the raw OLS4 call, so selecting the local backend silently did nothing for
+  the checks that matter. The OLS4 transport functions are now `_ols_*` and only
+  `Ols4Vocabulary` calls them.
+- 2026-08-22 — MEASURED, and the reason the vocabulary-free checks unified too:
+  the exact-substring span check false-rejects **725 of 9,111 gold mentions
+  (8.0%)**, because 1,066 are discontinuous and a single (start, end) pair
+  cannot express one. `Record.valid()`'s token-bag comparison false-rejects 4
+  (0.04%). Same for negation — the character-window version has no notion of a
+  cue inside the mention ("no energy" IS the symptom) or of a terminator ("but").
+  Both now delegate; `bench.vocab.negated`'s `window` is tokens, not characters.
+- 2026-08-22 — ONE MedDRA CLASS. It had been written twice, here and in the
+  scaffolding, with the same leakage analysis reached independently.
+  `MeddraTable` survives because it also has `leakage()`, which turns the
+  analysis into a number. It absorbs the scaffolding's sharper half — `mode`:
+  `"reference"` (cross-check only; `search()` raises) vs `"answer_space"` (the
+  task IS closed-set assignment over the list, which is a different and much
+  easier task and must be declared). `bench.vocab.MedDRA` is an alias.
+  `agrees_with_sct()` is the one MedDRA use that carries no leakage at all,
+  because it compares two predictions rather than a prediction against the key.
+- 2026-08-22 — DELETED, as unused: `ladder/rungs/base.py` (its `Rung` protocol
+  moved to `schemas/runner.py`, where v17 §4 says the runner contract lives, and
+  its no-op rung advertised a `--rungs noop` flag that was never implemented);
+  `manifest.template.json` (superseded by the committed `manifest.json`, and
+  drifted out of sync with it); `Ledger.SCHEMA_VERSION`; `registry.SNOMED_ROOT`;
+  `manifest.save_manifest`; `corpus.reaction_records` / `drug_records`;
+  `vocabulary.FINDING_STATUS`; `vocab.NEG_CUES` (dead once `negated` delegated);
+  `streamlit_app.RUNG_LABELS` and the import it alone needed; and four unused
+  imports across `bench/`. Repo is pyflakes-clean.
+- 2026-08-22 — KEPT AND MADE LOAD-BEARING instead of deleted:
+  `schema.VERDICTS` and `schema.REJECT_REASONS` were enumerations nothing read.
+  Rung 1 now asserts against them, so adding a reason without declaring it in
+  the contract fails in the fixture gate rather than quietly in a results table.

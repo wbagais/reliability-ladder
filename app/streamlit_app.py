@@ -23,7 +23,7 @@ from bench.adapters.user_upload import load_dataset, validate
 from bench.flatten import flatten_json, schema_field_names
 from bench.harness import run_benchmark
 from bench.llm import REGISTRY_PATH
-from bench.pipeline import RUNG_NAMES, run_item
+from bench.pipeline import run_item
 
 import yaml
 
@@ -36,8 +36,6 @@ C_MUTED = "#898781"
 C_GRID = "#e1e0d9"
 BAND = "rgba(42,120,214,0.15)"
 BAND_ACC = "rgba(235,104,52,0.15)"
-
-RUNG_LABELS = [f"{i}·{RUNG_NAMES[i].replace('_', ' ')}" for i in range(7)]
 
 
 def yield_of(r: dict) -> float:
@@ -377,7 +375,6 @@ def dashboard_page():
     acc = [r["accuracy"]["accuracy_on_answered"] for r in rungs]
     cov = [r["accuracy"]["coverage"] for r in rungs]
     dollars = [r["cost"]["dollars"] for r in rungs]
-    human_min = [r["cost"]["human_minutes"] for r in rungs]
 
     (tab_ladder, tab_outputs, tab_calib, tab_curve, tab_econ, tab_compose,
      tab_method, tab_table) = st.tabs(

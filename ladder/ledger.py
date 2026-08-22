@@ -24,9 +24,6 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
-SCHEMA_VERSION = 1
-
-
 @dataclass
 class Entry:
     """One row. Fields are APPEND-ONLY — new ones go on the end, always."""

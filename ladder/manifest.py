@@ -47,10 +47,6 @@ def _resolve_paths(man: dict[str, Any], base: Path) -> None:
             man[section][key] = str((base / val).resolve())
 
 
-def save_manifest(man: dict[str, Any], path: str | os.PathLike = DEFAULT_PATH) -> None:
-    Path(path).write_text(json.dumps(man, indent=2) + "\n")
-
-
 def friendly(fn, *args):
     """Run a CLI entry point, turning a missing prerequisite into one clear line.
 

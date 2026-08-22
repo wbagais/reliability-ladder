@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from bench.flatten import flatten_json, schema_node_for_path
 from bench.normalize import values_match
-from schemas.adapter import Dataset, Item
+from schemas.adapter import Dataset
 from schemas.runner import RunnerOutput
 
 BOOTSTRAP_B = 500
