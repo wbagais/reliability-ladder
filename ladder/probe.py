@@ -39,7 +39,7 @@ from typing import Any
 
 from ladder import corpus as corpus_mod
 from ladder.calibrate import gold_to_record
-from ladder.manifest import load_manifest
+from ladder.manifest import friendly, load_manifest
 from ladder.registry import Registry
 from ladder.rungs import r1
 from ladder.schema import Record, ZONE_ACCEPT, ZONE_BAND, ZONE_REJECT
@@ -220,4 +220,4 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(friendly(main))

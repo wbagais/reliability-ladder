@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -47,3 +48,17 @@ def _resolve_paths(man: dict[str, Any], base: Path) -> None:
 
 def save_manifest(man: dict[str, Any], path: str | os.PathLike = DEFAULT_PATH) -> None:
     Path(path).write_text(json.dumps(man, indent=2) + "\n")
+
+
+def friendly(fn, *args):
+    """Run a CLI entry point, turning a missing prerequisite into one clear line.
+
+    Every one of these failures has an actionable message already — a corpus
+    that is not downloaded, a vocabulary index that is not built. A traceback on
+    top of it just hides the sentence the reader needs.
+    """
+    try:
+        return fn(*args)
+    except FileNotFoundError as exc:
+        print(f"\n{exc}\n", file=sys.stderr)
+        return 2

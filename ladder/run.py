@@ -31,7 +31,7 @@ from typing import Any, Callable
 
 from ladder import corpus as corpus_mod
 from ladder.ledger import Ledger
-from ladder.manifest import load_manifest
+from ladder.manifest import friendly, load_manifest
 from ladder.registry import Registry
 from ladder.schema import (
     OPEN_ZONES,
@@ -407,7 +407,7 @@ def main(argv: list[str] | None = None) -> int:
     p.set_defaults(fn=cmd_ladder)
 
     a = ap.parse_args(argv)
-    return a.fn(a)
+    return friendly(a.fn, a)
 
 
 if __name__ == "__main__":
