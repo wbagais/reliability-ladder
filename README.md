@@ -8,6 +8,13 @@ The pipeline is **data-agnostic**: any task with a structured, checkable output
 plugs in as one JSON file (nested schemas included). SROIE receipts are just the
 bundled demo dataset. With a local model, your data never leaves your machine.
 
+**Two tracks.** [`bench/`](#the-app) is the data-agnostic ladder above.
+[`ladder/`](docs/cadec-track.md) is a second instance of the same seven rungs on
+CADEC patient adverse-event reports, where rung 1 is grounded in SNOMED CT rather
+than in a JSON Schema — which is what makes it possible to measure what a *real*
+validation gate catches, and what it cannot. Jump to
+[the CADEC track](#the-cadec-track-ladder).
+
 ## The ladder
 
 | Rung | Layer | Mechanism | Extra cost |
@@ -152,6 +159,10 @@ all for comparison.
 ## Repo map
 
 ```
+ladder/       CADEC track — schema (the A/B contract), corpus reader + frozen
+              splits, SNOMED registry, ledger, negation, rungs/r1 + r2, run.py,
+              fixture (the step-3 gate), calibrate (false-rejection floor),
+              probe (detection profile)
 bench/        client+cache, normalize, flatten, prompts, rungs pipeline,
               metrics, diagnostics, harness, cli, adapters (user upload + SROIE),
               outputs.py (per-field sidecar), calibration.py (risk–coverage)
@@ -160,6 +171,9 @@ schemas/      the 3 contracts
 data/         sroie_v1.json (demo) + example_upload.json (template)
 results/      saved runs, one file per run (gitignored)
 docs/         data-format.md · decisions.md (running log — article raw material)
+              cadec-track.md · licences.md · article-iterations.md
+manifest.json the CADEC run's frozen settings — corpus + vocabulary versions,
+              seed, splits, gold rule, rung order, every rung parameter
 tests/        55 tests against a fake LLM, no network needed
 ```
 
@@ -193,10 +207,58 @@ detail in [docs/decisions.md](docs/decisions.md)):
   from 0.060 to 0.043 for a 1.7pt coverage cost — it ships fewer wrong answers,
   it does not produce more correct ones (yield 0.9325 → 0.9330).
 
+## The CADEC track (`ladder/`)
+
+The same seven rungs on a fixed archived corpus of patient-reported adverse-event
+posts, normalising each mention to a SNOMED CT code. Rung 1 stops being a format
+check and becomes a real validation gate: span grounding, negation, code
+existence, and semantic type against a local SNOMED release. Full guide:
+[docs/cadec-track.md](docs/cadec-track.md) · licences (these have teeth):
+[docs/licences.md](docs/licences.md).
+
+```bash
+python -m ladder.registry --build --release data/SnomedCT_Release_<yours>
+python -m ladder.run init          # verify corpus + vocabulary, write frozen splits
+python -m ladder.run gate          # ten hand-made records, several deliberately broken
+python -m ladder.calibrate --split all --sweep   # the gate's false-rejection floor
+python -m ladder.probe --split all               # what the gate can and cannot catch
+```
+
+Owner A's half (everything deterministic — ledger, registry, corpus, zones,
+abstention, integration) is built and measured. The model-facing rungs 0/3/4/5
+and the shared scorer are owner B's; `run.py` reports a missing rung rather than
+faking it.
+
+**Measured so far, with zero model calls** (whole corpus, 9,111 gold mentions,
+SNOMED AU1000036_20260731):
+
+| | |
+|---|---|
+| rung 1's false-rejection rate on the gold standard | **0.13%** — down from 9.3% for the gate as originally specified |
+| zone occupancy on gold | ACCEPT 43.1% · BAND 56.8% · REJECT 0.13% |
+| detection: hallucinated code · span shift · fabricated quote | 1.000 · 1.000 · 1.000 |
+| detection: real code in the wrong branch | 1.000 on reaction records |
+| detection: near-miss code (right head word, wrong concept) | 0.001 — and with lenient lexical matching, **19% of them are actively ACCEPTED** |
+
+Read together: deterministic checks are *exact* on their own error classes and
+blind to the interesting one, and a validation gate's leniency setting decides
+whether it declines to have an opinion or endorses one near-miss in five. The
+build log, including every place the plan and the data disagreed, is in
+[docs/decisions.md](docs/decisions.md) and
+[docs/article-iterations.md](docs/article-iterations.md).
+
+> Rungs 0–2 are research artefacts with deliberate failure rates, unfit for
+> operational use. There is no free-text entry point in the package: the runner
+> takes a corpus split identifier, never a string.
+
 ## Deliverables
 
 - [x] Benchmark + measured ladder (SROIE, full 60-item K=10 run — table above)
 - [x] Configurator app (pick your rung / compose your stack / bring your own data)
 - [ ] Cross-model comparison (local vs Gemini: determinism under API batching)
 - [ ] Private-dataset run (nested extraction schema)
-- [ ] InfoQ article (practitioner decision guide — outline in docs/article-outline.md)
+- [x] CADEC track: corpus, vocabulary index, rung 1 + rung 2, harness, and the
+      two model-free characterisations of the gate (owner A)
+- [ ] CADEC track: rungs 0/3/4/5 + the shared scorer (owner B)
+- [ ] InfoQ article (practitioner decision guide — beats and numbers in
+      docs/article-iterations.md, earlier outline in docs/article-outline.md)

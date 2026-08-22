@@ -12,3 +12,18 @@ results/
 *.outputs.jsonl
 *.log
 .DS_Store
+
+# --- CADEC pharmacovigilance track (ladder/) ---
+# CSIRO Data Licence: non-commercial, NON-TRANSFERABLE. The corpus must never
+# be committed, released, or embedded in notebook output. See docs/licences.md.
+data/2016-04-15_Karimi_Sarvnaz_*
+data/cadec
+data/CADEC*
+# SNOMED CT release files (affiliate licence; also 5 GB)
+data/SnomedCT_Release_*
+# derived corpus artefacts. data/splits/ is deliberately NOT ignored: it holds
+# document IDs only (no post text, no annotations), and the frozen split has to
+# survive or iteration 2 cannot be compared to iteration 1.
+ladder/cache/
+# out/ carries worked examples, and a worked example is a corpus quotation.
+out/
