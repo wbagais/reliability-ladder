@@ -73,7 +73,33 @@ def build_prompt(mode: str) -> str:
 
 
 # ------------------------------------------- rung 0 — the only LLM call here
-def rung0(doc_id: str, text: str, mode: str, llm) -> tuple[list[Record], dict]:
+def recover_offsets(span_text: str, source: str, claimed: tuple[int, int]) -> tuple[int, int, str]:
+    """Locate span_text in source. Returns (start, end, how).
+
+    Disambiguates repeats by the model's own claim: its arithmetic was wrong but
+    its sense of position was roughly right, so the nearest occurrence to the
+    claimed start is a better guess than the first one.
+    """
+    if not span_text:
+        return -1, -1, "empty"
+    hits, i = [], source.find(span_text)
+    while i != -1:
+        hits.append(i)
+        i = source.find(span_text, i + 1)
+    if not hits:
+        low = source.lower().find(span_text.lower())
+        if low == -1:
+            return -1, -1, "not_in_source"
+        return low, low + len(span_text), "search_case_insensitive"
+    if len(hits) == 1:
+        s = hits[0]
+        return s, s + len(span_text), "search_unique"
+    anchor = claimed[0] if isinstance(claimed[0], int) and claimed[0] >= 0 else 0
+    s = min(hits, key=lambda h: abs(h - anchor))
+    return s, s + len(span_text), f"search_nearest_of_{len(hits)}"
+
+
+def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record], dict]:
     """Identical for A and B except that B may call the tool first."""
     meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
     raw, usage = llm(build_prompt(mode), text, mode)
@@ -87,9 +113,16 @@ def rung0(doc_id: str, text: str, mode: str, llm) -> tuple[list[Record], dict]:
         # and rung 0's counter-metric.
         return [], {**meta, "parse_failed": True}
 
+    offsets_mode = (cfg or {}).get("rung0_offsets", "model")
     out = []
     for i, m in enumerate(parsed.get("mentions", [])):
         start, end = m.get("start", -1), m.get("end", -1)
+        how = "model"
+        if offsets_mode == "search":
+            start, end, how = recover_offsets(
+                m.get("span_text", ""), text, (start, end)
+            )
+            meta["offsets_" + how.split("_")[0]] = meta.get("offsets_" + how.split("_")[0], 0) + 1
         rec = Record(
             doc_id=doc_id,
             entity_type=REACTION,
@@ -100,6 +133,7 @@ def rung0(doc_id: str, text: str, mode: str, llm) -> tuple[list[Record], dict]:
             record_id=f"{doc_id}#{i}",
         )
         rec.checks["rung0_mode"] = mode
+        rec.checks["offsets"] = how
         if mode == "B" and rec.text:
             rec.checks["tool_results"] = vocab.search(rec.text, 5)
             meta["tool_calls"] += 1
@@ -128,7 +162,7 @@ def run(items, mode, llm, cfg=None):
     agg = {"tokens_in": 0, "tokens_out": 0, "tool_calls": 0, "parse_failed": 0, "t0": time.time()}
     sources = {}
     for it in items:
-        got, meta = rung0(it["doc_id"], it["text"], mode, llm)
+        got, meta = rung0(it["doc_id"], it["text"], mode, llm, cfg)
         for k in ("tokens_in", "tokens_out", "tool_calls"):
             agg[k] += meta.get(k, 0)
         agg["parse_failed"] += int(meta.get("parse_failed", False))
