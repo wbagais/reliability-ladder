@@ -69,7 +69,12 @@ tests:
   stage: test
   script:
     - pip install --quiet -r requirements.txt pytest
-    - python -m pytest tests/ -q
+    # `not integration` is the whole point of the marker: those tests need the
+    # licensed corpus, the SNOMED index and a reachable model, and CI has none
+    # of the three. They also skip on their own if a prerequisite is missing —
+    # both, because a suite that goes red for environmental reasons stops being
+    # read, and a marker that deselects nothing is not a guard.
+    - python -m pytest tests/ -q -m "not integration"
   rules:
     - exists: [tests/**/*.py]
   # tests run against a fake LLM — no network, no keys, no corpus
