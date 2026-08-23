@@ -125,60 +125,87 @@ pytestmark_integration = pytest.mark.integration
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("rung_name", ["r3", "r4", "r5"])
+@pytest.mark.parametrize("rung_name", ["r2", "r3", "r4"])
 def test_every_record_produces_a_ledger_row(rung_name, ledger, tmp_path):
     """The invariant that eight dead call sites violated silently.
 
-    Skipped unless the corpus and registry are available — but when it runs,
-    it is the only thing standing between a broken accounting path and a green
-    suite.
+    Needs the corpus, the registry AND a reachable model, so it SKIPS rather
+    than fails when any is absent — CI has none of the three. Each guard is
+    explicit: a test that errors on a missing prerequisite tells you nothing
+    about the code, and a suite that is red for environmental reasons stops
+    being read.
+
+    Models come from the manifest through `ladder.llm.for_rung`, never from a
+    name written here. A test that hard-codes a model is a second place the
+    model is chosen.
     """
     pytest.importorskip("ladder.registry")
     man_path = pathlib.Path("manifest.json")
     if not man_path.exists():
         pytest.skip("no manifest.json — run from the repo root")
 
+    from ladder.llm import for_rung
     from ladder.registry import Registry
+    from ladder.rungs import r2, r3, r4
     from ladder.rungs.r0 import run
     from ladder import stub_llm as S
-    from ladder.rungs import r3, r4, r5
 
     man = json.loads(man_path.read_text())
-    reg = Registry(man["vocabulary"]["snomed_db"])
+    db = pathlib.Path(man["vocabulary"]["snomed_db"])
+    if not db.exists():
+        pytest.skip(f"no vocabulary index at {db}")
+    if not pathlib.Path(man["corpus"]["cadec_root"]).exists():
+        pytest.skip("no corpus — this test reads real documents")
+
+    reg = Registry(str(db))
     items = S.load_items(man["corpus"]["splits_dir"])[:2]
     if not items:
         pytest.skip("no split items")
     src = {i["doc_id"]: i["text"] for i in items}
 
-    recs, _ = run(items, "A", S.stub, {"registry": reg,
-                                       "rung0_offsets": "search"})
+    try:
+        extractor = for_rung(0, man)
+        recs, _ = run(items, "A", extractor, {"registry": reg,
+                                              "rung0_offsets": "search"})
+    except (RuntimeError, SystemExit, OSError) as exc:
+        pytest.skip(f"no reachable model for rung 0: {exc}")
     if not recs:
         pytest.skip("rung 0 produced no records")
 
-    mod = {"r3": r3, "r4": r4, "r5": r5}[rung_name]
+    mod = {"r2": r2, "r3": r3, "r4": r4}[rung_name]
     cfg = {"registry": reg, "ledger": ledger}
-    if rung_name == "r3":
-        cfg["llm"] = S.stub
-    elif rung_name == "r4":
-        cfg.update(judge_llm=S.judge("llama3.2:3b"),
-                   extractor_model=S.MODEL, judge_model="llama3.2:3b")
-    else:
-        cfg.update(llm=S.voter(0.7), k=3)
+    try:
+        if rung_name == "r2":                       # self-correction
+            cfg["llm"] = for_rung(2, man)
+        elif rung_name == "r3":                     # voting
+            cfg.update(llm=for_rung(3, man).sampler(0.7), k=3)
+        else:                                       # r4, the judge
+            judge, extract = for_rung(4, man), for_rung(0, man)
+            if judge.spec == extract.spec:
+                pytest.skip("judge and extractor are the same model; rung 4 "
+                            "refuses to self-judge, which is the point")
+            cfg.update(judge_llm=judge, extractor_model=extract.spec,
+                       judge_model=judge.spec)
+    except (RuntimeError, SystemExit, OSError) as exc:
+        pytest.skip(f"no reachable model for {rung_name}: {exc}")
 
-    out = mod.apply(recs, src, cfg)
+    try:
+        out = mod.apply(recs, src, cfg)
+    except (RuntimeError, OSError) as exc:
+        pytest.skip(f"{rung_name} could not reach its model: {exc}")
     records = out[0] if isinstance(out, tuple) else out
 
     rows = rows_of(ledger, rung=int(rung_name[1]))
     ledger.close()
 
-    # rung 5 also writes one row per DOCUMENT for the k sampling calls, which
-    # is a real cost paid whether or not any record is re-found. Those are not
-    # record rows and must not be counted as such.
-    if rung_name == "r5":
+    # Voting (rung 3) also writes one row per DOCUMENT for the k sampling
+    # calls, which is a real cost paid whether or not any record is re-found.
+    # Those are not record rows and must not be counted as such.
+    if rung_name == "r3":
         doc_rows = [r for r in rows if r["outcome"] == "sampled"]
         rows = [r for r in rows if r["outcome"] != "sampled"]
         assert doc_rows, (
-            "rung 5 logged no document rows. The k calls are paid up front; "
+            "rung 3 logged no document rows. The k calls are paid up front; "
             "without a row for them a run where nothing matched reports "
             "voting as free."
         )

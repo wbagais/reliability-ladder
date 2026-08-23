@@ -1203,3 +1203,41 @@ Verified after: rung docstrings, wiki page titles, wiki navigation, plan.html's
 step list and glossary, schema.py's zone comments and both scripts all agree
 with the new ids. 93 tests, fixture gate passes, cold run exercises all seven
 slots in order.
+
+## 2026-08-23 — the pipeline failure: two faults that arrived from opposite directions
+
+`tests/test_ledger_coverage.py` landed on main in `4142b00` while the renumber
+was in flight on a branch. Neither side's tests could see the other, and both
+were green in isolation. Two separate faults.
+
+**1 · The test was written against the old ids.** It parametrised over
+`["r3","r4","r5"]` — self-correction, judge, voting — and special-cased `r5`
+for the per-document sampling rows. After the renumber those ids mean voting,
+judge and abstention, so the test asserted document rows on the rung that makes
+no model calls at all. Now `["r2","r3","r4"]` with the document-row case on
+rung 3.
+
+**2 · It could never have passed in CI, renumber or not.** It needs the
+licensed corpus, the SNOMED index and a reachable model. CI has none of the
+three. `@pytest.mark.integration` was on it, but no marker was ever registered
+and the CI job ran plain `pytest tests/ -q`, so the marker deselected nothing
+and pytest only warned. The test then failed on a 404 from a model that was
+never going to be there — a red suite that says nothing about the code.
+
+Fixed at both ends, deliberately: the test now checks each prerequisite and
+SKIPS with the reason ("no vocabulary index at …"), and `pytest.ini` registers
+the marker so the CI job's `-m "not integration"` actually deselects. Belt and
+braces, because a suite that goes red for environmental reasons stops being
+read, and a marker that deselects nothing is not a guard.
+
+**It also picked its own models.** `S.judge("llama3.2:3b")` hard-coded a model
+that is not installed here, and `S.voter(0.7)` bypassed the shared caller. Both
+now resolve through `ladder.llm.for_rung` from the manifest, so the test is not
+a second place a model is chosen — and rung 3's samples go through
+`Caller.sampler`, the same path the runner uses. Where judge and extractor
+resolve to the same model the test skips and says why, rather than tripping
+rung 4's self-judge guard.
+
+Verified: 100 pass locally with everything present; 96 pass and 4 deselect under
+the CI invocation; 3 skip with a stated reason when the manifest points at an
+absent corpus and index.
