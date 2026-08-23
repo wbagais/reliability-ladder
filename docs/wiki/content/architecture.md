@@ -74,7 +74,7 @@ Reverse none of these silently. Each is recorded in `docs/decisions.md` with the
 | `ladder/vocab_crosscheck.py` | local-rf2 vs OLS4 |
 | `ladder/rungs/r1.py` | [[r1]] |
 | `ladder/rungs/r2.py` | [[r2]] |
-| `ladder/rung0_ab.py` | rung 0 recall-vs-search ablation |
+| `ladder/rungs/r0.py` | rung 0, and the recall-vs-search ablation over it |
 | `ladder/stub_llm.py` | Ollama client for rung 0 |
 | `bench/align.py` | pairs predictions with gold; bipartite, IoU 0.5 |
 | `ladder/rungs/r0.py` `r3` `r4` `r5` | not written |

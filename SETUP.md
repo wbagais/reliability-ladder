@@ -20,7 +20,7 @@ git push
 | `requirements.txt` | Pinned. |
 | `scripts/preflight.py` | Scans tree **and history** for corpus text, keys, forbidden paths, unpinned deps. |
 | `ladder/vocab.py` | SNOMED via EBI OLS4 (free, no key) + MedDRA local. A **global resource**, not a per-item trusted_record. |
-| `ladder/rung0_ab.py` | Rung 0 modes A/B + rung 1. One file, one flag — two implementations would confound tool access with prompting. |
+| `ladder/rungs/r0.py` | Rung 0, plus the A/B ablation over it. One file, one flag — two implementations would confound tool access with prompting. |
 | `bench/__init__.py` | Makes `bench` importable for CI. |
 | `data/meddra_codes.example.csv` | 10 rows for tests. Full list stays gitignored. |
 | `docs/plan.html` | v17 — plan, architecture, demo, glossary. **Published by CI to Pages.** |
@@ -37,8 +37,9 @@ only — no Python runs there, so the published page cannot touch the corpus.
 
 - **`app/results.reference.json`** — one real run. Without it the dashboard
   shows stub numbers as if real. `preflight.py` warns until it exists.
-- **`ladder/rungs/r0.py` · `r3.py` · `r4.py` · `r5.py` · `ladder/score.py`** —
-  owner B. `run.py` reports a missing rung rather than faking it.
+- **`ladder/score.py`** — the shared scorer. Until it lands, `run.py` writes the
+  accuracy columns empty rather than guessing, and reports a missing rung rather
+  than faking it.
 
 Done since this file was written: `tests/` (129 tests, fake LLM, no network),
 `docs/decisions.md`, and `manifest.json` — which replaced the template, so

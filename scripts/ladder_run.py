@@ -12,7 +12,7 @@ Rung 2 pays the coverage cost, last, per docs/wiki/content/r2.md.
 import json, pathlib, collections, inspect, time
 
 from ladder.registry import Registry
-from ladder.rung0_ab import run
+from ladder.rungs.r0 import run
 from ladder.rungs import r1, r2, r3, r4, r5
 from ladder import stub_llm as S
 

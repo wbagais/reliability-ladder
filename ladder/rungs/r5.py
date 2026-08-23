@@ -1,4 +1,4 @@
-"""Rung 5 — voting. Owner B. k calls per record. The most expensive rung.
+"""Rung 5 — voting. k calls per record. The most expensive rung.
 
 Sample the extractor k times for the SAME record and take the majority code.
 
@@ -90,7 +90,7 @@ def normalise(code: str | None, registry) -> str:
 
 def sample_document(doc_id: str, text: str, mode: str, llm, cfg: dict):
     """One extractor sample of a whole document, through rung 0's own path."""
-    from ladder.rung0_ab import rung0
+    from ladder.rungs.r0 import rung0
     return rung0(doc_id, text, mode, llm, cfg)
 
 
@@ -139,15 +139,29 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         text = sources.get(doc_id, "")
         agg["documents"] += 1
         samples = []
+        doc_in = doc_out = 0
+        doc_t0 = time.time()
         for _ in range(k):
             got, meta = sample_document(doc_id, text, mode, llm, cfg)
             agg["calls"] += 1
+            doc_in += meta.get("tokens_in", 0)
+            doc_out += meta.get("tokens_out", 0)
             agg["tokens_in"] += meta.get("tokens_in", 0)
             agg["tokens_out"] += meta.get("tokens_out", 0)
             if meta.get("parse_failed"):
                 agg["parse_failed"] += 1
             samples.append({_key(r): r for r in got})
         by_doc[doc_id] = samples
+        # The k calls are a DOCUMENT cost, not a record cost, and they are paid
+        # whether or not any record is re-found below. Logging them here is what
+        # stops a run where nothing matched from reporting rung 5 as free.
+        if ledger:
+            ledger.log(
+                rung=RUNG, doc_id=doc_id, record_id=doc_id, zone="NEW",
+                outcome="sampled", api_calls=k,
+                tokens_in=doc_in, tokens_out=doc_out,
+                latency_ms=(time.time() - doc_t0) * 1000, k=k,
+            )
 
     for rec in records:
         agg["records"] += 1
@@ -168,6 +182,13 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             agg["not_resampled"] += 1
             rec.checks["r5"] = {"k": k, "seen": 0, "outcome": "not_resampled",
                                 "was": rec.sct}
+            # Still a row. "No sample re-found this mention" is a finding about
+            # extractor stability, and a rung that stays silent on it looks like
+            # a rung that did nothing.
+            if ledger:
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
+                           zone=rec.zone, reason="not_resampled",
+                           outcome="not_resampled", k=k, seen=0)
             continue
 
         ranked = votes.most_common()
@@ -199,7 +220,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.mark(RUNG, rec.zone, None)
 
         if ledger:
-            ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
+            ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                          reason=None, outcome="tie" if tie else "voted")
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)

@@ -11,7 +11,7 @@ Run from the repo root:
 import json, pathlib, collections, dataclasses
 
 from ladder.registry import Registry
-from ladder.rung0_ab import run
+from ladder.rungs.r0 import run
 from ladder.rungs import r1, r4
 from ladder import stub_llm as S, corpus as C
 
@@ -30,7 +30,7 @@ for r in r0_recs:
 # dataclasses.replace and inherited its `text` -- the mention surface -- onto
 # every gold record, so span grounding failed on all 226 and rung 1 rejected
 # the entire control arm. Do not clone Records.
-from ladder.rung0_ab import Record
+from ladder.rungs.r0 import Record
 
 docs = C.load_corpus(man["corpus"]["cadec_root"])
 

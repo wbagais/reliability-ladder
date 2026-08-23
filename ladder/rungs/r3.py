@@ -1,4 +1,4 @@
-"""Rung 3 — self-correction. Owner B. One model call per correctable failure.
+"""Rung 3 — self-correction. One model call per correctable failure.
 
 Rung 3 fires ONLY on a rung 1 failure, and states the reason as a FACT:
 
@@ -193,7 +193,7 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
     return cand, meta
 
 
-def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> list[Record]:
+def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
     """Correct rung 1's rejections in place, and record what that bought."""
     cfg = {**DEFAULTS, **(cfg or {})}
     llm = cfg.get("llm")
@@ -218,7 +218,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.checks["r3"] = {"outcome": "unchanged", "reason": reason,
                                 "why": "not a correctable rung 1 rejection"}
             if ledger:
-                ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                              reason=reason, outcome="unchanged")
             continue
         source = sources.get(rec.doc_id, "")
@@ -251,16 +251,20 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             }
             rec.checks["r3_declined"] = True
             if ledger:
-                ledger.write(record_id=rec.record_id, rung=RUNG,
-                             zone=rec.zone, reason=reason, outcome="declined")
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
+                             zone=rec.zone, reason=reason, outcome="declined",
+                             tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                             api_calls=1)
             continue
 
         if str(cand.sct) == str(rec.sct) and cand.spans == rec.spans:
             agg["reasserted"] += 1
             rec.checks["r3"] = {"outcome": "reasserted", "reason": reason}
             if ledger:
-                ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
-                             reason=reason, outcome="reasserted")
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
+                             reason=reason, outcome="reasserted",
+                             tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                             api_calls=1)
             continue
 
         # Re-validate with the ONE measured rung 1, never a second copy.
@@ -287,13 +291,14 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.checks["r1_reason"] = new_reason
             rec.mark(RUNG, new_verdict, new_reason)
         if ledger:
-            ledger.write(record_id=rec.record_id, rung=RUNG, zone=new_verdict,
+            ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=new_verdict,
                          reason=new_reason,
-                         outcome=rec.checks["r3"]["outcome"])
+                         outcome=rec.checks["r3"]["outcome"],
+                         tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                         api_calls=1)
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)
-    records_meta = agg
-    return records, records_meta
+    return records, agg
 
 
 def report(agg: dict) -> None:

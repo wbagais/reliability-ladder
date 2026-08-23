@@ -41,7 +41,7 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 
 | Rung | Layer | State |
 |---|---|---|
-| 0 | [[r0]] bare LLM | in progress — `stub_llm.py`, `rung0_ab.py` and `bench/align.py` landed and the A/B is measured; `rungs/r0.py` not yet |
+| 0 | [[r0]] bare LLM | built — `rungs/r0.py` holds the rung and the A/B ablation; runs end to end through `run.py` |
 | 1 | [[r1]] deterministic | built and measured |
 | 2 | [[r2]] abstention | built and measured |
 | 3 | [[r3]] self-correction | not started |

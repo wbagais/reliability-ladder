@@ -17,7 +17,7 @@ import json, os, pathlib, subprocess, sys, time
 from collections import Counter
 
 from ladder.registry import Registry
-from ladder.rung0_ab import run, report as r0report
+from ladder.rungs.r0 import run, report as r0report
 from ladder.rungs import r3
 from ladder import stub_llm as S, corpus as C
 from bench import align

@@ -6,5 +6,5 @@ pyyaml==6.0.2
 
 # Local-only extras. Nothing here is needed to READ results; they are needed to
 # produce them, which happens on your machine and nowhere else (plan §1).
-# openai==1.59.6      # rungs 0/3/4/5 — owner B
+# openai==1.59.6      # rungs 0/3/4/5
 # pytest==8.3.4

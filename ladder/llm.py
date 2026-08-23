@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -128,3 +129,142 @@ class LLMClient:
         }
         path.write_text(json.dumps(data, ensure_ascii=False))
         return LLMResponse(**data, cached=False)
+
+
+# --- one call path for every rung --------------------------------------------
+#
+# Rungs must not choose models. A rung that reads a model name is a rung whose
+# number changes meaning when someone edits a config, and four rungs each doing
+# their own resolution is four places to change and three places to forget.
+# So: the manifest names a model per ROLE, run.py binds a Caller per rung, and
+# a rung only ever sees `cfg["llm"]` — a plain callable it invokes.
+#
+#     raw, usage = cfg["llm"](prompt, source, mode)
+#
+# Roles, not rung numbers, because that is how the plan constrains them: rung 4
+# judges what rung 0 extracted and MUST be a different model family, or it
+# shares the extractor's blind spots. Rungs 3 and 5 correct and re-sample the
+# extractor's own work, so they are the extractor by definition.
+
+ROLE_BY_RUNG = {0: "extractor", 3: "extractor", 5: "extractor", 4: "judge"}
+
+#: Local, free, and no corpus text leaves the machine. See LICENCE note below.
+DEFAULT_MODEL = "ollama/gpt-oss:20b"
+
+_FENCE = re.compile(r"^\s*```(?:json)?\s*\n(.*?)\n\s*```\s*$", re.S)
+
+
+class Caller:
+    """A bound model, callable with the signature every rung expects.
+
+        caller(prompt, text, mode) -> (raw_text, usage)
+
+    Holds its own latencies and fence count, so two rungs on two models never
+    pool their cost measures into one misleading number.
+
+    LICENCE: rung prompts carry CADEC post text verbatim, and CADEC is
+    non-commercial and NON-TRANSFERABLE. Any provider with `local: false` puts
+    licensed text on someone else's machine, so a non-local model is refused
+    unless LADDER_ALLOW_REMOTE=1 makes that a deliberate act.
+
+    FENCES: a markdown fence around JSON is a transport convention, not a
+    modelling failure, so it is stripped — but counted in `fenced` and never
+    silently. Nothing inside the fence is touched.
+    """
+
+    def __init__(self, spec: str, role: str = "", cache_dir: Path | str = DEFAULT_CACHE_DIR):
+        self.spec = spec
+        self.role = role
+        self.client = LLMClient(spec, cache_dir=cache_dir)
+        self.latencies: list[float] = []
+        self.fenced = 0
+        if not self.client.info.local and os.environ.get("LADDER_ALLOW_REMOTE") != "1":
+            raise SystemExit(
+                f"{spec} is a hosted provider, and rung prompts contain CADEC post\n"
+                "text, which is non-transferable. Set LADDER_ALLOW_REMOTE=1 if you\n"
+                "have decided that is acceptable for this run."
+            )
+
+    def _unfence(self, raw: str) -> str:
+        m = _FENCE.match(raw)
+        if not m:
+            return raw
+        self.fenced += 1
+        return m.group(1)
+
+    def __call__(
+        self,
+        prompt: str,
+        text: str,
+        mode: str,
+        temperature: float = 0.0,
+        sample_index: int = 0,
+    ) -> tuple[str, dict]:
+        t0 = time.time()
+        resp = self.client.chat(
+            [{"role": "user", "content": f"{prompt}\n\nPOST:\n{text}"}],
+            temperature=temperature,
+            sample_index=sample_index,
+        )
+        elapsed = time.time() - t0
+        if not resp.cached:
+            self.latencies.append(elapsed)
+        usage = {
+            "in": resp.prompt_tokens,
+            "out": resp.completion_tokens,
+            "seconds": round(elapsed, 3),
+            "model": self.spec,
+            "cached": resp.cached,
+            "usd": self.client.info.dollars(resp.prompt_tokens, resp.completion_tokens),
+        }
+        return self._unfence(resp.text), usage
+
+    def sampler(self, temperature: float):
+        """A callable that draws a DIFFERENT sample each time it is called.
+
+        Rung 5 votes by calling the extractor k times. Greedy decoding would
+        return one answer k times and a disk cache would make that free and
+        invisible — k identical votes reported as unanimity. So each call gets
+        its own `sample_index`, which is part of the cache key: samples stay
+        reproducible across runs while still differing from each other.
+        """
+        if temperature <= 0.0:
+            raise ValueError(
+                f"sampler(temperature={temperature}) cannot vote: at temperature 0 "
+                "every sample is the same answer, and k of them is not a majority."
+            )
+        counter = {"i": -1}
+
+        def draw(prompt: str, text: str, mode: str) -> tuple[str, dict]:
+            counter["i"] += 1
+            return self(prompt, text, mode, temperature=temperature,
+                        sample_index=counter["i"])
+
+        draw.spec = self.spec  # type: ignore[attr-defined]
+        draw.role = self.role  # type: ignore[attr-defined]
+        return draw
+
+    def latency_p95(self) -> float | None:
+        """p95 over uncached calls. One of the three cost measures; never fused."""
+        if not self.latencies:
+            return None
+        s = sorted(self.latencies)
+        return s[max(0, int(len(s) * 0.95) - 1)]
+
+
+def resolve(role: str, manifest: dict | None = None, override: str | None = None) -> str:
+    """Which model plays `role`. Explicit > env > manifest > default."""
+    return (
+        override
+        or os.environ.get("LADDER_MODEL_SPEC")
+        or ((manifest or {}).get("model") or {}).get(role)
+        or DEFAULT_MODEL
+    )
+
+
+def for_rung(n: int, manifest: dict | None = None, override: str | None = None) -> Caller | None:
+    """The Caller a rung should be handed, or None if that rung needs no model."""
+    role = ROLE_BY_RUNG.get(n)
+    if role is None:
+        return None
+    return Caller(resolve(role, manifest, override), role=role)

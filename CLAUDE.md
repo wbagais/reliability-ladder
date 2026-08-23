@@ -59,11 +59,12 @@
   Never fuse them into a currency figure.
 
 ## Current state
-- Owner A's half is built and measured: corpus + frozen splits, SNOMED index,
-  ledger, rung 1, rung 2, harness, fixture gate, and two model-free
+- The deterministic spine is built and measured: corpus + frozen splits, SNOMED
+  index, ledger, rung 1, rung 2, harness, fixture gate, and two model-free
   characterisations of rung 1. 93 tests, CI green.
-- Rungs 0/3/4/5 and the shared scorer are owner B's and outstanding. `run.py`
-  reports a missing rung rather than faking it.
+- Rungs 0/3/4/5 all exist and the full ladder runs end to end. `ladder/score.py`
+  is still missing, so accuracy columns are written empty rather than guessed.
+  `run.py` reports a missing rung rather than faking it.
 - **An earlier data-agnostic track was retired on 2026-08-22**, along with its
   results. The CADEC track imported none of it. Do not reintroduce its numbers:
   nothing in this repo is runnable that would reproduce them. Git history at
@@ -78,14 +79,14 @@
    and it is measured.** Under index-based array comparison a *perfect*
    extraction listed in another order scores 0.216, and dropping one mention
    scores 0.081. Fix: key gold mentions by span rather than position, which
-   scores 1.000 reordered with no change to any scorer. Owner B needs this before
-   writing `ladder/score.py`.
-3. Owner B: `ladder/rungs/r0.py` (rung 0 is handed an EMPTY record list and builds
-   records from `sources`), then `r3` / `r4` / `r5`, then `ladder/score.py`.
-   Rung 3's trigger is `record.checks["r1_verdict"] == "REJECT"`, with the fact to
-   state in `checks["r1_reason"]`.
-4. `python -m ladder.rung0_ab --compare` with a real client — needs
-   `ladder/stub_llm.py` or an equivalent, which is not in the repo yet.
+   scores 1.000 reordered with no change to any scorer. Needed before
+   `ladder/score.py` is written.
+3. ~~`ladder/rungs/r0.py`, then `r3` / `r4` / `r5`~~ — done. Rung 0 is handed an
+   EMPTY record list and builds records from `sources`; rung 3's trigger is
+   `record.checks["r1_verdict"] == "REJECT"`, with the fact to state in
+   `checks["r1_reason"]`. Still outstanding: `ladder/score.py`.
+4. `python -m ladder.rungs.r0 --compare` — the tool ablation, now that a real
+   client exists. Model comes from `manifest.model.extractor`.
 
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.

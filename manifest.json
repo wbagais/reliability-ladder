@@ -34,10 +34,10 @@
     "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent."
   },
   "model": {
-    "extractor": null,
-    "judge": null,
+    "extractor": "ollama/ibm/granite4:micro-h",
+    "judge": "ollama/gpt-oss:20b",
     "temperature": 0,
-    "note": "Owner B fills these in. Judge must be a different model family from the extractor."
+    "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung \u2014 rungs never pick a model."
   },
   "rung_order": [
     0,
@@ -107,6 +107,10 @@
     "6": {
       "mode": "simulated",
       "minutes_per_record": 2.0
+    },
+    "0": {
+      "rung0_offsets": "search",
+      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time."
     }
   },
   "output": {

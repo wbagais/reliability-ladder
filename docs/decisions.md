@@ -890,3 +890,172 @@ alone cannot settle. (`constipitation` is also a patient misspelling, which is
 the colloquial-text problem in one word.)
 
 Scope: one model, one size, 40 dev documents, one hardware configuration.
+
+---
+
+## 2026-08-23 — model selection centralised; rung 3 first run through the pipeline
+
+**Rungs must not choose models.** Four rungs each resolving their own model is
+four places to change and three to forget, and a rung whose number changes
+meaning when someone edits a config is not a measurement. Model resolution now
+happens in exactly one place — `ladder.llm.for_rung`, called by `run.py`, which
+injects `cfg["llm"]`. A rung only ever sees a plain callable:
+
+    raw, usage = cfg["llm"](prompt, source, mode)
+
+**Bound by ROLE, not by rung number.** `manifest.model` names an `extractor` and
+a `judge`; `ROLE_BY_RUNG` maps 0/3/5 to extractor and 4 to judge. Roles because
+that is how the plan constrains them: rung 4 must be a different model family or
+it shares the extractor's blind spots, while rungs 3 and 5 correct and re-sample
+the extractor's own work and are the extractor by definition. A single global
+model setting would silently violate the rung 4 rule.
+
+**One transport for local and hosted.** Ollama speaks the OpenAI-compatible
+protocol at `/v1`, so `ladder.llm.LLMClient` reaches it and every hosted
+provider through the same `chat()`. The separate adapter written earlier the
+same day was deleted rather than kept — a second call path is a second set of
+numbers. `stub_llm.py` keeps only `load_items`.
+
+**Default is local, and remote is a deliberate act.** `ollama/gpt-oss:20b`.
+Rung prompts carry CADEC post text verbatim, and CADEC is non-commercial and
+NON-TRANSFERABLE, so any provider with `local: false` puts licensed text on
+someone else's machine. `Caller` refuses one unless `LADDER_ALLOW_REMOTE=1`.
+
+**Markdown fences are stripped but counted.** A fence around JSON is a transport
+convention, not a modelling failure, and counting it as a parse error would
+misattribute formatting as a reliability cost. `Caller.fenced` records it, so
+the strip is never silent. Measured: claude-haiku-4-5 fences, granite4 does not.
+
+**Rungs 3, 4 and 5 had never been run through `run.py`.** All three called
+`ledger.write()`, which does not exist — the method is `log()` — and all three
+omitted the `doc_id` that `log()` requires. Found only by running them; the
+test suite is green either way. A rung that imports cleanly and passes its unit
+tests can still be unable to run, which is an argument for the end-to-end run
+being part of CI rather than a thing someone remembers to do.
+
+**Two return conventions, normalised in the runner rather than legislated.**
+r1/r2 return `records`; r3/r4/r5 return `(records, aggregates)`, and owner B's
+`scripts/ladder_run.py` unpacks the tuple. Rewriting either owner's rungs to
+match the other would have broken the other's runner, so `run_ladder` accepts
+both shapes and files the aggregates under `result["aggregates"]`. r3's
+annotation said `-> list[Record]` while returning a tuple; the annotation was
+the thing that was wrong.
+
+**Rung 4 keeps its own config keys.** It reads `judge_llm` and compares
+`judge_model` against `extractor_model`, raising if they match, because a model
+judging its own output measures self-consistency rather than correctness. The
+runner fills those keys from the same `for_rung` resolution as every other
+rung, so the guard is enforced without rung 4 choosing anything. Set for the
+first run: extractor `ollama/gpt-oss:20b`, judge `ollama/ibm/granite4:micro-h`
+— two different families, both local.
+
+**First 0→5 run, one dev document (ARTHROTEC.107), claude-haiku-4-5, mode A.**
+Order `[1,3,5,4,2]`; rungs 5 and 4 reported missing, not faked. R0 emitted 2
+mentions, rung 1 rejected both `span_ungrounded`, rung 3 attempted the one
+correctable record and returned `still_failing`, rung 2 abstained on both.
+Coverage 1.0 → 0.0.
+
+**Rung 0's failures separate cleanly, and only one is about medicine.** On
+ARTHROTEC.1, mode A: claude-haiku-4-5 emitted 3 mentions with 2 of 3 codes real
+(`271782001` for "drowsy" is gold exactly); granite4:micro-h emitted 2 with 0 of
+2 real, and across 10 dev documents 0 of 26 real — codes shaped like SNOMED and
+clustered (`41493009`, `41493006`, `41456009`), i.e. confabulated digits. Both
+models quote spans verbatim (77% on the 10-doc run) and both get the character
+offsets wrong (19% and 0%). Coding ability is a model-capability axis; offset
+arithmetic is not — it fails at every size, which is what `rung0_offsets:
+"search"` exists to bypass. Every rejection so far reads `span_ungrounded`, so
+the code quality underneath is invisible in the verdict; the report's
+"hidden by check order" column is the only place it shows.
+
+## 2026-08-23 — one team; rung 0 becomes a rung
+
+**The A/B owner split is retired from the live files.** It did its job — whole
+files to one person each, a fixed rung interface between them — and the repo now
+has all seven rung slots and no reason to keep the boundary. Removed from the
+code, the plan, the wiki and the READMEs. NOT removed from this log, the build
+log or the dated handoffs: those are records of what was true when written, and
+rewriting them would make the provenance worse, not better. The plan's §5 and
+§8.2 are now organised by mental model — the spine, the model surface, the
+contracts — because that was always the load-bearing part of the split. Whose
+name was on a file was not.
+
+**`rung0_ab.py` is gone; `ladder/rungs/r0.py` holds both the rung and the
+ablation.** Rung 0 was the only rung living outside `rungs/`, which is why it
+could be measured but not run: `run.py` dispatches on `ladder/rungs/rN.py`, so
+rung 0 was permanently "not implemented" while a complete implementation sat one
+directory away. `apply()` is the rung entry point and takes an EMPTY record list
+— it raises rather than appending if handed a populated one, since rung 0 twice
+over a split doubles every mention and every number above it. `run()` /
+`compare()` are the ablation, calling the same `rung0()`, so the experiment and
+the rung cannot drift apart. Five importers repointed.
+
+**`--limit N` announces itself.** A run on 1 of 40 documents is a different
+experiment from a run on dev, so the flag prints the truncation and names the
+documents. A smoke number filed as a split number is the easiest lie to tell by
+accident.
+
+**First full 0→6 run, entirely local, one dev document (ARTHROTEC.107).** Order
+`[0,1,3,5,4,2,6]`; only rung 6 reported missing. Rung 0 emitted 3 mentions, rung
+1 rejected all 3 `span_ungrounded`, rungs 3/5/4 moved nothing, rung 2 abstained
+on all 3. Coverage 1.0 → 0.0.
+
+**The default extractor could not parse its own output, and the swap is the
+finding.** `ollama/gpt-oss:20b` is a reasoning model: on rung 0 it spent the
+full 2000-token ceiling on thinking and never closed the JSON, so
+`parse_failed=1` and zero records — a ladder that runs perfectly over nothing.
+Extractor moved to `ollama/ibm/granite4:micro-h`, which parses, and gpt-oss took
+the judge seat, where a short verdict fits the budget. This keeps rung 4's
+different-family rule satisfied with two local models and no corpus text
+leaving the machine. Worth stating plainly: reasoning models and a strict JSON
+contract interact badly, and the failure looks like an empty result rather than
+an error.
+
+## 2026-08-23 — offset recovery on; the ladder does real work, and the judge fails interestingly
+
+**`rung0_offsets: "search"` is now the manifest default, and it works.** All
+three records on ARTHROTEC.107 came back `search_unique` with correct spans, and
+rung 1's rejection reason moved from `span_ungrounded` to `code_unknown`. The
+model's character arithmetic is simply discarded: it quotes verbatim, so the
+quote is a better key than the offsets it claims. This is the change that let
+rungs 3, 4 and 5 see anything at all — before it, every record failed the first
+check and nothing above rung 1 had a fact to act on.
+
+**Rung 3 declined all three.** Given "code 41456009 does not exist", the
+extractor returned null rather than a replacement. That is `allow_withdrawal`
+working as specified and counted apart from a correction — self-correction can
+only recover what the model could have got right unaided, and granite could not.
+
+**Rung 4 affirmed a code that does not exist, at 0.95 confidence, with a
+fabricated term for it.** Verbatim: *"SNOMED CT 41456009 represents rectal
+hemorrhage"*. Rung 1 had already established that 41456009 is not in the
+release. The judge is a different model family from the extractor — the plan's
+requirement — and it still confabulated a label for a hallucinated code, because
+nothing in a judge prompt touches the vocabulary. This is the clearest evidence
+yet for the ordering claim: a free deterministic existence check catches what a
+paid second model asserts confidently in the opposite direction.
+
+It was not uniformly wrong. On "might not survive" it returned `span_ok: false`
+with *"a fear, not an adverse reaction"* — a genuine catch that no deterministic
+check could make, and exactly the work rung 4 is for. Two of three agreed with
+rung 1; the disagreement was the judge being wrong.
+
+**Rung 5 still cannot vote, and now says so in the ledger.** All three records
+came back `not_resampled`: rung 5 matches mentions by `(doc_id, spans)`, and at
+temperature 0.7 the three samples find different phrases, so the keys never line
+up. Not a bug in rung 5 — a property of voting over an extractor whose spans
+move between samples.
+
+**Every rung now reports its own cost.** Rungs 3, 4 and 5 were logging ledger
+rows with `tokens=0/0` while making real calls, and rung 5's `not_resampled`
+path returned before its ledger write entirely, so a run where nothing matched
+reported voting as free. Fixed in all three: the k sampling calls are logged as
+a DOCUMENT cost, paid whether or not a record is re-found, and every per-record
+row carries the call that produced it. First fully-accounted run: 4148 tokens
+over 10 calls across six rungs, $0.00 because everything is local.
+
+**`Caller.sampler(temperature)` — the bug centralisation introduced.** The
+shared caller was greedy and never varied `sample_index`, which is part of the
+disk-cache key, so rung 5's k votes all hit ONE cache entry: unanimity that was
+never measured, in 0.00s, for free. Each draw now gets its own sample index, so
+samples differ from each other and stay reproducible across runs. `sampler()`
+refuses temperature 0 outright.
