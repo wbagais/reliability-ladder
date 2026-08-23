@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ladder import corpus as corpus_mod
+from ladder import llm as llm_mod
 from ladder.ledger import Ledger
 from ladder.manifest import friendly, load_manifest
 from ladder.registry import MeddraTable, Registry
@@ -143,6 +144,7 @@ def run_ladder(
     order = [n for n in man["rung_order"] if n in rungs]
     ledger = Ledger(out_dir / f"{run_id}.ledger.jsonl", run_id=run_id)
     snapshots: dict[int, list[Record]] = {}
+    callers: dict[int, Any] = {}
     missing: list[int] = []
 
     print(f"[run] {run_id}  split={split}  records={len(records)}  order={order}")
@@ -153,8 +155,19 @@ def run_ladder(
             print(f"[run] rung {n} ({RUNG_NAMES[n]}) — not implemented, skipped")
             continue
         cfg: dict[str, Any] = dict(man["rungs"].get(str(n), {}))
+        # The rung never picks a model. One resolution point, here, so that
+        # "which model produced this number" is answered by the manifest.
+        caller = llm_mod.for_rung(n, man)
+        if caller is not None:
+            callers[n] = caller
+            print(f"[run] rung {n} model={caller.spec} ({caller.role})")
         cfg.update(
-            ledger=ledger, registry=registry, meddra=meddra, manifest=man, split=split
+            ledger=ledger,
+            registry=registry,
+            meddra=meddra,
+            manifest=man,
+            split=split,
+            llm=caller,
         )
         t0 = time.perf_counter()
         records = mod.apply(records, sources, cfg)
@@ -178,6 +191,7 @@ def run_ladder(
         "records": records,
         "snapshots": snapshots,
         "ledger": ledger,
+        "callers": callers,
     }
 
 

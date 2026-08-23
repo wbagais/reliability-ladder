@@ -249,6 +249,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--mode", choices=["A", "B"])
     ap.add_argument("--compare", action="store_true")
     ap.add_argument("--manifest", default="manifest.json")
+    ap.add_argument(
+        "--model",
+        help="provider/model from ladder/models.yaml. Defaults to the manifest's "
+        "rung0_model, then to a local ollama model — a hosted provider sends "
+        "CADEC text off the machine and needs LADDER_ALLOW_REMOTE=1",
+    )
     a = ap.parse_args(argv)
 
     from ladder.manifest import load_manifest
@@ -260,7 +266,11 @@ def main(argv: list[str] | None = None) -> int:
     cfg["ledger"] = Ledger(f"{man['output']['dir']}/rung0_ab.ledger.jsonl", run_id="rung0_ab")
 
     try:
-        from ladder.stub_llm import load_items, stub
+        from ladder.llm import for_rung
+        from ladder.stub_llm import load_items
+
+        stub = for_rung(0, man, a.model)
+        print(f"[rung0] model={stub.spec} ({stub.role})")
     except ModuleNotFoundError:
         return int(
             bool(

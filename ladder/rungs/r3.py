@@ -218,7 +218,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.checks["r3"] = {"outcome": "unchanged", "reason": reason,
                                 "why": "not a correctable rung 1 rejection"}
             if ledger:
-                ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                              reason=reason, outcome="unchanged")
             continue
         source = sources.get(rec.doc_id, "")
@@ -251,7 +251,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             }
             rec.checks["r3_declined"] = True
             if ledger:
-                ledger.write(record_id=rec.record_id, rung=RUNG,
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                              zone=rec.zone, reason=reason, outcome="declined")
             continue
 
@@ -259,7 +259,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             agg["reasserted"] += 1
             rec.checks["r3"] = {"outcome": "reasserted", "reason": reason}
             if ledger:
-                ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                              reason=reason, outcome="reasserted")
             continue
 
@@ -287,13 +287,15 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.checks["r1_reason"] = new_reason
             rec.mark(RUNG, new_verdict, new_reason)
         if ledger:
-            ledger.write(record_id=rec.record_id, rung=RUNG, zone=new_verdict,
+            ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=new_verdict,
                          reason=new_reason,
                          outcome=rec.checks["r3"]["outcome"])
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)
-    records_meta = agg
-    return records, records_meta
+    # The rung contract is `apply(...) -> list[Record]`, same as r1 and r2.
+    # Aggregates ride back on cfg so the runner's loop stays uniform.
+    cfg["r3_agg"] = agg
+    return records
 
 
 def report(agg: dict) -> None:

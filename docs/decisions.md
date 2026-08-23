@@ -890,3 +890,63 @@ alone cannot settle. (`constipitation` is also a patient misspelling, which is
 the colloquial-text problem in one word.)
 
 Scope: one model, one size, 40 dev documents, one hardware configuration.
+
+---
+
+## 2026-08-23 — model selection centralised; rung 3 first run through the pipeline
+
+**Rungs must not choose models.** Four rungs each resolving their own model is
+four places to change and three to forget, and a rung whose number changes
+meaning when someone edits a config is not a measurement. Model resolution now
+happens in exactly one place — `ladder.llm.for_rung`, called by `run.py`, which
+injects `cfg["llm"]`. A rung only ever sees a plain callable:
+
+    raw, usage = cfg["llm"](prompt, source, mode)
+
+**Bound by ROLE, not by rung number.** `manifest.model` names an `extractor` and
+a `judge`; `ROLE_BY_RUNG` maps 0/3/5 to extractor and 4 to judge. Roles because
+that is how the plan constrains them: rung 4 must be a different model family or
+it shares the extractor's blind spots, while rungs 3 and 5 correct and re-sample
+the extractor's own work and are the extractor by definition. A single global
+model setting would silently violate the rung 4 rule.
+
+**One transport for local and hosted.** Ollama speaks the OpenAI-compatible
+protocol at `/v1`, so `ladder.llm.LLMClient` reaches it and every hosted
+provider through the same `chat()`. The separate adapter written earlier the
+same day was deleted rather than kept — a second call path is a second set of
+numbers. `stub_llm.py` keeps only `load_items`.
+
+**Default is local, and remote is a deliberate act.** `ollama/gpt-oss:20b`.
+Rung prompts carry CADEC post text verbatim, and CADEC is non-commercial and
+NON-TRANSFERABLE, so any provider with `local: false` puts licensed text on
+someone else's machine. `Caller` refuses one unless `LADDER_ALLOW_REMOTE=1`.
+
+**Markdown fences are stripped but counted.** A fence around JSON is a transport
+convention, not a modelling failure, and counting it as a parse error would
+misattribute formatting as a reliability cost. `Caller.fenced` records it, so
+the strip is never silent. Measured: claude-haiku-4-5 fences, granite4 does not.
+
+**Rung 3 had never been run through `run.py`.** Three contract breaks, all
+found by the first end-to-end run and none by the test suite: it called
+`ledger.write()` (the method is `log()`), omitted the required `doc_id`, and
+returned `(records, agg)` where the contract is `-> list[Record]`. Aggregates
+now ride back on `cfg["r3_agg"]`. A rung that imports cleanly and passes its
+unit tests can still be unable to run.
+
+**First 0→5 run, one dev document (ARTHROTEC.107), claude-haiku-4-5, mode A.**
+Order `[1,3,5,4,2]`; rungs 5 and 4 reported missing, not faked. R0 emitted 2
+mentions, rung 1 rejected both `span_ungrounded`, rung 3 attempted the one
+correctable record and returned `still_failing`, rung 2 abstained on both.
+Coverage 1.0 → 0.0.
+
+**Rung 0's failures separate cleanly, and only one is about medicine.** On
+ARTHROTEC.1, mode A: claude-haiku-4-5 emitted 3 mentions with 2 of 3 codes real
+(`271782001` for "drowsy" is gold exactly); granite4:micro-h emitted 2 with 0 of
+2 real, and across 10 dev documents 0 of 26 real — codes shaped like SNOMED and
+clustered (`41493009`, `41493006`, `41456009`), i.e. confabulated digits. Both
+models quote spans verbatim (77% on the 10-doc run) and both get the character
+offsets wrong (19% and 0%). Coding ability is a model-capability axis; offset
+arithmetic is not — it fails at every size, which is what `rung0_offsets:
+"search"` exists to bypass. Every rejection so far reads `span_ungrounded`, so
+the code quality underneath is invisible in the verdict; the report's
+"hidden by check order" column is the only place it shows.

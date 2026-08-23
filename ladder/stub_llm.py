@@ -105,7 +105,7 @@ def load_items(splits_dir: str | os.PathLike) -> list[dict]:
     n = int(os.environ.get("LADDER_N", "10"))
     doc_ids = doc_ids[:n] if n > 0 else doc_ids
 
-    print(f"[stub_llm] model={MODEL} split={split} docs={len(doc_ids)} host={HOST}")
+    print(f"[corpus] split={split} docs={len(doc_ids)}")
     return [{"doc_id": d, "text": docs[d].text} for d in doc_ids]
 
 
