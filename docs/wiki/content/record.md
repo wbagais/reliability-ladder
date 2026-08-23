@@ -2,7 +2,7 @@
 
 `ladder/schema.py` · **FROZEN** after the fixture gate.
 
-A silent change here costs an hour neither owner has. If it must change, both owners agree out loud first, and the change is **appended, never reordered**.
+A silent change here costs an hour nobody has. If it must change, agree it first, and **append, never reorder**.
 
 ## Unit of evaluation
 

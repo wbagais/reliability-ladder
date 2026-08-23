@@ -53,7 +53,7 @@ Currently the rung-order ablation is a no-op: with rungs 3–6 absent, both orde
 ## Rules
 
 - **Append-only.** Never reorder or delete keys.
-- Edited in a **joint block** — it is the one file both owners have reason to touch, and the likeliest conflict in the repo.
+- Edited **deliberately** — it is the file most likely to be touched from two directions at once, and the likeliest conflict in the repo.
 - A `_note` key beside a setting is normal and expected: the reasoning travels with the value.
 
 ## Related

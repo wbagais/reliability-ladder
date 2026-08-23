@@ -68,7 +68,7 @@ RUNG_NAMES = {
 
 
 def load_rung(n: int):
-    """Import `ladder.rungs.rN`, or None if that owner has not written it yet.
+    """Import `ladder.rungs.rN`, or None if that rung has not been written yet.
 
     A missing rung is reported, never faked. Half a ladder honestly labelled is
     a result; a ladder with a silently absent rung is not.

@@ -4,8 +4,8 @@ Corpus version, vocabulary release, seed, split sizes, gold rule, rung order,
 rung parameters. Reproducibility and honesty are the same file: if a setting can
 move a published number, it belongs here rather than in a default argument.
 
-Append-only, and edited only in a joint block — it is the one file both owners
-have a reason to touch, which makes it the likeliest conflict in the repo.
+Append-only, and edited deliberately — it is the file most likely to be touched
+from two directions at once, which makes it the likeliest conflict in the repo.
 """
 
 from __future__ import annotations

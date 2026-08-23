@@ -1,11 +1,11 @@
 """The step-3 gate: ten hand-made records through ledger, registry and rung 1,
 with several deliberately broken. "This gate is worth being late for."
 
-The point is not coverage — tests/ does coverage. The point is that both owners
-watch the same ten records go through the harness and agree that a broken record
-comes out rejected with the RIGHT reason, before anybody writes a rung. A ledger
-that is wrong poisons every number above it, and by the time you notice, every
-rung has to be re-run.
+The point is not coverage — tests/ does coverage. The point is that everyone
+watches the same ten records go through the harness and agrees that a broken
+record comes out rejected with the RIGHT reason, before anybody writes a rung.
+A ledger that is wrong poisons every number above it, and by the time you
+notice, every rung has to be re-run.
 
     python -m ladder.run gate
 

@@ -1,7 +1,7 @@
 """The A/B contract: one mention record, and the zones it can occupy.
 
 FROZEN after the step-3 fixture gate. A silent change here is the one thing
-that costs an hour neither owner has — if it must change, both owners agree
+that costs an hour nobody has — if it must change, everyone agrees
 out loud first and the change is appended, never reordered.
 
 Unit of evaluation is ONE MENTION, not one document. A document yields many

@@ -1,8 +1,12 @@
-"""One file per rung, one owner per file.
+"""One file per rung. Rung ID equals execution position.
 
-A (the spine, deterministic):  r1.py  r5.py
-B (the model surface):         r0.py  r2.py  r4.py  r3.py
-Joint:                         r6.py
+    r0  bare LLM          r3  voting
+    r1  deterministic     r4  LLM-as-judge
+    r2  self-correction   r5  abstention
+                          r6  human-in-the-loop
+
+Deterministic, no model call:  r1.py  r5.py
+Model-facing:                  r0.py  r2.py  r3.py  r4.py
 
 Every rung implements the same signature — `schemas.runner.Rung`,
 `apply(records, sources, cfg) -> records` — which is what makes adding a rung

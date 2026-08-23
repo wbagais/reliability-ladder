@@ -55,7 +55,7 @@ Reverse none of these silently. Each is recorded in `docs/decisions.md` with the
 - **Cost is three measures.** Tokens, latency p95, human minutes. Never fused into a currency figure.
 - **One accounting path.** Everything reported is a `GROUP BY` over [[ledger]]. Two accounting paths is how a benchmark gets two numbers for one run.
 - **One file per rung.** A rung is registered by adding `ladder/rungs/rN.py`; `run.py` is never edited to register one.
-- **Schemas append, never reorder.** `schema.py` enums are the contract between owners.
+- **Schemas append, never reorder.** `schema.py` enums are the contract every rung reads.
 
 ## Module map
 

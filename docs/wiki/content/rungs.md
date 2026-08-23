@@ -4,15 +4,15 @@ Each rung is one reliability layer. The point is the **marginal** contribution o
 
 ## The seven rungs
 
-| Rung | Layer | Mechanism | Extra cost | Owner | State |
-|---|---|---|---|---|---|
-| 0 | [[r0]] bare LLM | one call, JSON, temp 0 | 1 call/item | B | in progress |
-| 1 | [[r1]] deterministic | schema · span · negation · code exists · semantic type · MedDRA | **none** | A | done |
-| 2 | [[r5]] abstention | decline what is unresolved, or below τ | none | A | done |
-| 3 | [[r2]] self-correction | one bounded retry, fired only by a rung 1 failure | +1 call | B | not started |
-| 4 | [[r4]] LLM-as-judge | second model, different family | +1 call | B | not started |
-| 5 | [[r3]] voting | k samples, majority on the normalised code | k calls | B | not started |
-| 6 | [[r6]] human-in-the-loop | a person settles it | human minutes | joint | not started |
+| Rung | Layer | Mechanism | Extra cost | State |
+|---|---|---|---|---|
+| 0 | [[r0]] bare LLM | one call, JSON, temp 0 | 1 call/document | built |
+| 1 | [[r1]] deterministic | schema · span · negation · code exists · semantic type · MedDRA | **none** | done |
+| 2 | [[r2]] self-correction | one bounded retry, fired only by a rung 1 failure | +1 call | built |
+| 3 | [[r3]] voting | k samples, majority on the normalised code | k calls/document | built |
+| 4 | [[r4]] LLM-as-judge | second model, different family | +1 call | built |
+| 5 | [[r5]] abstention | decline what is unresolved, or below τ | **none** | done |
+| 6 | [[r6]] human-in-the-loop | a person settles it | human minutes | not started |
 
 ## Execution order
 
