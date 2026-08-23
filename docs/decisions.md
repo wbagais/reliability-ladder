@@ -966,3 +966,46 @@ arithmetic is not — it fails at every size, which is what `rung0_offsets:
 "search"` exists to bypass. Every rejection so far reads `span_ungrounded`, so
 the code quality underneath is invisible in the verdict; the report's
 "hidden by check order" column is the only place it shows.
+
+## 2026-08-23 — one team; rung 0 becomes a rung
+
+**The A/B owner split is retired from the live files.** It did its job — whole
+files to one person each, a fixed rung interface between them — and the repo now
+has all seven rung slots and no reason to keep the boundary. Removed from the
+code, the plan, the wiki and the READMEs. NOT removed from this log, the build
+log or the dated handoffs: those are records of what was true when written, and
+rewriting them would make the provenance worse, not better. The plan's §5 and
+§8.2 are now organised by mental model — the spine, the model surface, the
+contracts — because that was always the load-bearing part of the split. Whose
+name was on a file was not.
+
+**`rung0_ab.py` is gone; `ladder/rungs/r0.py` holds both the rung and the
+ablation.** Rung 0 was the only rung living outside `rungs/`, which is why it
+could be measured but not run: `run.py` dispatches on `ladder/rungs/rN.py`, so
+rung 0 was permanently "not implemented" while a complete implementation sat one
+directory away. `apply()` is the rung entry point and takes an EMPTY record list
+— it raises rather than appending if handed a populated one, since rung 0 twice
+over a split doubles every mention and every number above it. `run()` /
+`compare()` are the ablation, calling the same `rung0()`, so the experiment and
+the rung cannot drift apart. Five importers repointed.
+
+**`--limit N` announces itself.** A run on 1 of 40 documents is a different
+experiment from a run on dev, so the flag prints the truncation and names the
+documents. A smoke number filed as a split number is the easiest lie to tell by
+accident.
+
+**First full 0→6 run, entirely local, one dev document (ARTHROTEC.107).** Order
+`[0,1,3,5,4,2,6]`; only rung 6 reported missing. Rung 0 emitted 3 mentions, rung
+1 rejected all 3 `span_ungrounded`, rungs 3/5/4 moved nothing, rung 2 abstained
+on all 3. Coverage 1.0 → 0.0.
+
+**The default extractor could not parse its own output, and the swap is the
+finding.** `ollama/gpt-oss:20b` is a reasoning model: on rung 0 it spent the
+full 2000-token ceiling on thinking and never closed the JSON, so
+`parse_failed=1` and zero records — a ladder that runs perfectly over nothing.
+Extractor moved to `ollama/ibm/granite4:micro-h`, which parses, and gpt-oss took
+the judge seat, where a short verdict fits the budget. This keeps rung 4's
+different-family rule satisfied with two local models and no corpus text
+leaving the machine. Worth stating plainly: reasoning models and a strict JSON
+contract interact badly, and the failure looks like an empty result rather than
+an error.

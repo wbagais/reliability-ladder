@@ -1,5 +1,5 @@
 """
-stub_llm.py — the model client rung0_ab.py runs against.
+stub_llm.py — corpus loading for the rung 0 entry point.
 
 Two functions, and deliberately nothing else:
 
@@ -9,7 +9,7 @@ Two functions, and deliberately nothing else:
 WHAT THIS FILE MUST NOT DO
 --------------------------
 No repair of model output. No stripping code fences, no extracting the first
-{...}, no retry on malformed JSON. rung0_ab.py counts a parse failure as rung
+{...}, no retry on malformed JSON. rung 0 counts a parse failure as rung
 0's counter-metric — quietly fixing them here deletes the measurement and makes
 rung 0 look better than it is.
 
@@ -37,7 +37,7 @@ MODEL = os.environ.get("LADDER_MODEL", "granite4:micro-h")
 HOST = os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434")
 TIMEOUT = int(os.environ.get("LADDER_TIMEOUT", "180"))
 
-# Every call's latency, in order. rung0_ab aggregates tokens itself; it has no
+# Every call's latency, in order. rung 0 aggregates tokens itself; it has no
 # per-call hook for time, so p95 is taken from here after the run.
 LATENCIES: list[float] = []
 

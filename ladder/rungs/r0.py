@@ -1,46 +1,69 @@
-"""
-rung0_ab.py — the rung 0 ablation: does a vocabulary lookup tool help?
+"""Rung 0 — the bare LLM. One call per document. Everything else is measured
+against this.
 
-THE RULE: one implementation, one flag. Modes A and B share every line except
-the tool block. Two implementations would confound tool access with prompting.
+Rung 0 is the one rung handed an EMPTY record list: it receives the split's
+`sources` and returns the records every other rung then routes. Rungs 1-6 judge,
+correct, vote on and abstain from what this rung produced; none of them can
+create a mention.
 
-    python -m ladder.rung0_ab --mode A       # recall only  (manifest default)
-    python -m ladder.rung0_ab --mode B       # search tool
-    python -m ladder.rung0_ab --compare      # both, side by side
+    raw, usage = cfg["llm"](prompt, source, mode)
+
+The model is never chosen here. `run.py` resolves it once from
+`manifest.model.extractor` and injects `cfg["llm"]` — see `ladder.llm.for_rung`.
+
+MODES. Rung 0 has an ablation built in, and the rule is one implementation, one
+flag: modes A and B share every line except the tool block, because two
+implementations would confound tool access with prompting.
+
+    A  recall only — the model emits a SNOMED code from its own knowledge
+    B  search tool — the model is given a vocabulary lookup first
 
 `rung0_mode` in manifest.json decides which is the headline and which is the
-ablation. Whichever you pick changes what every number above it means, so it
-lives in the manifest rather than in a flag default.
+ablation. `--compare` at the bottom of this file runs them side by side.
 
-What this file used to own, and no longer does
------------------------------------------------
-It had its own `Rec` dataclass, its own `rung1()` and its own `REASONS` list.
-All three are gone, because a second implementation of the frozen contract is
-how a project ends up with two different numbers for the same run — and because
-that rung 1 reproduced three faults the measured one had already fixed:
+WHAT RUNG 0 IS ACTUALLY ASKED TO DO, and how the four parts fail differently:
 
-  * it rejected on negation, which costs 427 gold-correct mentions (4.7%):
-    CADEC annotates a mention regardless of polarity
-  * it rejected any code the hierarchy could not place, which is every RETIRED
-    concept — another 413 gold mentions
-  * it had two outcomes (REJECT / PASS), so it could not express "plausible but
-    unverifiable", which is where 57% of even a perfect answer set lands
+    find     which spans are adverse reactions
+    quote    the reporter's exact words          — reliable
+    locate   character offsets of that quote     — fails at every model size
+    code     the SNOMED concept id               — scales with the model
 
-Records are `ladder.schema.Record`, validation is `ladder.rungs.r1`, and reason
-names come from `ladder.schema.REJECT_REASONS`. See docs/decisions.md.
+Measured on ARTHROTEC.1, mode A: claude-haiku-4-5 got 2 of 3 codes real and
+0 of 3 offsets right; granite4:micro-h got 0 of 2 codes and 0 of 2 offsets, and
+0 of 26 codes across ten dev documents. Quoting is near-perfect for both (77%
+verbatim over the ten documents) while offset arithmetic fails regardless of
+size — which is what `rung0_offsets: "search"` exists to bypass, since a span
+the model quoted correctly can be located by string search instead of trusting
+its character count.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
-import sys
 import time
+from typing import Any
 
 from ladder import vocab
 from ladder.ledger import Ledger
 from ladder.rungs import r1
-from ladder.schema import REACTION, REJECT_REASONS, Record, ZONE_ACCEPT, ZONE_BAND, ZONE_REJECT
+from ladder.schema import (
+    REACTION,
+    REJECT_REASONS,
+    Record,
+    ZONE_ACCEPT,
+    ZONE_BAND,
+    ZONE_REJECT,
+)
+
+RUNG = 0
+
+DEFAULTS: dict[str, Any] = {
+    #: "model" trusts the offsets the model emitted; "search" discards them and
+    #: locates span_text in the source. See the module docstring.
+    "rung0_offsets": "model",
+    "rung0_mode": "recall",
+}
 
 # ------------------------------------------------------------------ prompts
 BASE = """Extract every adverse reaction the reporter describes in the post below.
@@ -72,7 +95,6 @@ def build_prompt(mode: str) -> str:
     )
 
 
-# ------------------------------------------- rung 0 — the only LLM call here
 def recover_offsets(span_text: str, source: str, claimed: tuple[int, int]) -> tuple[int, int, str]:
     """Locate span_text in source. Returns (start, end, how).
 
@@ -100,7 +122,7 @@ def recover_offsets(span_text: str, source: str, claimed: tuple[int, int]) -> tu
 
 
 def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record], dict]:
-    """Identical for A and B except that B may call the tool first."""
+    """One document, one model call. Identical for A and B except the tool block."""
     meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
     raw, usage = llm(build_prompt(mode), text, mode)
     meta["tokens_in"] += usage["in"]
@@ -119,10 +141,9 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
         start, end = m.get("start", -1), m.get("end", -1)
         how = "model"
         if offsets_mode == "search":
-            start, end, how = recover_offsets(
-                m.get("span_text", ""), text, (start, end)
-            )
-            meta["offsets_" + how.split("_")[0]] = meta.get("offsets_" + how.split("_")[0], 0) + 1
+            start, end, how = recover_offsets(m.get("span_text", ""), text, (start, end))
+            key = "offsets_" + how.split("_")[0]
+            meta[key] = meta.get(key, 0) + 1
         rec = Record(
             doc_id=doc_id,
             entity_type=REACTION,
@@ -153,6 +174,91 @@ def honoured_tool(rec: Record) -> bool | None:
         return None
     return str(rec.sct) in {str(r["code"]) for r in results}
 
+
+def apply(
+    records: list[Record], sources: dict[str, str], cfg: dict[str, Any]
+) -> tuple[list[Record], dict]:
+    """The rung entry point. `records` is EMPTY — rung 0 builds from `sources`.
+
+    Refuses to run on a non-empty list rather than appending to it: rung 0 twice
+    over the same split would double every mention and every number above it.
+    """
+    cfg = {**DEFAULTS, **(cfg or {})}
+    if records:
+        raise RuntimeError(
+            f"rung 0 was handed {len(records)} existing records. It is the rung "
+            "that CREATES them, so running it over a populated set would double "
+            "the mention count. Run it first, or not at all."
+        )
+    llm = cfg.get("llm")
+    if llm is None:
+        raise RuntimeError(
+            "rung 0 has no model. Skipping silently would report an empty "
+            "extraction as a result. Set manifest.model.extractor."
+        )
+    ledger = cfg.get("ledger")
+    mode = "B" if cfg.get("rung0_mode") == "search" else "A"
+
+    agg: dict[str, Any] = {
+        "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
+        "tool_calls": 0, "parse_failed": 0, "t0": time.time(),
+    }
+    out: list[Record] = []
+    for doc_id, text in sources.items():
+        t0 = time.time()
+        got, meta = rung0(doc_id, text, mode, llm, cfg)
+        elapsed_ms = (time.time() - t0) * 1000
+        agg["documents"] += 1
+        agg["parse_failed"] += int(meta.get("parse_failed", False))
+        for k in ("tokens_in", "tokens_out", "tool_calls"):
+            agg[k] += meta.get(k, 0)
+        for rec in got:
+            rec.checks["honoured_tool"] = honoured_tool(rec)
+        # One ledger row per DOCUMENT, not per record: rung 0's unit of cost is
+        # the call, and a document that produced no mentions still cost one.
+        if ledger:
+            ledger.log(
+                rung=RUNG,
+                doc_id=doc_id,
+                record_id=doc_id,
+                zone="NEW",
+                outcome="parse_failed" if meta.get("parse_failed") else "extracted",
+                reason="json_decode" if meta.get("parse_failed") else None,
+                tokens_in=meta["tokens_in"],
+                tokens_out=meta["tokens_out"],
+                api_calls=1,
+                latency_ms=elapsed_ms,
+                mode=mode,
+                mentions=len(got),
+            )
+        out += got
+
+    agg["records"] = len(out)
+    agg["seconds"] = round(time.time() - agg["t0"], 2)
+    return out, agg
+
+
+def report_run(agg: dict) -> None:
+    n, docs = agg["records"], agg["documents"]
+    print(f"\n{'=' * 58}\nRUNG 0 — bare LLM\n{'=' * 58}")
+    print(f"  documents             {docs}")
+    print(f"  mentions emitted      {n}  ({n / docs if docs else 0:.1f} per document)")
+    print(f"  JSON parse failures   {agg['parse_failed']}")
+    print(f"  tokens {agg['tokens_in'] + agg['tokens_out']:6d}   "
+          f"tool calls {agg['tool_calls']:3d}   {agg['seconds']}s")
+
+
+# ============================================================================
+# THE ABLATION — does a vocabulary lookup tool help?
+#
+# Was ladder/rung0_ab.py. Folded in here so the rung and the experiment over it
+# cannot drift apart: `run()` calls the same `rung0()` that `apply()` calls, and
+# then the ONE measured rung 1, never a second copy of either.
+#
+#     python -m ladder.rungs.r0 --mode A       # recall only
+#     python -m ladder.rungs.r0 --mode B       # search tool
+#     python -m ladder.rungs.r0 --compare      # both, side by side
+# ============================================================================
 
 # ------------------------------------------------------------------ harness
 def run(items, mode, llm, cfg=None):
@@ -245,15 +351,15 @@ def compare(a, b):
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
+    ap = argparse.ArgumentParser(description="rung 0 — the bare LLM, and the tool ablation over it")
     ap.add_argument("--mode", choices=["A", "B"])
     ap.add_argument("--compare", action="store_true")
     ap.add_argument("--manifest", default="manifest.json")
     ap.add_argument(
         "--model",
-        help="provider/model from ladder/models.yaml. Defaults to the manifest's "
-        "rung0_model, then to a local ollama model — a hosted provider sends "
-        "CADEC text off the machine and needs LADDER_ALLOW_REMOTE=1",
+        help="provider/model from ladder/models.yaml. Defaults to "
+        "manifest.model.extractor, then to a local ollama model — a hosted "
+        "provider sends CADEC text off the machine and needs LADDER_ALLOW_REMOTE=1",
     )
     a = ap.parse_args(argv)
 
@@ -263,24 +369,13 @@ def main(argv: list[str] | None = None) -> int:
     man = load_manifest(a.manifest)
     cfg = dict(man["rungs"].get("1", {}))
     cfg["registry"] = Registry(man["vocabulary"]["snomed_db"])
-    cfg["ledger"] = Ledger(f"{man['output']['dir']}/rung0_ab.ledger.jsonl", run_id="rung0_ab")
+    cfg["ledger"] = Ledger(f"{man['output']['dir']}/r0_ab.ledger.jsonl", run_id="r0_ab")
 
-    try:
-        from ladder.llm import for_rung
-        from ladder.stub_llm import load_items
+    from ladder.llm import for_rung
+    from ladder.stub_llm import load_items
 
-        stub = for_rung(0, man, a.model)
-        print(f"[rung0] model={stub.spec} ({stub.role})")
-    except ModuleNotFoundError:
-        return int(
-            bool(
-                sys.stderr.write(
-                    "ladder/stub_llm.py is not in the repo yet — it is the client this\n"
-                    "module runs against. Supply `stub(prompt, text, mode) -> (raw, usage)`\n"
-                    "and `load_items(path) -> [{doc_id, text}]`, or drive run() directly.\n"
-                )
-            )
-        )
+    stub = for_rung(0, man, a.model)
+    print(f"[rung0] model={stub.spec} ({stub.role})")
 
     items = load_items(man["corpus"]["splits_dir"])
     if a.compare:

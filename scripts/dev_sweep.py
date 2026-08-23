@@ -14,7 +14,7 @@ import json, os, pathlib, time
 from collections import Counter
 
 from ladder.registry import Registry
-from ladder.rung0_ab import run, report
+from ladder.rungs.r0 import run, report
 from ladder import stub_llm as S
 
 man = json.loads(pathlib.Path("manifest.json").read_text())

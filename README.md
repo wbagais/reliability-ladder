@@ -161,7 +161,7 @@ python -m ladder.vocab_crosscheck --live 40
 ladder/       schema (the A/B contract) · corpus reader + frozen splits ·
               registry (local SNOMED index) · vocab (backend selection + OLS4) ·
               llm (cached model client) · ledger · negation ·
-              rungs/r1 · rungs/r2 · run.py · rung0_ab (the rung-0 ablation) ·
+              rungs/r1 · rungs/r2 · run.py · rungs/r0 (rung + ablation) ·
               fixture (the gate) · calibrate · probe · vocab_crosscheck
 schemas/      the contracts
 data/         meddra_codes.example.csv · splits/ (document IDs only)
@@ -178,9 +178,10 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
 
 - [x] Corpus, frozen splits, vocabulary index, ledger, rung 1, rung 2, harness
 - [x] Both model-free characterisations of rung 1
-- [ ] Rungs 0 / 3 / 4 / 5 and the shared scorer (owner B) — `run.py` reports a
-      missing rung rather than faking it
-- [ ] Rung 6, joint
+- [x] Rungs 0 / 3 / 4 / 5 — the full ladder runs end to end
+- [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns
+      empty rather than guessing, and reports a missing rung rather than faking it
+- [ ] Rung 6
 - [ ] InfoQ article — beats and numbers in `docs/article-iterations.md`
 
 **Retired 2026-08-22:** an earlier data-agnostic track (its pipeline, dashboard,

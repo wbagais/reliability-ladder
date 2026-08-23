@@ -55,10 +55,10 @@ python -m ladder.vocab_crosscheck
 - **Offline by default**, no network. Predicts OLS4's answers from the RF2 `active` and `moduleId` columns.
 - `--live N` verifies against the real service. Validated 40/40. See [[vocabulary]].
 
-## rung0_ab — the tool ablation
+## rung 0 — the tool ablation
 
 ```bash
-python -m ladder.rung0_ab --compare
+python -m ladder.rungs.r0 --compare
 ```
 
 - Mode A (`recall`) vs mode B (`search`). One implementation, one flag.

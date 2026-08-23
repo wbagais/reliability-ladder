@@ -1,4 +1,4 @@
-"""Rung 5 — voting. Owner B. k calls per record. The most expensive rung.
+"""Rung 5 — voting. k calls per record. The most expensive rung.
 
 Sample the extractor k times for the SAME record and take the majority code.
 
@@ -90,7 +90,7 @@ def normalise(code: str | None, registry) -> str:
 
 def sample_document(doc_id: str, text: str, mode: str, llm, cfg: dict):
     """One extractor sample of a whole document, through rung 0's own path."""
-    from ladder.rung0_ab import rung0
+    from ladder.rungs.r0 import rung0
     return rung0(doc_id, text, mode, llm, cfg)
 
 

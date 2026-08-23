@@ -1,4 +1,4 @@
-"""Rung 1 — the deterministic validation layer. Owner A. Zero model calls.
+"""Rung 1 — the deterministic validation layer. Zero model calls.
 
 Rung 1 JUDGES; whether it also ROUTES is a manifest setting.
 
@@ -317,7 +317,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         t0 = time.perf_counter()
         source = sources.get(rec.doc_id, "")
         verdict, reason, checks = zone(rec, source, vocab, params, meddra)
-        # The enumerations in schema.py are the contract owner B reads. Assert
+        # The enumerations in schema.py are the contract every rung reads. Assert
         # against them here so adding a reason without declaring it fails loudly
         # in the fixture gate rather than quietly in a results table.
         assert verdict in VERDICTS, f"rung 1 emitted an undeclared verdict {verdict!r}"

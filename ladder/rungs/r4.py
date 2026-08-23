@@ -1,4 +1,4 @@
-"""Rung 4 — LLM-as-judge. Owner B. +1 call per record.
+"""Rung 4 — LLM-as-judge. +1 call per record.
 
 A SECOND model scores the record. Not the extractor.
 

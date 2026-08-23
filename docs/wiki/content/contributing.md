@@ -29,7 +29,7 @@ git blame --line-porcelain HEAD -- <path> | grep '^author ' | sort | uniq -c | s
 ## Branching
 
 - Branch off `main`. Never commit directly to it.
-- Naming in use: `claude/<topic>-<hash>`, `owner-a-<topic>`, `owner-b-<topic>`.
+- Naming in use: `claude/<topic>-<hash>`, `<topic>-<hash>`.
 - `main` is protected. A passing pipeline is required before merge.
 - Merge requests target `main`. Source branch is deleted on merge.
 

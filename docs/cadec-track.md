@@ -209,7 +209,7 @@ the accuracy columns in `results.csv` are written empty rather than guessed.
 
 Outputs land in `out/<run_id>.{ledger.jsonl,results.csv,records.jsonl,manifest.json}`.
 
-## What owner B needs from this
+## What the model-facing rungs need from this
 
 - **Rung 3's trigger** — `record.checks["r1_verdict"] == "REJECT"`, with the
   fact to state in `checks["r1_reason"]` plus the specific check fields

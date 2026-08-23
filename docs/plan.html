@@ -565,7 +565,7 @@ At n=60 your confidence intervals will be very wide, and adjacent rungs will pro
 </div>
 
 <h2>8. How to build it — step by step</h2>
-<p>Eight steps for iteration 1. <b>A</b> and <b>B</b> mark the owner. Each has a gate; if a gate fails, fix it rather than carrying the fault forward.</p>
+<p>Eight steps for iteration 1. Each has a gate; if a gate fails, fix it rather than carrying the fault forward.</p>
 
 <h3>8.1 Repository layout</h3>
 <pre class="repo">ladder/
@@ -680,27 +680,30 @@ def bootstrap_delta(a, b, n=10_000, seed=42)</pre>
 <div class="gate"><b>Gate:</b> <code>results.csv</code> with <b>seven rows</b> and confidence intervals.</div>
 </div></div>
 
-<h3>8.2 How to split the work</h3>
-<p>Two people, one repo. The split below minimises merge conflicts by giving each person <b>whole files</b>, and gives each one a single mental model to hold.</p>
+<h3>8.2 How the code is organised</h3>
+<p>Not a division of labour — a division of <b>mental models</b>. Each cluster
+below answers one question, and holding one at a time is what keeps the
+contracts between them honest. Whole files stay whole, which is also what keeps
+merges cheap.</p>
 <table>
-<tr><th style="width:12%">Owner</th><th style="width:25%">Owns</th><th style="width:28%">Files</th><th>Mental model</th></tr>
-<tr><td><b>A — the spine</b></td><td>Everything deterministic: ledger, registry, zones, abstention, integration.</td>
+<tr><th style="width:16%">Area</th><th style="width:25%">Covers</th><th style="width:28%">Files</th><th>Mental model</th></tr>
+<tr><td><b>The spine</b></td><td>Everything deterministic: ledger, registry, zones, abstention, integration.</td>
 <td><code>ledger.py</code> · <code>registry.py</code> · <code>rungs/r1.py</code> · <code>rungs/r2.py</code> · <code>run.py</code></td>
 <td>"Records flow through zones and every transition gets logged." No prompts, no model calls.</td></tr>
-<tr><td><b>B — the model surface</b></td><td>Everything that talks to a model, plus scoring.</td>
+<tr><td><b>The model surface</b></td><td>Everything that talks to a model, plus scoring.</td>
 <td><code>score.py</code> · <code>rungs/r0.py</code> · <code>r3.py</code> · <code>r4.py</code> · <code>r5.py</code> · <code>prompts/</code></td>
 <td>"Given records and sources, return better records." No ledger internals, no zone logic.</td></tr>
-<tr><td><b>Joint</b></td><td>Schema, the rung interface, rung 6, analysis.</td>
-<td><code>schema.py</code> · <code>rungs/r6.py</code> · <code>manifest.json</code> · <code>out/decisions.md</code></td>
-<td>Touch together, or agree the change out loud first.</td></tr>
+<tr><td><b>The contracts</b></td><td>Schema, the rung interface, rung 6, analysis.</td>
+<td><code>schema.py</code> · <code>rungs/r6.py</code> · <code>manifest.json</code> · <code>docs/decisions.md</code></td>
+<td>Agree the change before making it.</td></tr>
 </table>
 <div class="note">
-<b>Five rules that make the split work</b>
-<b>1 · <code>schema.py</code> freezes after step 3.</b> It is the contract between A and B. If it must change, both stop and agree out loud — a silent schema change is the one thing that costs an hour you do not have.<br><br>
-<b>2 · Neither person edits the other's files.</b> If B needs a ledger field, B asks A. Bureaucratic for two people sitting together, and exactly what stops a merge eating the analysis window.<br><br>
-<b>3 · Integrate at every joint block.</b> Four merges of fifteen minutes beats one merge of an hour.<br><br>
+<b>Five rules that keep the layout working</b>
+<b>1 · <code>schema.py</code> freezes after step 3.</b> It is the contract every rung reads. If it must change, everything stops and the change is agreed first — a silent schema change is the one thing that costs an hour you do not have.<br><br>
+<b>2 · No rung reaches into another rung.</b> A rung sees its records, its sources and its <code>cfg</code>. It never imports a sibling and never picks its own model — <code>run.py</code> resolves that once, from the manifest.<br><br>
+<b>3 · Integrate often.</b> Four merges of fifteen minutes beats one merge of an hour.<br><br>
 <b>4 · Append, never reorder.</b> New ledger fields go on the end. New rungs go in new files. Reordering a dict or a CSV column is a guaranteed conflict for zero benefit.<br><br>
-<b>5 · <code>manifest.json</code> is append-only too</b>, and only ever edited during a joint block. It is the one file both of you have a reason to touch, which makes it the most likely conflict in the repo.
+<b>5 · <code>manifest.json</code> is append-only too.</b> It is the file most likely to be touched from two directions at once, which makes it the most likely conflict in the repo.
 </div>
 
 <h4 style="font-size:11pt;margin:18px 0 6px">Conflict map — what actually collides</h4>
@@ -711,7 +714,7 @@ def bootstrap_delta(a, b, n=10_000, seed=42)</pre>
 <tr><td><code>run.py</code></td><td>A, with B's rungs</td><td style="color:#b80">medium</td><td>A owns it. B registers a rung by adding a file and telling A the import line — B never edits <code>run.py</code>.</td></tr>
 <tr><td><code>ledger.py</code> · <code>registry.py</code></td><td>A only</td><td style="color:#2a2">low</td><td>Owned outright.</td></tr>
 <tr><td><code>score.py</code> · <code>prompts/</code></td><td>B only</td><td style="color:#2a2">low</td><td>Owned outright.</td></tr>
-<tr><td><code>rungs/r*.py</code></td><td>one owner each</td><td style="color:#2a2">low</td><td>One file per rung, one owner per file. This is why the fixed rung interface matters.</td></tr>
+<tr><td><code>rungs/r*.py</code></td><td>one file each</td><td style="color:#2a2">low</td><td>One file per rung. This is why the fixed rung interface matters.</td></tr>
 <tr><td><code>out/ledger.jsonl</code></td><td>both, at runtime</td><td style="color:#a33">high</td><td><b>Gitignore it.</b> Never commit run output — it changes on every run and merges are meaningless.</td></tr>
 </table>
 <div class="note warn">
@@ -954,7 +957,7 @@ The corpus is licensed <b>non-commercial and non-transferable, with no redistrib
 │   ├── client.py  cache.py   #   model calls, disk cache
 │   ├── vocab.py              #   SNOMED via OLS4 + MedDRA local  ← global resource
 │   ├── normalize.py  flatten.py  prompts.py
-│   ├── rungs/                #   r0 … r6, one file per rung, one owner per file
+│   ├── rungs/                #   r0 … r6, one file per rung
 │   ├── metrics.py  diagnostics.py  calibration.py  outputs.py
 │   ├── corpus.py             #   CADEC reader + frozen splits
 │   ├── models.yaml           #   model registry + prices
@@ -1084,22 +1087,25 @@ cp docs/plan.html index.html && git add index.html && git commit && git push</pr
 SNOMED and MedDRA are <b>global</b> resources, not per-item <code>trusted_record</code> fields. The runner needs a <code>resources</code> hook injected once per run rather than per item. That is the only change to the contracts — and it is what lets rung 1 do code existence and semantic-type checks at all.
 </div>
 
-<h2>5. Two people, one repo</h2>
+<h2>5. One repo, shared</h2>
+<p>The layout below is not a division of labour — it is a division of <b>mental
+models</b>. Each cluster of files answers one question, and holding one at a
+time is what keeps the contracts between them honest.</p>
 <table>
-<tr><th style="width:12%">Owner</th><th style="width:32%">Files</th><th>Mental model</th></tr>
-<tr><td><b>A</b></td><td><code>ledger</code> · <code>vocab</code> · <code>rungs/r1</code> · <code>rungs/r2</code> · <code>cli</code></td><td>"Records flow through zones and every transition is logged." No prompts.</td></tr>
-<tr><td><b>B</b></td><td><code>metrics</code> · <code>rungs/r0,r3,r4,r5</code> · <code>prompts/</code></td><td>"Given records and sources, return better records." No ledger internals.</td></tr>
-<tr><td><b>Joint</b></td><td><code>schemas/</code> · <code>rungs/r6</code> · <code>manifest.json</code> · <code>decisions.md</code></td><td>Agree out loud before either of you types.</td></tr>
+<tr><th style="width:16%">Area</th><th style="width:32%">Files</th><th>Mental model</th></tr>
+<tr><td><b>The spine</b></td><td><code>ledger</code> · <code>vocab</code> · <code>rungs/r1</code> · <code>rungs/r2</code> · <code>cli</code></td><td>"Records flow through zones and every transition is logged." No prompts.</td></tr>
+<tr><td><b>The model surface</b></td><td><code>metrics</code> · <code>rungs/r0,r3,r4,r5</code> · <code>prompts/</code></td><td>"Given records and sources, return better records." No ledger internals.</td></tr>
+<tr><td><b>The contracts</b></td><td><code>schemas/</code> · <code>rungs/r6</code> · <code>manifest.json</code> · <code>decisions.md</code></td><td>Agree out loud before anyone types.</td></tr>
 </table>
 <table>
 <tr><th style="width:26%">File</th><th style="width:16%">Conflict risk</th><th>Rule</th></tr>
-<tr><td><code>schemas/*</code></td><td style="color:#a33">high</td><td>Frozen after the fixture test. Any change is a joint decision.</td></tr>
-<tr><td><code>manifest.json</code></td><td style="color:#a33">high</td><td>Append-only, edited in joint blocks only.</td></tr>
+<tr><td><code>schemas/*</code></td><td style="color:#a33">high</td><td>Frozen after the fixture test. Any change is agreed first.</td></tr>
+<tr><td><code>manifest.json</code></td><td style="color:#a33">high</td><td>Append-only, edited deliberately.</td></tr>
 <tr><td><code>results/</code> · caches</td><td style="color:#a33">high</td><td><b>Gitignored.</b> Never commit run output — it changes every run and merges are meaningless.</td></tr>
-<tr><td><code>cli.py</code></td><td style="color:#b80">medium</td><td>A owns it. B registers a rung by adding a file and telling A the import line.</td></tr>
-<tr><td><code>rungs/r*.py</code></td><td style="color:#2a2">low</td><td>One file per rung, one owner per file.</td></tr>
+<tr><td><code>cli.py</code></td><td style="color:#b80">medium</td><td>A rung registers itself by existing: add <code>rungs/rN.py</code> and the runner picks it up.</td></tr>
+<tr><td><code>rungs/r*.py</code></td><td style="color:#2a2">low</td><td>One file per rung. This is why the fixed rung interface matters.</td></tr>
 </table>
-<p><b>No feature branches.</b> Work on <code>main</code>, commit small, <code>pull --rebase</code> before every push. Disjoint file ownership makes rebases clean; branch overhead costs more than it saves at this scale.</p>
+<p><b>Branch, don't push to <code>main</code>.</b> Commit small, <code>pull --rebase</code> before every push. Disjoint files make rebases clean; the fixed rung interface is what keeps them disjoint.</p>
 
 <h2>6. Deployment checklist</h2>
 <table>
@@ -1912,7 +1918,7 @@ const ITER=[
  what:"The ladder flow stopped and the iterations tab came out empty. Root cause: index-slice edits that ran from one function to a marker <i>after</i> the FLOW module, deleting it. The follow-up insert then failed silently because <code>str.replace</code> does not raise when its target is missing.",
  why:"Two lessons, both of which apply to the ladder itself. <b>A silent failure is worse than a loud one</b> &mdash; the deletion produced valid JavaScript that parsed cleanly and simply did nothing. And <b>a deterministic check is cheap</b>: v12 asserts every edit matches exactly once, and verifies the module is still present afterwards. That is rung 1 applied to our own build."},
 {v:"17",t:"Technical architecture",kind:"build",when:"deploy",
- what:"New Architecture tab: the three planes (data / results / presentation), full repository layout with a commit-or-never table, local build commands, Streamlit Cloud and GitHub Pages hosting configs, the three contracts, the two-person file ownership map, and a nine-step deployment checklist.",
+ what:"New Architecture tab: the three planes (data / results / presentation), full repository layout with a commit-or-never table, local build commands, Streamlit Cloud and GitHub Pages hosting configs, the three contracts, the file layout map, and a nine-step deployment checklist.",
  why:"The licence decides the architecture, not the other way round. The corpus is non-transferable, so the benchmark runs locally and only derived results are published \u2014 which makes the hosted app <b>structurally incapable</b> of leaking the corpus rather than merely configured not to. Writing this down before deploying is cheaper than discovering a post text in git history afterwards, because history is permanent."},
 {v:"16",t:"The band construct removed",kind:"cut",when:"scope",
  what:"Section 2 (\u201cThe ambiguous band\u201d) deleted. Rung 1 is now described as what it is \u2014 a <b>validation gate</b> with two outcomes, rejected or passed. A <b>negation check</b> added as rung 1 check 3. New \u00a72.1 settles what rung 0 is allowed to do. Every chart, metric and the flow animation rebuilt around <b>rung 1 rejection rate</b> instead of band occupancy.",

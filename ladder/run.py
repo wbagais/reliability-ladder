@@ -1,5 +1,5 @@
-"""The pipeline. Owner A owns this file; owner B registers a rung by adding
-`ladder/rungs/rN.py` and telling A the rung number — B never edits run.py.
+"""The pipeline. A rung registers itself by existing: add `ladder/rungs/rN.py`
+and the runner picks it up. Nothing else needs editing to add one.
 
     python -m ladder.run init                       # step 0: splits + manifest check
     python -m ladder.run gate                       # step 3: the fixture gate
@@ -82,7 +82,7 @@ def load_rung(n: int):
 
 
 def load_scorer(spec: str | None) -> Callable[[Record, Any], bool] | None:
-    """`module:function` — owner B's shared scorer, injected rather than imported.
+    """`module:function` — the shared scorer, injected rather than imported.
 
     Without it the run still produces every cost and zone number; the accuracy
     columns are written empty rather than guessed.
@@ -396,7 +396,7 @@ def cmd_gate(a) -> int:
 
 
 NO_RUNG0 = (
-    "rung 0 is not implemented yet (owner B). Run against a prediction\n"
+    "rung 0 is not implemented yet. Run against a prediction\n"
     "file with --predictions out/r0.jsonl, or measure the deterministic\n"
     "gate's own error floor with --source gold."
 )
@@ -415,6 +415,14 @@ def cmd_ladder(a) -> int:
     man = load_manifest(a.manifest)
     docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
     rungs = _parse_rungs(a.rungs)
+    if getattr(a, "limit", 0):
+        # Always announced. A truncated split is a different experiment from the
+        # split, and a number produced on 1 of 40 documents must never be filed
+        # as a number on dev.
+        doc_ids = doc_ids[: a.limit]
+        sources = {d: sources[d] for d in doc_ids}
+        print(f"[run] LIMIT {a.limit}: {a.split} truncated to {doc_ids} — "
+              "a smoke run, not a split result")
 
     if a.source == "gold":
         records = gold_as_records(docs, doc_ids)
@@ -453,7 +461,7 @@ def cmd_ladder(a) -> int:
     if result["missing_rungs"]:
         print(f"\nNOT IN THIS RUN: rungs {result['missing_rungs']} (not implemented)")
     if scorer is None:
-        print("NO SCORER: accuracy columns are empty. Wire ladder/score.py (owner B).")
+        print("NO SCORER: accuracy columns are empty. Wire ladder/score.py.")
     print(f"\nwrote {out_dir}/{run_id}.*")
     return 0
 
@@ -535,7 +543,7 @@ def cmd_ablate(a) -> int:
     if missing:
         print(f"\nNOT IN THIS ABLATION: rungs {missing} (not implemented)")
     if scorer is None:
-        print("NO SCORER: accuracy columns are empty. Wire ladder/score.py (owner B).")
+        print("NO SCORER: accuracy columns are empty. Wire ladder/score.py.")
     print(
         "\nEach row is that rung applied to the SAME input, not to the row above it.\n"
         f"wrote {out_dir}/{run_id}.*"
@@ -582,7 +590,10 @@ def main(argv: list[str] | None = None) -> int:
         p.add_argument("--split", default="test")
         p.add_argument("--rungs", default="0-6")
         p.add_argument("--source", default="model", choices=["model", "gold"])
-        p.add_argument("--predictions", help="JSONL of rung-0 records (owner B's output)")
+        p.add_argument("--predictions", help="JSONL of rung-0 records")
+        p.add_argument("--limit", type=int, default=0,
+                       help="run on the first N documents of the split. A smoke "
+                            "run: the result is not a result for the split")
         p.add_argument("--scorer", help="module:function, defaults to ladder.score if present")
         p.add_argument("--run-id")
         return p

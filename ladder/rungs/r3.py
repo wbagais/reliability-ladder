@@ -1,4 +1,4 @@
-"""Rung 3 — self-correction. Owner B. One model call per correctable failure.
+"""Rung 3 — self-correction. One model call per correctable failure.
 
 Rung 3 fires ONLY on a rung 1 failure, and states the reason as a FACT:
 

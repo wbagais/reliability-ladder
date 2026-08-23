@@ -1,4 +1,4 @@
-"""Rung 2 — abstention. Owner A. Zero model calls.
+"""Rung 2 — abstention. Zero model calls.
 
 Rung 2 declines rather than resolves. It runs LAST (order 0-1-3-5-4-2-6):
 abstaining before self-correction and voting have had their turn throws away
@@ -33,7 +33,7 @@ right, and would destroy the only clean abstention target the corpus offers.
 tau is tuned on dev and written into the manifest BEFORE the first test run.
 `sweep()` produces the risk-coverage curve that choice comes from; it takes the
 correctness oracle as an argument rather than importing a scorer, so the one
-shared scorer stays Owner B's file and there is still only one of it.
+shared scorer stays one file and there is still only one of it.
 """
 
 from __future__ import annotations

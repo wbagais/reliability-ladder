@@ -10,8 +10,9 @@ beats — what we tried, what the data contradicted, what we changed — made
 explicit, because those are the parts that cannot be reconstructed later.
 
 Everything here is measured on **CADEC** — patient-reported adverse-event posts,
-normalised to SNOMED CT. Owner A's half of the ladder is built and measured; the
-model-facing rungs (0, 3, 4, 5) are owner B's and outstanding, so every number
+normalised to SNOMED CT. The deterministic half of the ladder is built and
+measured; the model-facing rungs (0, 3, 4, 5) now run but are not yet
+characterised at scale, so every number
 below is a property of the *deterministic* layer, measured against the gold
 standard and against planted errors. That is a narrower claim than a full ladder
 curve, and a stronger one for being checkable.
@@ -462,7 +463,7 @@ result is not clear yet.
    a local release calls 5 of 8,666. Neither implementation is wrong — the source
    decides the answer."*
 
-Still to come, once owner B's rungs land: the marginal cost curve (tokens and
+Still to come: the marginal cost curve (tokens and
 human reviews per prevented error, per rung) — the headline the whole ladder
 exists to produce.
 
@@ -471,7 +472,7 @@ exists to produce.
 - **The MedDRA check cannot be trusted as configured.** Its reference table is
   derived from the answer key. It is reported, not scored, and any number from
   it carries the caveat.
-- **This is half a ladder.** Rungs 0, 3, 4 and 5 are owner B's and outstanding.
+- **This is half a ladder.** Rungs 0, 3, 4 and 5 run, but are not yet characterised at scale.
   Everything in §2 is a property of the *gate*, measured against the gold
   standard and against planted errors — not a model result, and not yet a
   cost curve. Say so; it is a stronger claim for being narrower.
