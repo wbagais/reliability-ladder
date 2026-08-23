@@ -862,13 +862,32 @@ curl -s "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=zenoprofen&max
 The corpus is licensed <b>non-commercial and non-transferable, with no redistribution</b>. It cannot appear in the repository, in a container, in a deployed app, or inside a committed notebook output cell. Everything else follows from that: the benchmark runs locally, and only <i>derived results</i> are ever published.
 </div>
 
+<div class="note warn">
+<b>The gap in the control that constraint depends on</b>
+<code>scripts/preflight.py</code> is the licence gate, and it scans <b>tracked files only</b>. An <code>unzip -d data/</code> once put both corpus archives in the working tree, untracked and unignored, and preflight would not have caught it — the staging step is the one place the gate cannot see. <code>.gitignore</code> is now <code>data/*</code> with an explicit <code>!data/splits/</code> exception, and <code>git status --short</code> before every <code>git add -A</code> is the manual half of the control.
+</div>
+
+<h2>1b. Observability</h2>
+<p>Three layers, and only the first two produced findings.</p>
+<table>
+<tr><th style="width:20%">Layer</th><th style="width:30%">What it records</th><th>Why</th></tr>
+<tr><td><b>Run provenance</b></td><td>Compute backend, SNOMED release, corpus version, model, split, temperature, rung order</td><td>Determinism is bounded by the hardware — the same model and seed produced 176 mentions on CPU and 169 on GPU. Two runs are not comparable without this.</td></tr>
+<tr><td><b>Ledger</b></td><td>One row per record per rung: tokens, calls, latency, outcome, <b>denominator</b>, <b>evaluable</b></td><td>The last two are the ones nothing else models. A rate is meaningless without the set it is over, and <i>could not run</i> is a third outcome that must never collapse into pass or fail.</td></tr>
+<tr><td><b>OTel export</b></td><td>The ledger as OpenTelemetry spans, off unless <code>LADDER_OTEL=1</code></td><td>Optional and off by default: every measured figure was taken without it, and an observability layer that changes what it observes would be an odd thing to ship in this project. Points at any OTLP collector.</td></tr>
+</table>
+
+<div class="note">
+<b>Why the ledger is custom and not a platform</b>
+The open-source LLM tracing tools all model the same unit — the call: prompt, response, tokens, latency, and usually an LLM-judged quality score. None of them models a <b>denominator</b>, and none represents the composition of a comparison set. Rung 4's agreement figure moved 100% → 98% → 49% across three sets with no change in judge behaviour; that movement is invisible in every tool evaluated, because it is not a property of any call. Several also ship LLM-as-judge scoring as the default quality signal, which is the mechanism this project measured returning two constants.
+</div>
+
 <h2>1. The three planes</h2>
 <p>Keep them separate in your head and the deployment questions answer themselves.</p>
 <table>
 <tr><th style="width:14%">Plane</th><th style="width:16%">Runs where</th><th style="width:26%">Touches</th><th>Why it cannot move</th></tr>
 <tr><td><b>Data plane</b></td><td>your machine only</td><td>Corpus text, model calls, LLM cache, vocabulary cache</td><td>Licence forbids redistribution; API keys must not sit in a hosted environment.</td></tr>
-<tr><td><b>Results plane</b></td><td>git</td><td><code>results.json</code> — scores, counts, costs. No document text.</td><td>Derived numbers are yours to publish. This is the artifact.</td></tr>
-<tr><td><b>Presentation plane</b></td><td>Streamlit Cloud · GitHub Pages</td><td>Reads the results plane. Nothing else.</td><td>Public by design, so it must be incapable of holding anything private.</td></tr>
+<tr><td><b>Results plane</b></td><td>git</td><td><code>runs/*.json</code> — scores, counts, costs, each stamped with compute backend, SNOMED release and corpus version. An append-only JSONL <b>ledger</b>, one row per record per rung, carrying tokens, calls, latency, the named denominator the row belongs to, and whether the check passed, failed or <b>could not run</b>. Plus the engineering wiki and <code>decisions.md</code>. No document text, ever.</td><td>Derived numbers are yours to publish. This is the artifact.</td></tr>
+<tr><td><b>Presentation plane</b></td><td>GitLab Pages · GitLab CI</td><td>Reads the results plane. Nothing else.</td><td>Public by design, so it must be incapable of holding anything private.</td></tr>
 </table>
 
 <div class="figure">
@@ -888,7 +907,7 @@ The corpus is licensed <b>non-commercial and non-transferable, with no redistrib
 <text x="14" y="20" class="ah">DATA PLANE — YOUR MACHINE, NEVER LEAVES IT</text>
 <rect x="14" y="28" width="600" height="150" fill="#faf7f7" stroke="#a53b3b" stroke-dasharray="4 3"/>
 <rect x="28" y="44" width="128" height="56" class="ar2"/>
-<text x="38" y="63" class="at">CADEC v3</text><text x="38" y="79" class="as">posts + SCT + MedDRA</text>
+<text x="38" y="63" class="at">CADEC v2</text><text x="38" y="79" class="as">posts + SCT + MedDRA</text>
 <text x="38" y="93" class="as">gitignored, always</text>
 <rect x="170" y="44" width="128" height="56" class="ab"/>
 <text x="180" y="63" class="at">adapter</text><text x="180" y="79" class="as">→ one JSON:</text>

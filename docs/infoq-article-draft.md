@@ -469,6 +469,34 @@ Thermal throttling is the obvious hypothesis. Whatever the cause, p95 latency �
 one of the three cost measures — is contaminated in a way tokens are not, and
 nothing in the run stamp records run position or thermal state.
 
+### The tooling does not model any of this
+
+Partway through, we went looking for an observability platform — the reasonable
+instinct once you have found this many measurement bugs. We evaluated the main
+open-source LLM tracing tools, instrumented a ledger exporter against
+OpenTelemetry, and got spans rendering in a local trace viewer within an hour.
+
+Then we looked at what the views could show. Every platform in this category
+models the same unit: the call. Prompt, response, tokens, latency, p50/p95, and
+usually an LLM-judged quality score. All of that we already had.
+
+Not one of them models a denominator. There is no field for *judged 96 of 169
+offered*, no way to say that a rate belongs to one subset and not another, and
+no representation of a comparison set's composition. The agreement table above —
+the strongest finding here — is invisible in every tool we looked at, because
+the thing that moved was not a property of any call.
+
+Several also ship LLM-as-judge scoring as their default quality signal. Adopting
+one and using it would have put this pipeline's quality gate on the mechanism
+that, three sections ago, returned two constants.
+
+The exporter still went in, with two custom span attributes: which named set a
+row's rate is computed over, and whether the check produced a pass, a fail, or
+could not run at all. Both had to be invented. That is the finding — not that
+the tools are bad, but that the industry's instrumentation vocabulary describes
+what happened to a request and has almost nothing to say about what a number is
+computed over.
+
 ## What deterministic checking can and cannot do
 
 The lookups caught everything above. They are also not a scorer, and the
@@ -535,6 +563,9 @@ outcome — a lookup against a file, and a function that withdraws answers.
 - Keep defects listed, never filtered.
 - Write one test that constructs each component with its accounting attached. A
   green suite over unreachable code is the cheapest lie in the project.
+- If you adopt a tracing platform, check it can express your denominators before
+  you trust its dashboards. Most cannot, and a rate over the wrong base renders
+  as healthy.
 
 ---
 
