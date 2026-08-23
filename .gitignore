@@ -78,3 +78,4 @@ data/*
 # Generated wiki output. Source is docs/wiki/content/; rebuild with
 # python docs/wiki/build.py
 docs/wiki/site/
+*.bak
