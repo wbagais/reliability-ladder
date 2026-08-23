@@ -99,6 +99,24 @@ def _key(rec) -> tuple:
     return (rec.doc_id, tuple(tuple(s) for s in rec.spans))
 
 
+
+def _stamp(ledger, rung: int, sizes: dict[str, int]) -> None:
+    """Write each denominator's SIZE onto the rows that carry its name.
+
+    Sizes are not known until the loop ends, so rows are written with a name
+    only. NOTE: this mutates Ledger.rows in memory; the JSONL line was already
+    flushed, so denominator_n is present in `ledger.rows` and NOT in the file.
+    Making it durable means buffering per rung, which changes Ledger's
+    append-only contract — A's call.
+    """
+    if not ledger:
+        return
+    for row in getattr(ledger, "rows", []):
+        if row.rung == rung:
+            n = sizes.get((row.extra or {}).get("denominator"))
+            if n is not None:
+                row.extra["denominator_n"] = n
+
 def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
     """Vote over k extractor samples. Records the spread; never withdraws.
 
@@ -161,6 +179,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 outcome="sampled", api_calls=k,
                 tokens_in=doc_in, tokens_out=doc_out,
                 latency_ms=(time.time() - doc_t0) * 1000, k=k,
+                denominator="r5_documents", evaluable="pass",
             )
 
     for rec in records:
@@ -188,7 +207,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             if ledger:
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                            zone=rec.zone, reason="not_resampled",
-                           outcome="not_resampled", k=k, seen=0)
+                           outcome="not_resampled", k=k, seen=0,
+                           denominator="r5_voted_on",
+                           evaluable="could_not_run")
             continue
 
         ranked = votes.most_common()
@@ -221,8 +242,12 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
 
         if ledger:
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
-                         reason=None, outcome="tie" if tie else "voted")
+                         reason=None, outcome="tie" if tie else "voted",
+                         denominator="r5_resampled", evaluable="pass")
 
+    _stamp(ledger, RUNG, {"r5_resampled": agg["records"] - agg["not_resampled"],
+                          "r5_voted_on": agg["records"],
+                          "r5_documents": agg["documents"]})
     agg["seconds"] = round(time.time() - agg["t0"], 2)
     agg["spread"] = dict(agg["spread"])
     return records, agg

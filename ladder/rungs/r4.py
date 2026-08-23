@@ -106,6 +106,24 @@ def judge(rec: Record, source: str, llm, cfg: dict) -> tuple[dict | None, dict]:
     }, usage
 
 
+
+def _stamp(ledger, rung: int, sizes: dict[str, int]) -> None:
+    """Write each denominator's SIZE onto the rows that carry its name.
+
+    Sizes are not known until the loop ends, so rows are written with a name
+    only. NOTE: this mutates Ledger.rows in memory; the JSONL line was already
+    flushed, so denominator_n is present in `ledger.rows` and NOT in the file.
+    Making it durable means buffering per rung, which changes Ledger's
+    append-only contract — A's call.
+    """
+    if not ledger:
+        return
+    for row in getattr(ledger, "rows", []):
+        if row.rung == rung:
+            n = sizes.get((row.extra or {}).get("denominator"))
+            if n is not None:
+                row.extra["denominator_n"] = n
+
 def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
     cfg = {**DEFAULTS, **(cfg or {})}
     llm = cfg.get("judge_llm")
@@ -155,7 +173,8 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                            zone=rec.zone, reason="parse_failed",
                            outcome="parse_failed", api_calls=1,
-                           tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0))
+                           tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
+                           denominator="r4_offered", evaluable="could_not_run")
             continue
 
         verdict = "pass" if (v["span_ok"] and v["code_ok"]) else "fail"
@@ -181,8 +200,12 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                          reason=None, outcome="judged", api_calls=1,
                          tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
-                         verdict=verdict)
+                         verdict=verdict,
+                         span_ok=v["span_ok"], code_ok=v["code_ok"],
+                         denominator="r4_judged", evaluable="pass")
 
+    _stamp(ledger, RUNG, {"r4_judged": agg["judged"],
+                          "r4_offered": agg["records"]})
     agg["seconds"] = round(time.time() - agg["t0"], 2)
     agg["verdicts"] = dict(agg["verdicts"])
     agg["r1_verdicts"] = dict(agg["r1_verdicts"])

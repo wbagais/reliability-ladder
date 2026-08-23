@@ -193,6 +193,24 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
     return cand, meta
 
 
+
+def _stamp(ledger, rung: int, sizes: dict[str, int]) -> None:
+    """Write each denominator's SIZE onto the rows that carry its name.
+
+    Sizes are not known until the loop ends, so rows are written with a name
+    only. NOTE: this mutates Ledger.rows in memory; the JSONL line was already
+    flushed, so denominator_n is present in `ledger.rows` and NOT in the file.
+    Making it durable means buffering per rung, which changes Ledger's
+    append-only contract — A's call.
+    """
+    if not ledger:
+        return
+    for row in getattr(ledger, "rows", []):
+        if row.rung == rung:
+            n = sizes.get((row.extra or {}).get("denominator"))
+            if n is not None:
+                row.extra["denominator_n"] = n
+
 def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
     """Correct rung 1's rejections in place, and record what that bought."""
     cfg = {**DEFAULTS, **(cfg or {})}
@@ -219,7 +237,8 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                                 "why": "not a correctable rung 1 rejection"}
             if ledger:
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
-                             reason=reason, outcome="unchanged")
+                             reason=reason, outcome="unchanged",
+                             denominator="r3_offered", evaluable="could_not_run")
             continue
         source = sources.get(rec.doc_id, "")
         agg["attempted"] += 1
@@ -230,10 +249,24 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         if meta.get("parse_failed"):
             agg["parse_failed"] += 1
             rec.checks["r3"] = {"outcome": "parse_failed", "reason": reason}
+            if ledger:
+                # Costs tokens, produces no judgement. Without a row the rung's
+                # accounting drops it — same shape as rung 5's not_resampled.
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
+                           zone=rec.zone, reason=reason, outcome="parse_failed",
+                           tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                           api_calls=1,
+                           denominator="r3_attempted", evaluable="could_not_run")
             continue
         if cand is None:
             rec.checks["r3"] = {"outcome": "skipped", "reason": reason,
                                 "why": meta.get("skipped")}
+            if ledger:
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
+                           zone=rec.zone, reason=reason, outcome="skipped",
+                           tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                           api_calls=1,
+                           denominator="r3_attempted", evaluable="could_not_run")
             continue
 
         # The model declined to re-assert its answer. That is EVIDENCE, not an
@@ -254,7 +287,8 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                              zone=rec.zone, reason=reason, outcome="declined",
                              tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
-                             api_calls=1)
+                             api_calls=1,
+                             denominator="r3_attempted", evaluable="fail")
             continue
 
         if str(cand.sct) == str(rec.sct) and cand.spans == rec.spans:
@@ -264,7 +298,8 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                              reason=reason, outcome="reasserted",
                              tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
-                             api_calls=1)
+                             api_calls=1,
+                             denominator="r3_attempted", evaluable="fail")
             continue
 
         # Re-validate with the ONE measured rung 1, never a second copy.
@@ -295,8 +330,12 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                          reason=new_reason,
                          outcome=rec.checks["r3"]["outcome"],
                          tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
-                         api_calls=1)
+                         api_calls=1,
+                         denominator="r3_attempted",
+                         evaluable="pass" if rescued else "fail")
 
+    _stamp(ledger, RUNG, {"r3_offered": len(records),
+                          "r3_attempted": agg["attempted"]})
     agg["seconds"] = round(time.time() - agg["t0"], 2)
     return records, agg
 
