@@ -170,6 +170,12 @@ def run_ladder(
             split=split,
             llm=caller,
         )
+        # Rung 5 votes by calling the extractor k times, so it needs a SAMPLER,
+        # not the greedy caller: at temperature 0 the disk cache would return
+        # one answer k times and the rung would report unanimity it never
+        # measured. The temperature is the rung's setting; the model is not.
+        if n == 5 and caller is not None:
+            cfg["llm"] = caller.sampler(float(cfg.get("temperature", 0.7)))
         # Rung 4 takes its model under its own keys, and refuses to fall back to
         # the extractor — a model judging its own output measures
         # self-consistency, not correctness. Resolution still happens here.

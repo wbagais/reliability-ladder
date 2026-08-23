@@ -149,6 +149,13 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             agg["parse_failed"] += 1
             rec.checks["r4_verdict"] = None
             rec.checks["r4"] = {"outcome": "parse_failed"}
+            # A parse failure still cost a call. A rung that logs only its
+            # successes reports a cheaper judge than the one that ran.
+            if ledger:
+                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
+                           zone=rec.zone, reason="parse_failed",
+                           outcome="parse_failed", api_calls=1,
+                           tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0))
             continue
 
         verdict = "pass" if (v["span_ok"] and v["code_ok"]) else "fail"
@@ -172,7 +179,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.mark(RUNG, "REJECT", None)
         if ledger:
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
-                         reason=None, outcome="judged")
+                         reason=None, outcome="judged", api_calls=1,
+                         tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
+                         verdict=verdict)
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)
     agg["verdicts"] = dict(agg["verdicts"])

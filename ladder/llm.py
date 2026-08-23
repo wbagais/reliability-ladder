@@ -192,10 +192,19 @@ class Caller:
         self.fenced += 1
         return m.group(1)
 
-    def __call__(self, prompt: str, text: str, mode: str) -> tuple[str, dict]:
+    def __call__(
+        self,
+        prompt: str,
+        text: str,
+        mode: str,
+        temperature: float = 0.0,
+        sample_index: int = 0,
+    ) -> tuple[str, dict]:
         t0 = time.time()
         resp = self.client.chat(
-            [{"role": "user", "content": f"{prompt}\n\nPOST:\n{text}"}], temperature=0.0
+            [{"role": "user", "content": f"{prompt}\n\nPOST:\n{text}"}],
+            temperature=temperature,
+            sample_index=sample_index,
         )
         elapsed = time.time() - t0
         if not resp.cached:
@@ -209,6 +218,31 @@ class Caller:
             "usd": self.client.info.dollars(resp.prompt_tokens, resp.completion_tokens),
         }
         return self._unfence(resp.text), usage
+
+    def sampler(self, temperature: float):
+        """A callable that draws a DIFFERENT sample each time it is called.
+
+        Rung 5 votes by calling the extractor k times. Greedy decoding would
+        return one answer k times and a disk cache would make that free and
+        invisible — k identical votes reported as unanimity. So each call gets
+        its own `sample_index`, which is part of the cache key: samples stay
+        reproducible across runs while still differing from each other.
+        """
+        if temperature <= 0.0:
+            raise ValueError(
+                f"sampler(temperature={temperature}) cannot vote: at temperature 0 "
+                "every sample is the same answer, and k of them is not a majority."
+            )
+        counter = {"i": -1}
+
+        def draw(prompt: str, text: str, mode: str) -> tuple[str, dict]:
+            counter["i"] += 1
+            return self(prompt, text, mode, temperature=temperature,
+                        sample_index=counter["i"])
+
+        draw.spec = self.spec  # type: ignore[attr-defined]
+        draw.role = self.role  # type: ignore[attr-defined]
+        return draw
 
     def latency_p95(self) -> float | None:
         """p95 over uncached calls. One of the three cost measures; never fused."""

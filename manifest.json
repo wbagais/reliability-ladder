@@ -107,6 +107,10 @@
     "6": {
       "mode": "simulated",
       "minutes_per_record": 2.0
+    },
+    "0": {
+      "rung0_offsets": "search",
+      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time."
     }
   },
   "output": {

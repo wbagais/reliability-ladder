@@ -1009,3 +1009,53 @@ different-family rule satisfied with two local models and no corpus text
 leaving the machine. Worth stating plainly: reasoning models and a strict JSON
 contract interact badly, and the failure looks like an empty result rather than
 an error.
+
+## 2026-08-23 — offset recovery on; the ladder does real work, and the judge fails interestingly
+
+**`rung0_offsets: "search"` is now the manifest default, and it works.** All
+three records on ARTHROTEC.107 came back `search_unique` with correct spans, and
+rung 1's rejection reason moved from `span_ungrounded` to `code_unknown`. The
+model's character arithmetic is simply discarded: it quotes verbatim, so the
+quote is a better key than the offsets it claims. This is the change that let
+rungs 3, 4 and 5 see anything at all — before it, every record failed the first
+check and nothing above rung 1 had a fact to act on.
+
+**Rung 3 declined all three.** Given "code 41456009 does not exist", the
+extractor returned null rather than a replacement. That is `allow_withdrawal`
+working as specified and counted apart from a correction — self-correction can
+only recover what the model could have got right unaided, and granite could not.
+
+**Rung 4 affirmed a code that does not exist, at 0.95 confidence, with a
+fabricated term for it.** Verbatim: *"SNOMED CT 41456009 represents rectal
+hemorrhage"*. Rung 1 had already established that 41456009 is not in the
+release. The judge is a different model family from the extractor — the plan's
+requirement — and it still confabulated a label for a hallucinated code, because
+nothing in a judge prompt touches the vocabulary. This is the clearest evidence
+yet for the ordering claim: a free deterministic existence check catches what a
+paid second model asserts confidently in the opposite direction.
+
+It was not uniformly wrong. On "might not survive" it returned `span_ok: false`
+with *"a fear, not an adverse reaction"* — a genuine catch that no deterministic
+check could make, and exactly the work rung 4 is for. Two of three agreed with
+rung 1; the disagreement was the judge being wrong.
+
+**Rung 5 still cannot vote, and now says so in the ledger.** All three records
+came back `not_resampled`: rung 5 matches mentions by `(doc_id, spans)`, and at
+temperature 0.7 the three samples find different phrases, so the keys never line
+up. Not a bug in rung 5 — a property of voting over an extractor whose spans
+move between samples.
+
+**Every rung now reports its own cost.** Rungs 3, 4 and 5 were logging ledger
+rows with `tokens=0/0` while making real calls, and rung 5's `not_resampled`
+path returned before its ledger write entirely, so a run where nothing matched
+reported voting as free. Fixed in all three: the k sampling calls are logged as
+a DOCUMENT cost, paid whether or not a record is re-found, and every per-record
+row carries the call that produced it. First fully-accounted run: 4148 tokens
+over 10 calls across six rungs, $0.00 because everything is local.
+
+**`Caller.sampler(temperature)` — the bug centralisation introduced.** The
+shared caller was greedy and never varied `sample_index`, which is part of the
+disk-cache key, so rung 5's k votes all hit ONE cache entry: unanimity that was
+never measured, in 0.00s, for free. Each draw now gets its own sample index, so
+samples differ from each other and stay reproducible across runs. `sampler()`
+refuses temperature 0 outright.

@@ -252,7 +252,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.checks["r3_declined"] = True
             if ledger:
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
-                             zone=rec.zone, reason=reason, outcome="declined")
+                             zone=rec.zone, reason=reason, outcome="declined",
+                             tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                             api_calls=1)
             continue
 
         if str(cand.sct) == str(rec.sct) and cand.spans == rec.spans:
@@ -260,7 +262,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.checks["r3"] = {"outcome": "reasserted", "reason": reason}
             if ledger:
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
-                             reason=reason, outcome="reasserted")
+                             reason=reason, outcome="reasserted",
+                             tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                             api_calls=1)
             continue
 
         # Re-validate with the ONE measured rung 1, never a second copy.
@@ -289,7 +293,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         if ledger:
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=new_verdict,
                          reason=new_reason,
-                         outcome=rec.checks["r3"]["outcome"])
+                         outcome=rec.checks["r3"]["outcome"],
+                         tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                         api_calls=1)
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)
     return records, agg
