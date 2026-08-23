@@ -381,7 +381,7 @@ Where no concept existed in the vocabularies, CADEC labels the mention <code>con
 <tr><th style="width:14%">Version</th><th style="width:30%">Where</th><th style="width:14%">Year</th><th>Use</th></tr>
 <tr style="background:#fdf6e3"><td><b>v3</b> ← use this</td><td><a href="https://data.csiro.au/collection/csiro:10948">data.csiro.au/collection/csiro:10948</a><br><code>10.4225/08/570FB102BDAD2</code></td><td>2016</td><td><b>The one to download.</b> Latest revision of the original corpus.</td></tr>
 <tr><td>v1</td><td><code>10.4225/08/5490FA2E01A90</code></td><td>2015</td><td>Superseded. Cited in older papers; do not use.</td></tr>
-<tr><td>v2 / MultiADE</td><td><a href="https://data.csiro.au/collection/csiro:62387">data.csiro.au/collection/csiro:62387</a></td><td>2024</td><td>Wider drug set plus build scripts. Held-out slice for the contamination check in §6.3.</td></tr>
+<tr><td><s>v2 / MultiADE</s> — <b>retired 2026-08-22</b></td><td><a href="https://data.csiro.au/collection/csiro:62387">data.csiro.au/collection/csiro:62387</a></td><td>2024</td><td>Wider drug set plus build scripts. Held-out slice for the contamination check in §6.3.</td></tr>
 </table>
 <p>Cite: Karimi, Metke-Jimenez, Kemp &amp; Wang (2016), <i>CADEC</i> v3, CSIRO. Corpus paper: JBI 55 (2015).</p>
 
@@ -595,7 +595,7 @@ Rungs mutate <code>zone</code>, <code>reason</code> and <code>provenance</code>,
 <ul>
 <li>Download <b>CADEC v3</b> (<code>csiro:10948</code>). <b>Both accept the CSIRO Data Licence separately</b> — it is non-transferable. <code>.gitignore</code> the corpus directory now, before anything else.</li>
 <li>Open the annotation files. Confirm reaction codes are <b>SCT and MedDRA</b>, that drugs carry no RxCUI, and find <code>concept_less</code>.</li>
-<li><b>Confirm vocabulary access and pin the release version</b> — BioPortal first, then EBI OLS4. This is the critical-path dependency: without a code-existence lookup, rung 1 does not exist.</li>
+<li><b>Confirm vocabulary access and pin the release version</b> — BioPortal first, then EBI OLS4. This is the critical-path dependency: without a code-existence lookup, rung 1 does not exist.<p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-23 — the ordering is backwards.</strong> A <strong>local SNOMED CT-AU RF2 release</strong> is the primary and the only one used in any measured run — no key, no rate limit, no network inside the measurement loop, and the version pin is a directory name rather than a promise. OLS4 is the fallback and it is <strong>lossy</strong>: it reports 23.9% of CADEC gold as nonexistent, including 100% of drug mentions. Reaching for it first would have made rung 1's rejection rate an artefact of the backend. <em>See docs/decisions.md.</em></p></li>
 <li>Splits at seed 42: <b>dev 40, test 60</b>. Write <code>test.json</code> to disk; never regenerate it. Record <code>n</code> in the manifest so iteration 2 can supersede it cleanly.</li>
 <li><b>Write the gold rule in one sentence:</b> "strict = exact SCT code equality on the reaction field.<p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-22 — this claim did not survive the corpus.</strong> Undefined for <strong>2.8%</strong> of the corpus: 252 mentions are post-coordinated (<code>A + B</code>, the mention needs both) and 3 are disjunctions. The rule is now &ldquo;the predicted code is IN the gold code set&rdquo;, with the affected records flagged. <em>See docs/decisions.md.</em></p>" Both of you read it aloud.</li>
 <li>Open <code>out/decisions.md</code>. One line per decision from here on — it is the spine of the article and the input to iteration 2.</li>
@@ -743,7 +743,7 @@ Work on <code>main</code>, commit small and often, and <code>pull --rebase</code
 <tr><td>Gold-matching rule argued mid-project</td><td>High</td><td>Your two scorers disagree on the same output</td><td>Written down and fixture-tested Day 0. One shared scorer, not two.</td></tr>
 <tr><td>No working vocabulary lookup</td><td>High</td><td>Rung 1 cannot tell a real code from a fake one</td><td><b>Critical path.</b> Resolve at 0:00 — BioPortal, then EBI OLS4, then a local release. Cache every response; never call twice for the same code.</td></tr>
 <tr><td>Check thresholds tuned on test</td><td>High</td><td>τ chosen after seeing test results</td><td>τ fixed on dev, written into the manifest before the first test run.</td></tr>
-<tr><td>Judge shares extractor's blind spots</td><td>High</td><td>Approval near 100%; errs in the same direction</td><td>Different model family. Benchmark the judge against gold independently.</td></tr>
+<tr style="background:rgba(180,85,31,.07)"><td>Judge shares extractor's blind spots</td><td><b>MATERIALISED</b></td><td>Approval near 100%; errs in the same direction</td><td><b>The tell fired, and the mitigation did not help.</b> A different model family was used and benchmarked against gold independently, as specified. Both of the judge's channels are <b>constants</b>: it fails 97% of spans whether they are the model's or the annotators', and passes 86–92% of codes whether they are fabricated or correct. Its agreement with rung 1 moved 100% → 98% → 49% across three sets with identical behaviour — agreement is a property of the comparison set, not the judge.</td></tr>
 <tr><td>Contamination inflates R0</td><td>High</td><td>R0 F1 near published fine-tuned SOTA</td><td>Report it; note it biases against your own conclusion; validate on CADEC v2.</td></tr>
 <tr><td>Scope creep / artifact drift</td><td>High</td><td>Polished demos, no measured numbers</td><td>§7 contingency. See the Audit tab.</td></tr>
 <tr><td>Voting on strings not codes</td><td>Medium</td><td>Implausibly low consensus</td><td>Normalise before voting. Assert in a unit test.</td></tr>
@@ -791,6 +791,10 @@ curl -s "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=zenoprofen&max
 <div class="paper" style="max-width:1060px">
 <h2 style="margin-top:0">Ladder demo — one record, seven rungs</h2>
 <p>Three records, each stepped down the ladder. Illustrative posts written in the style of patient reports, with illustrative check results.</p>
+<div class="note stop" style="margin:10px 0">
+<b>Illustrative, and the real run looks worse</b>
+These three records show the ladder resolving things. The measured 40-document run resolved nothing: <b>0 of 105 correct codes</b> at rung 0, and the count never moved. Rung 3 offered 158 corrections and rescued none; rung 4's two channels are constants; rung 2 withdrew every record. Read this pane as a walkthrough of the <i>mechanism</i>, never as an indication of the <i>outcome</i>.
+</div>
 <div id="demoRoot"></div>
 </div>
 </div>
@@ -824,6 +828,10 @@ curl -s "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=zenoprofen&max
     </div></div>
     <div class="fpanel"><h4>What you are watching</h4>
       <div style="font-size:12.5px;color:var(--amut);line-height:1.65">
+      <div style="border:1px solid #a53b3b;background:rgba(165,59,59,.12);padding:9px 11px;margin:0 0 10px;border-radius:3px">
+      <b style="color:#ff9a3d">This animation shows the ladder as designed, not as measured.</b><br>
+      On the 40-document dev run, rung 1 settled <b>0%</b> — 166 REJECT, 3 BAND, <b>0 ACCEPT</b>, so nothing exits right. Self-correction rescued <b>0 of 158</b>, so there are no course-correction arcs. Voting could not re-find 166 of 169 mentions. Abstention withdrew all 169. See the status banner on the Plan tab and <code>docs/infoq-article-draft.md</code>.
+      </div>
       100 records enter at R0. <b style="color:#fff">R1 settles 38% of them for free</b> — exact registry match exits right, ungrounded span exits left. Only the amber remainder travels below the fold, and only those cost anything.
       <p style="margin:8px 0 0">The cyan arcs are <b style="color:#5ecfdd">course corrections</b>: a record rung 1 rejected that R3 manages to fix, looping back into the pipeline.</p>
 <p style="margin:8px 0 0">Notice how <b>few arcs start at R3</b>. Self-correction needs a fact to feed back, and records that passed validation give it none — so there is nothing to tell the model. Settling those records falls to voting, judging and people. <b>That is the expensive finding.</b></p>
@@ -843,7 +851,7 @@ curl -s "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=zenoprofen&max
     <div class="lwrap"><div class="detail" id="detail"></div></div>
   </div>
   <div class="Rp">
-    <div class="hdr exp"><span class="t">Experiment telemetry</span><span class="m">n=800 · rungs 0–5 complete</span></div>
+    <div class="hdr exp"><span class="t">Experiment telemetry</span><span class="m" title="Simulated. The real triage desk has taken no reviews — nothing upstream produces records worth reviewing.">SIMULATED · real run: n=169, 0 reviews</span></div>
     <div id="objs"></div>
     <div class="hdr"><span class="t" style="font-size:11.5px">Ledger</span></div>
     <div class="feed" id="feed"></div>
@@ -919,8 +927,8 @@ The open-source LLM tracing tools all model the same unit — the call: prompt, 
 <text x="476" y="63" class="at">model</text><text x="476" y="79" class="as">Ollama local, or</text>
 <text x="476" y="93" class="as">hosted API + key</text>
 <rect x="28" y="114" width="270" height="50" class="ag"/>
-<text x="38" y="133" class="at">vocab.py — SNOMED via OLS4</text>
-<text x="38" y="150" class="as">free, no key · disk-cached · global resource, not per-item</text>
+<text x="38" y="133" class="at">registry.py — local SNOMED RF2</text>
+<text x="38" y="150" class="as">no network in the loop · SQLite index · OLS4 fallback is LOSSY (23.9% of gold invisible)</text>
 <rect x="312" y="114" width="288" height="50" class="ag"/>
 <text x="322" y="133" class="at">.llm_cache/ · cache/vocab/</text>
 <text x="322" y="150" class="as">re-runs free · interrupted runs resume · gitignored</text>
@@ -1087,13 +1095,13 @@ const D = [ /* one row per rung, from results.json */ ];
 git checkout -b gh-pages   # or Settings → Pages → source: main /docs
 cp docs/plan.html index.html && git add index.html && git commit && git push</pre>
 <table>
-<tr><th style="width:24%"></th><th style="width:38%">Streamlit Cloud</th><th>GitHub Pages</th></tr>
+<tr><th style="width:24%"></th><th style="width:38%">GitLab Pages (in use)</th><th>Alternatives considered</th></tr>
 <tr><td>Best for</td><td>Exploring — sliders, calibration sweep, composer</td><td>Publishing — a fixed result that will not change</td></tr>
 <tr><td>Cold start</td><td>~30s after idle</td><td>None</td></tr>
 <tr><td>Resource limits</td><td>~1 GB, can be exceeded</td><td>None — it is a static file</td></tr>
 <tr><td>Risk during the article's lifetime</td><td>Sleeps, or trips a limit mid-demo</td><td>Effectively zero</td></tr>
 </table>
-<p><b>If you only publish one link, publish the Pages one.</b> Use Streamlit for readers who want to move the economics sliders themselves.</p>
+<p><b>If you only publish one link, publish the Pages one.</b> Use Streamlit for readers who want to move the economics sliders themselves.</p><p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-23 — neither of these is what the project uses.</strong> Publishing is <strong>GitLab Pages</strong> from a GitLab CI job — <code>docs/plan.html</code> is copied to <code>public/index.html</code> on every push to <code>main</code>. There is no Streamlit app and no GitHub repository. The conclusion above still holds and was arrived at for the right reason: a static page has no cold start and cannot sleep mid-demo. The comparison, the repository tree in §8.1, the commit-or-never table and the deployment checklist all still name the two hosts that were considered rather than the one in use. <em>See docs/decisions.md.</em></p>
 
 <h2>4. The three contracts</h2>
 <p>These are what let two people work in parallel and let rungs be swapped without rework.</p>
