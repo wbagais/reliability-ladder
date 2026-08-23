@@ -22,12 +22,12 @@ flowchart TD
     GOLD --> RECS
     PRED["--predictions r0.jsonl"] --> RECS
 
-    RECS --> ORDER{"rung_order<br/>[0,1,3,5,4,2,6]"}
+    RECS --> ORDER{"rung_order<br/>[0,1,2,3,4,5,6]"}
     ORDER --> R1["rung 1 deterministic"]
-    ORDER --> R3["rung 3 self-correct"]
-    ORDER --> R5["rung 5 voting"]
+    ORDER --> R3["rung 2 self-correct"]
+    ORDER --> R5["rung 3 voting"]
     ORDER --> R4["rung 4 judge"]
-    ORDER --> R2["rung 2 abstention"]
+    ORDER --> R2["rung 5 abstention"]
     ORDER --> R6["rung 6 human"]
 
     REG -.-> R1
@@ -48,14 +48,14 @@ flowchart TD
 
 Reverse none of these silently. Each is recorded in `docs/decisions.md` with the measurement that settled it.
 
-- **Rung IDs are identity, order is configuration.** IDs come from the brief and are shared with other groups; renumbering breaks comparability. Execution order lives in `manifest.rung_order` as `[0,1,3,5,4,2,6]`, making ordering a testable ablation.
+- **Rung ID equals execution position.** `manifest.rung_order` is `[0,1,2,3,4,5,6]`. Renumbered 2026-08-23 from `[0,1,3,5,4,2,6]`; earlier measurements use the old IDs and the mapping is in `docs/decisions.md`. Order is still read from configuration, so a different order stays testable.
 - **Rung 1 judges, it does not route.** Default `mode: observe`. A filtering rung 1 confounds every rung above it. See [[r1]].
-- **Rung 2 runs last.** Abstaining before correction and voting throws away recoverable records. See [[r2]].
+- **Rung 5 runs last.** Abstaining before correction and voting throws away recoverable records. See [[r5]].
 - **Three outcomes, not two.** REJECT / ACCEPT / BAND. BAND holds 56.8 % of even a perfect answer set.
 - **Cost is three measures.** Tokens, latency p95, human minutes. Never fused into a currency figure.
 - **One accounting path.** Everything reported is a `GROUP BY` over [[ledger]]. Two accounting paths is how a benchmark gets two numbers for one run.
 - **One file per rung.** A rung is registered by adding `ladder/rungs/rN.py`; `run.py` is never edited to register one.
-- **Schemas append, never reorder.** `schema.py` enums are the contract between owners.
+- **Schemas append, never reorder.** `schema.py` enums are the contract every rung reads.
 
 ## Module map
 
@@ -73,11 +73,11 @@ Reverse none of these silently. Each is recorded in `docs/decisions.md` with the
 | `ladder/probe.py` | rung 1 vs planted corruptions |
 | `ladder/vocab_crosscheck.py` | local-rf2 vs OLS4 |
 | `ladder/rungs/r1.py` | [[r1]] |
-| `ladder/rungs/r2.py` | [[r2]] |
+| `ladder/rungs/r5.py` | [[r5]] |
 | `ladder/rungs/r0.py` | rung 0, and the recall-vs-search ablation over it |
 | `ladder/stub_llm.py` | Ollama client for rung 0 |
 | `bench/align.py` | pairs predictions with gold; bipartite, IoU 0.5 |
-| `ladder/rungs/r0.py` `r3` `r4` `r5` | not written |
+| `ladder/rungs/r0.py` `r2` `r4` `r3` | not written |
 | `ladder/score.py` | shared scorer — not written |
 | `schemas/vocabulary.py` | the `Vocabulary` contract |
 

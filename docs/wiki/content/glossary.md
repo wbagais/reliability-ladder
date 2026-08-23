@@ -10,7 +10,7 @@
 - **Control** — the gold standard fed in as if it were model output. Measures the gate's own error floor. **Not a baseline and not an accuracy test.**
 - **Coverage** — fraction of records still shipping an answer.
 - **Yield** — fraction of all records that are both answered and correct.
-- **Withheld** — the answer [[r2]] preserved when it abstained. Withdrawal, never deletion.
+- **Withheld** — the answer [[r5]] preserved when it abstained. Withdrawal, never deletion.
 - **Error floor / false-rejection floor** — rejections made against gold, all of which are wrong by construction. **12 / 9,111 = 0.13 %.**
 - **Ablation** — one variable changed, everything else held. `run ablate` runs each rung alone on identical input.
 - **Marginal cost** — a rung's own spend divided by the errors it prevented. Two currencies, never fused.
@@ -42,7 +42,7 @@
 - **Gold rule** — strict: the predicted code is **in the gold code set** for that mention.
 - **Answer space vs reference** — whether a code list is the set to choose from (a much easier task) or only a cross-check. MedDRA is `reference`.
 - **Leakage** — answer-key information reaching a component that should not see it.
-- **τ (tau)** — [[r2]]'s confidence threshold. Swept on dev, written before the first test run.
+- **τ (tau)** — [[r5]]'s confidence threshold. Swept on dev, written before the first test run.
 - **Risk-coverage curve** — accuracy as a function of how much you decline to answer.
 
 ## Related

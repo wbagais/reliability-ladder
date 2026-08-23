@@ -1,272 +1,193 @@
-"""Rung 5 — voting. k calls per record. The most expensive rung.
+"""Rung 5 — abstention. Zero model calls.
 
-Sample the extractor k times for the SAME record and take the majority code.
+Rung 5 declines rather than resolves. It runs LAST (order 0-1-2-3-4-5-6):
+abstaining before self-correction and voting have had their turn throws away
+records those rungs would have recovered.
 
-MAJORITY ON THE NORMALISED CODE, NEVER ON THE STRING
-----------------------------------------------------
-`cramping` and `Muscle cramp` are the same answer. A string vote splits them and
-reports disagreement that does not exist. Normalisation goes through the same
-registry function rung 1 uses, so the two agree by construction rather than by
-two implementations happening to match.
+Rung 5 is where a rung 1 verdict is finally allowed to cost coverage. Rung 1
+runs in "observe" mode by default — it judges without routing, so rungs 3-6 see
+the full unfiltered set — which means the BAND and REJECT records are still in
+flight when rung 5 arrives. Rung 5 therefore reads `checks["r1_verdict"]`
+rather than the zone, and falls back to the zone when rung 1 was gating (or
+absent). One mechanism, both modes.
 
-TEMPERATURE 0.7, DELIBERATELY
------------------------------
-The one place this project departs from greedy decoding. Identical samples
-cannot vote: at temperature 0 you pay k times for one answer repeated k times.
-It lives in `manifest.rungs.5.temperature` rather than a default argument
-because it is a deliberate exception, not a tuning knob.
+Three things a record can be abstained for, each logged separately because they
+are different failures:
 
-Note what this costs elsewhere. Every other number in this project is
-reproducible on fixed hardware because decoding is greedy; rung 5's are not.
-A rung 5 result is a sample from a distribution and must be reported with the
-seed and the run id, or repeated.
+    unresolved       still in BAND after every resolver ran — plausible, but
+                     nothing in the ladder could verify it
+    rejected         rung 1 said it was provably wrong and rung 2 never rescued
+                     it. Abstaining is the honest end state; shipping it is not
+    low_confidence   the model's own confidence sits below tau
 
-THE SPREAD IS THE ARTEFACT
---------------------------
-A 3-0 and a 2-1 are different states that a single winner hides. If the model is
-3-0 on almost everything, voting costs 3x and buys nothing — a publishable null
-result, and exactly the finding the ladder exists to surface.
+Abstention is a withdrawal, never a deletion — constraint 5 of the safety
+design. The proposed answer is preserved in `checks["withheld"]` so rung 6 can
+show a person what the system was going to say. The system has no authority to
+rule anything out.
 
-TIES
-----
-A tie is a real outcome, not an error. This implementation leaves the record
-UNCHANGED on a tie and records `tie: true`. It does not invent a winner and it
-does not withdraw the answer: withdrawal is rung 2's, and a rung that quietly
-nulls contested records reports a coverage loss as a reliability gain — the same
-confound measured at rung 0 mode B and at rung 3.
+CONCEPT_LESS is NOT an abstention. "No code in the vocabulary is correct" is a
+positive, scoreable answer that CADEC's gold also gives (445 mentions). Folding
+it into abstention would make the system look cautious where it was actually
+right, and would destroy the only clean abstention target the corpus offers.
 
-WHAT THIS RUNG ASKS
--------------------
-k calls per record against one for rung 0. If the marginal errors prevented do
-not justify k times the tokens, the honest finding is to stop at a lower rung.
+tau is tuned on dev and written into the manifest BEFORE the first test run.
+`sweep()` produces the risk-coverage curve that choice comes from; it takes the
+correctness oracle as an argument rather than importing a scorer, so the one
+shared scorer stays one file and there is still only one of it.
 """
 
 from __future__ import annotations
 
-import json
 import time
-from collections import Counter
-from typing import Any
+from typing import Any, Callable
 
-from ladder.schema import Record
+from ladder.schema import (
+    R_LOW_CONFIDENCE,
+    R_UNRESOLVED,
+    Record,
+    ZONE_ABSTAIN,
+    ZONE_ACCEPT,
+    ZONE_BAND,
+    ZONE_NEW,
+    ZONE_REJECT,
+    ZONE_VERIFIED,
+)
 
 RUNG = 5
-NAME = "voting"
+NAME = "abstention"
 
 DEFAULTS = {
-    "k": 3,
-    "temperature": 0.7,
-    "tie": "unchanged",     # unchanged | first — never "null", see module docstring
+    "tau": 0.0,
+    "abstain_zones": [ZONE_BAND],
+    "abstain_on_reject": True,
 }
 
-# NO PROMPT HERE, DELIBERATELY.
-#
-# The spec says "sample the extractor k times". A rung 5 with its own prompt
-# samples a DIFFERENT TASK and reports the result as if it were the extractor's
-# variance. Measured 2026-08-23: a bespoke rung 5 prompt that mentioned
-# declining produced 39 declines out of 39, against a rung 0 that fabricates a
-# code every time. That measured the prompt, not the model.
-#
-# So rung 5 calls rung 0's own build_prompt() and parses with rung 0's own
-# logic. The only thing that varies across the k calls is the sampling
-# temperature.
 
-def normalise(code: str | None, registry) -> str:
-    """One normalisation, shared with rung 1 — never a second implementation.
-
-    A null answer normalises to "" and votes as itself: "no code is right" is a
-    position, and three models declining is a 3-0 result, not an absence of one.
-    """
-    if code is None or str(code).strip() == "":
-        return ""
-    fn = getattr(registry, "normalise_term", None) or getattr(registry, "normalise", None)
-    if fn is None:
-        # Codes are already canonical identifiers, so identity is correct here.
-        # Recorded rather than assumed: if the registry grows a normaliser and
-        # this stays on identity, the two stop agreeing by construction.
-        return str(code).strip()
-    return str(fn(str(code).strip()))
+def _r1_verdict(rec: Record) -> str | None:
+    """What rung 1 concluded, whether or not it acted on it."""
+    return rec.checks.get("r1_verdict")
 
 
-def sample_document(doc_id: str, text: str, mode: str, llm, cfg: dict):
-    """One extractor sample of a whole document, through rung 0's own path."""
-    from ladder.rungs.r0 import rung0
-    return rung0(doc_id, text, mode, llm, cfg)
-
-
-def _key(rec) -> tuple:
-    """Which mention is this? Span, not text: the text is what varies."""
-    return (rec.doc_id, tuple(tuple(s) for s in rec.spans))
-
-
-
-def _stamp(ledger, rung: int, sizes: dict[str, int]) -> None:
-    """Write each denominator's SIZE onto the rows that carry its name.
-
-    Sizes are not known until the loop ends, so rows are written with a name
-    only. NOTE: this mutates Ledger.rows in memory; the JSONL line was already
-    flushed, so denominator_n is present in `ledger.rows` and NOT in the file.
-    Making it durable means buffering per rung, which changes Ledger's
-    append-only contract — A's call.
-    """
-    if not ledger:
-        return
-    for row in getattr(ledger, "rows", []):
-        if row.rung == rung:
-            n = sizes.get((row.extra or {}).get("denominator"))
-            if n is not None:
-                row.extra["denominator_n"] = n
-
-def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
-    """Vote over k extractor samples. Records the spread; never withdraws.
-
-    Withdrawal is rung 2's. A unanimous vote for "no code" is EVIDENCE that the
-    extractor does not stand behind its answer, written to
-    `checks["r5_unanimous_none"]` for rung 2 to act on. A rung 5 that nulls the
-    record itself makes rung 1's rejection rate collapse without accuracy
-    moving — the same confound measured at rung 0 mode B and rung 3.
-    """
+def decide(rec: Record, cfg: dict[str, Any] | None = None) -> tuple[str, str | None]:
+    """(zone, reason) for one record. Pure, so the sweep can replay it."""
     cfg = {**DEFAULTS, **(cfg or {})}
-    llm = cfg.get("llm")
-    if llm is None:
-        raise RuntimeError(
-            "rung 5 has no model. Skipping silently would report 'voting did "
-            "not help', which is a different claim from 'voting did not run'."
-        )
-    registry = cfg.get("registry")
-    k = int(cfg["k"])
-    if k < 2:
-        raise ValueError(f"k={k} cannot vote. Set rungs.5.k to 2 or more.")
-    if float(cfg["temperature"]) == 0.0:
-        raise ValueError(
-            "rung 5 at temperature 0 pays k times for one answer repeated k "
-            "times. Set rungs.5.temperature above 0, or do not run this rung."
-        )
+    # Rung 1's verdict wins over the zone: in observe mode the zone never moved,
+    # and in gate mode the two agree unless a later rung changed the zone — in
+    # which case that later rung's routing is the more recent fact.
+    standing = rec.zone if rec.zone not in (ZONE_NEW,) else None
+    verdict = standing if standing in (ZONE_ACCEPT, ZONE_BAND, ZONE_REJECT) else _r1_verdict(rec)
 
-    mode = cfg.get("rung0_mode", "A")
+    if verdict == ZONE_REJECT:
+        reason = rec.reason or rec.checks.get("r1_reason")
+        if cfg["abstain_on_reject"]:
+            return ZONE_ABSTAIN, reason
+        return rec.zone, reason
+    tau = float(cfg["tau"] or 0.0)
+    if tau > 0 and rec.confidence is not None and rec.confidence < tau:
+        return ZONE_ABSTAIN, R_LOW_CONFIDENCE
+    if verdict in cfg["abstain_zones"]:
+        return ZONE_ABSTAIN, R_UNRESOLVED
+    if verdict == ZONE_ACCEPT:
+        return ZONE_VERIFIED, None
+    return rec.zone, rec.reason
+
+
+def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> list[Record]:
     ledger = cfg.get("ledger")
-    agg = {"records": 0, "calls": 0, "documents": 0,
-           "tokens_in": 0, "tokens_out": 0,
-           "unanimous": 0, "split": 0, "tie": 0, "changed": 0,
-           "unanimous_none": 0, "not_resampled": 0, "parse_failed": 0,
-           "spread": Counter(), "t0": time.time()}
-
-    # k samples of each DOCUMENT, then match mentions by span.
-    by_doc: dict[str, list[dict]] = {}
-    for doc_id in {r.doc_id for r in records}:
-        text = sources.get(doc_id, "")
-        agg["documents"] += 1
-        samples = []
-        doc_in = doc_out = 0
-        doc_t0 = time.time()
-        for _ in range(k):
-            got, meta = sample_document(doc_id, text, mode, llm, cfg)
-            agg["calls"] += 1
-            doc_in += meta.get("tokens_in", 0)
-            doc_out += meta.get("tokens_out", 0)
-            agg["tokens_in"] += meta.get("tokens_in", 0)
-            agg["tokens_out"] += meta.get("tokens_out", 0)
-            if meta.get("parse_failed"):
-                agg["parse_failed"] += 1
-            samples.append({_key(r): r for r in got})
-        by_doc[doc_id] = samples
-        # The k calls are a DOCUMENT cost, not a record cost, and they are paid
-        # whether or not any record is re-found below. Logging them here is what
-        # stops a run where nothing matched from reporting rung 5 as free.
+    params = {k: v for k, v in cfg.items() if k in DEFAULTS}
+    for rec in records:
+        t0 = time.perf_counter()
+        new_zone, reason = decide(rec, params)
+        if new_zone == ZONE_ABSTAIN and rec.zone != ZONE_ABSTAIN:
+            # Withdraw the answer, but keep it — abstention escalates, never
+            # discards. Rung 6 shows the person what was withheld.
+            rec.checks["withheld"] = {"sct": rec.sct, "confidence": rec.confidence}
+            rec.sct = None
+        rec.mark(RUNG, new_zone, reason)
         if ledger:
             ledger.log(
-                rung=RUNG, doc_id=doc_id, record_id=doc_id, zone="NEW",
-                outcome="sampled", api_calls=k,
-                tokens_in=doc_in, tokens_out=doc_out,
-                latency_ms=(time.time() - doc_t0) * 1000, k=k,
-                denominator="r5_documents", evaluable="pass",
+                RUNG,
+                rec.doc_id,
+                rec.record_id,
+                new_zone,
+                "abstained" if new_zone == ZONE_ABSTAIN else "settled",
+                reason=reason,
+                latency_ms=(time.perf_counter() - t0) * 1000,
             )
-
-    for rec in records:
-        agg["records"] += 1
-        votes: Counter = Counter()
-        raw: list[str | None] = []
-        seen = 0
-        for s in by_doc.get(rec.doc_id, []):
-            match = s.get(_key(rec))
-            if match is None:
-                continue          # this sample did not find this mention
-            seen += 1
-            raw.append(match.sct)
-            votes[normalise(match.sct, registry)] += 1
-
-        if seen == 0:
-            # No sample re-found this mention. That is a real outcome — the
-            # extractor is unstable on it — and not a vote.
-            agg["not_resampled"] += 1
-            rec.checks["r5"] = {"k": k, "seen": 0, "outcome": "not_resampled",
-                                "was": rec.sct}
-            # Still a row. "No sample re-found this mention" is a finding about
-            # extractor stability, and a rung that stays silent on it looks like
-            # a rung that did nothing.
-            if ledger:
-                ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
-                           zone=rec.zone, reason="not_resampled",
-                           outcome="not_resampled", k=k, seen=0,
-                           denominator="r5_voted_on",
-                           evaluable="could_not_run")
-            continue
-
-        ranked = votes.most_common()
-        top_n = ranked[0][1]
-        winners = [c for c, n in ranked if n == top_n]
-        tie = len(winners) > 1
-        agg["spread"]["-".join(str(n) for _, n in ranked)] += 1
-
-        if tie:
-            agg["tie"] += 1
-        elif top_n == seen:
-            agg["unanimous"] += 1
-        else:
-            agg["split"] += 1
-
-        win = None if tie else (winners[0] or None)
-        rec.checks["r5_votes"] = dict(votes)
-        rec.checks["r5"] = {"k": k, "seen": seen, "tie": tie, "raw": raw,
-                            "was": rec.sct, "winner": win}
-
-        if win is None and not tie:
-            # Unanimous "no code". Evidence for rung 2, not an action here.
-            agg["unanimous_none"] += 1
-            rec.checks["r5_unanimous_none"] = True
-        elif win is not None and str(win) != str(rec.sct or ""):
-            agg["changed"] += 1
-            rec.checks["r5"]["changed"] = True
-            rec.sct = win
-            rec.mark(RUNG, rec.zone, None)
-
-        if ledger:
-            ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
-                         reason=None, outcome="tie" if tie else "voted",
-                         denominator="r5_resampled", evaluable="pass")
-
-    _stamp(ledger, RUNG, {"r5_resampled": agg["records"] - agg["not_resampled"],
-                          "r5_voted_on": agg["records"],
-                          "r5_documents": agg["documents"]})
-    agg["seconds"] = round(time.time() - agg["t0"], 2)
-    agg["spread"] = dict(agg["spread"])
-    return records, agg
+    return records
 
 
-def report(agg: dict) -> None:
-    n = agg["records"]
-    print(f"\n{'=' * 58}\nRUNG 5 — voting (k={DEFAULTS['k']})\n{'=' * 58}")
-    print(f"  records voted on   {n}   calls {agg['calls']}")
-    if not n:
-        print("  nothing to vote on"); return
-    print(f"  documents sampled  {agg['documents']} x k = {agg['calls']} calls")
-    for key in ("unanimous", "split", "tie", "changed", "unanimous_none",
-                "not_resampled"):
-        print(f"     {key:12s} {agg[key]:5d}  ({agg[key] / n * 100:.0f}%)")
-    print(f"  vote spread: {agg['spread']}")
-    print(f"  tokens {agg['tokens_in'] + agg['tokens_out']:6d}   "
-          f"parse failures {agg['parse_failed']}   {agg['seconds']}s")
-    print("\n  'unanimous_none' is EVIDENCE for rung 2, not a withdrawal here.")
-    if agg["unanimous"] / n > 0.9:
-        print("\n  >90% unanimous: voting is paying k times for one answer.")
-        print("  That is a null result and worth reporting as one.")
+# --- tau sweep (dev only) ---------------------------------------------------
+
+
+def sweep(
+    records: list[Record],
+    is_correct: Callable[[Record], bool],
+    cfg: dict[str, Any] | None = None,
+    taus: list[float] | None = None,
+) -> list[dict[str, float]]:
+    """Risk-coverage curve over tau. Dev split only — never touch test with this.
+
+    `is_correct(record)` is the shared scorer, injected. One point per tau:
+
+        coverage             answered / all
+        selective_precision  correct among answered
+        risk                 1 - selective_precision
+        yield                correct / all  -- the honest headline: abstaining
+                             raises precision mechanically, so precision alone
+                             always argues for abstaining more
+        over_abstention      abstained records that WOULD have been correct
+    """
+    cfg = {**DEFAULTS, **(cfg or {})}
+    if taus is None:
+        taus = [i / 20 for i in range(21)]
+    n = len(records)
+    out = []
+    for tau in taus:
+        params = {**cfg, "tau": tau}
+        answered = correct = over = 0
+        for rec in records:
+            zone_, _ = decide(rec, params)
+            was_right = is_correct(rec)
+            if zone_ == ZONE_ABSTAIN:
+                over += 1 if was_right else 0
+            else:
+                answered += 1
+                correct += 1 if was_right else 0
+        out.append(
+            {
+                "tau": round(tau, 4),
+                "coverage": round(answered / n, 5) if n else 0.0,
+                "selective_precision": round(correct / answered, 5) if answered else 0.0,
+                "risk": round(1 - correct / answered, 5) if answered else 0.0,
+                "yield": round(correct / n, 5) if n else 0.0,
+                "over_abstention": over,
+                "answered": answered,
+                "correct": correct,
+            }
+        )
+    return out
+
+
+def aurc(curve: list[dict[str, float]]) -> float:
+    """Area under the risk-coverage curve. Lower is better."""
+    pts = sorted(((p["coverage"], p["risk"]) for p in curve))
+    area = 0.0
+    for (c0, r0), (c1, r1) in zip(pts, pts[1:]):
+        area += (c1 - c0) * (r0 + r1) / 2
+    span = pts[-1][0] - pts[0][0] if len(pts) > 1 else 0.0
+    return round(area / span, 5) if span else 0.0
+
+
+def free_lunch(curve: list[dict[str, float]]) -> dict[str, float] | None:
+    """The strictest tau that screens errors without losing a single correct answer.
+
+    It separates "the gate is miscalibrated" from "the mechanism does not
+    work" — two conclusions that look identical from a coverage number alone.
+    """
+    best = None
+    for point in curve:
+        if point["over_abstention"] == 0 and point["coverage"] < 1.0:
+            if best is None or point["tau"] > best["tau"]:
+                best = point
+    return best

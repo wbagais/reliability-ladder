@@ -29,7 +29,7 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 | measure one rung on its own | [[runner]] — `run ablate` |
 | know what a rung 1 setting costs | [[measurement]] — `calibrate --sweep` |
 | know what rung 1 can catch | [[measurement]] — `probe` |
-| find out why a record was abstained | [[r2]], then `checks.withheld` |
+| find out why a record was abstained | [[r5]], then `checks.withheld` |
 | understand a cost column | [[ledger]] |
 | change a setting without breaking comparability | [[manifest]] |
 | implement a missing rung | [[rungs]], then that rung's page |
@@ -41,12 +41,12 @@ Measure what each reliability layer wrapped around an LLM buys, and what it cost
 
 | Rung | Layer | State |
 |---|---|---|
-| 0 | [[r0]] bare LLM | built — `rungs/r0.py` holds the rung and the A/B ablation; runs end to end through `run.py` |
+| 0 | [[r0]] bare LLM | built — `rungs/r0.py` holds the rung and the A/B ablation |
 | 1 | [[r1]] deterministic | built and measured |
-| 2 | [[r2]] abstention | built and measured |
-| 3 | [[r3]] self-correction | not started |
-| 4 | [[r4]] LLM-as-judge | not started |
-| 5 | [[r5]] voting | not started |
+| 2 | [[r2]] self-correction | built — runs end to end |
+| 3 | [[r3]] voting | built — runs end to end |
+| 4 | [[r4]] LLM-as-judge | built — runs end to end |
+| 5 | [[r5]] abstention | built and measured |
 | 6 | [[r6]] human-in-the-loop | not started |
 
 - Shared scorer `ladder/score.py` — not written. Accuracy columns stay empty until it is.

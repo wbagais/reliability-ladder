@@ -40,20 +40,20 @@ the document. Replace with a status block pointing at measured results.
 (never emits "drug X causes Y") and resolves it: **one record = one mention**,
 with an `entity_type`. The plan still shows the rejected shape.
 
-### BLOCKING — §5 rung 5 says k=5; the implementation is k=3 per document
+### BLOCKING — §5 rung 3 says k=5; the implementation is k=3 per document
 
 Two errors in one row. The manifest sets k=3, and the implementation samples
 each **document** k times, not each record — 35 documents × 3 = 105 calls for
 169 records. The row's "~5× cost" is wrong twice over. Measured: 55,704 tokens,
 *cheaper* than self-correction's 72,539.
 
-### BLOCKING — §5 rung 3 says a rescued record re-enters unverified
+### BLOCKING — §5 rung 2 says a rescued record re-enters unverified
 
 > *"a rescued record re-enters the pipeline unverified"*
 
-Changed deliberately during build. Rung 3 re-validates through `r1.zone()`,
+Changed deliberately during build. Rung 2 re-validates through `r1.zone()`,
 because without it `rescued` is an assertion rather than a measurement. A
-spec-conformant rung 3 would have reported 158 corrections, none checked, all
+spec-conformant rung 2 would have reported 158 corrections, none checked, all
 empty. This is in the article as a finding; the plan still specifies the version
 that would have produced the false number.
 
@@ -89,7 +89,7 @@ the interesting number is not the one predicted:
 | 4 | judge false-approval rate | 86–92% code approval on gold *and* fabricated codes alike — **both channels constant**, no discrimination |
 | 5 | consensus-on-wrong | 3 unanimous on fabricated codes, but dominated by `not_resampled` 166/169 — an outcome the plan does not anticipate |
 
-### STALE — §5 rung 2, τ
+### STALE — §5 rung 5, τ
 
 > *"τ tuned on dev only; sweep and report the curve."*
 

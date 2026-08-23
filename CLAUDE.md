@@ -25,7 +25,8 @@
 
 ## Design decisions — do not silently reverse these
 - Rung IDs are fixed to the brief. Execution order lives in `manifest.json` as
-  `rung_order` (`[0,1,3,5,4,2,6]`), so ordering is a testable ablation, not an assertion.
+  `rung_order` (`[0,1,2,3,4,5,6]` since the 2026-08-23 renumber), so ordering is
+  still read from configuration and stays testable.
 - Rung 1 cannot confirm a code is right — only that it is wrong. **THREE**
   outcomes, not two: REJECT (provably wrong), ACCEPT (the vocabulary uses these
   very words) and BAND (plausible, unverifiable). Two outcomes cannot express
@@ -35,7 +36,7 @@
   defaults to `"observe"`: the verdict is recorded, counted and reported, and the
   record's zone is untouched, so rungs 3-6 see the full unfiltered set. A
   filtering rung 1 confounds every rung above it — rung 4's judge graded on a set
-  rung 1 pre-cleaned is no longer attributable to rung 4. Rung 2 runs last and is
+  rung 1 pre-cleaned is no longer attributable to rung 4. Rung 5 (abstention) runs last and is
   where a verdict is finally allowed to cost coverage, so this defers rung 1's
   cost rather than cancelling it. `"gate"` restores the old flow.
 - **REVISED 2026-08-22 — negation FLAGS, it does not REJECT.** Measured: as a
@@ -51,16 +52,16 @@
 - Every one of those was found by replaying rung 1 over the gold standard, where
   every rejection is false by construction. It took the gate's own error floor
   from **9.3% to 0.13%**. Do that before trusting any new check.
-- Rung 3 fires **only on a rung 1 failure**, with the reason stated as a fact
+- Rung 2 (self-correct) fires **only on a rung 1 failure**, with the reason stated as a fact
   ("code 999999 does not exist"), never as a question ("are you sure?").
   It cannot fix records that passed validation — there is no fact to feed back.
-- Rung 6 stays a rung. "Tell the model to escalate when unsure" is rung 2, not rung 6.
+- Rung 6 stays a rung. "Tell the model to escalate when unsure" is rung 5, not rung 6.
 - Cost is three separate measures — tokens, latency p95, records routed to a person.
   Never fuse them into a currency figure.
 
 ## Current state
 - The deterministic spine is built and measured: corpus + frozen splits, SNOMED
-  index, ledger, rung 1, rung 2, harness, fixture gate, and two model-free
+  index, ledger, rung 1, rung 5, harness, fixture gate, and two model-free
   characterisations of rung 1. 93 tests, CI green.
 - Rungs 0/3/4/5 all exist and the full ladder runs end to end. `ladder/score.py`
   is still missing, so accuracy columns are written empty rather than guessed.
@@ -82,7 +83,7 @@
    scores 1.000 reordered with no change to any scorer. Needed before
    `ladder/score.py` is written.
 3. ~~`ladder/rungs/r0.py`, then `r3` / `r4` / `r5`~~ — done. Rung 0 is handed an
-   EMPTY record list and builds records from `sources`; rung 3's trigger is
+   EMPTY record list and builds records from `sources`; rung 2's trigger is
    `record.checks["r1_verdict"] == "REJECT"`, with the fact to state in
    `checks["r1_reason"]`. Still outstanding: `ladder/score.py`.
 4. `python -m ladder.rungs.r0 --compare` — the tool ablation, now that a real
@@ -93,3 +94,21 @@
 - `manifest.json` is append-only and edited jointly.
 - Log every decision in `docs/decisions.md` — one line, as you go. It is the
   article's raw material and cannot be reconstructed afterwards.
+
+## Rung numbering — renumbered 2026-08-23
+Rung ID now equals execution position: `rung_order` is `[0,1,2,3,4,5,6]`.
+Old → new is **3→2, 5→3, 2→5**; 0, 1, 4 and 6 did not move.
+
+| id | rung |
+|----|------|
+| 0 | bare LLM |
+| 1 | deterministic |
+| 2 | self-correction |
+| 3 | voting |
+| 4 | LLM judge |
+| 5 | abstention |
+| 6 | human loop |
+
+**Every measurement in `docs/decisions.md` dated before 2026-08-23 uses the OLD
+ids.** The mapping table lives there too. This also means results are no longer
+directly comparable to the brief's numbering without applying it.

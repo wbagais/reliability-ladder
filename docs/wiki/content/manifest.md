@@ -13,7 +13,7 @@
 | `corpus` | version, licence, paths, split sizes, stratification, checksums |
 | `vocabulary` | SNOMED release + backend, MedDRA mode, paths |
 | `model` | extractor, judge, temperature |
-| `rung_order` | `[0,1,3,5,4,2,6]` — execution order, not numbering |
+| `rung_order` | `[0,1,2,3,4,5,6]` — ID equals execution position |
 | `rung0_mode` | `recall` (default) or `search` |
 | `rungs.N` | per-rung settings |
 | `ablations` | declared experiments |
@@ -53,7 +53,7 @@ Currently the rung-order ablation is a no-op: with rungs 3–6 absent, both orde
 ## Rules
 
 - **Append-only.** Never reorder or delete keys.
-- Edited in a **joint block** — it is the one file both owners have reason to touch, and the likeliest conflict in the repo.
+- Edited **deliberately** — it is the file most likely to be touched from two directions at once, and the likeliest conflict in the repo.
 - A `_note` key beside a setting is normal and expected: the reasoning travels with the value.
 
 ## Related

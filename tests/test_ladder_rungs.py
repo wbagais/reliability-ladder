@@ -8,7 +8,7 @@ snapshot of a 700k-concept hierarchy.
 """
 
 from ladder.ledger import Ledger
-from ladder.rungs import r1, r2
+from ladder.rungs import r1, r5
 from ladder.schema import (
     CONCEPT_LESS,
     R_MEDDRA_UNKNOWN,
@@ -186,14 +186,14 @@ def test_missing_vocabulary_is_an_error_not_a_band():
     assert zone == ZONE_BAND and checks["vocab"] == "unavailable"
 
 
-# --- rung 2 -----------------------------------------------------------------
+# --- rung 5 -----------------------------------------------------------------
 
 
 def test_abstention_withdraws_the_answer_but_keeps_it(tmp_path):
     r = rec(sct="271782001", confidence=0.4)
     r.mark(1, ZONE_BAND)
     ledger = Ledger(tmp_path / "l.jsonl", run_id="t")
-    r2.apply([r], {"D1": SOURCE}, {"ledger": ledger, **r2.DEFAULTS})
+    r5.apply([r], {"D1": SOURCE}, {"ledger": ledger, **r5.DEFAULTS})
     ledger.close()
     assert r.zone == ZONE_ABSTAIN and r.reason == R_UNRESOLVED
     assert r.sct is None, "an abstained record must not still ship an answer"
@@ -204,7 +204,7 @@ def test_accepted_records_are_verified_not_abstained(tmp_path):
     r = rec(sct="271782001")
     r.mark(1, ZONE_ACCEPT)
     ledger = Ledger(tmp_path / "l.jsonl", run_id="t")
-    r2.apply([r], {"D1": SOURCE}, {"ledger": ledger, **r2.DEFAULTS})
+    r5.apply([r], {"D1": SOURCE}, {"ledger": ledger, **r5.DEFAULTS})
     ledger.close()
     assert r.zone == ZONE_VERIFIED and r.sct == "271782001"
 
@@ -212,8 +212,8 @@ def test_accepted_records_are_verified_not_abstained(tmp_path):
 def test_tau_gate_is_off_at_zero():
     r = rec(sct="271782001", confidence=0.01)
     r.mark(1, ZONE_ACCEPT)
-    assert r2.decide(r, {"tau": 0.0})[0] == ZONE_VERIFIED
-    assert r2.decide(r, {"tau": 0.5})[0] == ZONE_ABSTAIN
+    assert r5.decide(r, {"tau": 0.0})[0] == ZONE_VERIFIED
+    assert r5.decide(r, {"tau": 0.5})[0] == ZONE_ABSTAIN
 
 
 def test_sweep_is_monotone_in_coverage_and_finds_the_free_lunch():
@@ -225,22 +225,22 @@ def test_sweep_is_monotone_in_coverage_and_finds_the_free_lunch():
         records.append(r)
     wrong = {"D1#7", "D1#8", "D1#9"}  # exactly the low-confidence ones
 
-    curve = r2.sweep(records, is_correct=lambda r: r.record_id not in wrong)
+    curve = r5.sweep(records, is_correct=lambda r: r.record_id not in wrong)
     coverages = [p["coverage"] for p in curve]
     assert coverages == sorted(coverages, reverse=True)
     assert curve[0]["coverage"] == 1.0 and curve[0]["selective_precision"] == 0.7
 
-    lunch = r2.free_lunch(curve)
+    lunch = r5.free_lunch(curve)
     assert lunch is not None
     assert lunch["over_abstention"] == 0 and lunch["selective_precision"] == 1.0
     assert 0.3 < lunch["tau"] <= 0.9
-    assert r2.aurc(curve) >= 0.0
+    assert r5.aurc(curve) >= 0.0
 
 
 def test_sweep_never_touches_the_records_it_scores():
     r = rec(sct="271782001", confidence=0.1)
     r.mark(1, ZONE_ACCEPT)
-    r2.sweep([r], is_correct=lambda _r: True)
+    r5.sweep([r], is_correct=lambda _r: True)
     assert r.zone == ZONE_ACCEPT and r.sct == "271782001"
 
 
@@ -279,7 +279,7 @@ def test_observe_mode_judges_without_touching_the_record(tmp_path):
     assert bad.zone == ZONE_NEW and good.zone == ZONE_NEW
     assert bad.provenance == [] and good.provenance == []
     assert bad.sct == "999999999", "observe mode must not withdraw an answer"
-    # ...but the verdict is on the record, for rung 2 and rung 3 to read.
+    # ...but the verdict is on the record, for rung 5 and rung 2 to read.
     assert bad.checks["r1_verdict"] == ZONE_REJECT
     assert bad.checks["r1_reason"] == R_CODE_UNKNOWN
     assert good.checks["r1_verdict"] == ZONE_ACCEPT
@@ -322,7 +322,7 @@ def test_rung_2_abstains_on_the_verdict_when_rung_1_did_not_route(tmp_path):
     _run_r1([bad, band, good], tmp_path, mode="observe")
 
     ledger = Ledger(tmp_path / "l2.jsonl", run_id="t")
-    r2.apply([bad, band, good], {"D1": SOURCE}, {"ledger": ledger, **r2.DEFAULTS})
+    r5.apply([bad, band, good], {"D1": SOURCE}, {"ledger": ledger, **r5.DEFAULTS})
     ledger.close()
     assert bad.zone == ZONE_ABSTAIN and bad.reason == R_CODE_UNKNOWN
     assert band.zone == ZONE_ABSTAIN and band.reason == R_UNRESOLVED
@@ -330,13 +330,13 @@ def test_rung_2_abstains_on_the_verdict_when_rung_1_did_not_route(tmp_path):
 
 
 def test_rung_2_reaches_the_same_end_state_in_either_mode(tmp_path):
-    """Observe mode defers rung 1's cost to rung 2; it does not cancel it."""
+    """Observe mode defers rung 1's cost to rung 5; it does not cancel it."""
     ends = {}
     for mode in ("observe", "gate"):
         recs = [rec(sct="999999999"), rec(text="drowsy", spans=[(13, 19)], sct="271782001")]
         _run_r1(recs, tmp_path, mode=mode)
         ledger = Ledger(tmp_path / f"l_{mode}.jsonl", run_id="t")
-        r2.apply(recs, {"D1": SOURCE}, {"ledger": ledger, **r2.DEFAULTS})
+        r5.apply(recs, {"D1": SOURCE}, {"ledger": ledger, **r5.DEFAULTS})
         ledger.close()
         ends[mode] = [r.zone for r in recs]
     assert ends["observe"] == ends["gate"] == [ZONE_ABSTAIN, ZONE_VERIFIED]

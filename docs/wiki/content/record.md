@@ -2,7 +2,7 @@
 
 `ladder/schema.py` · **FROZEN** after the fixture gate.
 
-A silent change here costs an hour neither owner has. If it must change, both owners agree out loud first, and the change is **appended, never reordered**.
+A silent change here costs an hour nobody has. If it must change, agree it first, and **append, never reorder**.
 
 ## Unit of evaluation
 
@@ -19,7 +19,7 @@ A silent change here costs an hour neither owner has. If it must change, both ow
 | `spans` | `list[(start, end)]` — a **list**, because 11.7 % of CADEC reaction mentions are discontinuous |
 | `sct` | SNOMED code, `CONCEPT_LESS`, or `None` |
 | `meddra` | secondary, never the primary scored target |
-| `confidence` | model's own, used by [[r2]]'s τ |
+| `confidence` | model's own, used by [[r5]]'s τ |
 | `zone` | where the ladder has routed it |
 | `reason` | why |
 | `record_id` | `f"{doc_id}#{index}"`, stable within a run |
@@ -35,11 +35,11 @@ stateDiagram-v2
     NEW --> BAND: rung 1 (gate mode)
     NEW --> REJECT: rung 1 (gate mode)
     NEW --> NEW: rung 1 (observe mode)
-    ACCEPT --> VERIFIED: rung 2
-    BAND --> ABSTAIN: rung 2
-    REJECT --> ABSTAIN: rung 2
-    NEW --> VERIFIED: rung 2 reads r1_verdict
-    NEW --> ABSTAIN: rung 2 reads r1_verdict
+    ACCEPT --> VERIFIED: rung 5
+    BAND --> ABSTAIN: rung 5
+    REJECT --> ABSTAIN: rung 5
+    NEW --> VERIFIED: rung 5 reads r1_verdict
+    NEW --> ABSTAIN: rung 5 reads r1_verdict
     ABSTAIN --> ESCALATE: rung 6 queue
     ESCALATE --> RESOLVED: a person settles it
 ```
@@ -63,7 +63,7 @@ Rung 1's value is the **breakdown**, not the rate. Append new reasons at the end
 
 - `schema_invalid` · `span_ungrounded` · `span_out_of_range` · `negated`
 - `code_unknown` · `code_inactive` · `wrong_semantic_type` · `meddra_code_unknown`
-- `low_confidence`, `unresolved` — [[r2]] only
+- `low_confidence`, `unresolved` — [[r5]] only
 
 ## Span grounding
 
@@ -82,4 +82,4 @@ CADEC labels five (ADR / Symptom / Disease / Finding / Drug). Four collapse to `
 
 ## Related
 
-- [[r1]] · [[r2]] · [[ledger]] · [[corpus]] · [[glossary]]
+- [[r1]] · [[r5]] · [[ledger]] · [[corpus]] · [[glossary]]

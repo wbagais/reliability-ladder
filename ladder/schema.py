@@ -1,7 +1,7 @@
 """The A/B contract: one mention record, and the zones it can occupy.
 
 FROZEN after the step-3 fixture gate. A silent change here is the one thing
-that costs an hour neither owner has — if it must change, both owners agree
+that costs an hour nobody has — if it must change, everyone agrees
 out loud first and the change is appended, never reordered.
 
 Unit of evaluation is ONE MENTION, not one document. A document yields many
@@ -27,7 +27,7 @@ from typing import Any
 
 #: Gold label meaning "no code in the vocabulary is correct for this mention".
 #: CADEC writes this literal in the sct/ and meddra/ annotation files. It is the
-#: measurable target for rung 2's abstention.
+#: measurable target for rung 5's abstention.
 CONCEPT_LESS = "CONCEPT_LESS"
 
 #: SNOMED CT |Clinical finding (finding)| — the semantic-type gate in rung 1.
@@ -41,7 +41,7 @@ ZONE_NEW = "NEW"  # emitted by rung 0, nothing has looked at it
 ZONE_ACCEPT = "ACCEPT"  # rung 1: passed validation AND the vocabulary knows these words
 ZONE_BAND = "BAND"  # rung 1: passed validation, but unverifiable by code alone
 ZONE_REJECT = "REJECT"  # rung 1: provably wrong (see REASONS)
-ZONE_ABSTAIN = "ABSTAIN"  # rung 2: system declines to resolve
+ZONE_ABSTAIN = "ABSTAIN"  # rung 5: system declines to resolve
 ZONE_ESCALATE = "ESCALATE"  # queued for a person
 ZONE_VERIFIED = "VERIFIED"  # settled — by the ladder or by a person
 ZONE_RESOLVED = "RESOLVED"  # rung 6: a person settled it
@@ -71,8 +71,8 @@ R_NEGATED = "negated"  # the mention is explicitly denied in the source
 R_CODE_UNKNOWN = "code_unknown"  # code is in no release of the vocabulary
 R_CODE_INACTIVE = "code_inactive"  # code was real once; retired since. NOT a reject by default
 R_WRONG_SEMANTIC_TYPE = "wrong_semantic_type"  # real code, wrong branch of the hierarchy
-R_LOW_CONFIDENCE = "low_confidence"  # rung 2 only
-R_UNRESOLVED = "unresolved"  # rung 2 only: still in BAND when the ladder ran out
+R_LOW_CONFIDENCE = "low_confidence"  # rung 5 only
+R_UNRESOLVED = "unresolved"  # rung 5 only: still in BAND when the ladder ran out
 # Appended 2026-08-22 with the MedDRA check. See registry.MeddraTable for why
 # this is not a rejection reason by default.
 R_MEDDRA_UNKNOWN = "meddra_code_unknown"  # code is not in the MedDRA table

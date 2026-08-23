@@ -1059,3 +1059,147 @@ disk-cache key, so rung 5's k votes all hit ONE cache entry: unanimity that was
 never measured, in 0.00s, for free. Each draw now gets its own sample index, so
 samples differ from each other and stay reproducible across runs. `sampler()`
 refuses temperature 0 outright.
+
+## 2026-08-23 — rung IDs renumbered to match execution order
+
+**Decision: rung IDs now equal execution position.** `rung_order` becomes
+`[0,1,2,3,4,5,6]`. Previously ID was identity and order was configuration, and
+the two differed — the pedagogical numbering put abstention second while the
+runtime order ran it last. Having to hold both mappings at once was the cost,
+and it was judged to outweigh the benefit.
+
+**THE MAPPING. Every number in this log above this entry uses the OLD IDs.**
+
+| old | new | rung |
+|-----|-----|------|
+| 0 | 0 | bare LLM |
+| 1 | 1 | deterministic |
+| **3** | **2** | self-correction |
+| **5** | **3** | voting |
+| 4 | 4 | LLM judge |
+| **2** | **5** | abstention |
+| 6 | 6 | human loop |
+
+Read anything dated before 2026-08-23 through that table. "Rung 2 abstained on
+all 3" in an earlier entry means what is now rung 5; "rung 3 declined all three"
+means what is now rung 2. The measurements themselves are unaffected — only the
+labels moved.
+
+**What this costs, recorded so it is not rediscovered as a surprise.** The rung
+numbers came from the brief and were shared with anyone else running this
+ladder, so results are no longer directly comparable to the brief or to other
+groups without applying the table above. And the ordering claim is no longer a
+one-line ablation: running abstention early used to be a `rung_order` edit, and
+now it means renumbering again. If that ablation is wanted later, it has to be
+done by editing `rung_order` away from the identity permutation, which
+reintroduces exactly the ID/order gap this change removed — that is the
+trade, and it was made deliberately.
+
+**`rung_order` stays in the manifest.** It is now the identity permutation, but
+keeping the key means the runner still reads order from configuration rather
+than from a sort, so the ablation remains possible even though it is no longer
+free.
+
+## 2026-08-23 — cold integration run, all rungs, one document
+
+**First run with the cache cleared, so every call is real.** 31s wall,
+10 model calls, 4439 tokens, $0.00 (all local). Order `[0,1,2,3,4,5,6]`,
+ARTHROTEC.107, extractor `ollama/ibm/granite4:micro-h`, judge
+`ollama/gpt-oss:20b`.
+
+| rung | layer | rows | calls | tok in | tok out | p95 ms |
+|------|-------|------|-------|--------|---------|--------|
+| 0 | bare LLM | 1 | 1 | 200 | 150 | 3899.7 |
+| 1 | deterministic | 3 | 0 | 0 | 0 | 0.4 |
+| 2 | self-correct | 3 | 3 | 687 | 107 | 751.0 |
+| 3 | voting | 4 | 3 | 600 | 807 | 0.0 |
+| 4 | LLM judge | 3 | 3 | 823 | 1065 | 4311.0 |
+| 5 | abstention | 3 | 0 | 0 | 0 | 0.0 |
+
+**Latency was missing from rungs 2 and 4 and is now recorded per call.** Both
+were writing `latency_ms=0.0` on rows for calls that took seconds — rung 4's
+judge is the slowest thing in the ladder at 4.3s p95 and was reporting as free
+on one of the three cost measures. Taken from the `seconds` the caller already
+returns, per call, never derived from a total.
+
+**Rung 3's p95 reads 0.0 and that is an artefact worth naming.** It writes two
+kinds of row: one DOCUMENT row carrying the k sampling calls (9.7s here) and one
+row per record. Three of its four rows are per-record `not_resampled` rows with
+no call of their own, so a percentile over all four lands on a zero. The rows are
+individually right; a single p95 over a rung that bills per document and reports
+per record is the wrong summary. Either bill rung 3's latency per document or
+report the two row kinds separately — not resolved here, but it must not be read
+as "voting is instant".
+
+**Outcomes unchanged from the warm run**, which is itself the result worth
+having: clearing the cache reproduced the same verdicts. Rung 1 rejected all
+three `code_unknown`, rung 2 declined all three, rung 3 found nothing to vote on
+(`not_resampled` ×3), rung 4 returned fail=2 pass=1, rung 5 abstained on all
+three. Coverage 1.0 → 0.0.
+
+## 2026-08-23 — merging across the renumber
+
+**A rename plus an edit to the same file is a conflict git cannot resolve by
+path, and resolving it by path would have been silently wrong.** Main's
+`5258eff` added denominator names and three-valued `evaluable` to
+`ladder/rungs/r3.py`, `r4.py` and `r5.py` under the OLD numbering, while this
+branch had renamed those files. Git paired them by filename, which would have
+merged self-correction's edits into the voting file — a merge that compiles,
+passes imports, and is nonsense.
+
+Resolved by identity instead: each of main's files was remapped through the
+old→new table FIRST, then three-way merged onto the file that now holds that
+rung. `r3(self-correct) → r2`, `r5(voting) → r3`, `r4 → r4`. Voting merged
+clean; the other two conflicted only where both sides had added a keyword to the
+same `ledger.log(...)` call, and both keywords were wanted.
+
+**This is the renumber's first bill, and it will not be the last.** Any branch
+cut before 2026-08-23 that touches a rung file will hit the same thing. The
+procedure is written down here rather than rediscovered: remap by identity, then
+merge — never merge by path.
+
+Verified on the merged tree: 93 tests, fixture gate passes, and a cold run with
+the cache cleared carries both features on the same ledger rows — `denominator`
+and `evaluable` from main, `latency_ms` from this branch.
+
+## 2026-08-23 — renumber audit: four classes the first pass missed
+
+Auditing every `rung N` against the label beside it found four kinds of miss.
+Recorded because each is a pattern, not a one-off, and the same shapes will
+recur in anything else renamed mechanically.
+
+**1 · Word boundaries that are not boundaries.** `\bRUNG 3\b` never matched
+`f"\nRUNG 3 — self-correction"`, because in the SOURCE the preceding characters
+are a literal backslash and `n` — `n` is a word character, so there is no
+boundary before `R`. Two report headers printed the wrong rung until this was
+caught.
+
+**2 · Files nobody thought to list.** `ladder/schema.py` and
+`docs/wiki/build.py` were not in the first pass. schema.py's zone comments named
+rung 2 for abstention; build.py's navigation named every rung page wrongly and
+listed them out of order.
+
+**3 · Identifiers vs strings.** `scripts/ladder_run.py` had its label strings
+remapped but not its module names, so it passed the VOTING module under the
+self-correct label — `call(r3, "r2", ...)`. `scripts/full_run.py` imported `r2`
+and called `r3.apply`, a NameError waiting to run. Both would have executed the
+wrong rung, or crashed, without any test noticing: no test imports those
+scripts.
+
+**4 · Applying the mapping twice.** Re-running the remap over
+`ladder/rungs/r2.py` and `r3.py` — already correct — cycled them a second time
+and produced "Rung 5 — self-correction" and "Rung 2 — voting". A permutation is
+not idempotent, and a rename script that is safe to re-run is a different script
+from one that is safe to run once. Recovered from the committed tree rather than
+by remapping backwards.
+
+**What the audit could NOT catch, and what did.** The test suite stayed green
+through every one of these: 93 tests pass on a tree where `full_run.py` raises
+NameError and the wiki names every rung wrong. What caught them was reading each
+number against the word next to it. Docstrings, print headers, navigation labels
+and script identifiers are not covered by any assertion in this repo.
+
+Verified after: rung docstrings, wiki page titles, wiki navigation, plan.html's
+step list and glossary, schema.py's zone comments and both scripts all agree
+with the new ids. 93 tests, fixture gate passes, cold run exercises all seven
+slots in order.

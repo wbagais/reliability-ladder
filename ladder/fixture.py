@@ -1,11 +1,11 @@
 """The step-3 gate: ten hand-made records through ledger, registry and rung 1,
 with several deliberately broken. "This gate is worth being late for."
 
-The point is not coverage — tests/ does coverage. The point is that both owners
-watch the same ten records go through the harness and agree that a broken record
-comes out rejected with the RIGHT reason, before anybody writes a rung. A ledger
-that is wrong poisons every number above it, and by the time you notice, every
-rung has to be re-run.
+The point is not coverage — tests/ does coverage. The point is that everyone
+watches the same ten records go through the harness and agrees that a broken
+record comes out rejected with the RIGHT reason, before anybody writes a rung.
+A ledger that is wrong poisons every number above it, and by the time you
+notice, every rung has to be re-run.
 
     python -m ladder.run gate
 
@@ -222,16 +222,16 @@ def run_gate(manifest_path: str = "manifest.json") -> int:
             print(f"        meddra {rec.meddra}: {'known' if known else 'UNKNOWN'} ({term}) — audit only")
 
     if mode == "observe" and all(r.zone == ZONE_NEW for r in records):
-        print("\n  ok  every record still in NEW — rungs 3-6 would see the unfiltered set")
+        print("\n  ok  every record still in NEW — rungs 2-6 would see the unfiltered set")
 
-    # Rung 2 runs last: everything unresolved is withdrawn, nothing is deleted.
+    # Rung 5 runs last: everything unresolved is withdrawn, nothing is deleted.
     cfg2 = {**man["rungs"].get("2", {}), "ledger": ledger}
     r2.apply(records, {FIXTURE_DOC: source}, cfg2)
     ledger.close()
 
     withheld = [r for r in records if r.zone == ZONE_ABSTAIN]
     verified = [r for r in records if r.zone == ZONE_VERIFIED]
-    print(f"\nafter rung 2: {len(verified)} verified, {len(withheld)} abstained")
+    print(f"\nafter rung 5: {len(verified)} verified, {len(withheld)} abstained")
     for r in withheld:
         kept = r.checks.get("withheld", {}).get("sct")
         if kept is None and r.checks.get("withheld") is None:

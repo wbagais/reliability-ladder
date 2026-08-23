@@ -12,8 +12,8 @@ this whole project is about.
 
 WHY IT RUNS AFTER VOTING
 ------------------------
-Order is [0, 1, 3, 5, 4, 2, 6]. The judge sees what rung 3 corrected and what
-rung 5 voted on, so it grades the best available answer rather than a draft.
+Order is [0, 1, 2, 3, 4, 5, 6]. The judge sees what rung 2 corrected and what
+rung 3 voted on, so it grades the best available answer rather than a draft.
 
 Rung 1 runs in `observe` mode precisely so the judge is graded on the FULL
 unfiltered set. If rung 1 filtered, rung 4's marginal contribution would not be
@@ -26,7 +26,7 @@ May read `checks["r1_verdict"]` and `checks["r1_reason"]`. Nothing else.
 answer key's own code inventory — and a judge shown it is being handed the
 answer. Post text comes from `sources[doc_id]`, never from `docs`.
 
-Enforced with the same `ALLOWED_CHECK_KEYS` mechanism as rung 3, because a leak
+Enforced with the same `ALLOWED_CHECK_KEYS` mechanism as rung 2, because a leak
 here produces BETTER numbers rather than an error, and silent improvement is the
 hardest kind of bug to notice.
 
@@ -34,7 +34,7 @@ RECORDS, DOES NOT ROUTE
 -----------------------
 Whether a judgement moves the zone is a manifest choice, and the same argument
 applies as for rung 1: a judge that routes confounds every rung above it.
-Default is to record into `checks["r4_verdict"]` and let rung 2 act.
+Default is to record into `checks["r4_verdict"]` and let rung 5 act.
 
 HOW YOU WILL KNOW IT WORKS
 --------------------------
@@ -60,7 +60,7 @@ NAME = "llm-as-judge"
 
 DEFAULTS = {
     "temperature": 0,
-    "route": False,          # record only; rung 2 acts
+    "route": False,          # record only; rung 5 acts
     "show_vocabulary_term": False,
 }
 
@@ -174,6 +174,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                            zone=rec.zone, reason="parse_failed",
                            outcome="parse_failed", api_calls=1,
                            tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
+                           latency_ms=usage.get("seconds", 0.0) * 1000,
                            denominator="r4_offered", evaluable="could_not_run")
             continue
 
@@ -200,6 +201,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                          reason=None, outcome="judged", api_calls=1,
                          tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
+                         latency_ms=usage.get("seconds", 0.0) * 1000,
                          verdict=verdict,
                          span_ok=v["span_ok"], code_ok=v["code_ok"],
                          denominator="r4_judged", evaluable="pass")

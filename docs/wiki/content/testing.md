@@ -17,7 +17,7 @@ python -m ladder.run gate
 
 - 13 hand-made records through ledger, registry and [[r1]], several deliberately broken.
 - Uses one real archived post so the span offsets are real. The post itself is **not** reproduced in the file.
-- **The point is not coverage** — `tests/` does coverage. The point is that both owners watch the same records go through the harness and agree a broken record comes out rejected with the **right reason**, before anybody writes a rung.
+- **The point is not coverage** — `tests/` does coverage. The point is that everyone watches the same records go through the harness and agrees a broken record comes out rejected with the **right reason**, before anybody writes a rung.
 - A ledger that is wrong poisons every number above it, and by the time you notice, every rung has to be re-run.
 
 Must end `GATE PASSED`. What it asserts:
@@ -29,7 +29,7 @@ Must end `GATE PASSED`. What it asserts:
 - `CONCEPT_LESS` is a positive answer, not an error and not an abstention
 - an unknown MedDRA code is flagged, not rejected
 - in observe mode, **every record is still in `NEW`**
-- after [[r2]], no abstained record still ships an answer, and each preserved its `withheld`
+- after [[r5]], no abstained record still ships an answer, and each preserved its `withheld`
 - the ledger has exactly `2 × len(CASES)` rows
 
 ## Preflight

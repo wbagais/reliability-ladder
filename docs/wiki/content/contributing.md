@@ -46,7 +46,7 @@ git blame --line-porcelain HEAD -- <path> | grep '^author ' | sort | uniq -c | s
 - Docstrings explain **why**, not what. The repo's existing docstrings are the reference for tone and density.
 - Match surrounding comment density and naming. Do not add a house style the file does not already use.
 - Standard library first. A new pinned dependency needs a reason in the MR.
-- Schemas append, never reorder — `schema.py` enums are cross-owner contract.
+- Schemas append, never reorder — `schema.py` enums are the contract every rung reads.
 
 ## Adding a rung
 

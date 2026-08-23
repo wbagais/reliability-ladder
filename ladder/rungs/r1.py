@@ -13,7 +13,7 @@ If rung 1 removes the records it dislikes, rung 4's judge is graded on a set
 rung 1 pre-cleaned, and the marginal contribution of rung 4 is no longer
 attributable to rung 4. Keeping rung 1 observational makes every rung a
 single-rung ablation on identical input, and rung 1's verdicts stay in the
-comparison as their own column. Rung 2, which runs last, is where a rung 1
+comparison as their own column. Rung 5, which runs last, is where a rung 1
 verdict is finally allowed to cost coverage.
 
 The judgement itself, either way: rung 1 cannot tell you a code is RIGHT — nothing deterministic can, because the
@@ -166,7 +166,7 @@ def zone(
 
     # A record that answers CONCEPT_LESS is claiming no code is correct. There
     # is nothing to look up, and rung 1 has no way to contradict it — that is
-    # rung 2's and the scorer's business.
+    # rung 5's and the scorer's business.
     if rec.sct == CONCEPT_LESS:
         checks["concept_less"] = True
         return ZONE_BAND, None, checks
@@ -326,7 +326,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             "schema.REJECT_REASONS (append, never reorder)"
         )
         rec.checks.update(checks)
-        # The verdict always lands on the record — rung 2 reads it, rung 3 needs
+        # The verdict always lands on the record — rung 5 reads it, rung 2 needs
         # it to have a fact to feed back, and the report counts it. Only the
         # ZONE is conditional.
         rec.checks["r1_verdict"] = verdict
