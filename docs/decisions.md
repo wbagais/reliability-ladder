@@ -1161,3 +1161,45 @@ merge — never merge by path.
 Verified on the merged tree: 93 tests, fixture gate passes, and a cold run with
 the cache cleared carries both features on the same ledger rows — `denominator`
 and `evaluable` from main, `latency_ms` from this branch.
+
+## 2026-08-23 — renumber audit: four classes the first pass missed
+
+Auditing every `rung N` against the label beside it found four kinds of miss.
+Recorded because each is a pattern, not a one-off, and the same shapes will
+recur in anything else renamed mechanically.
+
+**1 · Word boundaries that are not boundaries.** `\bRUNG 3\b` never matched
+`f"\nRUNG 3 — self-correction"`, because in the SOURCE the preceding characters
+are a literal backslash and `n` — `n` is a word character, so there is no
+boundary before `R`. Two report headers printed the wrong rung until this was
+caught.
+
+**2 · Files nobody thought to list.** `ladder/schema.py` and
+`docs/wiki/build.py` were not in the first pass. schema.py's zone comments named
+rung 2 for abstention; build.py's navigation named every rung page wrongly and
+listed them out of order.
+
+**3 · Identifiers vs strings.** `scripts/ladder_run.py` had its label strings
+remapped but not its module names, so it passed the VOTING module under the
+self-correct label — `call(r3, "r2", ...)`. `scripts/full_run.py` imported `r2`
+and called `r3.apply`, a NameError waiting to run. Both would have executed the
+wrong rung, or crashed, without any test noticing: no test imports those
+scripts.
+
+**4 · Applying the mapping twice.** Re-running the remap over
+`ladder/rungs/r2.py` and `r3.py` — already correct — cycled them a second time
+and produced "Rung 5 — self-correction" and "Rung 2 — voting". A permutation is
+not idempotent, and a rename script that is safe to re-run is a different script
+from one that is safe to run once. Recovered from the committed tree rather than
+by remapping backwards.
+
+**What the audit could NOT catch, and what did.** The test suite stayed green
+through every one of these: 93 tests pass on a tree where `full_run.py` raises
+NameError and the wiki names every rung wrong. What caught them was reading each
+number against the word next to it. Docstrings, print headers, navigation labels
+and script identifiers are not covered by any assertion in this repo.
+
+Verified after: rung docstrings, wiki page titles, wiki navigation, plan.html's
+step list and glossary, schema.py's zone comments and both scripts all agree
+with the new ids. 93 tests, fixture gate passes, cold run exercises all seven
+slots in order.

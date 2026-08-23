@@ -72,17 +72,17 @@ observe(recs, "after r0")
 
 # ---- 3 -----------------------------------------------------------------
 print("\n" + "=" * 58, "\nRUNG 3 — self-correction\n", "=" * 58, sep="")
-recs, m3 = call(r3, "r2", recs, {"registry": reg, "llm": S.stub})
+recs, m2 = call(r2, "r2", recs, {"registry": reg, "llm": S.stub})
 if m3 and hasattr(r3, "report"):
-    r3.report(m3)
+    r2.report(m2)
 observe(recs, "after r3")
 print(f"  carrying a code {codes(recs)}")
 
 # ---- 5 -----------------------------------------------------------------
 print("\n" + "=" * 58, "\nRUNG 5 — voting\n", "=" * 58, sep="")
-recs, m5 = call(r5, "r3", recs, {"registry": reg, "llm": S.voter(0.7), "k": 3})
+recs, m3 = call(r3, "r3", recs, {"registry": reg, "llm": S.voter(0.7), "k": 3})
 if m5:
-    r5.report(m5)
+    r3.report(m3)
 observe(recs, "after r5")
 print(f"  carrying a code {codes(recs)}")
 
@@ -97,7 +97,7 @@ if m4:
 
 # ---- 2 (last) ----------------------------------------------------------
 print("\n" + "=" * 58, "\nRUNG 2 — abstention\n", "=" * 58, sep="")
-recs, _ = call(r2, "r5", recs, {"registry": reg})
+recs, _ = call(r5, "r5", recs, {"registry": reg})
 print("  zones:", dict(collections.Counter(r.zone for r in recs)))
 print("  reasons:", dict(collections.Counter(r.reason for r in recs).most_common(8)))
 withheld = sum(1 for r in recs if "withheld" in r.checks)

@@ -83,8 +83,8 @@ print(f"  CODE  correct {tot['code_correct']}  wrong {tot['code_wrong']}  "
 print(f"        accuracy {tot['code_correct']/g if g else None}  over {g} graded")
 
 # ---------------------------------------------------------------- rung 2
-recs, m3 = r3.apply(recs, sources, cfg)
-r3.report(m3)
+recs, m2 = r2.apply(recs, sources, cfg)
+r2.report(m2)
 
 tot2, _, npd2 = score(recs)
 g2 = tot2["code_correct"] + tot2["code_wrong"]
@@ -103,7 +103,7 @@ out = {
     "gold": {"reaction_golds": ng, "predictions": npd,
              "span_precision": round(sp, 4), "span_recall": round(sr, 4),
              "code_correct": tot["code_correct"], "code_graded": g},
-    "rung3": {k: v for k, v in m3.items() if k != "t0"},
+    "rung3": {k: v for k, v in m2.items() if k != "t0"},
     "code_after_r3": {"correct": tot2["code_correct"], "graded": g2},
 }
 pathlib.Path("runs").mkdir(exist_ok=True)

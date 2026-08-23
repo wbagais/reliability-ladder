@@ -255,7 +255,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
 
 def report(agg: dict) -> None:
     n = agg["records"]
-    print(f"\n{'=' * 58}\nRUNG 5 — voting (k={DEFAULTS['k']})\n{'=' * 58}")
+    print(f"\n{'=' * 58}\nRUNG 3 — voting (k={DEFAULTS['k']})\n{'=' * 58}")
     print(f"  records voted on   {n}   calls {agg['calls']}")
     if not n:
         print("  nothing to vote on"); return

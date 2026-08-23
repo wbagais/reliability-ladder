@@ -37,10 +37,10 @@ PAGES: list[tuple[str, str, str]] = [
     ("rungs",           "The Ladder",            "Rungs"),
     ("r0",              "Rung 0 · bare LLM",     "Rungs"),
     ("r1",              "Rung 1 · deterministic","Rungs"),
-    ("r2",              "Rung 2 · abstention",   "Rungs"),
-    ("r3",              "Rung 3 · self-correct", "Rungs"),
+    ("r2",              "Rung 2 · self-correct", "Rungs"),
+    ("r3",              "Rung 3 · voting",       "Rungs"),
     ("r4",              "Rung 4 · LLM judge",    "Rungs"),
-    ("r5",              "Rung 5 · voting",       "Rungs"),
+    ("r5",              "Rung 5 · abstention",   "Rungs"),
     ("r6",              "Rung 6 · human loop",   "Rungs"),
 
     ("record",          "Record & zones",        "Reference"),

@@ -281,7 +281,7 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 
 <div class="note stop">
 <b>Status — read this first</b>
-<b>The numbers exist.</b> All seven rungs have been measured on the 40-document dev split of CADEC v2, with <code>granite4:micro-h</code> as extractor and <code>llama3.2:3b</code> as judge, against SNOMED CT-AU <code>AU1000036_20260731</code> on a local GPU. Two gold controls have been run (rung 2 abstention, rung 4 judge), and the full ladder has been run end to end in the specified order <code>[0,1,3,5,4,2,6]</code>, reproducing every standalone figure — so no rung interacts with another.<br><br>
+<b>The numbers exist.</b> All seven rungs have been measured on the 40-document dev split of CADEC v2, with <code>granite4:micro-h</code> as extractor and <code>llama3.2:3b</code> as judge, against SNOMED CT-AU <code>AU1000036_20260731</code> on a local GPU. Two gold controls have been run (rung 5 abstention, rung 4 judge), and the full ladder has been run end to end in the specified order <code>[0,1,2,3,4,5,6]</code>, reproducing every standalone figure — so no rung interacts with another.<br><br>
 <b>Headline: four reliability layers, zero correct codes.</b> Rung 0 produces 169 mentions at span F1 0.543 and <b>0 of 105 correct SNOMED codes</b>. Self-correction offered 158 corrections and rescued none. Voting was unanimous on 2% of its input and did not re-find the other 98%. The judge returns two constants — it fails 97% of spans whether they are the model's or the annotators', and passes 86–92% of codes whether they are fabricated or correct. Abstention withdrew 169 of 169, correctly, and inherited all of that correctness from a lookup.<br><br>
 <b>This document has not caught up.</b> Sections written as predictions still read as predictions, and several now state things known to be false — the record shape in §1, k=5 in §5, the gold count in §6, and the second-corpus claim in §9. See <code>docs/plan-html-audit.md</code> for the full list, <code>docs/decisions.md</code> for what was found and when, and <code>docs/infoq-article-draft.md</code> for the write-up.
 </div>
@@ -375,7 +375,7 @@ They are now hard-coded into the Triage desk, so changing them means changing th
 
 <div class="note">
 <b>One free gift: the <code>concept_less</code> tag</b>
-Where no concept existed in the vocabularies, CADEC labels the mention <code>concept_less</code>. That is a gold label meaning <i>no correct code exists</i> — a directly measurable target for what rung 2 should abstain on. Corpora that let you score abstention against gold are rare; use it.
+Where no concept existed in the vocabularies, CADEC labels the mention <code>concept_less</code>. That is a gold label meaning <i>no correct code exists</i> — a directly measurable target for what rung 5 should abstain on. Corpora that let you score abstention against gold are rare; use it.
 </div>
 <table>
 <tr><th style="width:14%">Version</th><th style="width:30%">Where</th><th style="width:14%">Year</th><th>Use</th></tr>
@@ -431,7 +431,7 @@ SNOMED CT and MedDRA both release twice a year; codes are added and occasionally
 
 <div class="note warn">
 <b>Why rung 6 is a rung, not a prompt instruction</b>
-"Tell the model to escalate when it is unsure" is <b>rung 2, abstention</b> — the system declining. Rung 6 is a person actually resolving the record. Fold them together and you lose four things you cannot recover afterwards:<br><br>
+"Tell the model to escalate when it is unsure" is <b>rung 5, abstention</b> — the system declining. Rung 6 is a person actually resolving the record. Fold them together and you lose four things you cannot recover afterwards:<br><br>
 <b>1 · The cost.</b> How many records reach a person, and how long each takes. That is one of your three cost measures and it exists nowhere else.<br>
 <b>2 · Whether the human is right.</b> Agreement with gold, and disagreement between your two reviewers. Humans are not an oracle and the number is publishable.<br>
 <b>3 · Over-escalation.</b> Records sent to a person that no person needed to see. If escalation is just the model saying "I don't know", you cannot measure how often it says that wrongly.<br>
@@ -449,7 +449,7 @@ The pipeline reads the list; <code>results.csv</code> stays keyed by rung ID. Tw
 
 <div class="note">
 <b>Numbering is not execution order</b>
-Abstention must run <b>last</b> — abstaining before you've tried correction and voting throws away recoverable records — so it is numbered last, as rung 5. Rung IDs equal execution position: 0 → 1 → 2 → 3 → 4 → 5 → 6. They were renumbered on 2026-08-23; measurements dated earlier use the old IDs, and the mapping is in <code>docs/decisions.md</code>.
+Abstention must run <b>last</b> — abstaining before you've tried correction and voting throws away recoverable records — so it is numbered last, as rung 3. Rung IDs equal execution position: 0 → 1 → 2 → 3 → 4 → 5 → 6. They were renumbered on 2026-08-23; measurements dated earlier use the old IDs, and the mapping is in <code>docs/decisions.md</code>.
 </div>
 
 <h2>6. Evaluation</h2>
@@ -458,7 +458,7 @@ Abstention must run <b>last</b> — abstaining before you've tried correction an
 <tr><th style="width:18%">Family</th><th style="width:32%">Metric</th><th>Answers</th></tr>
 <tr><td rowspan="3">Accuracy</td><td>Strict F1 — <b>reaction</b>, exact SCT match</td><td>The only field with a gold code. Where the interesting normalisation errors live.</td></tr>
 <tr><td>Span F1 — <b>drug</b>, strict and relaxed</td><td>No gold RxCUI exists, so the drug field is scored on spans. Strict span has a ~0.69 human ceiling.</td></tr>
-<tr><td>Abstention accuracy vs <code>concept_less</code></td><td>Did rung 2 abstain on exactly the mentions with no valid code?</td></tr>
+<tr><td>Abstention accuracy vs <code>concept_less</code></td><td>Did rung 5 abstain on exactly the mentions with no valid code?</td></tr>
 <tr><td rowspan="3">Rung 1</td><td><b>Rejection rate</b></td><td>% of R0 output caught by deterministic checks alone, at zero model cost. The single number that says whether rung 1 earns its place.</td></tr>
 <tr><td><b>Rejection reasons</b> — breakdown</td><td>Ungrounded span / negated / nonexistent code / wrong type. Tells you <i>what</i> rung 1 catches, which the rate alone does not.</td></tr>
 <tr><td><b>Corruption rate</b> per rung</td><td>% a rung settles <b>wrongly</b>. Confident and wrong is worse than abstaining.</td></tr>
@@ -520,7 +520,7 @@ It also removes a fake precision. There is no single optimal rung — there is a
 <div class="note">
 <b>The cut axis — decide this before anything else</b>
 <b>Cutting rungs changes the question. Cutting sample size only widens the intervals.</b><br><br>
-Stop at rung 3 and you cannot answer "where does it stop being worth it", because the crossover might sit at rung 5 and you would never see it. The <i>shape</i> of the ladder is the contribution, so <b>all seven rungs are in iteration 1</b> — thin, on a small sample, with honest error bars. Depth arrives in later iterations.
+Stop at rung 2 and you cannot answer "where does it stop being worth it", because the crossover might sit at rung 3 and you would never see it. The <i>shape</i> of the ladder is the contribution, so <b>all seven rungs are in iteration 1</b> — thin, on a small sample, with honest error bars. Depth arrives in later iterations.
 </div>
 
 <h3>7.1 Three iterations</h3>
@@ -577,7 +577,7 @@ At n=60 your confidence intervals will be very wide, and adjacent rungs will pro
   cache/rxnorm/          # one json per query string
   ladder/
     schema.py  ledger.py  score.py  registry.py
-    rungs/r0.py r1.py r2.py r3.py r4.py r5.py r6.py
+    rungs/r0.py r1.py r5.py r2.py r4.py r3.py r6.py
     run.py               # python -m ladder.run --rungs 0-6 --split test
   out/ledger.jsonl  out/results.csv  out/decisions.md</pre>
 
@@ -632,8 +632,8 @@ def bootstrap_delta(a, b, n=10_000, seed=42)</pre>
 <div class="step"><div class="step-h"><span class="step-n">4</span>
 <span class="step-t">Rungs 0 and 1</span><span class="step-w">split · 1:35–2:45</span></div>
 <div class="step-b">
-<p><b>B — rung 0:</b> one prompt, one call, JSON, temperature 0, no validation. <b>Do not repair malformed JSON</b> — a parse failure is a real reliability cost and must be counted.</p>
-<p><b>A — rung 1:</b></p>
+<p><b>rung 0:</b> one prompt, one call, JSON, temperature 0, no validation. <b>Do not repair malformed JSON</b> — a parse failure is a real reliability cost and must be counted.</p>
+<p><b>rung 1:</b></p>
 <pre>def zone(rec, source, vocab) -> str:
     ok, reason = rec.valid(source)           # span grounding — pure string compare
     if not ok:                     return "REJECT"   # free, no network call
@@ -651,17 +651,17 @@ def bootstrap_delta(a, b, n=10_000, seed=42)</pre>
 <div class="step"><div class="step-h"><span class="step-n">5</span>
 <span class="step-t">Rungs 3 and 5</span><span class="step-w">split · 2:45–3:30</span></div>
 <div class="step-b">
-<p><b>A — rung 3:</b> one bounded retry, fired <i>only</i> by a rung 1 failure, with the reason stated as a fact — <i>"code 999999 does not exist in SNOMED CT"</i>. Never "are you sure" or "reconsider". Hard cap at one, never loop.</p>
+<p><b>rung 2:</b> one bounded retry, fired <i>only</i> by a rung 1 failure, with the reason stated as a fact — <i>"code 999999 does not exist in SNOMED CT"</i>. Never "are you sure" or "reconsider". Hard cap at one, never loop.</p>
 <p>Count <b>regressions</b> (correct answers made wrong) and <b>rescues that remain unverified</b> (a reject re-enters the pipeline without being confirmed correct).</p>
-<p><b>B — rung 5:</b> voting at <b>k=3</b> this iteration, temperature 0.7. <b>Vote on the normalised code, never the raw string.</b> Log the consensus ratio and count consensus-on-wrong. Iteration 2 raises k to 5.</p>
+<p><b>rung 3:</b> voting at <b>k=3</b> this iteration, temperature 0.7. <b>Vote on the normalised code, never the raw string.</b> Log the consensus ratio and count consensus-on-wrong. Iteration 2 raises k to 5.</p>
 <div class="gate"><b>Gate:</b> records settled by each, and regressions introduced by R3, as separate counts.</div>
 </div></div>
 
 <div class="step"><div class="step-h"><span class="step-n">6</span>
 <span class="step-t">Rungs 4, 2 and 6</span><span class="step-w">split then joint · 3:30–4:45</span></div>
 <div class="step-b">
-<p><b>A — rung 4:</b> second model scores surviving records against the source span and registry entry. <b>Different model family</b> from the extractor, or it shares its blind spots.</p>
-<p><b>B — rung 2:</b> abstain on records still unresolved. Sweep tau on <b>dev only</b>, write it into the manifest before touching test.</p>
+<p><b>rung 4:</b> second model scores surviving records against the source span and registry entry. <b>Different model family</b> from the extractor, or it shares its blind spots.</p>
+<p><b>rung 5:</b> abstain on records still unresolved. Sweep tau on <b>dev only</b>, write it into the manifest before touching test.</p>
 <p><b>Joint — rung 6:</b> simulated routing sweep over gold at every budget from 0% to 100%. No live review session this iteration; use a stated hourly rate and flag it as assumed. Iteration 2 measures it for real.</p>
 <div class="gate"><b>Gate:</b> all seven rungs run individually.</div>
 </div></div>
@@ -690,10 +690,10 @@ merges cheap.</p>
 <table>
 <tr><th style="width:16%">Area</th><th style="width:25%">Covers</th><th style="width:28%">Files</th><th>Mental model</th></tr>
 <tr><td><b>The spine</b></td><td>Everything deterministic: ledger, registry, zones, abstention, integration.</td>
-<td><code>ledger.py</code> · <code>registry.py</code> · <code>rungs/r1.py</code> · <code>rungs/r2.py</code> · <code>run.py</code></td>
+<td><code>ledger.py</code> · <code>registry.py</code> · <code>rungs/r1.py</code> · <code>rungs/r5.py</code> · <code>run.py</code></td>
 <td>"Records flow through zones and every transition gets logged." No prompts, no model calls.</td></tr>
 <tr><td><b>The model surface</b></td><td>Everything that talks to a model, plus scoring.</td>
-<td><code>score.py</code> · <code>rungs/r0.py</code> · <code>r3.py</code> · <code>r4.py</code> · <code>r5.py</code> · <code>prompts/</code></td>
+<td><code>score.py</code> · <code>rungs/r0.py</code> · <code>r2.py</code> · <code>r4.py</code> · <code>r3.py</code> · <code>prompts/</code></td>
 <td>"Given records and sources, return better records." No ledger internals, no zone logic.</td></tr>
 <tr><td><b>The contracts</b></td><td>Schema, the rung interface, rung 6, analysis.</td>
 <td><code>schema.py</code> · <code>rungs/r6.py</code> · <code>manifest.json</code> · <code>docs/decisions.md</code></td>
@@ -1095,7 +1095,7 @@ models</b>. Each cluster of files answers one question, and holding one at a
 time is what keeps the contracts between them honest.</p>
 <table>
 <tr><th style="width:16%">Area</th><th style="width:32%">Files</th><th>Mental model</th></tr>
-<tr><td><b>The spine</b></td><td><code>ledger</code> · <code>vocab</code> · <code>rungs/r1</code> · <code>rungs/r2</code> · <code>cli</code></td><td>"Records flow through zones and every transition is logged." No prompts.</td></tr>
+<tr><td><b>The spine</b></td><td><code>ledger</code> · <code>vocab</code> · <code>rungs/r1</code> · <code>rungs/r5</code> · <code>cli</code></td><td>"Records flow through zones and every transition is logged." No prompts.</td></tr>
 <tr><td><b>The model surface</b></td><td><code>metrics</code> · <code>rungs/r0,r3,r4,r5</code> · <code>prompts/</code></td><td>"Given records and sources, return better records." No ledger internals.</td></tr>
 <tr><td><b>The contracts</b></td><td><code>schemas/</code> · <code>rungs/r6</code> · <code>manifest.json</code> · <code>decisions.md</code></td><td>Agree out loud before anyone types.</td></tr>
 </table>
@@ -1459,7 +1459,7 @@ function objectives(){
     const ok=(isFinite(mt)&&mt<=EC())||(mh>0&&HR()>0);
     rows+='<tr><td>R'+(i-1)+'&#8594;R'+i+'</td><td>'+(isFinite(mt)?Math.round(mt):"&#8734;")
       +'</td><td class="'+(mh?"y2":"d2")+'">'+(mh?mh.toFixed(1):"&mdash;")+'</td>'
-      +'<td class="'+(ok?"g":"r2")+'">'+(ok?"worth it":"too dear")+'</td></tr>';}
+      +'<td class="'+(ok?"g":"r5")+'">'+(ok?"worth it":"too dear")+'</td></tr>';}
    d2.innerHTML=rows+'</table>';return d2;}},
  {n:4,t:"Does any rung make things worse?",live:true,v:done.length?oe+" / "+done.length:"&mdash;",
   d:done.length?"records sent here that no human needed to see &mdash; "+Math.round(oe/done.length*100)+"% of your time"
@@ -1468,9 +1468,9 @@ function objectives(){
   viz:()=>{const d2=document.createElement("div");
    const nc=done.filter(d=>d.dec==="no_code").length, rj=done.filter(d=>d.dec==="reject_span").length;
    d2.innerHTML='<table class="tbl">'
-   +'<tr><td>over-escalation</td><td class="'+(oe?"r2":"d2")+'">'+(done.length?oe:"&mdash;")+'</td></tr>'
+   +'<tr><td>over-escalation</td><td class="'+(oe?"r5":"d2")+'">'+(done.length?oe:"&mdash;")+'</td></tr>'
    +'<tr><td>no valid code</td><td class="'+(nc?"y2":"d2")+'">'+(nc||"&mdash;")+'</td></tr>'
-   +'<tr><td>span rejected</td><td class="'+(rj?"r2":"d2")+'">'+(rj||"&mdash;")+'</td></tr>'
+   +'<tr><td>span rejected</td><td class="'+(rj?"r5":"d2")+'">'+(rj||"&mdash;")+'</td></tr>'
    +'<tr><td>agreement</td><td>'+(ag!=null?ag+"%":"&mdash;")+'</td></tr>'
    +'<tr><td>median decision</td><td>'+(m!=null?m.toFixed(1)+"s":"&mdash;")+'</td></tr></table>';
    return d2;}},
@@ -1502,7 +1502,7 @@ function renderDetail(){
   const rb=$("deskReset"); if(rb) rb.onclick=resetDesk; return;}
  const c=Q[cur];let t="",last=0;
  [...c.sp].sort((a,b)=>a[0]-b[0]).forEach(s=>{
-  t+=esc(c.t.slice(last,s[0]))+'<span class="h'+(s[2]==="r"?"r2":s[2])+'">'
+  t+=esc(c.t.slice(last,s[0]))+'<span class="h'+(s[2]==="r"?"r5":s[2])+'">'
    +esc(c.t.slice(s[0],s[1]))+'</span>';last=s[1];});
  t+=esc(c.t.slice(last));
  $("detail").innerHTML='<div class="meta">'
@@ -1563,7 +1563,7 @@ function decide(k){
 
 /* ================= GLOSSARY ================= */
 const GLOSS=[
-["Abstention","rung","Rung 2. The system declines to answer rather than guess, emitting <b>ABSTAIN</b>. Does not resolve a record — it declines it safely. Trades coverage for precision, so it cannot be compared to accuracy rungs on F1 alone.","§5 · runs last despite its number"],
+["Abstention","rung","Rung 5. The system declines to answer rather than guess, emitting <b>ABSTAIN</b>. Does not resolve a record — it declines it safely. Trades coverage for precision, so it cannot be compared to accuracy rungs on F1 alone.","§5 · runs last despite its number"],
 ["Accept zone","method","Records where the span is grounded, the code exists, is correctly typed, and the reporter's wording matches a vocabulary term for it. Settled by rung 1 at effectively zero cost.","§2"],
 ["ADE Corpus V2","data","Open corpus of MEDLINE case reports with drug–ADE and drug–dosage relations. Clinician-written, so cleaner than CADEC. Used as the <i>easy</i> contrast domain for objective 5.","huggingface.co/datasets/ade-benchmark-corpus"],
 ["Rung 1 rejection rate","metric","Percentage of rung 0 output that deterministic checks reject outright, at zero model cost. The single number that says whether rung 1 earns its place. Report the breakdown by reason alongside it.","§2"],
@@ -1573,10 +1573,10 @@ const GLOSS=[
 ["CADEC","data","CSIRO Adverse Drug Event Corpus. 1,250 AskaPatient posts on Diclofenac and Lipitor. <b>Human</b> entity identification then terminology association, reviewed by a clinical terminologist. Normalised to <b>SNOMED CT and MedDRA</b> — <b>not RxNorm</b>. <b>Use v3 (csiro:10948, 2016).</b> Public and from 2015, so treat contamination as likely.","data.csiro.au/collection/csiro:10948 · §4"],
 ["CSIRO Data Licence","risk","The licence CADEC ships under — not Creative Commons. Royalty-free, non-exclusive, <b>non-transferable</b>, <b>non-commercial only</b>. Each team member must accept it separately, and the corpus can never be redistributed in your repository. Retired by CSIRO for new collections in July 2021, but older collections still carry it.","§4 · §9"],
 ["SNOMED CT (SCT)","data","Systematized Nomenclature of Medicine Clinical Terms. The primary gold vocabulary for reaction mentions in CADEC, and the only field this project scores strictly.","§6.1"],
-["concept_less","data","CADEC tag for a mention with no matching concept in any controlled vocabulary. A gold label meaning <b>no correct code exists</b>, which makes it a directly scoreable target for what rung 2 should abstain on. Rare and useful.","§4 · §6.1"],
+["concept_less","data","CADEC tag for a mention with no matching concept in any controlled vocabulary. A gold label meaning <b>no correct code exists</b>, which makes it a directly scoreable target for what rung 5 should abstain on. Rare and useful.","§4 · §6.1"],
 ["Inter-annotator agreement","risk","Agreement between human annotators. On CADEC's Diclofenac posts it was about <b>68.7 under strict span matching</b>, with mention-boundary disagreement the main cause. <b>This is a ceiling on your strict span F1</b> — scoring near 0.69 means you are at the noise floor of the gold standard, not underperforming.","§4 · limitations"],
 ["MedDRA","data","Medical Dictionary for Regulatory Activities. The regulatory-standard vocabulary CADEC normalises to alongside SCT. Kept in the schema as a secondary agreement check; not scored in the 7-hour cut.","§4 · §6.1"],
-["Consensus-on-wrong","metric","All k voting samples agree, and all are wrong. Quantifies the limit of voting: it cannot fix a systematic error, only a stochastic one. An objective 4 counter-metric.","§5 · rung 5"],
+["Consensus-on-wrong","metric","All k voting samples agree, and all are wrong. Quantifies the limit of voting: it cannot fix a systematic error, only a stochastic one. An objective 4 counter-metric.","§5 · rung 3"],
 ["Contamination","risk","CADEC is public and predates most model training cutoffs, so it is probably in pretraining data. This inflates rung 0, which makes the ladder's gains look <i>smaller</i> — so your conclusion is conservative. Say so rather than hiding it.","§6.2"],
 ["Coverage","metric","Percentage of records the system answers rather than abstaining on. Falls as abstention rungs engage. Comparing an abstaining system to a non-abstaining one requires matched coverage.","§6"],
 ["Deterministic checks","rung","Rung 1. Pure code, zero LLM calls. Five checks: schema validity, span grounding, code existence in SNOMED/MedDRA, semantic type, and lexical match. Defines the three zones. Likely the best value on the whole ladder.","§5 · step 4"],
@@ -1595,11 +1595,11 @@ const GLOSS=[
 ["McNemar's test","method","Paired significance test for correct/incorrect outcomes between two rungs on the same records. Used alongside the bootstrap.","§6.1"],
 ["n2c2 2018 Track 2","data","505 MIMIC-III discharge summaries annotated for drug, strength, dosage, frequency, route, duration, reason and ADE. Requires a per-person Data Use Agreement, so apply on H0 and do not plan around it.","portal.dbmi.hms.harvard.edu"],
 ["openFDA","api","FDA drug label API. <b>1,000 requests per day without a key</b>, 120,000 with a free one. Get the key on H0 and cache every response to disk, or the cap will stop a run mid-way.","api.fda.gov/drug/label.json"],
-["Over-abstention","metric","Records abstained on that would have been answered correctly. A real cost of rung 2 that is almost never reported. An objective 4 counter-metric.","§5 · rung 2"],
+["Over-abstention","metric","Records abstained on that would have been answered correctly. A real cost of rung 5 that is almost never reported. An objective 4 counter-metric.","§5 · rung 5"],
 ["Over-escalation","metric","Records routed to a human that no human needed to see. Directly measurable in the Triage desk, and a cost no F1 score captures. Two of the seven demo records are deliberately of this kind.","§5 · rung 6"],
 ["p95 latency","metric","95th-percentile wall-clock time per record. Matters more than the median, because voting and human review blow out the tail rather than the centre.","§6"],
 ["Paired bootstrap","method","10,000 resamples over records to put a confidence interval on the difference between adjacent rungs. Report Δ with CI, never two bare F1 numbers. If the CI crosses zero, that is itself a finding.","§6.1"],
-["Regression rate","metric","How often self-correction turns a correct answer into a wrong one. Rarely published and probably the most interesting number on the ladder. An objective 4 counter-metric.","§5 · rung 3"],
+["Regression rate","metric","How often self-correction turns a correct answer into a wrong one. Rarely published and probably the most interesting number on the ladder. An objective 4 counter-metric.","§5 · rung 2"],
 ["Reject zone","method","Records whose evidence span does not appear at the stated offsets, or whose approximate score falls below τ_low. Settled by rung 1 for free, before any network call.","§2"],
 ["Relaxed F1","metric","Match on span overlap, ignoring the normalised code. The gap between relaxed and strict separates <i>extraction</i> failure from <i>normalisation</i> failure. Read the drug-field numbers against the ~0.69 human agreement ceiling.","§6.1"],
 ["Risk–coverage curve","method","Error rate plotted against coverage. The only fair way to compare abstaining and non-abstaining systems. Accuracy rungs move the curve down; abstention rungs move you along it.","§6 · the methodological crux"],
@@ -1608,13 +1608,13 @@ const GLOSS=[
 ["Lexical match","method","Rung 1 check 5: does the reporter's wording match any term or synonym for the proposed code? It settles nothing on its own — it <i>sorts</i>. A match means the check can confirm the mapping; no match means it cannot — which is precisely what no deterministic check can resolve.","§2"],
 ["RxNorm","risk","NLM's drug vocabulary. <b>Out of scope for this project</b> (§11). It appears only in §2, as the fuzzy matcher used in a preliminary experiment that showed why rung 1 must use exact code existence rather than similarity scores. No RxNorm code is produced or scored anywhere in the pipeline.","§2 · §11"],
 ["Selective precision","metric","Precision measured only over records the system chose to answer, reported at a fixed coverage so abstaining and non-abstaining systems are comparable.","§6"],
-["Self-correction","rung","Rung 3. One bounded retry, fired <b>only by a rung 1 failure</b>, with the reason stated as a fact — not 'try again' but 'SNOMED code 999999 does not exist'. Hard cap at one, never loop. <b>Works only on rejects</b>: a record that passed validation gives it no fact to feed back.","§5 · step 5"],
+["Self-correction","rung","Rung 2. One bounded retry, fired <b>only by a rung 1 failure</b>, with the reason stated as a fact — not 'try again' but 'SNOMED code 999999 does not exist'. Hard cap at one, never loop. <b>Works only on rejects</b>: a record that passed validation gives it no fact to feed back.","§5 · step 5"],
 ["SNOMED CT","data","Clinical terminology used to normalise reaction mentions. CADEC's gold annotations map to it, so it is the target vocabulary for the reaction field.","§1"],
 ["Span grounding","method","Checking that the quoted evidence literally appears at the stated character offsets in the source document. A string comparison that costs nothing and catches fabrication before any network call.","§5 · rung 1"],
 ["Strict F1","metric","Match requires exact normalised-code equality. Applies to the <b>reaction</b> field only, since that is the field with a gold SNOMED code. The drug field is span-scored instead.","§6.1"],
 ["Test split","data","~800 frozen records, written to disk at H1 and never regenerated. Touched once per rung. All tuning happens on dev.","§6.1"],
-["τ (tau) thresholds","method","Confidence cut-offs for the abstention gate at rung 2. Swept on dev only and written into the manifest before any test run. Tuning them on test invalidates the result.","§5 · rung 2"],
-["Voting","rung","Rung 5. k=5 samples at temperature 0.7, majority on the <b>normalised code</b>, never the raw string — synonyms would split a string vote. Its real value may be as a detector: a split vote flags genuine ambiguity.","§5 · step 7"]
+["τ (tau) thresholds","method","Confidence cut-offs for the abstention gate at rung 5. Swept on dev only and written into the manifest before any test run. Tuning them on test invalidates the result.","§5 · rung 5"],
+["Voting","rung","Rung 3. k=5 samples at temperature 0.7, majority on the <b>normalised code</b>, never the raw string — synonyms would split a string vote. Its real value may be as a detector: a split vote flags genuine ambiguity.","§5 · step 7"]
 ];
 const GTYPES=["rung","metric","method","data","api","artefact","risk"];
 let gQ="",gType="all",gLetter="",gPage=1;
@@ -1906,7 +1906,7 @@ const ITER=[
  why:"Non-transferable means each team member accepts separately. The corpus can never appear in the repo &mdash; including inside committed notebook output cells, which is the trap nobody checks for."},
 {v:"8",t:"Seven-hour cut &mdash; superseded",kind:"cut",when:"scope",
  what:"Reduced to four rungs on 150 records.",
- why:"<b>Wrong cut axis, corrected one version later.</b> Cutting rungs changes the question being asked: the crossover might sit at rung 5 and you would never see it."},
+ why:"<b>Wrong cut axis, corrected one version later.</b> Cutting rungs changes the question being asked: the crossover might sit at rung 3 and you would never see it."},
 {v:"9",t:"Iterations, all seven rungs",kind:"fix",when:"scope",
  what:"All seven rungs stay in iteration 1, thin, at n=60. Cut n, k and rung depth instead. Fixed rung interface agreed early so later rungs slot in without rework.",
  why:"<b>Cutting rungs changes the question. Cutting n only widens the intervals.</b> The shape of the ladder is the contribution, so the shape is what has to survive."},
@@ -1930,11 +1930,11 @@ const ITER=[
  what:"Section 2 retitled from 'the finding that reframes the project' to <b>The ambiguous band</b>, with band occupancy stated as a <b>prediction to be read out at hour 3</b>, not a result. The RxNorm probe moved to \u00a72.2 and labelled as a preliminary experiment on a tool that is out of scope. Trusted-source table deleted from \u00a74. Manifest, gates, risks, demo narratives, desk data and glossary all rewritten around SNOMED and MedDRA.",
  why:"v13 changed the design but left the old framing in place \u2014 the plan still opened on RxNorm and still listed it as a data source, which made the pipeline look like it depended on something we had removed. Two lessons. <b>A rename is not a refactor</b>: the design changed at v13 but the document did not follow it through. And <b>the band size was being presented as established when it is a hypothesis</b>; it is now labelled as one everywhere it appears."},
 {v:"14",t:"Order as config &middot; self-correction's structural limit",kind:"fix",when:"scope",
- what:"Rung IDs stay fixed to the brief; execution order moved into <code>manifest.json</code> as <code>rung_order</code>, which makes ordering a testable ablation instead of an assertion. Rung 3 restricted to firing only on rung 1 failures, with the reason stated as a fact rather than a question. Data model updated so R3 no longer drains the band. Work split gained a conflict map and branch discipline.",
+ what:"Rung IDs stay fixed to the brief; execution order moved into <code>manifest.json</code> as <code>rung_order</code>, which makes ordering a testable ablation instead of an assertion. Rung 2 restricted to firing only on rung 1 failures, with the reason stated as a fact rather than a question. Data model updated so R3 no longer drains the band. Work split gained a conflict map and branch discipline.",
  why:"Two corrections. <b>Renumbering would break comparability</b> with the brief and with our own earlier runs &mdash; rung ID is identity, order is configuration, and separating them turns a claim into an experiment. And the observation that a model asked to reconsider will just insist it was right is <b>structurally true here</b>: band records passed every deterministic check, so there is no fact to hand back. Self-correction rescues rejects, not band records &mdash; and a rescued reject usually lands in the band, so R3 can push occupancy up. Better stated as a finding than discovered at 5pm on day one."},
 {v:"13",t:"Vocabularies, scope and human-in-the-loop",kind:"fix",when:"scope",
  what:"SNOMED CT and MedDRA promoted to data sources, not just checks. Rung 1 rebuilt on five deterministic checks &mdash; span grounding, code existence, semantic type, lexical match &mdash; with no fuzzy matching anywhere. Band redefined as <i>code is well-formed but the span matches no vocabulary term</i>, which on colloquial patient text is the majority of records. RxNorm, openFDA, AMT and the backup corpora moved to an explicit out-of-scope section. Batch totals and an error taxonomy added. Rung 6 kept, with the reasoning written down.",
- why:"Two things were conflated. <b>Rung 1 does not need RxNorm</b> &mdash; a code-existence and semantic-type check against SNOMED is deterministic, binary and immune to the fuzzy-matching failure the probe exposed. And <b>an LLM escalating when unsure is rung 2, not rung 6</b>: folding them loses the cost of review, whether the human was right, over-escalation, and the achievable ceiling. A model's self-reported uncertainty is the exact signal this project shows to be unreliable."},
+ why:"Two things were conflated. <b>Rung 1 does not need RxNorm</b> &mdash; a code-existence and semantic-type check against SNOMED is deterministic, binary and immune to the fuzzy-matching failure the probe exposed. And <b>an LLM escalating when unsure is rung 5, not rung 6</b>: folding them loses the cost of review, whether the human was right, over-escalation, and the achievable ceiling. A model's self-reported uncertainty is the exact signal this project shows to be unreliable."},
 {v:"12",t:"Full audit and rebuild",kind:"build",when:"metric",
  what:"Rebuilt from the last known-good version with asserted edits. Audited data coherence, terminology drift, UI, and the security surface. Iterations tab filled in and filterable.",
  why:"Patching a broken file compounds the fault. Rebuilding from a known-good base and re-applying changes one at a time, with a check after each, is faster than debugging the wreck."}

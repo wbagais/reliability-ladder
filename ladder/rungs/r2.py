@@ -345,7 +345,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
 
 def report(agg: dict) -> None:
     n = agg["attempted"]
-    print(f"\n{'=' * 58}\nRUNG 3 — self-correction\n{'=' * 58}")
+    print(f"\n{'=' * 58}\nRUNG 2 — self-correction\n{'=' * 58}")
     print(f"  rung 1 rejections offered   {n}")
     if not n:
         print("  nothing to correct — rung 2 did not run")
