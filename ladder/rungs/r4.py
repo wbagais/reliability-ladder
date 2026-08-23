@@ -155,7 +155,8 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                            zone=rec.zone, reason="parse_failed",
                            outcome="parse_failed", api_calls=1,
-                           tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0))
+                           tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
+                           latency_ms=usage.get("seconds", 0.0) * 1000)
             continue
 
         verdict = "pass" if (v["span_ok"] and v["code_ok"]) else "fail"
@@ -181,6 +182,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                          reason=None, outcome="judged", api_calls=1,
                          tokens_in=usage.get("in", 0), tokens_out=usage.get("out", 0),
+                         latency_ms=usage.get("seconds", 0.0) * 1000,
                          verdict=verdict)
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)

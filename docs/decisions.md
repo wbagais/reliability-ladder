@@ -1099,3 +1099,40 @@ trade, and it was made deliberately.
 keeping the key means the runner still reads order from configuration rather
 than from a sort, so the ablation remains possible even though it is no longer
 free.
+
+## 2026-08-23 — cold integration run, all rungs, one document
+
+**First run with the cache cleared, so every call is real.** 31s wall,
+10 model calls, 4439 tokens, $0.00 (all local). Order `[0,1,2,3,4,5,6]`,
+ARTHROTEC.107, extractor `ollama/ibm/granite4:micro-h`, judge
+`ollama/gpt-oss:20b`.
+
+| rung | layer | rows | calls | tok in | tok out | p95 ms |
+|------|-------|------|-------|--------|---------|--------|
+| 0 | bare LLM | 1 | 1 | 200 | 150 | 3899.7 |
+| 1 | deterministic | 3 | 0 | 0 | 0 | 0.4 |
+| 2 | self-correct | 3 | 3 | 687 | 107 | 751.0 |
+| 3 | voting | 4 | 3 | 600 | 807 | 0.0 |
+| 4 | LLM judge | 3 | 3 | 823 | 1065 | 4311.0 |
+| 5 | abstention | 3 | 0 | 0 | 0 | 0.0 |
+
+**Latency was missing from rungs 2 and 4 and is now recorded per call.** Both
+were writing `latency_ms=0.0` on rows for calls that took seconds — rung 4's
+judge is the slowest thing in the ladder at 4.3s p95 and was reporting as free
+on one of the three cost measures. Taken from the `seconds` the caller already
+returns, per call, never derived from a total.
+
+**Rung 3's p95 reads 0.0 and that is an artefact worth naming.** It writes two
+kinds of row: one DOCUMENT row carrying the k sampling calls (9.7s here) and one
+row per record. Three of its four rows are per-record `not_resampled` rows with
+no call of their own, so a percentile over all four lands on a zero. The rows are
+individually right; a single p95 over a rung that bills per document and reports
+per record is the wrong summary. Either bill rung 3's latency per document or
+report the two row kinds separately — not resolved here, but it must not be read
+as "voting is instant".
+
+**Outcomes unchanged from the warm run**, which is itself the result worth
+having: clearing the cache reproduced the same verdicts. Rung 1 rejected all
+three `code_unknown`, rung 2 declined all three, rung 3 found nothing to vote on
+(`not_resampled` ×3), rung 4 returned fail=2 pass=1, rung 5 abstained on all
+three. Coverage 1.0 → 0.0.

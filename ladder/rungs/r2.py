@@ -176,6 +176,9 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
     raw, usage = llm(prompt, source, "correct")
     meta["tokens_in"] = usage.get("in", 0)
     meta["tokens_out"] = usage.get("out", 0)
+    # Latency is one of the three cost measures and is never derived from a
+    # total: it is recorded per call so p95 is a real percentile over calls.
+    meta["latency_ms"] = usage.get("seconds", 0.0) * 1000
 
     try:
         m = json.loads(raw)
@@ -254,7 +257,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                              zone=rec.zone, reason=reason, outcome="declined",
                              tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
-                             api_calls=1)
+                             api_calls=1, latency_ms=meta["latency_ms"])
             continue
 
         if str(cand.sct) == str(rec.sct) and cand.spans == rec.spans:
@@ -264,7 +267,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                              reason=reason, outcome="reasserted",
                              tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
-                             api_calls=1)
+                             api_calls=1, latency_ms=meta["latency_ms"])
             continue
 
         # Re-validate with the ONE measured rung 1, never a second copy.
@@ -295,7 +298,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                          reason=new_reason,
                          outcome=rec.checks["r2"]["outcome"],
                          tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
-                         api_calls=1)
+                         api_calls=1, latency_ms=meta["latency_ms"])
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)
     return records, agg
