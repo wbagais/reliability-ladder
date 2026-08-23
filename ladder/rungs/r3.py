@@ -193,7 +193,7 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
     return cand, meta
 
 
-def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> list[Record]:
+def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
     """Correct rung 1's rejections in place, and record what that bought."""
     cfg = {**DEFAULTS, **(cfg or {})}
     llm = cfg.get("llm")
@@ -292,10 +292,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                          outcome=rec.checks["r3"]["outcome"])
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)
-    # The rung contract is `apply(...) -> list[Record]`, same as r1 and r2.
-    # Aggregates ride back on cfg so the runner's loop stays uniform.
-    cfg["r3_agg"] = agg
-    return records
+    return records, agg
 
 
 def report(agg: dict) -> None:

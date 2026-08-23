@@ -199,7 +199,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             rec.mark(RUNG, rec.zone, None)
 
         if ledger:
-            ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
+            ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                          reason=None, outcome="tie" if tie else "voted")
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)

@@ -35,7 +35,7 @@
   },
   "model": {
     "extractor": "ollama/gpt-oss:20b",
-    "judge": null,
+    "judge": "ollama/ibm/granite4:micro-h",
     "temperature": 0,
     "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung \u2014 rungs never pick a model."
   },

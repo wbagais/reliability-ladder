@@ -171,7 +171,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         if cfg["route"] and verdict == "fail":
             rec.mark(RUNG, "REJECT", None)
         if ledger:
-            ledger.write(record_id=rec.record_id, rung=RUNG, zone=rec.zone,
+            ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                          reason=None, outcome="judged")
 
     agg["seconds"] = round(time.time() - agg["t0"], 2)

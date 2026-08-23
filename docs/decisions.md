@@ -926,12 +926,28 @@ convention, not a modelling failure, and counting it as a parse error would
 misattribute formatting as a reliability cost. `Caller.fenced` records it, so
 the strip is never silent. Measured: claude-haiku-4-5 fences, granite4 does not.
 
-**Rung 3 had never been run through `run.py`.** Three contract breaks, all
-found by the first end-to-end run and none by the test suite: it called
-`ledger.write()` (the method is `log()`), omitted the required `doc_id`, and
-returned `(records, agg)` where the contract is `-> list[Record]`. Aggregates
-now ride back on `cfg["r3_agg"]`. A rung that imports cleanly and passes its
-unit tests can still be unable to run.
+**Rungs 3, 4 and 5 had never been run through `run.py`.** All three called
+`ledger.write()`, which does not exist — the method is `log()` — and all three
+omitted the `doc_id` that `log()` requires. Found only by running them; the
+test suite is green either way. A rung that imports cleanly and passes its unit
+tests can still be unable to run, which is an argument for the end-to-end run
+being part of CI rather than a thing someone remembers to do.
+
+**Two return conventions, normalised in the runner rather than legislated.**
+r1/r2 return `records`; r3/r4/r5 return `(records, aggregates)`, and owner B's
+`scripts/ladder_run.py` unpacks the tuple. Rewriting either owner's rungs to
+match the other would have broken the other's runner, so `run_ladder` accepts
+both shapes and files the aggregates under `result["aggregates"]`. r3's
+annotation said `-> list[Record]` while returning a tuple; the annotation was
+the thing that was wrong.
+
+**Rung 4 keeps its own config keys.** It reads `judge_llm` and compares
+`judge_model` against `extractor_model`, raising if they match, because a model
+judging its own output measures self-consistency rather than correctness. The
+runner fills those keys from the same `for_rung` resolution as every other
+rung, so the guard is enforced without rung 4 choosing anything. Set for the
+first run: extractor `ollama/gpt-oss:20b`, judge `ollama/ibm/granite4:micro-h`
+— two different families, both local.
 
 **First 0→5 run, one dev document (ARTHROTEC.107), claude-haiku-4-5, mode A.**
 Order `[1,3,5,4,2]`; rungs 5 and 4 reported missing, not faked. R0 emitted 2

@@ -145,6 +145,7 @@ def run_ladder(
     ledger = Ledger(out_dir / f"{run_id}.ledger.jsonl", run_id=run_id)
     snapshots: dict[int, list[Record]] = {}
     callers: dict[int, Any] = {}
+    aggregates: dict[int, dict] = {}
     missing: list[int] = []
 
     print(f"[run] {run_id}  split={split}  records={len(records)}  order={order}")
@@ -169,8 +170,26 @@ def run_ladder(
             split=split,
             llm=caller,
         )
+        # Rung 4 takes its model under its own keys, and refuses to fall back to
+        # the extractor — a model judging its own output measures
+        # self-consistency, not correctness. Resolution still happens here.
+        if n == 4:
+            extractor = llm_mod.for_rung(0, man)
+            cfg.update(
+                judge_llm=caller,
+                judge_model=caller.spec if caller else None,
+                extractor_model=extractor.spec if extractor else None,
+            )
         t0 = time.perf_counter()
-        records = mod.apply(records, sources, cfg)
+        out = mod.apply(records, sources, cfg)
+        # Two return conventions live in ladder/rungs: r1 and r2 return the
+        # records, r3/r4/r5 return (records, aggregates). Normalising here means
+        # neither owner has to rewrite the other's rungs to make a run work.
+        if isinstance(out, tuple):
+            records, meta = out
+            aggregates[n] = meta
+        else:
+            records = out
         dt = time.perf_counter() - t0
         snapshots[n] = [r.copy() for r in records]
         verdicts = ledger.verdicts(n)
@@ -192,6 +211,7 @@ def run_ladder(
         "snapshots": snapshots,
         "ledger": ledger,
         "callers": callers,
+        "aggregates": aggregates,
     }
 
 
