@@ -281,7 +281,9 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 
 <div class="note stop">
 <b>Status — read this first</b>
-Everything numeric in this document is an <b>illustrative placeholder</b> except the twelve-string probe in §2 — including the rung 1 rejection rate, which is a prediction to be read out at hour 3. The brief says <i>"our contribution = the numbers"</i>, and there are currently no numbers. This document is scaffolding for producing them, not a result.
+<b>The numbers exist.</b> All seven rungs have been measured on the 40-document dev split of CADEC v2, with <code>granite4:micro-h</code> as extractor and <code>llama3.2:3b</code> as judge, against SNOMED CT-AU <code>AU1000036_20260731</code> on a local GPU. Two gold controls have been run (rung 2 abstention, rung 4 judge), and the full ladder has been run end to end in the specified order <code>[0,1,3,5,4,2,6]</code>, reproducing every standalone figure — so no rung interacts with another.<br><br>
+<b>Headline: four reliability layers, zero correct codes.</b> Rung 0 produces 169 mentions at span F1 0.543 and <b>0 of 105 correct SNOMED codes</b>. Self-correction offered 158 corrections and rescued none. Voting was unanimous on 2% of its input and did not re-find the other 98%. The judge returns two constants — it fails 97% of spans whether they are the model's or the annotators', and passes 86–92% of codes whether they are fabricated or correct. Abstention withdrew 169 of 169, correctly, and inherited all of that correctness from a lookup.<br><br>
+<b>This document has not caught up.</b> Sections written as predictions still read as predictions, and several now state things known to be false — the record shape in §1, k=5 in §5, the gold count in §6, and the second-corpus claim in §9. See <code>docs/plan-html-audit.md</code> for the full list, <code>docs/decisions.md</code> for what was found and when, and <code>docs/infoq-article-draft.md</code> for the write-up.
 </div>
 
 <h2>1. Problem statement</h2>

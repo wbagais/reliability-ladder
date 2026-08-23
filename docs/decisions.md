@@ -1136,3 +1136,28 @@ having: clearing the cache reproduced the same verdicts. Rung 1 rejected all
 three `code_unknown`, rung 2 declined all three, rung 3 found nothing to vote on
 (`not_resampled` ×3), rung 4 returned fail=2 pass=1, rung 5 abstained on all
 three. Coverage 1.0 → 0.0.
+
+## 2026-08-23 — merging across the renumber
+
+**A rename plus an edit to the same file is a conflict git cannot resolve by
+path, and resolving it by path would have been silently wrong.** Main's
+`5258eff` added denominator names and three-valued `evaluable` to
+`ladder/rungs/r3.py`, `r4.py` and `r5.py` under the OLD numbering, while this
+branch had renamed those files. Git paired them by filename, which would have
+merged self-correction's edits into the voting file — a merge that compiles,
+passes imports, and is nonsense.
+
+Resolved by identity instead: each of main's files was remapped through the
+old→new table FIRST, then three-way merged onto the file that now holds that
+rung. `r3(self-correct) → r2`, `r5(voting) → r3`, `r4 → r4`. Voting merged
+clean; the other two conflicted only where both sides had added a keyword to the
+same `ledger.log(...)` call, and both keywords were wanted.
+
+**This is the renumber's first bill, and it will not be the last.** Any branch
+cut before 2026-08-23 that touches a rung file will hit the same thing. The
+procedure is written down here rather than rediscovered: remap by identity, then
+merge — never merge by path.
+
+Verified on the merged tree: 93 tests, fixture gate passes, and a cold run with
+the cache cleared carries both features on the same ledger rows — `denominator`
+and `evaluable` from main, `latency_ms` from this branch.
