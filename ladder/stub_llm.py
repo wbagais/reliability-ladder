@@ -42,16 +42,25 @@ TIMEOUT = int(os.environ.get("LADDER_TIMEOUT", "180"))
 LATENCIES: list[float] = []
 
 
-def stub(prompt: str, text: str, mode: str) -> tuple[str, dict]:
-    """One generation. Returns the model's raw text and its token usage."""
+def stub(prompt: str, text: str, mode: str, model: str | None = None,
+         temperature: float = 0.0) -> tuple[str, dict]:
+    """One generation. Returns the model's raw text and its token usage.
+
+    `model` and `temperature` are per-call because rung 4 needs a different
+    model family (a self-judge measures self-consistency) and rung 5 needs
+    temperature above 0 (identical samples cannot vote). Everything else in the
+    project stays greedy on the default model.
+    """
     body = json.dumps(
         {
-            "model": MODEL,
+            "model": model or MODEL,
             "prompt": f"{prompt}\n\nPOST:\n{text}",
             "stream": False,
+            "keep_alive": "30m",
             "options": {
-                # Greedy. A run that cannot be repeated is not a measurement.
-                "temperature": 0.0,
+                # Greedy by default. A run that cannot be repeated is not a
+                # measurement — rung 5 is the one deliberate exception.
+                "temperature": float(temperature),
                 "seed": 0,
             },
         }
@@ -108,6 +117,29 @@ def load_items(splits_dir: str | os.PathLike) -> list[dict]:
     print(f"[corpus] split={split} docs={len(doc_ids)}")
     return [{"doc_id": d, "text": docs[d].text} for d in doc_ids]
 
+
+
+def voter(temperature: float = 0.7):
+    """Rung 5's sampler: same model, temperature above 0 so samples can differ."""
+    def _call(prompt, text, mode):
+        return stub(prompt, text, mode, temperature=temperature)
+    return _call
+
+
+def judge(model: str):
+    """Rung 4's judge: a DIFFERENT model, greedy.
+
+    Passing the extractor's own model here defeats the rung; r4.apply also
+    checks, but the mistake is easiest to make at this call site.
+    """
+    if model == MODEL:
+        raise ValueError(
+            f"judge model {model!r} is the extractor. A model judging its own "
+            "output measures self-consistency, not correctness."
+        )
+    def _call(prompt, text, mode):
+        return stub(prompt, text, mode, model=model, temperature=0.0)
+    return _call
 
 def latency_p95() -> float | None:
     """p95 over the run. One of the three cost measures; never fused with the others."""
