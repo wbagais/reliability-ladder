@@ -55,6 +55,9 @@
 - Rung 2 (self-correct) fires **only on a rung 1 failure**, with the reason stated as a fact
   ("code 999999 does not exist"), never as a question ("are you sure?").
   It cannot fix records that passed validation — there is no fact to feed back.
+  The trigger is `record.checks["r1_verdict"] == "REJECT"`, and the fact to
+  state back is in `record.checks["r1_reason"]`. Rung 1 writes both in either
+  mode, which is what lets rung 2 work while rung 1 only observes.
 - Rung 6 stays a rung. "Tell the model to escalate when unsure" is rung 5, not rung 6.
 - Cost is three separate measures — tokens, latency p95, records routed to a person.
   Never fuse them into a currency figure.
@@ -83,6 +86,15 @@
 - Numbers in `docs/plan.html` are still illustrative placeholders EXCEPT where a
   "measured" note says otherwise. Everything measured so far is in
   `docs/decisions.md` and `docs/article-iterations.md`.
+
+## Done — do not redo these
+- `ladder/vocab.py` wired in as a global resource, formalised as
+  `schemas/vocabulary.py` (contract 2).
+- Variable-length mention arrays checked against the scorer: **they break it**,
+  and the fix is span-keying. Numbers under "Next" item 1.
+- `ladder/rungs/r0.py`, then `r2` / `r3` / `r4` — all written and running.
+- Rung IDs renumbered to match execution order (2026-08-23). Old→new is
+  3→2, 5→3, 2→5. Anything in `docs/decisions.md` dated earlier uses the OLD ids.
 
 ## Next, in order
 1. **`ladder/score.py` — the shared scorer.** The single biggest gap: without it
