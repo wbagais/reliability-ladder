@@ -112,13 +112,79 @@ The build log — including every place the plan and the corpus disagreed — is
 [docs/decisions.md](docs/decisions.md), with the article-shaped version in
 [docs/article-iterations.md](docs/article-iterations.md).
 
+## What the full ladder measured
+
+Dev split, 40 documents, `granite4:micro-h` extractor, `llama3.2:3b` judge,
+SNOMED CT-AU `AU1000036_20260731`, local GPU.
+
+| rung | intervention | cost | outcome |
+|---|---|---|---|
+| 0 | bare model | 19,354 tok | 169 mentions · span F1 **0.543** · **0/105 correct codes** |
+| 1 | validation | none | 166 REJECT / 3 BAND / 0 ACCEPT |
+| 3 | self-correction | 72,539 tok | 158 offered · **0 rescued** · 158 declined |
+| 5 | voting k=3 @ 0.7 | 55,704 tok | unanimous on 3 · **166/169 not re-found by any sample** |
+| 4 | LLM-as-judge | 87,130 tok | 96 judged of 169 · span_ok 3 · code_ok 83 |
+| 2 | abstention | none | **169/169 withdrawn**, 0 codes published |
+| 6 | triage desk | — | structurally blocked — see below |
+
+**Zero correct codes throughout.** Every layer produced a metric suggesting
+improvement; the correct-code count never moved off zero.
+
+**Rung 4's two channels are constants.** Against a gold control (226 annotator
+mentions mixed with the 169 model records, judged in one pass): `span_ok` 3% on
+gold and 3% on model output; `code_ok` 92% on correct codes and 86% on
+fabricated ones. The judge is not reading its input. Its agreement with rung 1
+is a property of the comparison set — 100% / 98% / 49% across three sets with
+identical judge behaviour.
+
+```bash
+PYTHONPATH=. python3 scripts/r4_gold_control.py
+```
+
+**Rung 2 is correct and inherits all of it.** 169/169 withdrawn on model output,
+76 kept / 150 withdrawn on gold, no crossover. It reads rung 1's verdict and
+maps it — the discrimination is the lookup's. Coverage cost: **150 of 226
+correct gold codes withheld, 66%**, free here only because the model produced no
+correct codes to lose.
+
+**Rung 6 is blocked, not unfinished.** It would receive 169 withheld records,
+every one carrying a wrong answer or none. The ladder terminates before the top
+because the bottom produces no signal to pass upward.
+
+**No rung interaction.** Run end to end in the specified order, every per-rung
+figure reproduced exactly.
+
+```bash
+LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
+```
+
+## The ledger, and what it records that tools do not
+
+One row per record per rung: tokens, calls, latency, outcome — plus two fields
+that no LLM observability platform models.
+
+- **`denominator`** — the named set this row's rate is computed over. Rung 4
+  judged 96 of 169 offered; rung 5 voted on 3 of 169. A rate over the wrong base
+  renders as healthy.
+- **`evaluable`** — `pass` · `fail` · **`could_not_run`**. Three values, never a
+  boolean. Parse failures, not-re-found mentions and unevaluable checks are none
+  of them a pass and none of them a fail.
+
+Optional OpenTelemetry export, off unless `LADDER_OTEL=1`, so no measured figure
+depends on it:
+
+```bash
+LADDER_OTEL=1 OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 \
+  LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
+```
+
 ## Data — read before you clone
 
 No corpus is in this repository, and none can be.
 
 | Source | Terms | Where it lives |
 |---|---|---|
-| **CADEC v3** | CSIRO Data Licence — non-commercial, **non-transferable**, no redistribution | [csiro:10948](https://data.csiro.au/collection/csiro:10948). Each team member accepts it individually; the download directory is gitignored |
+| **CADEC v2** | CSIRO Data Licence — non-commercial, **non-transferable**, no redistribution | [csiro:10948](https://data.csiro.au/collection/csiro:10948). Each team member accepts it individually; the download directory is gitignored |
 | **SNOMED CT** | affiliate licence for full releases | a local RF2 release indexed by `ladder/registry.py`, or [EBI OLS4](https://www.ebi.ac.uk/ols4) at run time via `ladder/vocab.py` — free, no key |
 | **MedDRA** | subscription (MSSO) | only `data/meddra_codes.example.csv` (10 rows, for tests) is committed |
 
@@ -160,14 +226,18 @@ python -m ladder.vocab_crosscheck --live 40
 ```
 ladder/       schema (the A/B contract) · corpus reader + frozen splits ·
               registry (local SNOMED index) · vocab (backend selection + OLS4) ·
-              llm (cached model client) · ledger · negation ·
-              rungs/r1 · rungs/r2 · run.py · rungs/r0 (rung + ablation) ·
-              fixture (the gate) · calibrate · probe · vocab_crosscheck
+              llm (cached model client) · ledger · otel (optional OTLP export) ·
+              negation · run.py · fixture (the gate) · calibrate · probe ·
+              vocab_crosscheck
+ladder/rungs/ r0 (extract + A/B ablation) · r1 (validate) · r2 (abstain) ·
+              r3 (self-correct) · r4 (judge) · r5 (vote)
 schemas/      the contracts
 data/         meddra_codes.example.csv · splits/ (document IDs only)
 docs/         plan.html · decisions.md · cadec-track.md · licences.md ·
               article-iterations.md
-scripts/      preflight.py
+scripts/      preflight.py · ladder_run.py (full ladder, specified order) ·
+              r4_gold_control.py · full_run.py · dev_sweep.py ·
+              split_by_type.py · count_codes.py
 tests/        against stubs — no network, no keys, no corpus
 manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
               rung parameters, ablations. Reproducibility and honesty are the
@@ -179,14 +249,24 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
 - [x] Corpus, frozen splits, vocabulary index, ledger, rung 1, rung 2, harness
 - [x] Both model-free characterisations of rung 1
 - [x] Rungs 0 / 3 / 4 / 5 — the full ladder runs end to end
+- [x] All seven rungs measured; gold controls for rungs 2 and 4; end-to-end run
+      in the specified order confirming zero rung interaction
+- [x] Per-record ledger for every rung, with denominators and a three-valued
+      `evaluable`
+- [x] InfoQ article — first draft in [docs/infoq-article-draft.md](docs/infoq-article-draft.md)
 - [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns
       empty rather than guessing, and reports a missing rung rather than faking it
-- [ ] Rung 6
-- [ ] InfoQ article — beats and numbers in `docs/article-iterations.md`
+- [ ] Rung 0 mode B — currently measures prompt wording, not tool access
+      (`honoured_tool` is never true; the lookup runs after generation). Rename
+      it or build a real loop; do not publish the current framing either way
+- [ ] `docs/plan.html` — audited against measured results, six blocking items
+      open. See [docs/plan-html-audit.md](docs/plan-html-audit.md)
+- [—] Rung 6 — **structurally blocked, not pending.** Nothing below it produces
+      records worth reviewing
 
 **Retired 2026-08-22:** an earlier data-agnostic track (its pipeline, dashboard,
 adapters, schemas and tests), together with its results. The CADEC track imported
-none of it. Every number in this repo is measured on CADEC.
+none of it. Every number in this repo is measured on CADEC v2.
 
 ## Licence
 
