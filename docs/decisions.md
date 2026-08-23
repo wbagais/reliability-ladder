@@ -795,3 +795,98 @@ One caveat kept with the numbers: 22 of 52 commits carry a
 `Co-Authored-By: Claude` trailer, all authored under Wejdan's git identity, so
 blame attributes those lines to Wejdan. The authorship page says so rather than
 presenting the column as hand-typed lines.
+
+## 2026-08-23 — GPU re-measurement, and rungs 0–3 end to end
+
+Everything measured on 2026-08-22 was produced on CPU inference: the NVIDIA
+driver was absent, Ollama reported "100% GPU" from its own placement estimate
+rather than from the device, and generation ran at 4.4 tok/s under contention
+from a video call. With the driver installed, the same model runs at 62 tok/s
+and holds 2,169 MiB of VRAM.
+
+### Determinism is bounded by the hardware
+
+Same model, same 40 documents, `temperature=0, seed=0`, greedy:
+
+| | CPU | GPU |
+|---|---|---|
+| mentions emitted | 176 | **169** |
+| tokens | 19,701 | 19,354 |
+
+Three consecutive GPU runs are byte-identical (169 mentions, 19,354 tokens), so
+determinism holds WITHIN a backend and not ACROSS one. A run must record its
+compute backend the same way it records the SNOMED release; two people following
+identical instructions on different hardware get different numbers and neither
+is wrong.
+
+That is version-dependence at a third level, alongside the vocabulary release
+(927 vs 928 active codes) and the corpus version (v1 vs v2 span boundaries).
+
+**Every CPU-era figure below 2026-08-23 is superseded.** They describe 176
+mentions that no longer exist.
+
+### Rungs 0–3, one run, mode A, dev split
+
+Rung 0 ran once; the scorer and rung 3 consumed the same records.
+
+| | |
+|---|---|
+| mentions emitted | 169 |
+| rejected by rung 1 | 166 (98%) |
+| span precision / recall / F1 | 0.683 / 0.451 / **0.543** |
+| **code accuracy** | **0 / 105** |
+| rung 3 offered | 158 |
+| rung 3 rescued | **0** |
+| rung 3 declined | **158 (100%)** |
+| code accuracy after rung 3 | **0 / 105 — unchanged** |
+| rung 0 cost | 19,354 tokens, p95 7.5s |
+| rung 3 cost | 72,539 tokens, 254s |
+
+### Rung 3 has a measurable price and a measured benefit of zero
+
+Self-correction spent 3.7x rung 0's entire token budget and moved code accuracy
+by exactly zero records. 158 of 158 declined: told a code does not exist, the
+model never proposes another. Not one `still_failing`, not one `unchanged` — the
+refusal is total and uniform.
+
+That is a capability boundary drawn precisely rather than a negative result. The
+model locates reactions at F1 0.543 and has no SNOMED knowledge at all, and it
+behaves as if it knows that: it declines rather than re-guesses.
+
+Note what a naive report would have said. Rung 3 makes rung 1's rejection rate
+collapse if declines are allowed to null the code — which is why rung 3 does not
+have that authority. It records `checks["r3_declined"]` and leaves the record
+intact; rung 2 owns abstention. An earlier draft of rung 3 counted `withdrew` as
+an outcome while never actually clearing `rec.sct`, so the report and the records
+disagreed. Found by printing before/after on two documents.
+
+### Extraction and normalisation are different capabilities
+
+F1 0.543 at finding reactions. 0.000 at coding them. A single accuracy number
+over both would report half a working system as one middling score and hide that
+the half a vocabulary lookup solves is at zero.
+
+Same pooling error as drugs/reactions, one level up.
+
+### The BAND zone, demonstrated
+
+Three records — the only ones in the run rung 1 did not reject:
+
+    LIPITOR.401#3   60551006  'loss of balance'
+    LIPITOR.935#1   39249009  'constipitation'
+    LIPITOR.935#2   39249009  'no control over urination'
+
+All three: code exists, active, is a clinical finding, `lexical_match` False.
+Everything rung 1 can check, passed. Gold says all three are wrong.
+
+The third pair is the clearest case in the corpus so far: one code assigned to
+both `constipitation` and `no control over urination` in the same document.
+Opposite conditions. Rung 1 validates codes in isolation, never against each
+other or against what the text means, so it cannot notice.
+
+**A deterministic checker cannot be a scorer.** The 56.8% BAND zone measured on
+gold is not a limitation to engineer away — it is the honest size of what codes
+alone cannot settle. (`constipitation` is also a patient misspelling, which is
+the colloquial-text problem in one word.)
+
+Scope: one model, one size, 40 dev documents, one hardware configuration.
