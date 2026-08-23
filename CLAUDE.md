@@ -55,17 +55,30 @@
 - Rung 2 (self-correct) fires **only on a rung 1 failure**, with the reason stated as a fact
   ("code 999999 does not exist"), never as a question ("are you sure?").
   It cannot fix records that passed validation — there is no fact to feed back.
+  The trigger is `record.checks["r1_verdict"] == "REJECT"`, and the fact to
+  state back is in `record.checks["r1_reason"]`. Rung 1 writes both in either
+  mode, which is what lets rung 2 work while rung 1 only observes.
 - Rung 6 stays a rung. "Tell the model to escalate when unsure" is rung 5, not rung 6.
 - Cost is three separate measures — tokens, latency p95, records routed to a person.
   Never fuse them into a currency figure.
 
 ## Current state
-- The deterministic spine is built and measured: corpus + frozen splits, SNOMED
-  index, ledger, rung 1, rung 5, harness, fixture gate, and two model-free
-  characterisations of rung 1. 93 tests, CI green.
-- Rungs 0/3/4/5 all exist and the full ladder runs end to end. `ladder/score.py`
-  is still missing, so accuracy columns are written empty rather than guessed.
-  `run.py` reports a missing rung rather than faking it.
+- **All seven rung slots exist except rung 6.** The full ladder runs end to end,
+  cold, in order `[0,1,2,3,4,5,6]`. 100 tests (96 + 4 integration), CI green.
+- **Model selection is centralised.** `ladder/llm.py:for_rung` is the ONLY place
+  a model is resolved. `run.py` injects `cfg["llm"]`; a rung never names a
+  model. Bound by ROLE from `manifest.model` — `extractor` for rungs 0/2/3,
+  `judge` for rung 4 — because rung 4 must be a different family. Rung 3 gets
+  `Caller.sampler(temperature)` so its k votes are distinct samples rather than
+  one cached answer k times.
+- **Local by default, and remote is deliberate.** `ollama/gpt-oss:20b` unless
+  overridden. Rung prompts carry CADEC text verbatim, so any provider with
+  `local: false` in `models.yaml` is refused without `LADDER_ALLOW_REMOTE=1`.
+- Cost accounting is complete: every rung logs tokens, api_calls and per-call
+  latency. Rung 3 bills the k sampling calls as a DOCUMENT row, paid whether or
+  not a record is re-found.
+- `ladder/score.py` is still missing, so accuracy columns are written empty
+  rather than guessed. `run.py` reports a missing rung rather than faking it.
 - **An earlier data-agnostic track was retired on 2026-08-22**, along with its
   results. The CADEC track imported none of it. Do not reintroduce its numbers:
   nothing in this repo is runnable that would reproduce them. Git history at
@@ -74,20 +87,41 @@
   "measured" note says otherwise. Everything measured so far is in
   `docs/decisions.md` and `docs/article-iterations.md`.
 
+## Done — do not redo these
+- `ladder/vocab.py` wired in as a global resource, formalised as
+  `schemas/vocabulary.py` (contract 2).
+- Variable-length mention arrays checked against the scorer: **they break it**,
+  and the fix is span-keying. Numbers under "Next" item 1.
+- `ladder/rungs/r0.py`, then `r2` / `r3` / `r4` — all written and running.
+- Rung IDs renumbered to match execution order (2026-08-23). Old→new is
+  3→2, 5→3, 2→5. Anything in `docs/decisions.md` dated earlier uses the OLD ids.
+
 ## Next, in order
-1. ~~Wire `ladder/vocab.py` in as a global resource~~ — done, `schemas/vocabulary.py`.
-2. ~~Check whether variable-length mention arrays break the scorer~~ — **they do,
-   and it is measured.** Under index-based array comparison a *perfect*
-   extraction listed in another order scores 0.216, and dropping one mention
-   scores 0.081. Fix: key gold mentions by span rather than position, which
-   scores 1.000 reordered with no change to any scorer. Needed before
-   `ladder/score.py` is written.
-3. ~~`ladder/rungs/r0.py`, then `r3` / `r4` / `r5`~~ — done. Rung 0 is handed an
-   EMPTY record list and builds records from `sources`; rung 2's trigger is
-   `record.checks["r1_verdict"] == "REJECT"`, with the fact to state in
-   `checks["r1_reason"]`. Still outstanding: `ladder/score.py`.
-4. `python -m ladder.rungs.r0 --compare` — the tool ablation, now that a real
-   client exists. Model comes from `manifest.model.extractor`.
+1. **`ladder/score.py` — the shared scorer.** The single biggest gap: without it
+   there is no accuracy axis, so no marginal-cost-per-prevented-error curve,
+   which the plan calls the headline number of the study. Everything else is
+   ready for it — `run.py` already injects a scorer via `load_scorer` and writes
+   the columns empty when absent.
+   **Key gold mentions by SPAN, not by position.** Measured: under index-based
+   array comparison a *perfect* extraction listed in another order scores 0.216
+   and dropping one mention scores 0.081; span-keyed scores 1.000 reordered.
+2. **A full dev-split run.** Everything measured so far is ONE document
+   (ARTHROTEC.107). The rung 4 confabulation and rung 3's `not_resampled` are
+   single observations, not rates. Dev is 40 documents at roughly 30s each.
+   `python -m ladder.run ladder --split dev` — drop `--limit`.
+3. **Rung 6** — the last unbuilt slot. "Tell the model to escalate when unsure"
+   is rung 5, not rung 6: rung 6 is a person actually resolving the record.
+4. **Rung 3 cannot currently vote, and it is not a rung 3 bug.** It matches
+   mentions by `(doc_id, spans)`, and samples at temperature 0.7 pick different
+   phrases, so keys never align — every record comes back `not_resampled`.
+   Matching on overlap rather than exact span would let voting run at all.
+5. **`scripts/` has no test coverage.** That is how a `NameError` in
+   `full_run.py` survived the renumber. One import smoke test per script closes
+   it.
+6. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+   no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
+   measures "would a search have found the code it invented?", not "does search
+   help?".
 
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.
