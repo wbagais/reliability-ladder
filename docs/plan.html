@@ -441,13 +441,13 @@ There is also a circularity problem: a model's self-assessed "I'm unsure" is the
 <b>Do not renumber — make order a config value instead</b>
 The rung numbers come from the brief and are shared with anyone else running this ladder. Renumber them and your results stop being comparable to the brief, to other groups, and to your own earlier iterations. <b>Rung ID is identity; execution order is configuration.</b>
 <pre style="margin:9px 0">manifest.json
-  "rung_order": [0, 1, 3, 5, 4, 2, 6]</pre>
+  "rung_order": [0, 1, 2, 3, 4, 5, 6]</pre>
 The pipeline reads the list; <code>results.csv</code> stays keyed by rung ID. Two payoffs: no confusion in the code, and <b>order becomes something you can test</b>. Re-running with <code>[0,1,2,3,5,4,6]</code> — abstention early — costs one config change and tells you how much the ordering claim is actually worth. That is a cheap ablation and a better contribution than asserting the order is optimal.
 </div>
 
 <div class="note">
 <b>Numbering is not execution order</b>
-Rung 2 is numbered second but must run <b>last</b> — abstaining before you've tried correction and voting throws away recoverable records. Runtime order is 0 → 1 → 3 → 5 → 4 → 2 → 6. Say this in the paper; the pedagogical and optimal orders differing is a small real contribution.
+Abstention must run <b>last</b> — abstaining before you've tried correction and voting throws away recoverable records — so it is numbered last, as rung 5. Rung IDs equal execution position: 0 → 1 → 2 → 3 → 4 → 5 → 6. They were renumbered on 2026-08-23; measurements dated earlier use the old IDs, and the mapping is in <code>docs/decisions.md</code>.
 </div>
 
 <h2>6. Evaluation</h2>

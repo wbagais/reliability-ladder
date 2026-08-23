@@ -1,12 +1,12 @@
 """
-full_run.py — rung 0, gold scoring, and rung 3, on one set of predictions.
+full_run.py — rung 0, gold scoring, and rung 2, on one set of predictions.
 
 Everything measured before 2026-08-23 was produced on CPU inference. The move to
 GPU changed the model's output: 176 mentions became 169, on the same 40 docs,
 same model, same greedy decoding with seed 0. Determinism holds WITHIN hardware
 (three runs identical) and not ACROSS it. Every CPU-era figure is superseded.
 
-Rung 0 runs ONCE and both the scorer and rung 3 consume the same records, so the
+Rung 0 runs ONCE and both the scorer and rung 2 consume the same records, so the
 numbers are guaranteed to describe the same run rather than two runs that happen
 to agree.
 
@@ -18,7 +18,7 @@ from collections import Counter
 
 from ladder.registry import Registry
 from ladder.rungs.r0 import run, report as r0report
-from ladder.rungs import r3
+from ladder.rungs import r2
 from ladder import stub_llm as S, corpus as C
 from bench import align
 
@@ -82,13 +82,13 @@ print(f"  CODE  correct {tot['code_correct']}  wrong {tot['code_wrong']}  "
       f"ungradable {tot['matched_ungradable']}")
 print(f"        accuracy {tot['code_correct']/g if g else None}  over {g} graded")
 
-# ---------------------------------------------------------------- rung 3
+# ---------------------------------------------------------------- rung 2
 recs, m3 = r3.apply(recs, sources, cfg)
 r3.report(m3)
 
 tot2, _, npd2 = score(recs)
 g2 = tot2["code_correct"] + tot2["code_wrong"]
-print(f"\n  after rung 3: code {tot2['code_correct']}/{g2} "
+print(f"\n  after rung 2: code {tot2['code_correct']}/{g2} "
       f"(was {tot['code_correct']}/{g})")
 
 # ---------------------------------------------------------------- provenance

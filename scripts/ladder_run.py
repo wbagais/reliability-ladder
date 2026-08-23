@@ -1,11 +1,11 @@
-"""ladder_run.py — the full ladder in specified order [0, 1, 3, 5, 4, 2, 6].
+"""ladder_run.py — the full ladder in specified order [0, 1, 2, 3, 4, 5, 6].
 
 Every rung so far has been measured standalone. This is the first script that
 runs them in the order the manifest specifies, which is the only way to see
 whether the rungs interact. Per-rung numbers all assume they do not.
 
 Rung 1 runs in OBSERVE mode: it records a verdict and never moves the zone.
-Rung 2 pays the coverage cost, last, per docs/wiki/content/r2.md.
+Rung 5 pays the coverage cost, last, per docs/wiki/content/r2.md.
 
     LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
 """
@@ -16,7 +16,7 @@ from ladder.rungs.r0 import run
 from ladder.rungs import r1, r2, r3, r4, r5
 from ladder import stub_llm as S
 
-ORDER = [0, 1, 3, 5, 4, 2, 6]
+ORDER = [0, 1, 2, 3, 4, 5, 6]
 
 man = json.loads(pathlib.Path("manifest.json").read_text())
 reg = Registry(man["vocabulary"]["snomed_db"])
@@ -24,7 +24,7 @@ items = S.load_items(man["corpus"]["splits_dir"])
 src = {i["doc_id"]: i["text"] for i in items}
 
 print("rung order:", ORDER)
-for name, mod in (("r3", r3), ("r4", r4), ("r5", r5), ("r2", r2)):
+for name, mod in (("r2", r3), ("r4", r4), ("r3", r5), ("r5", r2)):
     print(f"  {name}.apply{inspect.signature(mod.apply)}")
 print()
 
@@ -72,7 +72,7 @@ observe(recs, "after r0")
 
 # ---- 3 -----------------------------------------------------------------
 print("\n" + "=" * 58, "\nRUNG 3 — self-correction\n", "=" * 58, sep="")
-recs, m3 = call(r3, "r3", recs, {"registry": reg, "llm": S.stub})
+recs, m3 = call(r3, "r2", recs, {"registry": reg, "llm": S.stub})
 if m3 and hasattr(r3, "report"):
     r3.report(m3)
 observe(recs, "after r3")
@@ -80,7 +80,7 @@ print(f"  carrying a code {codes(recs)}")
 
 # ---- 5 -----------------------------------------------------------------
 print("\n" + "=" * 58, "\nRUNG 5 — voting\n", "=" * 58, sep="")
-recs, m5 = call(r5, "r5", recs, {"registry": reg, "llm": S.voter(0.7), "k": 3})
+recs, m5 = call(r5, "r3", recs, {"registry": reg, "llm": S.voter(0.7), "k": 3})
 if m5:
     r5.report(m5)
 observe(recs, "after r5")
@@ -97,7 +97,7 @@ if m4:
 
 # ---- 2 (last) ----------------------------------------------------------
 print("\n" + "=" * 58, "\nRUNG 2 — abstention\n", "=" * 58, sep="")
-recs, _ = call(r2, "r2", recs, {"registry": reg})
+recs, _ = call(r2, "r5", recs, {"registry": reg})
 print("  zones:", dict(collections.Counter(r.zone for r in recs)))
 print("  reasons:", dict(collections.Counter(r.reason for r in recs).most_common(8)))
 withheld = sum(1 for r in recs if "withheld" in r.checks)

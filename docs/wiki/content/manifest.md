@@ -13,7 +13,7 @@
 | `corpus` | version, licence, paths, split sizes, stratification, checksums |
 | `vocabulary` | SNOMED release + backend, MedDRA mode, paths |
 | `model` | extractor, judge, temperature |
-| `rung_order` | `[0,1,3,5,4,2,6]` — execution order, not numbering |
+| `rung_order` | `[0,1,2,3,4,5,6]` — ID equals execution position |
 | `rung0_mode` | `recall` (default) or `search` |
 | `rungs.N` | per-rung settings |
 | `ablations` | declared experiments |

@@ -143,10 +143,10 @@ class LLMClient:
 #
 # Roles, not rung numbers, because that is how the plan constrains them: rung 4
 # judges what rung 0 extracted and MUST be a different model family, or it
-# shares the extractor's blind spots. Rungs 3 and 5 correct and re-sample the
+# shares the extractor's blind spots. Rungs 2 and 3 correct and re-sample the
 # extractor's own work, so they are the extractor by definition.
 
-ROLE_BY_RUNG = {0: "extractor", 3: "extractor", 5: "extractor", 4: "judge"}
+ROLE_BY_RUNG = {0: "extractor", 2: "extractor", 3: "extractor", 4: "judge"}
 
 #: Local, free, and no corpus text leaves the machine. See LICENCE note below.
 DEFAULT_MODEL = "ollama/gpt-oss:20b"
@@ -222,7 +222,7 @@ class Caller:
     def sampler(self, temperature: float):
         """A callable that draws a DIFFERENT sample each time it is called.
 
-        Rung 5 votes by calling the extractor k times. Greedy decoding would
+        Rung 3 votes by calling the extractor k times. Greedy decoding would
         return one answer k times and a disk cache would make that free and
         invisible — k identical votes reported as unanimity. So each call gets
         its own `sample_index`, which is part of the cache key: samples stay

@@ -28,14 +28,14 @@ an effect.
 | 5 | voting | k samples, majority on the **normalised code**, never the string | k calls | B |
 | 6 | human-in-the-loop | a person settles it — simulated, or timed | human minutes | joint |
 
-Runtime order is `[0, 1, 3, 5, 4, 2, 6]`, not numeric — abstaining before you
+Rung ID equals execution position, `[0, 1, 2, 3, 4, 5, 6]` — abstaining before you
 have tried correction and voting throws away recoverable records. Order lives in
 `manifest.json`, so it is a testable ablation rather than an assertion.
 
 **Rung 1 judges; it does not filter.** `rungs.1.mode` defaults to `"observe"`:
 the verdict is recorded, counted and reported, and the record's zone is left
 alone, so rungs 3–6 see the full unfiltered set and each rung stays a
-single-rung ablation on identical input. Rung 2, which runs last, is where a
+single-rung ablation on identical input. Rung 5 (abstention), which runs last, is where a
 rung 1 verdict is finally allowed to cost coverage. `"gate"` restores the
 filtering flow.
 
@@ -176,7 +176,7 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
 
 ## Status
 
-- [x] Corpus, frozen splits, vocabulary index, ledger, rung 1, rung 2, harness
+- [x] Corpus, frozen splits, vocabulary index, ledger, rung 1, rung 5, harness
 - [x] Both model-free characterisations of rung 1
 - [x] Rungs 0 / 3 / 4 / 5 — the full ladder runs end to end
 - [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns

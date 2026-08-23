@@ -29,7 +29,7 @@ Must end `GATE PASSED`. What it asserts:
 - `CONCEPT_LESS` is a positive answer, not an error and not an abstention
 - an unknown MedDRA code is flagged, not rejected
 - in observe mode, **every record is still in `NEW`**
-- after [[r2]], no abstained record still ships an answer, and each preserved its `withheld`
+- after [[r5]], no abstained record still ships an answer, and each preserved its `withheld`
 - the ledger has exactly `2 × len(CASES)` rows
 
 ## Preflight

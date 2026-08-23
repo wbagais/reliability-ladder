@@ -11,11 +11,11 @@ and the runner picks it up. Nothing else needs editing to add one.
 There is no free-text entry point. `--split` takes a split identifier; the
 runner reads documents out of the licensed corpus by ID and nothing else.
 
-Execution order comes from manifest["rung_order"], not from the rung numbers.
-Rung IDs are identity — they are shared with anyone else running this ladder, so
-renumbering them would break comparability — while order is configuration, which
-makes "is 0-1-3-5-4-2-6 actually better than 0-1-2-3-4-5-6?" a one-line ablation
-rather than an assertion.
+Execution order comes from manifest["rung_order"], which is now the identity
+permutation: rung ID equals execution position, so 0-1-2-3-4-5-6 is both the
+numbering and the running order. Order is still read from configuration rather
+than assumed, so a different order remains testable — see docs/decisions.md for
+the renumbering and the old-to-new mapping every earlier measurement uses.
 """
 
 from __future__ import annotations
@@ -56,10 +56,10 @@ from ladder.schema import (
 RUNG_NAMES = {
     0: "bare LLM",
     1: "deterministic",
-    2: "abstention",
-    3: "self-correct",
+    2: "self-correct",
+    3: "voting",
     4: "LLM judge",
-    5: "voting",
+    5: "abstention",
     6: "human loop",
 }
 
@@ -170,11 +170,11 @@ def run_ladder(
             split=split,
             llm=caller,
         )
-        # Rung 5 votes by calling the extractor k times, so it needs a SAMPLER,
+        # Rung 3 votes by calling the extractor k times, so it needs a SAMPLER,
         # not the greedy caller: at temperature 0 the disk cache would return
         # one answer k times and the rung would report unanimity it never
         # measured. The temperature is the rung's setting; the model is not.
-        if n == 5 and caller is not None:
+        if n == 3 and caller is not None:
             cfg["llm"] = caller.sampler(float(cfg.get("temperature", 0.7)))
         # Rung 4 takes its model under its own keys, and refuses to fall back to
         # the extractor — a model judging its own output measures
@@ -188,9 +188,9 @@ def run_ladder(
             )
         t0 = time.perf_counter()
         out = mod.apply(records, sources, cfg)
-        # Two return conventions live in ladder/rungs: r1 and r2 return the
-        # records, r3/r4/r5 return (records, aggregates). Normalising here means
-        # neither owner has to rewrite the other's rungs to make a run work.
+        # Two return conventions live in ladder/rungs: r1 and r5 return the
+        # records, r0/r2/r3/r4 return (records, aggregates). Normalising here
+        # means neither convention has to be rewritten to make a run work.
         if isinstance(out, tuple):
             records, meta = out
             aggregates[n] = meta
@@ -268,7 +268,7 @@ def snapshot_row(
     paths is how a benchmark ends up with two numbers for the same run.
     """
     # "Would this ship if the run stopped at this rung?" A rejected record has
-    # been called wrong by the gate, so it is not an answer even though rung 2
+    # been called wrong by the gate, so it is not an answer even though rung 5
     # has not withdrawn it yet.
     answered = [r for r in snap if r.zone not in (ZONE_ABSTAIN, ZONE_REJECT) and r.sct]
     settled = [r for r in snap if r.zone not in OPEN_ZONES]

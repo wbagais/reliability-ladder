@@ -55,9 +55,9 @@
 
 **Coverage is only 0.435 and everything was correct**
 
-- Correct behaviour. All 393 gold codes are right; rung 1 vouches for 171 and [[r2]] withdraws 222. **That gap is what rungs 3–6 exist to close.**
+- Correct behaviour. All 393 gold codes are right; rung 1 vouches for 171 and [[r5]] withdraws 222. **That gap is what rungs 3–6 exist to close.**
 
-**Rung 2 alone abstains nothing**
+**Rung 5 alone abstains nothing**
 
 - Correct. It reads `checks["r1_verdict"]`; with no rung 1 upstream there is nothing to withdraw on. Visible only via `ablate`.
 

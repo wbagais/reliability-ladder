@@ -1059,3 +1059,43 @@ disk-cache key, so rung 5's k votes all hit ONE cache entry: unanimity that was
 never measured, in 0.00s, for free. Each draw now gets its own sample index, so
 samples differ from each other and stay reproducible across runs. `sampler()`
 refuses temperature 0 outright.
+
+## 2026-08-23 — rung IDs renumbered to match execution order
+
+**Decision: rung IDs now equal execution position.** `rung_order` becomes
+`[0,1,2,3,4,5,6]`. Previously ID was identity and order was configuration, and
+the two differed — the pedagogical numbering put abstention second while the
+runtime order ran it last. Having to hold both mappings at once was the cost,
+and it was judged to outweigh the benefit.
+
+**THE MAPPING. Every number in this log above this entry uses the OLD IDs.**
+
+| old | new | rung |
+|-----|-----|------|
+| 0 | 0 | bare LLM |
+| 1 | 1 | deterministic |
+| **3** | **2** | self-correction |
+| **5** | **3** | voting |
+| 4 | 4 | LLM judge |
+| **2** | **5** | abstention |
+| 6 | 6 | human loop |
+
+Read anything dated before 2026-08-23 through that table. "Rung 2 abstained on
+all 3" in an earlier entry means what is now rung 5; "rung 3 declined all three"
+means what is now rung 2. The measurements themselves are unaffected — only the
+labels moved.
+
+**What this costs, recorded so it is not rediscovered as a surprise.** The rung
+numbers came from the brief and were shared with anyone else running this
+ladder, so results are no longer directly comparable to the brief or to other
+groups without applying the table above. And the ordering claim is no longer a
+one-line ablation: running abstention early used to be a `rung_order` edit, and
+now it means renumbering again. If that ablation is wanted later, it has to be
+done by editing `rung_order` away from the identity permutation, which
+reintroduces exactly the ID/order gap this change removed — that is the
+trade, and it was made deliberately.
+
+**`rung_order` stays in the manifest.** It is now the identity permutation, but
+keeping the key means the runner still reads order from configuration rather
+than from a sort, so the ablation remains possible even though it is no longer
+free.

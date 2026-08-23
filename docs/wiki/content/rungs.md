@@ -8,18 +8,18 @@ Each rung is one reliability layer. The point is the **marginal** contribution o
 |---|---|---|---|---|---|
 | 0 | [[r0]] bare LLM | one call, JSON, temp 0 | 1 call/item | B | in progress |
 | 1 | [[r1]] deterministic | schema · span · negation · code exists · semantic type · MedDRA | **none** | A | done |
-| 2 | [[r2]] abstention | decline what is unresolved, or below τ | none | A | done |
-| 3 | [[r3]] self-correction | one bounded retry, fired only by a rung 1 failure | +1 call | B | not started |
+| 2 | [[r5]] abstention | decline what is unresolved, or below τ | none | A | done |
+| 3 | [[r2]] self-correction | one bounded retry, fired only by a rung 1 failure | +1 call | B | not started |
 | 4 | [[r4]] LLM-as-judge | second model, different family | +1 call | B | not started |
-| 5 | [[r5]] voting | k samples, majority on the normalised code | k calls | B | not started |
+| 5 | [[r3]] voting | k samples, majority on the normalised code | k calls | B | not started |
 | 6 | [[r6]] human-in-the-loop | a person settles it | human minutes | joint | not started |
 
 ## Execution order
 
-`manifest.rung_order = [0, 1, 3, 5, 4, 2, 6]` — not numeric.
+`manifest.rung_order = [0, 1, 2, 3, 4, 5, 6]` — ID equals execution position.
 
 - Abstention runs **last**: abstaining before correction and voting throws away recoverable records.
-- Order is configuration, so "is 0-1-3-5-4-2-6 better than 0-1-2-3-4-5-6?" is a one-line ablation, not an assertion.
+- Order is still read from configuration rather than assumed, so a different order remains testable.
 - Rung IDs are identity and come from the brief. Renumbering breaks comparability with other groups.
 
 ## What each rung may do
