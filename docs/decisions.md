@@ -1281,3 +1281,27 @@ timing property, so the finding stands. Recorded because determinism is bounded
 by the backend — see the CPU/GPU mention-count entry.
 
 Run: `LADDER_JUDGE=qwen2.5:7b LADDER_N=0 PYTHONPATH=. python3 scripts/r4_gold_control.py`
+
+## 2026-08-23 — the manifest's model config had never been reached
+
+`ladder/llm.py:for_rung` centralises model selection so rungs never pick a
+model. Correct design. The strings it resolved were `ollama/ibm/granite4:micro-h`
+and `ollama/gpt-oss:20b` — the first has a vendor prefix the local Ollama tag
+does not carry, the second was never pulled. Both 404.
+
+Nothing caught it because **no measured run goes through `for_rung`.** Every
+figure in this repo came from `scripts/*.py` naming models inline. The rungs do
+not pick a model, as specified; the scripts do, and they are what ran.
+
+Found by the ledger coverage tests — the only tests that call a model. 97 others
+passed. Same shape as the dead ledger call sites: a centralisation that is right
+in design and unreached in practice, sitting behind a green suite.
+
+The 404 is also environmental-looking. "Model not found" reads as a missing
+prerequisite rather than a config error, and the test guards were written to
+skip on missing prerequisites. One more line in those guards and this would have
+skipped silently instead of failing.
+
+Fixed to `ollama/granite4:micro-h` and `ollama/qwen2.5:7b`. Judge remains a
+different family from the extractor, as required, and qwen is the judge with
+1/395 parse failures against llama3.2:3b's 204.
