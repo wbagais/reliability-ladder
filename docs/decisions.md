@@ -1244,6 +1244,74 @@ absent corpus and index.
 
 ---
 
+## 2026-08-23 — a second judge: same non-discrimination, opposite direction
+
+`qwen2.5:7b` through the identical 395-record gold control that `llama3.2:3b`
+ran. Same input set — rung 1 split it 76 ACCEPT / 153 BAND / 166 REJECT, third
+reproduction of those figures.
+
+|  | llama3.2:3b | qwen2.5:7b |
+|---|---|---|
+| span_ok, gold | 3% | 83% |
+| span_ok, model output | 3% | 83% |
+| code_ok, gold (correct codes) | 92% | 21% |
+| code_ok, model output (0/105 correct) | 86% | 21% |
+| parse failures | 204/395 | 1/395 |
+
+**Gold and model output score identically within each judge**, on both channels,
+for both models. The small judge fails almost every span and passes almost every
+code; the large one does the reverse. Neither distinguishes a correct answer
+from a fabricated one. Two models, two sizes, two families, same result.
+
+The 7B code channel is the sharper finding: it rejects 79% of human-annotated
+**correct** codes, at the same rate it rejects codes that exist in no release.
+By rung 1 verdict — ACCEPT records score code_ok 29%, REJECT records 21%. Eight
+points apart on a distinction that is a database lookup.
+
+**What did improve: availability.** 204 parse failures to 1. The 43%/58%
+input-dependent failure rate was a property of llama3.2:3b, not of LLM judging.
+A larger model fixed it completely and changed nothing about discrimination.
+
+Agreement with rung 1 is now at its fourth value across four configurations —
+100% / 98% / 49% / 44% — with no relationship to whether the judge was doing
+useful work.
+
+Cost: 209,354 tokens, 5,545s. **Backend confound:** qwen2.5:7b is 4.7 GB and the
+card has 4 GB VRAM, so it ran partially on CPU (2,789 MiB resident, 47% GPU
+utilisation). Timing is not comparable to the llama run; discrimination is not a
+timing property, so the finding stands. Recorded because determinism is bounded
+by the backend — see the CPU/GPU mention-count entry.
+
+Run: `LADDER_JUDGE=qwen2.5:7b LADDER_N=0 PYTHONPATH=. python3 scripts/r4_gold_control.py`
+
+---
+
+## 2026-08-23 — the manifest's model config had never been reached
+
+`ladder/llm.py:for_rung` centralises model selection so rungs never pick a
+model. Correct design. The strings it resolved were `ollama/ibm/granite4:micro-h`
+and `ollama/gpt-oss:20b` — the first has a vendor prefix the local Ollama tag
+does not carry, the second was never pulled. Both 404.
+
+Nothing caught it because **no measured run goes through `for_rung`.** Every
+figure in this repo came from `scripts/*.py` naming models inline. The rungs do
+not pick a model, as specified; the scripts do, and they are what ran.
+
+Found by the ledger coverage tests — the only tests that call a model. 97 others
+passed. Same shape as the dead ledger call sites: a centralisation that is right
+in design and unreached in practice, sitting behind a green suite.
+
+The 404 is also environmental-looking. "Model not found" reads as a missing
+prerequisite rather than a config error, and the test guards were written to
+skip on missing prerequisites. One more line in those guards and this would have
+skipped silently instead of failing.
+
+Fixed to `ollama/granite4:micro-h` and `ollama/qwen2.5:7b`. Judge remains a
+different family from the extractor, as required, and qwen is the judge with
+1/395 parse failures against llama3.2:3b's 204.
+
+---
+
 ## 2026-08-23 — the scorer, and the rung 0 prompt-engineering study
 
 **TDD is now a hard rule** (CLAUDE.md, "How to work"). Every change below was
@@ -1366,6 +1434,52 @@ still ONE document, ARTHROTEC.107.
 
 ---
 
+## 2026-08-24 — Registry.search() is literal substring matching
+
+Found while building the rung 6 desk, which needed to offer a reviewer
+candidates and offered nothing for most records.
+
+`Registry.search(text, k)` matches the query as a literal substring of SNOMED
+labels. No tokenisation, no stemming, no term overlap:
+
+    'low back pain'    -> 3 results
+    'lower back pain'  -> 0
+    'back pain lower'  -> 0
+    'lower back'       -> 1
+    'back'             -> 2
+
+The full phrase does not appear character-for-character in any label, so
+nothing matches. Case is NOT the mechanism.
+
+**141 of 343 gold reaction spans return a candidate. 202 return nothing — 59%.**
+Of those 202, **0** are recovered by lowercasing. These are the annotators' own
+phrases, the ones a human judged codable, and the lookup finds nothing for six
+in ten.
+
+Blast radius, because several rungs lean on this:
+
+- **Rung 0 mode B.** The post-hoc lookup returns empty for most mentions, so
+  `honoured_tool` is None rather than False far more often than its docstring
+  implies. The arm's failure has a simpler explanation than the one currently
+  written into the code.
+- **Rung 1's `lexical_match`.** If it uses the same matcher, ACCEPT vs BAND is
+  partly an artefact of substring matching — and the 43.1% pooled / 35.0%
+  reactions-only accept rates inherit it. UNVERIFIED; check before the article
+  quotes those figures again.
+- **Rung 6's strata.** "No candidates" mostly means the search missed, not that
+  the record is intrinsically hard to code. The 27s median therefore measures
+  reviewing records the lookup failed on, and the 1.2 reviewer-hour
+  extrapolation is not the coding-from-scratch cost it was designed to be.
+
+The fix is not small — proper matching means tokenising labels and scoring
+overlap, in a component every rung uses. A to decide.
+
+Also fixed in scripts/r6_desk.py: search results use the key `label`, not
+`term` or `fsn`, so candidates were displayed as bare SCTIDs with no text. The
+reviewer picked blind for all six records.
+
+---
+
 ## 2026-08-24 — the keyword table, and four corrupted codes in the answer key
 
 **`ladder/keywords.py` — a two-column `keyword,code` CSV built from the SNOMED
@@ -1459,7 +1573,6 @@ not corruption, but it means `span_match="overlap"` is looser than it looks — 
 prediction can overlap two different gold mentions and the matcher takes the
 first in prediction order. Exact matching is unaffected. Stated here so the
 overlap column is read with the caveat attached.
-
 
 ---
 

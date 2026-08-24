@@ -370,6 +370,16 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 reason=reason,
                 verdict=verdict,
                 latency_ms=(time.perf_counter() - t0) * 1000,
+                denominator="r1_offered",
+                # A verdict is not a test that can fail to run: every record
+                # gets one. ACCEPT/BAND = the record survives; REJECT = it does
+                # not. A check that could not be evaluated is already recorded
+                # in r1_audit.unevaluable, and is reported as such.
+                evaluable=(
+                    "could_not_run"
+                    if (rec.checks.get("r1_audit") or {}).get("unevaluable")
+                    else "pass" if verdict in (ZONE_ACCEPT, ZONE_BAND) else "fail"
+                ),
                 mode=params.get("mode", DEFAULTS["mode"]),
                 lexical_match=bool(checks.get("lexical_match")),
                 sct_active=checks.get("sct_active"),

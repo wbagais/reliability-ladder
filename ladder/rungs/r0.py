@@ -179,6 +179,10 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
         rec.checks["rung0_mode"] = mode
         rec.checks["offsets"] = how
         if mode == "B" and rec.text:
+            # POST-HOC. The model has already emitted rec.sct above; this search
+            # happens after generation and its results never reach the model.
+            # The cost is real (one search per mention) but the model had no
+            # tool. See honoured_tool() below.
             rec.checks["tool_results"] = vocab.search(rec.text, 5)
             meta["tool_calls"] += 1
         out.append(rec)
@@ -557,11 +561,27 @@ def run_step(doc_id: str, source: str, step: str, llm, cfg: dict) -> tuple[list[
 
 
 def honoured_tool(rec: Record) -> bool | None:
-    """Mode B only, and the most interesting check on the ladder.
+    """Mode B only. NOT what the name says — read this before quoting it.
 
-    The model searched, got candidates back, then emitted a code. Did it emit
-    one of them, or override its own lookup with something invented? None when
-    no search was made for this record.
+    The name claims tool fidelity: the model searched, got candidates, and
+    either used one or overrode it. **That is not what happens.** `vocab.search`
+    runs in the parse loop above, AFTER the model has returned its JSON and
+    after `rec.sct` is set from it. The model never sees the results.
+
+    What this actually measures is a COINCIDENCE RATE: does the code the model
+    invented from memory happen to appear in the candidates a search returns for
+    the same text? On the dev split it is never True, which is unsurprising
+    given rung 0 produces 0/105 correct codes.
+
+    Mode B is therefore **not a tool-access arm**. It is recall plus a post-hoc
+    lookup, and the A/B against mode A measures prompt wording plus one extra
+    search per mention. Reporting it as tool access would be a claim the
+    experiment cannot support. A real tool loop — the model calling search
+    mid-generation and seeing results — is untested and is the obvious next
+    experiment, since the model's failure is missing knowledge and a tool is
+    what would supply it.
+
+    Returns None when no search was made for this record.
     """
     results = rec.checks.get("tool_results")
     if not results:
@@ -639,6 +659,8 @@ def apply(
                 tokens_out=meta["tokens_out"],
                 api_calls=meta.get("api_calls", 1),
                 latency_ms=elapsed_ms,
+                denominator="r0_documents",
+                evaluable="could_not_run" if meta.get("parse_failed") else "pass",
                 mode=step or mode,
                 mentions=len(got),
             )
@@ -678,13 +700,36 @@ def run(items, mode, llm, cfg=None):
     recs: list[Record] = []
     agg = {"tokens_in": 0, "tokens_out": 0, "tool_calls": 0, "parse_failed": 0, "t0": time.time()}
     sources = {}
+    ledger = cfg.get("ledger")
     for it in items:
+        t0 = time.time()
         got, meta = rung0(it["doc_id"], it["text"], mode, llm, cfg)
+        elapsed_ms = (time.time() - t0) * 1000
         for k in ("tokens_in", "tokens_out", "tool_calls"):
             agg[k] += meta.get(k, 0)
         agg["parse_failed"] += int(meta.get("parse_failed", False))
         sources[it["doc_id"]] = it["text"]
         recs += got
+        # Same per-document row apply() writes. Rung 0's unit of cost is the
+        # call: a document that produced no mentions still cost one. Without
+        # this, every script that uses run() — which is all of them — reports
+        # rung 0 as free.
+        if ledger:
+            ledger.log(
+                rung=RUNG,
+                doc_id=it["doc_id"],
+                record_id=it["doc_id"],
+                zone="NEW",
+                outcome="parse_failed" if meta.get("parse_failed") else "extracted",
+                reason="json_decode" if meta.get("parse_failed") else None,
+                tokens_in=meta.get("tokens_in", 0),
+                tokens_out=meta.get("tokens_out", 0),
+                api_calls=1,
+                latency_ms=elapsed_ms,
+                mentions=len(got),
+                denominator="r0_documents",
+                evaluable="could_not_run" if meta.get("parse_failed") else "pass",
+            )
     r1.apply(recs, sources, cfg)
     for rec in recs:
         rec.checks["honoured_tool"] = honoured_tool(rec)

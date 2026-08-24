@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ladder monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* Lab printout: cool paper, deep ink. Colour is reserved for outcome states
+     and is never used decoratively. */
+  --paper:#e9eaec;
+  --paper-2:#f3f4f5;
+  --rule:#c4c8cd;
+  --ink:#10151b;
+  --ink-2:#4a5560;
+  --ink-3:#7c8791;
+
+  /* Three outcome states. pass and fail get ink; could_not_run gets a hatch,
+     defined below — it is an absence of measurement and must never read as a
+     measured value. */
+  --pass:#1d3f6e;
+  --fail:#8f4426;
+  --cnr:#9aa3ab;
+
+  --live:#1d6e5a;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper);
+  color:var(--ink);
+  font-family:"IBM Plex Sans",system-ui,sans-serif;
+  font-size:14px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+
+/* the hatch — could_not_run, everywhere it appears */
+.hatch{
+  background-image:repeating-linear-gradient(
+    -45deg, var(--cnr) 0 2px, transparent 2px 5px);
+  background-color:transparent;
+}
+
+/* ---------------------------------------------------------------- header */
+header{
+  border-bottom:1px solid var(--rule);
+  padding:18px 26px 0;
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:26px;
+  align-items:end;
+}
+.eyebrow{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin-bottom:6px;
+}
+h1{
+  font-family:"IBM Plex Mono",monospace;
+  font-weight:500;font-size:19px;letter-spacing:-.01em;margin:0 0 4px;
+}
+.provenance{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;color:var(--ink-2);
+  display:flex;flex-wrap:wrap;gap:0 18px;padding:8px 0 16px;
+}
+.provenance b{font-weight:500;color:var(--ink)}
+.status{display:flex;align-items:center;gap:7px;font-family:"IBM Plex Mono",monospace;font-size:11px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--live)}
+.dot.idle{background:var(--ink-3)}
+@keyframes breathe{0%,100%{opacity:1}50%{opacity:.25}}
+.dot.on{animation:breathe 1.6s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.dot.on{animation:none}}
+
+/* ------------------------------------------------- the flat counter (hero)
+   The one number the whole project is about. It does not move. Everything
+   around it does. */
+.headline{
+  border-left:1px solid var(--rule);
+  padding-left:26px;padding-bottom:16px;
+  text-align:right;
+}
+.headline .n{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:58px;font-weight:300;line-height:.9;letter-spacing:-.03em;
+  display:block;
+}
+.headline .lbl{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);margin-top:8px;display:block;
+}
+
+/* ----------------------------------------------------------------- layout */
+main{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:0}
+@media (max-width:940px){main{grid-template-columns:1fr}}
+.col{padding:20px 26px 40px}
+.col + .col{border-left:1px solid var(--rule)}
+@media (max-width:940px){.col + .col{border-left:0;border-top:1px solid var(--rule)}}
+
+h2{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;margin:0 0 14px;
+}
+h2 + p.note{margin-top:-8px}
+p.note{font-size:12px;color:var(--ink-2);margin:0 0 16px;max-width:52ch}
+
+/* ------------------------------------------------------------ rung track */
+.rung{
+  border-top:1px solid var(--rule);
+  padding:11px 0 13px;
+  display:grid;
+  grid-template-columns:22px 1fr;
+  gap:12px;
+  opacity:.42;
+  transition:opacity .35s;
+}
+.rung.seen{opacity:1}
+.rung.active{opacity:1}
+.rung:last-child{border-bottom:1px solid var(--rule)}
+.rid{
+  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;
+  color:var(--ink-3);padding-top:1px;
+}
+.rung.active .rid{color:var(--ink)}
+.rung.active .rid::after{content:"›";margin-left:2px}
+.rname{display:flex;justify-content:space-between;gap:14px;align-items:baseline}
+.rname b{font-weight:500;font-size:13.5px}
+.rname .kind{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3)}
+
+/* denominator — the signature. Always adjacent to the bar, never implied. */
+.denom{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-2);
+  margin:6px 0 5px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;
+}
+.denom .name{color:var(--ink)}
+.denom .warn{color:var(--fail)}
+
+.bar{height:15px;display:flex;border:1px solid var(--rule);background:var(--paper-2)}
+.bar span{display:block;transition:width .5s ease}
+.seg-pass{background:var(--pass)}
+.seg-fail{background:var(--fail)}
+.seg-cnr{border-left:1px solid var(--rule)}
+.legend{
+  font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-2);
+  margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;
+}
+.legend i{display:inline-block;width:9px;height:9px;margin-right:4px;vertical-align:-1px;border:1px solid var(--rule)}
+
+/* ------------------------------------------------------------ cost meters */
+.costs{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--rule)}
+.cost{padding:12px 14px}
+.cost + .cost{border-left:1px solid var(--rule)}
+.cost .v{font-family:"IBM Plex Mono",monospace;font-size:24px;font-weight:300;letter-spacing:-.02em}
+.cost .k{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+.nofuse{font-size:11.5px;color:var(--ink-2);margin-top:9px;max-width:46ch}
+
+/* ------------------------------------------------------------ ledger feed */
+.feed{
+  border:1px solid var(--rule);background:var(--paper-2);
+  height:290px;overflow-y:auto;font-family:"IBM Plex Mono",monospace;font-size:11px;
+}
+.row{
+  display:grid;grid-template-columns:20px 1fr auto;gap:9px;
+  padding:4px 11px;border-bottom:1px solid rgba(196,200,205,.5);
+  align-items:baseline;
+}
+.row .r{color:var(--ink-3)}
+.row .o{color:var(--ink)}
+.row .e{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:1px 5px;border:1px solid var(--rule)}
+.e-pass{color:var(--pass)}
+.e-fail{color:var(--fail)}
+.e-cnr{color:var(--ink-2)}
+.feed:empty::after{
+  content:"No rows yet. Start a run, or press Replay.";
+  display:block;padding:14px;color:var(--ink-3);font-size:11.5px;
+}
+
+/* ------------------------------------------------------------- controls */
+.ctl{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+button{
+  font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.05em;
+  padding:6px 13px;border:1px solid var(--ink);background:transparent;color:var(--ink);
+  cursor:pointer;
+}
+button.primary{background:var(--ink);color:var(--paper)}
+button:hover{background:var(--ink);color:var(--paper)}
+button:focus-visible{outline:2px solid var(--pass);outline-offset:2px}
+button[disabled]{opacity:.35;cursor:default}
+button[disabled]:hover{background:transparent;color:var(--ink)}
+
+footer{
+  border-top:1px solid var(--rule);padding:14px 26px 30px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-3);
+}
+footer code{color:var(--ink-2)}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="eyebrow">AI Reliability Ladder</div>
+    <h1>Ladder monitor</h1>
+    <div class="provenance">
+      <span>split <b>dev · 40 docs</b></span>
+      <span>extractor <b>granite4:micro-h</b></span>
+      <span>judge <b>qwen2.5:7b</b></span>
+      <span>vocab <b>AU1000036_20260731</b></span>
+      <span>backend <b>RTX 3050 Ti · CUDA</b></span>
+      <span>order <b>[0,1,2,3,4,5,6]</b></span>
+    </div>
+  </div>
+  <div class="headline">
+    <span class="n mono" id="hCodes">0</span>
+    <span class="lbl">correct codes · of 105 graded</span>
+    <div class="status" style="justify-content:flex-end;margin-top:10px">
+      <span class="dot idle" id="dot"></span><span id="statusText">idle</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="col">
+    <div class="ctl">
+      <button class="primary" id="btnReplay">Replay measured run</button>
+      <button id="btnLive">Follow ledger</button>
+      <button id="btnReset">Reset</button>
+    </div>
+
+    <h2>Rungs</h2>
+    <p class="note">
+      Each bar is the rung's own denominator, named beside it. A rung that judged
+      96 of 169 offered is drawn over 96, not 169.
+    </p>
+    <div id="track"></div>
+
+    <div class="legend" style="margin-top:12px">
+      <span><i style="background:var(--pass)"></i>pass</span>
+      <span><i style="background:var(--fail)"></i>fail</span>
+      <span><i class="hatch"></i>could not run</span>
+    </div>
+  </section>
+
+  <section class="col">
+    <h2>Cost</h2>
+    <div class="costs">
+      <div class="cost"><div class="v mono" id="cTok">0</div><div class="k">tokens</div></div>
+      <div class="cost"><div class="v mono" id="cLat">0s</div><div class="k">p95 latency</div></div>
+      <div class="cost"><div class="v mono" id="cHum">0</div><div class="k">routed to a person</div></div>
+    </div>
+    <p class="nofuse">
+      Three measures, never fused. A single figure would hide which resource a
+      rung spends — and they do not move together: voting is the cheapest layer
+      by tokens and the slowest by clock.
+    </p>
+
+    <h2 style="margin-top:26px">Ledger</h2>
+    <p class="note">One row per record per rung, as written to disk.</p>
+    <div class="feed" id="feed"></div>
+  </section>
+</main>
+
+<footer>
+  Reads <code>runs/*.ledger.jsonl</code>. Replay uses the measured 40-document run;
+  Follow polls the newest ledger on disk.
+</footer>
+
+<script>
+/* ==========================================================================
+   Ladder monitor
+
+   DATA SOURCE. This reads the append-only ledger your rungs already write —
+   one JSON object per line, per record per rung, carrying `denominator` and
+   `evaluable` in `extra`. Nothing new needs instrumenting.
+
+     Follow:  polls LEDGER_URL, parses whole lines, appends what it has not
+              seen. Serve the repo with `python3 -m http.server` and it works
+              with no backend.
+     Replay:  streams the measured 40-document run, below, so the layout can
+              be judged without a live run.
+
+   The replay figures are real. If they look flat, that is the finding.
+   ========================================================================== */
+
+const LEDGER_URL = "runs/ladder.ledger.jsonl";
+const POLL_MS = 1200;
+
+const RUNGS = [
+  {id:0, name:"Extract",       kind:"model"},
+  {id:1, name:"Validate",      kind:"deterministic"},
+  {id:2, name:"Self-correct",  kind:"model"},
+  {id:3, name:"Vote",          kind:"model"},
+  {id:4, name:"Judge",         kind:"model"},
+  {id:5, name:"Abstain",       kind:"deterministic"},
+  {id:6, name:"Triage",        kind:"human"},
+];
+
+/* Measured, 40 docs. tokens and p95 per rung; the three-way split is over the
+   rung's OWN denominator, which is why the names differ per rung. */
+const MEASURED = [
+  {id:0, denom:"r0_documents",  n:40,  pass:0,   fail:0,   cnr:0,   tok:19354, p95:2.1,  hum:0},
+  {id:1, denom:"r1_offered",    n:169, pass:0,   fail:161, cnr:8,   tok:0,     p95:0.0,  hum:0},
+  {id:2, denom:"r2_attempted",  n:158, pass:0,   fail:158, cnr:0,   tok:72539, p95:2.4,  hum:0},
+  {id:3, denom:"r3_voted_on",   n:169, pass:3,   fail:0,   cnr:166, tok:55704, p95:12.1, hum:0},
+  {id:4, denom:"r4_judged",     n:96,  pass:0,   fail:96,  cnr:73,  tok:87130, p95:3.1,  hum:0},
+  {id:5, denom:"r5_offered",    n:169, pass:0,   fail:169, cnr:0,   tok:0,     p95:0.0,  hum:0},
+  {id:6, denom:"r6_reviewed",   n:0,   pass:0,   fail:0,   cnr:0,   tok:0,     p95:0.0,  hum:169},
+];
+
+const state = {
+  rungs:Object.fromEntries(RUNGS.map(r=>[r.id,{pass:0,fail:0,cnr:0,denom:null,n:0,seen:false}])),
+  tok:0, p95:0, hum:0, codes:0, active:null,
+  seenLines:0, timer:null, mode:"idle",
+};
+
+const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString("en-US");
+
+/* --------------------------------------------------------------- render */
+function drawTrack(){
+  $("track").innerHTML = RUNGS.map(r=>{
+    const s = state.rungs[r.id];
+    const total = s.pass + s.fail + s.cnr;
+    const pc = v => total ? (v/total*100) : 0;
+    const cls = "rung" + (s.seen?" seen":"") + (state.active===r.id?" active":"");
+
+    /* The denominator line. When a rung could not evaluate some of its input,
+       say so here rather than letting the bar imply a clean split. */
+    let denomLine;
+    if(!s.denom){
+      denomLine = '<span class="name">—</span><span>waiting</span>';
+    } else {
+      denomLine = '<span class="name">'+s.denom+'</span><span>n='+s.n+'</span>'
+        + (s.cnr ? '<span class="warn">'+s.cnr+' could not run</span>' : '');
+    }
+
+    return '<div class="'+cls+'">'
+      + '<div class="rid mono">'+r.id+'</div>'
+      + '<div>'
+      +   '<div class="rname"><b>'+r.name+'</b><span class="kind">'+r.kind+'</span></div>'
+      +   '<div class="denom mono">'+denomLine+'</div>'
+      +   '<div class="bar">'
+      +     '<span class="seg-pass" style="width:'+pc(s.pass)+'%"></span>'
+      +     '<span class="seg-fail" style="width:'+pc(s.fail)+'%"></span>'
+      +     '<span class="seg-cnr hatch" style="width:'+pc(s.cnr)+'%"></span>'
+      +   '</div>'
+      + '</div></div>';
+  }).join("");
+}
+
+function drawCosts(){
+  $("cTok").textContent = fmt(state.tok);
+  $("cLat").textContent = state.p95.toFixed(1)+"s";
+  $("cHum").textContent = fmt(state.hum);
+  $("hCodes").textContent = state.codes;
+}
+
+function pushRow(rung, recordId, outcome, evaluable){
+  const feed = $("feed");
+  const cls = evaluable==="pass" ? "e-pass" : evaluable==="fail" ? "e-fail" : "e-cnr";
+  const div = document.createElement("div");
+  div.className = "row";
+  div.innerHTML = '<span class="r">'+rung+'</span>'
+    + '<span class="o">'+recordId+' · '+outcome+'</span>'
+    + '<span class="e '+cls+'">'+evaluable.replace(/_/g," ")+'</span>';
+  feed.prepend(div);
+  while(feed.childElementCount > 220) feed.lastElementChild.remove();
+}
+
+function setStatus(text, live){
+  $("statusText").textContent = text;
+  $("dot").className = "dot" + (live ? " on" : " idle");
+}
+
+/* ------------------------------------------------------- ingest one row
+   Same path for replayed and live rows: everything downstream reads the
+   ledger's own fields, so nothing here knows which mode it is in. */
+function ingest(row){
+  const rung = row.rung;
+  const extra = row.extra || {};
+  const ev = extra.evaluable || "unset";
+  const s = state.rungs[rung];
+  if(!s) return;
+
+  s.seen = true;
+  state.active = rung;
+  if(extra.denominator){
+    s.denom = extra.denominator;
+    if(extra.denominator_n != null) s.n = extra.denominator_n;
+  }
+  if(ev === "pass") s.pass++;
+  else if(ev === "fail") s.fail++;
+  else s.cnr++;
+  if(!extra.denominator_n) s.n = s.pass + s.fail + s.cnr;
+
+  state.tok += (row.tokens_in||0) + (row.tokens_out||0);
+  state.p95 = Math.max(state.p95, (row.latency_ms||0)/1000);
+  state.hum += (row.human_minutes||0) ? 1 : 0;
+
+  pushRow(rung, row.record_id || "—", row.outcome || "—", ev);
+  drawTrack(); drawCosts();
+}
+
+/* ------------------------------------------------------------- replay */
+function buildReplay(){
+  const rows = [];
+  for(const m of MEASURED){
+    const perTok = m.n ? Math.round(m.tok/m.n) : 0;
+    const mk = (ev, i) => ({
+      rung:m.id, doc_id:"DOC", record_id:"rec#"+String(i).padStart(3,"0"),
+      outcome: ev==="could_not_run" ? "not evaluable" : ev,
+      tokens_in:Math.round(perTok*0.7), tokens_out:Math.round(perTok*0.3),
+      latency_ms:m.p95*1000*(0.6+Math.random()*0.4),
+      human_minutes: m.hum ? 0.7 : 0,
+      extra:{denominator:m.denom, denominator_n:m.n, evaluable:ev},
+    });
+    let i = 0;
+    for(let k=0;k<m.pass;k++) rows.push(mk("pass", i++));
+    for(let k=0;k<m.fail;k++) rows.push(mk("fail", i++));
+    for(let k=0;k<m.cnr;k++)  rows.push(mk("could_not_run", i++));
+    if(m.hum) for(let k=0;k<8;k++) rows.push(mk("could_not_run", i++));
+  }
+  return rows;
+}
+
+function replay(){
+  reset();
+  const rows = buildReplay();
+  let i = 0;
+  setStatus("replaying measured run", true);
+  state.mode = "replay";
+  state.timer = setInterval(()=>{
+    /* several rows per tick or a 700-row run takes all afternoon */
+    for(let k=0;k<6 && i<rows.length;k++) ingest(rows[i++]);
+    if(i >= rows.length){
+      clearInterval(state.timer); state.timer=null; state.active=null;
+      state.hum = 169;               // every record routed; none reviewed
+      drawTrack(); drawCosts();
+      setStatus("replay complete · 0 correct codes", false);
+    }
+  }, 40);
+}
+
+/* --------------------------------------------------------------- follow */
+async function poll(){
+  try{
+    const res = await fetch(LEDGER_URL, {cache:"no-store"});
+    if(!res.ok){ setStatus("no ledger at "+LEDGER_URL, false); return; }
+    const text = await res.text();
+    const lines = text.split("\n").filter(l=>l.trim());
+    for(let i=state.seenLines; i<lines.length; i++){
+      try{ ingest(JSON.parse(lines[i])); }catch(e){ /* partial write; next poll */ }
+    }
+    if(lines.length > state.seenLines){
+      state.seenLines = lines.length;
+      setStatus("following · "+lines.length+" rows", true);
+    }
+  }catch(e){
+    setStatus("ledger unreachable — serve the repo over http", false);
+  }
+}
+
+function follow(){
+  reset();
+  state.mode = "live";
+  setStatus("waiting for rows…", true);
+  poll();
+  state.timer = setInterval(poll, POLL_MS);
+}
+
+function reset(){
+  if(state.timer){ clearInterval(state.timer); state.timer = null; }
+  for(const r of RUNGS) state.rungs[r.id] = {pass:0,fail:0,cnr:0,denom:null,n:0,seen:false};
+  state.tok = state.p95 = state.hum = state.codes = 0;
+  state.active = null; state.seenLines = 0; state.mode = "idle";
+  $("feed").innerHTML = "";
+  setStatus("idle", false);
+  drawTrack(); drawCosts();
+}
+
+$("btnReplay").onclick = replay;
+$("btnLive").onclick = follow;
+$("btnReset").onclick = reset;
+
+reset();
+</script>
+</body>
+</html>

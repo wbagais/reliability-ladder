@@ -178,10 +178,17 @@ def grounded(source: str, span: tuple[int, int], span_text: str) -> bool:
 # ---------------------------------------------- option B only: tool fidelity
 def honoured_tool(emitted_code: str, tool_results: list[dict]) -> bool | None:
     """
-    Check 7 — exists ONLY in option B, and is the most interesting one.
+    Check 7 — option B only. The name overstates what this can measure.
 
-    The model searched, got candidates back, then emitted a code. Did it emit
-    one of them, or override its own lookup with something invented?
+    In the current implementation the search runs AFTER generation (see
+    ladder/rungs/r0.py), so the model never saw `tool_results`. This therefore
+    measures whether an invented code COINCIDES with a post-hoc lookup, not
+    whether the model honoured a tool it was given.
+
+    The function is correct for either regime — it is the caller that decides
+    which one it is. If a real tool loop is built, the same comparison becomes
+    genuine tool fidelity. Until then, do not report it as such.
+
     Returns None when no search was made for this record.
     """
     if not tool_results:

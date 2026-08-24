@@ -113,6 +113,11 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 "abstained" if new_zone == ZONE_ABSTAIN else "settled",
                 reason=reason,
                 latency_ms=(time.perf_counter() - t0) * 1000,
+                denominator="r5_offered",
+                # Abstention is a disposition, not a test. It always reaches a
+                # decision, so there is no could_not_run here. ABSTAIN is a
+                # fail in the sense that matters: the record shipped no answer.
+                evaluable="fail" if new_zone == ZONE_ABSTAIN else "pass",
             )
     return records
 

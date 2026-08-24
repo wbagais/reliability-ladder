@@ -34,8 +34,8 @@
     "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active — one concept, release-dependent."
   },
   "model": {
-    "extractor": "ollama/ibm/granite4:micro-h",
-    "judge": "ollama/gpt-oss:20b",
+    "extractor": "ollama/granite4:micro-h",
+    "judge": "ollama/qwen2.5:7b",
     "temperature": 0,
     "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung — rungs never pick a model."
   },
@@ -56,7 +56,7 @@
       "name": "rung0 search vs recall",
       "rung0_mode": "search",
       "scope": "R0+R1 only",
-      "why": "does a lookup tool remove errors, or just move them into 'overrode_tool'?"
+      "why": "POST-HOC ONLY — the search runs after generation and the model never sees it, so this measures prompt wording plus a coincidence rate, NOT tool access. A real tool loop (model calls search mid-generation) is untested and is the experiment this ablation is often mistaken for."
     },
     {
       "name": "rung order",
