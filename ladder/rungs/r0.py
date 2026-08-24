@@ -73,16 +73,23 @@ DEFAULTS: dict[str, Any] = {
     #: Registry.shortlist — Jaccard token overlap over every SNOMED
     #: description. "dense" is cosine over the embedded keyword table
     #: (ladder/embed.py). Measured 2026-08-24 over the same 6,595 scorable
-    #: gold reaction mentions, same k, same answer key:
+    #: gold reaction mentions. THE TWO ALSO SEARCH DIFFERENT CORPORA —
+    #: lexical over 1,822,645 description rows of every semantic type, dense
+    #: over 227,554 findings/disorders keywords — so the corpus and the
+    #: scoring are varied SEPARATELY here, one per row:
     #:
-    #:                recall@1  @5     @10    @20    @50
-    #:     lexical    19.5%     52.4%  57.6%  61.8%  66.7%
-    #:     dense      63.8%     76.7%  82.1%  86.1%  90.3%
+    #:                                 recall@1  @5     @10    @20    @50
+    #:     lexical over descriptions   19.5%     52.4%  57.6%  61.8%  66.7%
+    #:     lexical over keywords.csv   48.6%     57.2%  61.1%  65.1%  69.6%
+    #:     dense   over keywords.csv   63.8%     76.7%  82.1%  86.1%  90.3%
     #:
-    #: Dense's TOP HIT alone beats the lexical top-20. The default moved on
-    #: that and on nothing else; lexical stays reachable because a number
-    #: produced under one retriever is only interpretable next to the other,
-    #: which is why the choice is written onto every record.
+    #: At k=20 that is +3.3 points of corpus and +21.0 of scoring. At k=1 it
+    #: inverts — +29.1 corpus, +15.2 scoring — because filtering to findings
+    #: BEFORE ranking is what clears the top slot, which is the same defect
+    #: that once answered |California chicken (organism)| for a rectal bleed.
+    #: The default moved on that and on nothing else; lexical stays reachable
+    #: because a number produced under one retriever is only interpretable
+    #: next to the other, which is why the choice is written onto every record.
     "rung0_retrieval": "dense",  # "dense" | "lexical"
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings

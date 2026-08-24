@@ -1888,9 +1888,45 @@ thing that changes between the rows is the retriever.
 | dense (`granite-embedding:30m`) | **63.8%** | 76.7% | 82.1% | **86.1%** | 90.3% |
 
 **Dense's single top hit (63.8%) beats the lexical top-20 (61.8%).** That is
-the headline, and it is why the default moved. It is also 19x faster over the
-corpus — 21.8s against 407.7s — because cosine over a pre-normalised matrix is
-one multiply while Jaccard rescans 2.2M description rows per mention.
+the headline, and it is why the default moved.
+
+### CORRECTED SAME DAY: that comparison changed TWO things, not one
+
+The table above is not a clean A/B and the first write-up of it was wrong. The
+two retrievers were searching DIFFERENT CORPORA as well as scoring
+differently:
+
+    lexical   1,822,645 description rows over 721,187 concepts, every
+              semantic type, filtered to findings only AFTER ranking
+    dense       227,554 keyword rows over 127,515 concepts, findings and
+              disorders, active only, filtered BEFORE ranking
+
+So "embeddings are worth 24 points" was attributing a corpus change to the
+scoring function. Re-measured with the SAME Jaccard scoring over the SAME
+keyword table, so exactly one thing varies per row:
+
+| | recall@1 | @5 | @10 | @20 | @50 | corpus scan |
+|---|---|---|---|---|---|---|
+| lexical over descriptions | 19.5% | 52.4% | 57.6% | 61.8% | 66.7% | 407.7s |
+| lexical over keywords.csv | 48.6% | 57.2% | 61.1% | 65.1% | 69.6% | 32.2s |
+| dense over keywords.csv | 63.8% | 76.7% | 82.1% | 86.1% | 90.3% | 21.8s |
+
+**At k=20 the split is +3.3 points of corpus and +21.0 points of scoring.** The
+conclusion holds and dense still wins on scoring alone, but the honest number
+for "what embeddings bought" is 21.0, not 24.3.
+
+**At k=1 it inverts: +29.1 of corpus against +15.2 of scoring.** Filtering to
+findings and disorders BEFORE ranking is what clears the top slot — the
+description table's organisms, products and substances were crowding it, which
+is the same defect that produced |California chicken (organism)| for a rectal
+bleed. Rank 1 is where corpus hygiene pays and rank 20 is where scoring does.
+
+**The 19x speed-up was also mostly corpus size**, not cosine: 408s to 32s is
+the smaller table, 32s to 22s is the matrix multiply.
+
+Found because the number was questioned, not because a test caught it. A
+retrieval comparison has THREE declared choices — corpus, scoring, k — and a
+row that varies two of them measures neither.
 
 **Both motivating defects are gone, and they were the stated reason:**
 

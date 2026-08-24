@@ -125,11 +125,15 @@
   reintroduce it.
 - **S2 retrieves DENSELY by default** (2026-08-24). `rung0_retrieval` is
   `dense | lexical`. Measured over the same 6,595 gold mentions, same k, same
-  answer key: lexical recall@20 61.8%, dense 86.1%, and dense's top hit alone
-  (63.8%) beats the lexical top-20. Lexical is kept, not deleted — a recall
-  number under one retriever is only interpretable next to the other, and
-  `checks.rung0_retrieval` is on every record. Dense is not magic: `"gas"`
-  returns |gas gangrene|. **The 41.7% shortlist recall in the older notes
+  answer key: lexical recall@20 61.8%, dense 86.1%. **The two also search
+  different corpora** — lexical over 1.8M description rows of every semantic
+  type, dense over 228k findings/disorders keywords — so the gain decomposes:
+  running Jaccard over keywords.csv gives 65.1%, making it **+3.3 corpus,
+  +21.0 scoring** at k=20. At k=1 it inverts (+29.1 corpus, +15.2 scoring):
+  filtering before ranking is what clears the top slot. Lexical is kept, not
+  deleted — a recall number under one retriever is only interpretable next to
+  the other, and `checks.rung0_retrieval` is on every record. Dense is not
+  magic: `"gas"` returns |gas gangrene|. **The 41.7% shortlist recall in the older notes
   could not be reproduced under any denominator or k** — see docs/decisions.md;
   do not requote it.
 - **Rung 0 resolves NAMES through `data/keywords.csv`, not through the
