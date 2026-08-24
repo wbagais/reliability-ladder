@@ -504,3 +504,75 @@ def test_a_missing_keyword_table_is_refused_loudly(reg):  # noqa: F811
     with pytest.raises(RuntimeError, match="ladder.keywords --build"):
         r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=None,
                                   keyword_table="data/no-such-table.csv"))
+
+
+# --- S2's retrieval is a declared choice ------------------------------------
+#
+# Two retrieval paths, one flag, and the LEXICAL one stays the default until a
+# measurement moves it. `rung0_retrieval` is in the manifest for the same
+# reason `lexical_mode` and `span_match` are: a number produced under one
+# retrieval is not comparable to a number produced under the other, so the
+# choice has to be recorded beside the results rather than remembered.
+
+
+class FakeDense:
+    """An embedding index, without ollama or a 350 MB matrix."""
+
+    def __init__(self):
+        self.queries = []
+
+    def search(self, text, k=20):
+        self.queries.append((text, k))
+        return [{"i": 0, "code": "12063002", "label": "Rectal hemorrhage",
+                 "fsn": "Rectal hemorrhage", "score": 0.91, "via": "dense"}]
+
+
+def test_lexical_is_still_the_default(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["candidates"][0]["via"] == "shortlist"
+
+
+def test_dense_retrieval_is_used_when_declared(reg):  # noqa: F811
+    dense = FakeDense()
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        rung0_retrieval="dense", dense=dense))
+    assert recs[0].sct == "12063002"
+    assert recs[0].checks["candidates"][0]["via"] == "dense"
+    assert dense.queries and dense.queries[0][1] == 20
+
+
+def test_the_retrieval_choice_is_recorded_on_the_record(reg):  # noqa: F811
+    """Which retriever produced the menu must be readable from the record, or
+    two runs with different retrieval look identical on disk."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        rung0_retrieval="dense", dense=FakeDense()))
+    assert recs[0].checks["rung0_retrieval"] == "dense"
+
+
+def test_an_unknown_retriever_is_refused(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": []})
+    with pytest.raises(ValueError, match="rung0_retrieval"):
+        r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_retrieval="magic"))
+
+
+def test_dense_without_an_index_says_how_to_build_it(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": []})
+    with pytest.raises(RuntimeError, match="ladder.embed --build"):
+        r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_retrieval="dense",
+                                  embed_prefix="ladder/cache/no-such-index"))
+
+
+def test_the_two_retrievers_hand_back_the_same_shape(reg):  # noqa: F811
+    """S2's pick logic reads `i`, `code` and `fsn`/`label`. A retriever that
+    returned a different shape would fail at the pick, not at the swap."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    lex, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    den, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                       rung0_retrieval="dense", dense=FakeDense()))
+    keys = {"i", "code", "label", "fsn", "via"}
+    assert keys <= set(lex[0].checks["candidates"][0])
+    assert keys <= set(den[0].checks["candidates"][0])

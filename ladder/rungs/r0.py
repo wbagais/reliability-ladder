@@ -69,6 +69,15 @@ DEFAULTS: dict[str, Any] = {
     #: the CODE is obtained changes.
     "rung0_step": None,
     "rung0_shortlist_k": 20,
+    #: Which retriever builds S2's candidate menu. "lexical" is
+    #: Registry.shortlist — token overlap over every SNOMED description.
+    #: "dense" is cosine over the embedded keyword table (ladder/embed.py).
+    #: LEXICAL IS THE DEFAULT and stays so until a measurement moves it: a
+    #: recall number produced under one retriever is not comparable to one
+    #: produced under the other, which is why the choice lives here and is
+    #: written onto every record.
+    "rung0_retrieval": "lexical",  # "lexical" | "dense"
+    "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
     #: `python -m ladder.keywords --build`. NOT the registry: resolving
@@ -460,6 +469,45 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     return out
 
 
+RETRIEVERS = ("lexical", "dense")
+
+
+def _retriever(cfg: dict):
+    """(search_fn, name) for S2's candidate menu.
+
+    Both return the same hit shape — `i`, `code`, `label`, `fsn`, `via` — so
+    S2's pick logic does not branch on which one ran. A retriever with a
+    different shape would fail at the PICK rather than at the swap, which is
+    a long way from the cause.
+    """
+    which = cfg.get("rung0_retrieval", "lexical")
+    if which not in RETRIEVERS:
+        raise ValueError(
+            f"rung0_retrieval={which!r} is not one of {RETRIEVERS}. A retriever "
+            "nobody defined would report a run under a label the article "
+            "cannot explain."
+        )
+    if which == "lexical":
+        reg = cfg["registry"]
+        return (lambda text, k: reg.shortlist(text, k=k)), which
+
+    index = cfg.get("dense")
+    if index is None:
+        from ladder.embed import DEFAULT_PREFIX, EmbeddingIndex
+
+        prefix = cfg.get("embed_prefix") or DEFAULT_PREFIX
+        try:
+            index = EmbeddingIndex(prefix)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"rung0_retrieval='dense' needs the embedding index at "
+                f"{prefix}, which is missing. Build it once (minutes) with:\n"
+                "    python -m ladder.embed --build"
+            ) from exc
+        cfg["dense"] = index
+    return (lambda text, k: index.search(text, k=k)), which
+
+
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
     raw, usage = llm(FIND_PROMPT, source, step)
@@ -471,14 +519,17 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     if parsed is None:
         return []
 
-    reg = cfg["registry"]
+    search, retrieval = _retriever(cfg)
     pairs = []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, step)
-        cands = reg.shortlist(rec.text, k=cfg.get("rung0_shortlist_k", 20))
+        cands = search(rec.text, cfg.get("rung0_shortlist_k", 20))
         rec.checks["candidates"] = cands
         rec.checks["label_source"] = "shortlist"
         rec.checks["code_source"] = "shortlist"
+        # Two runs that differ only in their retriever must not look identical
+        # on disk. The manifest copy beside the results says it too.
+        rec.checks["rung0_retrieval"] = retrieval
         pairs.append((rec, cands))
 
     if not pairs:

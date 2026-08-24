@@ -22,6 +22,21 @@
   must go in the manifest. The available list is 666 codes, every one of which is
   in the gold annotations and none of which are not — the answer key's inventory,
   not a vocabulary. `meddra_check` is therefore `"flag"`, not `"reject"`.
+  **Rung 0 does not read it at all** (since 2026-08-24) — it was reachable only
+  through S3, and there is a test asserting the filename is absent from `r0.py`.
+- **Preprocessing is FIVE steps now, in this order.** A fresh clone runs all of
+  them; `data/` and `ladder/cache/` are gitignored.
+
+      python -m ladder.registry --build     RF2 -> SQLite index
+      python -m ladder.keywords --build     data/keywords.csv
+      python -m ladder.clean    --build     data/exclusions.csv
+      python -m ladder.embed    --build     ladder/cache/keywords.*  (dense S2)
+      python -m ladder.run init             freeze the splits
+
+  An index built before 2026-08-24 has no `association` table. Upgrade it in
+  place with `python -m ladder.registry --associations --release <dir>` — a few
+  seconds. Do NOT `build --force` where the index is reached through a symlink:
+  the rebuild replaces the symlink with a private copy and forks the checkouts.
 
 ## How to work
 - **TDD, always.** Write the failing test first, watch it fail, then write the
@@ -88,17 +103,40 @@
 - **Local by default, and remote is deliberate.** `ollama/gpt-oss:20b` unless
   overridden. Rung prompts carry CADEC text verbatim, so any provider with
   `local: false` in `models.yaml` is refused without `LADDER_ALLOW_REMOTE=1`.
-- Cost accounting is complete: every rung logs tokens, api_calls and per-call
-  latency. Rung 3 bills the k sampling calls as a DOCUMENT row, paid whether or
-  not a record is re-found.
+- Cost accounting is complete: every rung logs tokens, api_calls, per-call
+  latency **and `usd`** (fixed 2026-08-24 — all four paid rungs dropped the
+  price the caller had already computed, which was invisible because zero is
+  right for a local model). Rung 3 bills the k sampling calls as a DOCUMENT
+  row, paid whether or not a record is re-found. Cost is still three separate
+  measures; `usd` is carried alongside, never fused in.
 - **`ladder/score.py` exists** (2026-08-23). Gold is keyed by SPAN, never by
   position; `span_match` is `exact` (headline) or `overlap`. It accepts the
   `{record_id: GoldMention}` collection `run.py` passes and re-keys it itself —
   record_id is a POSITION and the two numberings agree only by luck.
-- **Rung 0 has four steps, S0-S3** — the prompt-engineering study. Scope is
-  identical in all four; only where the CODE comes from changes. Select with
+- **Rung 0 has THREE steps, S0-S2** — the prompt-engineering study. Scope is
+  identical in all three; only where the CODE comes from changes. Select with
   `--rung0-step`, which writes the choice into the manifest copy saved beside
   the results. `rung0_step: null` keeps the original A/B mode path.
+  **S3 was dropped 2026-08-24.** It was a pick from one fixed PRINTED list and
+  no printable list survives measurement: its MedDRA list is the answer key's
+  own inventory, the best ontology-native alternative (SNOMED's Clinical
+  manifestation refset, 743 codes) caps at 48.7% of gold, the real keyword
+  table is 227,554 rows, and a list retrieved per mention is S2. Do not
+  reintroduce it.
+- **Rung 0 resolves NAMES through `data/keywords.csv`, not through the
+  registry.** `KeywordTable.resolve` has the same return shape as
+  `Registry.resolve` over a findings-and-disorders-only table. There is NO
+  fallback to the registry — an unresolved name is unresolved, because falling
+  back reinstates the search the table replaces and hides which one answered.
+  The registry stays for rung 1 (`exists`/`is_active`/`finding_status`/`terms`
+  over the WHOLE release) and for S2's shortlist.
+- **Four outcomes, not two** (2026-08-24): `correct` / `outdated` / `abstained`
+  / `incorrect`. `outdated` is a RETIRED code whose SNOMED-recorded successor
+  is the gold answer, and it is **never** folded into `correct` — precision,
+  recall and F1 count `correct` only. Successors come from the association
+  refset via `Registry.replacements`, following SAME AS and REPLACED BY and
+  nothing else. Rung 1's `outdated_check` is a **flag**, like `meddra_check`.
+  With no vocabulary the outcome degrades to `incorrect`, never to `correct`.
 - **An earlier data-agnostic track was retired on 2026-08-22**, along with its
   results. The CADEC track imported none of it. Do not reintroduce its numbers:
   nothing in this repo is runnable that would reproduce them. Git history at
@@ -121,19 +159,11 @@
   3→2, 5→3, 2→5. Anything in `docs/decisions.md` dated earlier uses the OLD ids.
 
 ## Next, in order
-1. **The four dev runs — S0, S1, S2, S3.** Everything measured so far is ONE
+1. **The three dev runs — S0, S1, S2.** Everything measured so far is ONE
    document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
    winning step, freeze it in the manifest, and run the ladder from there —
-   otherwise rungs 1-6 are measured against four different rung 0s and nothing
+   otherwise rungs 1-6 are measured against three different rung 0s and nothing
    above is comparable. `python -m ladder.run ladder --split dev --rung0-step S1`
-2. ~~**`ladder/score.py` — the shared scorer.**~~ DONE 2026-08-23. The single biggest gap: without it
-   there is no accuracy axis, so no marginal-cost-per-prevented-error curve,
-   which the plan calls the headline number of the study. Everything else is
-   ready for it — `run.py` already injects a scorer via `load_scorer` and writes
-   the columns empty when absent.
-   **Key gold mentions by SPAN, not by position.** Measured: under index-based
-   array comparison a *perfect* extraction listed in another order scores 0.216
-   and dropping one mention scores 0.081; span-keyed scores 1.000 reordered.
 2. **A full dev-split run.** Everything measured so far is ONE document
    (ARTHROTEC.107). The rung 4 confabulation and rung 3's `not_resampled` are
    single observations, not rates. Dev is 40 documents at roughly 30s each.
@@ -146,8 +176,15 @@
    Matching on overlap rather than exact span would let voting run at all.
 5. **`scripts/` has no test coverage.** That is how a `NameError` in
    `full_run.py` survived the renumber. One import smoke test per script closes
-   it.
-6. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+   it. `ladder/run.py:snapshot_row` was in the same state until 2026-08-24 and
+   now has `tests/test_run_rows.py`.
+6. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+   answer.** All 407 wholly-retired gold mentions leave the denominator, on the
+   grounds that the keyword table is active-only. 111 of them (27.3%) have a
+   SNOMED-recorded successor, so a model naming that successor is right against
+   a stale answer key. Changing the answer key's inventory needs a measurement
+   and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
+7. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".

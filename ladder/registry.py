@@ -320,10 +320,22 @@ class Registry:
         m = _SEMANTIC_TAG.search(fsn)
         return m.group(0).strip().strip("()").strip() if m else ""
 
+    #: The keys EVERY retriever must return, whichever one built the menu.
+    #: rung 0's pick logic reads `i`, `code` and `fsn`/`label`, and the audit
+    #: reads `via`; a retriever returning a different shape fails at the PICK
+    #: rather than at the swap, which is a long way from the cause. Extras are
+    #: allowed and are retriever-specific: `tag`/`active` here, `score` from
+    #: the dense index in ladder/embed.py.
+    CANDIDATE_KEYS = ("i", "code", "label", "fsn", "via")
+
     def _candidate(self, code: str, i: int, via: str = "") -> dict:
         return {
             "i": i,
             "code": code,
+            # The FSN carries the semantic tag — |Rectal hemorrhage (finding)|
+            # — and the label does not. Both, because the menu shows one and a
+            # later comparison against the model's own words wants the other.
+            "label": self.preferred(code) or "",
             "fsn": self.fsn(code) or self.preferred(code) or "",
             "tag": self.semantic_tag(code),
             "active": self.is_active(code),
