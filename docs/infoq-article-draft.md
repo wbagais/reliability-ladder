@@ -503,18 +503,39 @@ quarter of records against its last — same rung, same run, same work — gives
 | vote | 29.04s | 21.38s | **−26%** |
 | judge | 2.20s | 15.35s | **+597%** |
 
-Voting got *faster*. Judging did not creep, it cliffed — flat for three
-quarters of its records and then a step change. Neither is thermal, and the
-run's wall clock (42m23s) is almost exactly its total call time (42m28s), so
-there is no orchestration overhead hiding the difference either.
+Voting got *faster*, which thermal throttling does not explain. And the judge
+did not creep — it cliffed. Reading its per-record latencies in order:
 
-The honest statement is that **wall-clock latency varies substantially within a
-run in ways token counts do not predict, and we do not know why.** That is
-weaker than a thermal explanation and considerably more useful, because p95
-latency is one of the three cost measures and it is evidently not a stable
-property of a rung. It is a property of a rung *in a particular position on a
-particular machine at a particular point in a run*, and nothing in the run stamp
-records any of those.
+```
+   0s     8.85s   parse_failed
+  98s     1.36s   judged
+ 308s     3.46s   parse_failed
+ 457s   134.63s   parse_failed      <-- model load
+ 477s    19.39s   parse_failed
+ 620s    20.39s   judged
+ 932s    19.26s   parse_failed
+```
+
+One record took 134 seconds. Everything before it runs in 1–5s; everything
+after runs in 11–33s and never returns. That is a model being loaded, and the
+reason is mundane: the judge is a 4.7 GB model on a card with 4 GB of VRAM. It
+does not fit. The inference server evicted what was resident, loaded the judge
+partially, and every subsequent call ran with layers on the CPU — a sustained
+6× penalty for the rest of the rung.
+
+So the +597% is not degradation. It is **one discontinuity and two regimes**,
+and a first-quarter-against-last-quarter comparison spanning that boundary
+produces a figure describing neither — the same failure as the pooled ratios
+three sections ago, this time in the monitor I had built that afternoon to
+watch for exactly this kind of thing.
+
+The correct statements are narrower and more useful. Judging slowed 6× because
+a model did not fit in memory, which is a fact about the hardware and the model
+sizes rather than about judging. Extraction's +68% is unexplained and may be
+thermal. Voting's −26% is unexplained. And p95 latency — one of the three cost
+measures — is not a stable property of a rung at all: it is a property of a
+rung *in a particular position, on a particular machine, with a particular set
+of models resident*. Nothing in the run stamp records any of that.
 
 The drift columns above came from a monitor built to watch runs progress. It
 found this on its first render, which is its own small lesson about what

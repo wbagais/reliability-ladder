@@ -255,6 +255,34 @@ def _median(v: list[float]) -> float:
     return s[n // 2] if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2
 
 
+def _discontinuity(lat: list[float], factor: float = 8.0):
+    """Index of the largest step between consecutive records, if it is a break.
+
+    A rung whose latency steps by 8x from one record to the next is not
+    degrading — something changed. On this project that was a model load: 134s
+    on one record, 2.5s before and 17s after. Averaging across it produces a
+    figure describing neither regime, which is the pooled-ratio mistake in a
+    different costume.
+    """
+    if len(lat) < 8:
+        return None
+    worst_i, worst_r = None, 1.0
+    for i in range(1, len(lat)):
+        a, b = lat[i - 1], lat[i]
+        if a <= 0:
+            continue
+        r = max(a, b) / max(1e-9, min(a, b))
+        if r > worst_r:
+            worst_i, worst_r = i, r
+    if worst_i is None or worst_r < factor:
+        return None
+    before = lat[:worst_i]
+    after = lat[worst_i + 1:]
+    if len(before) < 3 or len(after) < 3:
+        return None
+    return worst_i, worst_r, sum(before) / len(before), sum(after) / len(after)
+
+
 def _drift(lat: list[float]) -> tuple[float, float, float] | None:
     """Mean of the first quarter against the last quarter of a rung's records.
 
@@ -325,8 +353,14 @@ def time_panel(rungs: dict, t0: float) -> Table:
         if rate > 0 and n_target > n_done:
             eta = _hhmm((n_target - n_done) / rate * 60.0)
 
-        d = _drift(lat)
-        if d is None:
+        # A discontinuity is not drift. Report the break, not a mean across it.
+        disc = _discontinuity(lat)
+        d = None if disc else _drift(lat)
+        if disc:
+            i, ratio, before, after = disc
+            drift = Text(f"break at #{i}: {before/1000:.1f}s → {after/1000:.1f}s "
+                         f"({ratio:.0f}x step)", style=WARN)
+        elif d is None:
             drift = Text("—", style="grey35")
         else:
             a, b, pct = d
@@ -477,8 +511,9 @@ def render(st: State, path: pathlib.Path, provenance: dict | None = None) -> Gro
 
     parts += [Text(""), Rule("time", style="grey23", align="left"),
               time_panel(rungs, t0), Text(""), over_line,
-              Text("drift is the first quarter of a rung's records against the last — "
-                   "same work, so a rise is the machine", style="grey35"),
+              Text("drift compares a rung's first quarter of records against its last. "
+                   "A step change is reported as a break instead — a mean across "
+                   "two regimes describes neither.", style="grey35"),
               Text(""), Rule("watch", style="grey23", align="left"), wt,
               Text(""), Rule("reports", style="grey23", align="left"), *rep_parts,
               Text(""), Rule("ledger", style="grey23", align="left"), ft,
