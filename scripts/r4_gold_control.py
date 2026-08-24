@@ -8,7 +8,7 @@ so rung 1 actually splits it, then reports both channels by provenance.
 Run from the repo root:
     LADDER_N=0 PYTHONPATH=. python3 ~/Downloads/r4_gold_control.py
 """
-import json, pathlib, collections, dataclasses
+import os, json, pathlib, collections, dataclasses
 
 from ladder.registry import Registry
 from ladder.rungs.r0 import run
@@ -94,9 +94,9 @@ if len(_v) < 2 or min(_v.values()) < 0.1 * sum(_v.values()):
 
 # ---- one judge pass over the mixture ------------------------------------
 both, m = r4.apply(both, src, {"registry": reg,
-                               "judge_llm": S.judge("llama3.2:3b"),
+                               "judge_llm": S.judge(os.environ.get("LADDER_JUDGE", "llama3.2:3b")),
                                "extractor_model": S.MODEL,
-                               "judge_model": "llama3.2:3b"})
+                               "judge_model": os.environ.get("LADDER_JUDGE", "llama3.2:3b")})
 r4.report(m)
 
 # ---- the breakdown r4.report cannot do ----------------------------------
