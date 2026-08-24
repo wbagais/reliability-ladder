@@ -248,6 +248,8 @@ def apply(
                 tokens_out=meta["tokens_out"],
                 api_calls=1,
                 latency_ms=elapsed_ms,
+                denominator="r0_documents",
+                evaluable="could_not_run" if meta.get("parse_failed") else "pass",
                 mode=mode,
                 mentions=len(got),
             )
@@ -287,13 +289,36 @@ def run(items, mode, llm, cfg=None):
     recs: list[Record] = []
     agg = {"tokens_in": 0, "tokens_out": 0, "tool_calls": 0, "parse_failed": 0, "t0": time.time()}
     sources = {}
+    ledger = cfg.get("ledger")
     for it in items:
+        t0 = time.time()
         got, meta = rung0(it["doc_id"], it["text"], mode, llm, cfg)
+        elapsed_ms = (time.time() - t0) * 1000
         for k in ("tokens_in", "tokens_out", "tool_calls"):
             agg[k] += meta.get(k, 0)
         agg["parse_failed"] += int(meta.get("parse_failed", False))
         sources[it["doc_id"]] = it["text"]
         recs += got
+        # Same per-document row apply() writes. Rung 0's unit of cost is the
+        # call: a document that produced no mentions still cost one. Without
+        # this, every script that uses run() — which is all of them — reports
+        # rung 0 as free.
+        if ledger:
+            ledger.log(
+                rung=RUNG,
+                doc_id=it["doc_id"],
+                record_id=it["doc_id"],
+                zone="NEW",
+                outcome="parse_failed" if meta.get("parse_failed") else "extracted",
+                reason="json_decode" if meta.get("parse_failed") else None,
+                tokens_in=meta.get("tokens_in", 0),
+                tokens_out=meta.get("tokens_out", 0),
+                api_calls=1,
+                latency_ms=elapsed_ms,
+                mentions=len(got),
+                denominator="r0_documents",
+                evaluable="could_not_run" if meta.get("parse_failed") else "pass",
+            )
     r1.apply(recs, sources, cfg)
     for rec in recs:
         rec.checks["honoured_tool"] = honoured_tool(rec)

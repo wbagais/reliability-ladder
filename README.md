@@ -9,7 +9,7 @@ adverse reactions the writer describes, and normalise each to a SNOMED CT code.
 The system reports *what a document says*. It never asserts that a drug caused
 an effect.
 
-📄 **[Plan, architecture and interactive demo](https://reliability-ladder-d32865.gitlab.io/)**
+📄 **[Plan, architecture and interactive demo](https://ai-reliability-ladder-9baac5.gitlab.io/)**
 — `docs/plan.html`, published by CI on every push to `main`.
 
 > Rungs 0–2 are research artefacts with deliberate failure rates, unfit for
