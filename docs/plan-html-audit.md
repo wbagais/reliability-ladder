@@ -4,6 +4,13 @@ Audited 2026-08-23 against the 40-doc runs, the gold controls, the end-to-end
 run, and `docs/decisions.md`. Seven tabs: Plan, Ladder demo, Ladder flow,
 Triage desk, Architecture, Iterations, Glossary.
 
+
+> **Numbering.** This audit's rung IDs were remapped to the 2026-08-23 scheme
+> (`[0,1,2,3,4,5,6]`). **`plan.html` itself has not been renumbered** and still
+> uses the old IDs throughout, so a reference here to "rung 3" points at a
+> section the document labels rung 5. Renumbering plan.html is itself an open
+> item. Mapping: self-correction 3→2, voting 5→3, abstention 2→5.
+
 Severity: **BLOCKING** = states something now known false · **STALE** = was true,
 no longer · **GAP** = missing a finding that changes the argument.
 
