@@ -34,8 +34,8 @@
     "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent."
   },
   "model": {
-    "extractor": "ollama/ibm/granite4:micro-h",
-    "judge": "ollama/gpt-oss:20b",
+    "extractor": "ollama/granite4:micro-h",
+    "judge": "ollama/qwen2.5:7b",
     "temperature": 0,
     "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung \u2014 rungs never pick a model."
   },
