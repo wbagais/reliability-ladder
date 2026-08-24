@@ -101,7 +101,9 @@
       "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
       "meddra_check": "flag",
       "label_check": "flag",
-      "label_check_note": "off | flag | reject. Rung 0's sct_label against the vocabulary's own words for the code it chose. Catches what exists() cannot: 82249009 is real and active and means |California chicken (organism)|, which granite4:micro-h emitted for 'extreme rectal bleed'. FLAG, not reject — 'rectal bleeding' against |Rectal hemorrhage| is one concept in two wordings, and this check's false-rejection floor has not been measured. Same posture as meddra_check and negation_action, and for the same reason."
+      "label_check_note": "off | flag | reject. Rung 0's sct_label against the vocabulary's own words for the code it chose. Catches what exists() cannot: 82249009 is real and active and means |California chicken (organism)|, which granite4:micro-h emitted for 'extreme rectal bleed'. FLAG, not reject — 'rectal bleeding' against |Rectal hemorrhage| is one concept in two wordings, and this check's false-rejection floor has not been measured. Same posture as meddra_check and negation_action, and for the same reason.",
+      "outdated_check": "flag",
+      "outdated_check_note": "off | flag. A retired code SNOMED has since replaced is out of date, not invented: the model named a real concept and lacked the newer release. Rung 1 records sct_outdated and sct_replacement and NEVER rejects on them — same posture as meddra_check, negation_action and label_check. The successor comes from the association refset (SAME AS / REPLACED BY only; POSSIBLY EQUIVALENT TO and WAS A are excluded on purpose) and is scored as its own outcome in ladder/score.py, never folded into 'correct'. Measured 2026-08-24: only 27.3% of CADEC's 407 retired gold reaction mentions have such a successor at all."
     },
     "3": {
       "k": 3,

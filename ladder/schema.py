@@ -82,6 +82,14 @@ R_MEDDRA_UNKNOWN = "meddra_code_unknown"  # code is not in the MedDRA table
 # "rectal bleeding" against "Rectal hemorrhage" is the same concept in
 # different words, and its false-rejection floor has not been measured yet.
 R_LABEL_MISMATCH = "label_mismatch"  # model's own label does not match its code
+# Appended 2026-08-24 with the association refset. DISTINCT from
+# R_CODE_INACTIVE: inactive says the concept is retired, outdated says SNOMED
+# has since named a CURRENT equivalent for it. A model that emits a retired
+# code with a successor named a real concept and lacked the newer release,
+# which is not the failure that inventing a number is — ladder/score.py scores
+# it as its own outcome. A FLAG, like meddra_check and label_check; the reason
+# exists so it is nameable and countable, not so it can reject.
+R_CODE_OUTDATED = "code_outdated"  # retired, and SNOMED records what replaced it
 
 REJECT_REASONS = (
     R_SCHEMA_INVALID,
@@ -93,6 +101,7 @@ REJECT_REASONS = (
     R_WRONG_SEMANTIC_TYPE,
     R_MEDDRA_UNKNOWN,
     R_LABEL_MISMATCH,
+    R_CODE_OUTDATED,
 )
 
 #: What rung 1 concluded about a record, independent of whether it acted on it.

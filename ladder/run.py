@@ -98,6 +98,24 @@ def load_scorer(spec: str | None) -> Callable[[Record, Any], bool] | None:
     return getattr(importlib.import_module(mod_name), fn or "reaction_sct_strict")
 
 
+def load_outcome(spec: str | None = None) -> Callable[..., str] | None:
+    """`ladder.score:outcome` — the four-way version of the same judgement.
+
+    Injected the same way and for the same reason as `load_scorer`: run.py must
+    not import the scorer, so a checkout without one still produces every cost
+    and zone number. Absent, the outcome columns are written empty; they are
+    never inferred from the boolean, which cannot tell outdated from invented.
+    """
+    if spec:
+        mod_name, _, fn = spec.partition(":")
+        return getattr(importlib.import_module(mod_name), fn or "outcome", None)
+    try:
+        mod = importlib.import_module("ladder.score")
+    except ModuleNotFoundError:
+        return None
+    return getattr(mod, "outcome", None)
+
+
 # --- rung 0 input -----------------------------------------------------------
 
 
@@ -241,6 +259,12 @@ CSV_COLUMNS = [
     "yield",
     "settled",
     "corrupted",
+    # Appended 2026-08-24 with the fourth outcome. `corrupted` is still every
+    # error; these two name which KIND, and are never subtracted from it. A
+    # retired code the release replaced with the gold answer is out of date,
+    # not invented — see ladder/score.py.
+    "sct_outdated",
+    "sct_abstained",
     "err_per_100",
     "tokens_per_record",
     "p95_s",
@@ -260,6 +284,8 @@ def snapshot_row(
     cost: dict[str, float],
     is_correct=None,
     gold=None,
+    outcome_fn=None,
+    vocab=None,
 ) -> tuple[dict[str, Any], int | None]:
     """One results row from one snapshot of the record set.
 
@@ -298,10 +324,20 @@ def snapshot_row(
         row["yield"] = round(correct / len(snap), 5) if snap else 0.0
         row["corrupted"] = errors
         row["err_per_100"] = round(100 * errors / len(snap), 3) if snap else ""
+        if outcome_fn is not None:
+            # Which KIND of error, not how many. `corrupted` is unchanged and
+            # these do not sum to it: `incorrect` is the remainder and is left
+            # implicit rather than given a column that would invite the three
+            # to be read as a partition of the record set.
+            got = [outcome_fn(r, gold, vocab) for r in answered]
+            row["sct_outdated"] = got.count("outdated")
+            row["sct_abstained"] = got.count("abstained")
     return row, errors
 
 
-def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dict[str, Any]]:
+def results_rows(
+    result: dict[str, Any], is_correct=None, gold=None, outcome_fn=None, vocab=None
+) -> list[dict[str, Any]]:
     ledger: Ledger = result["ledger"]
     n = len(result["records"])
     costs = ledger.cost_by_rung(n_records=n)
@@ -318,7 +354,9 @@ def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dic
         verdicts = ledger.verdicts(rung)
         z = verdicts if verdicts else Counter(r.zone for r in snap)
         cost = costs.get(rung, {})
-        row, errors = snapshot_row(rung, RUNG_NAMES[rung], snap, z, cost, is_correct, gold)
+        row, errors = snapshot_row(
+            rung, RUNG_NAMES[rung], snap, z, cost, is_correct, gold, outcome_fn, vocab
+        )
         if rung == 1:
             row["r1_reject_pct"] = round(100 * z[ZONE_REJECT] / len(snap), 3) if snap else ""
             row["r1_mode"] = next(
@@ -463,7 +501,10 @@ def cmd_ladder(a) -> int:
     if excluded:
         print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
     scorer = load_scorer(a.scorer)
-    rows = results_rows(result, is_correct=scorer, gold=gold)
+    rows = results_rows(
+        result, is_correct=scorer, gold=gold,
+        outcome_fn=load_outcome(), vocab=registry,
+    )
     write_results(rows, out_dir / f"{run_id}.results.csv")
     (out_dir / f"{run_id}.records.jsonl").write_text(dumps(result["records"]), encoding="utf-8")
     (out_dir / f"{run_id}.manifest.json").write_text(json.dumps(man, indent=2))
@@ -531,9 +572,11 @@ def cmd_ablate(a) -> int:
     if excluded:
         print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
     scorer = load_scorer(a.scorer)
+    outcome_fn = load_outcome()
     rows = [
         snapshot_row(
-            "", f"input ({a.source})", base, Counter(r.zone for r in base), {}, scorer, gold
+            "", f"input ({a.source})", base, Counter(r.zone for r in base), {},
+            scorer, gold, outcome_fn, registry,
         )[0]
     ]
     missing: list[int] = []
@@ -559,7 +602,10 @@ def cmd_ablate(a) -> int:
             f"{run_id}.r{n}",
             meddra=meddra,
         )
-        rows.extend(results_rows(result, is_correct=scorer, gold=gold))
+        rows.extend(results_rows(
+            result, is_correct=scorer, gold=gold,
+            outcome_fn=outcome_fn, vocab=registry,
+        ))
 
     write_results(rows, out_dir / f"{run_id}.results.csv")
     (out_dir / f"{run_id}.manifest.json").write_text(json.dumps(man, indent=2))

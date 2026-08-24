@@ -58,6 +58,25 @@ from schemas.vocabulary import NOT_FINDING
 
 IS_A = "116680003"
 
+# --- historical associations ------------------------------------------------
+# SNOMED never deletes a concept; it retires one and records what took its
+# place, in the association reference set. That record is what makes "the model
+# named a real concept from an older release" separable from "the model made a
+# number up" — see ladder/score.py's `outdated` outcome.
+ASSOC_SAME_AS = "900000000000527005"
+ASSOC_REPLACED_BY = "900000000000526001"
+ASSOC_POSSIBLY_EQUIVALENT_TO = "900000000000523009"
+ASSOC_WAS_A = "900000000000528000"
+ASSOC_MOVED_TO = "900000000000524003"
+ASSOC_ALTERNATIVE = "900000000000530003"
+
+#: The only two SNOMED states as THE successor. Deliberately narrow.
+#: POSSIBLY EQUIVALENT TO says "possibly" — 48,891 active rows in the AU
+#: release, and treating a maybe as a yes turns `outdated` into a wastebasket
+#: for near misses. WAS A points at a PARENT, which is a broader concept and
+#: not the same one; MOVED TO points at a module, not a concept at all.
+REPLACEMENT_REFSETS = (ASSOC_SAME_AS, ASSOC_REPLACED_BY)
+
 DEFAULT_CACHE = Path(__file__).parent / "cache"
 
 #: SNOMED terms carry a semantic tag in trailing parentheses —
@@ -92,10 +111,12 @@ class Registry:
                 f"{db_path} missing. Build it once with:\n"
                 f"    python -m ladder.registry --build --release <SnomedCT_Release_dir>"
             )
+        self.path = db_path
         self._db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
         self._db.row_factory = None
         self.release: str = self._meta("release")
         self._cache: dict[str, tuple[bool, bool] | None] = {}
+        self._assoc: bool | None = None
 
     def _meta(self, key: str) -> str:
         row = self._db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
@@ -144,6 +165,65 @@ class Registry:
         if active:
             return "not_finding"
         return "finding" if finding_hist else "unknown"
+
+    # -- history: what replaced a retired concept ----------------------------
+
+    def _has_association(self) -> bool:
+        """Does this index carry the association table?
+
+        The 365 MB SQLite is built once and shared, so an index built before
+        this table existed is a normal state, not an error. It reads as "no
+        successors known" — which degrades `outdated` back into `incorrect`,
+        the conservative direction. `python -m ladder.registry --associations`
+        adds the table to an existing index in place.
+        """
+        if self._assoc is None:
+            self._assoc = bool(
+                self._db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='association'"
+                ).fetchone()
+            )
+        return self._assoc
+
+    def replacements(self, code: str | None) -> list[str]:
+        """The concept(s) that replaced a retired one. Empty for a live code.
+
+        Follows SAME AS / REPLACED BY to the END of the chain: SNOMED retires
+        successors too, so a single hop can stop one release short and report
+        a code as unreplaced when a current equivalent exists. Cycles are
+        guarded because the release is data, not a promise.
+
+        An ACTIVE concept is never given a successor even if a stray row
+        names one — nothing replaced it, it is still here.
+        """
+        if not code or code == CONCEPT_LESS or not self._has_association():
+            return []
+        code = str(code)
+        if self._concept(code) is None or self.is_active(code):
+            return []
+        marks = ",".join("?" * len(REPLACEMENT_REFSETS))
+        seen, frontier, out = {code}, [code], []
+        while frontier:
+            rows = self._db.execute(
+                f"SELECT target FROM association WHERE source=? AND refset IN ({marks})",
+                (frontier.pop(), *REPLACEMENT_REFSETS),
+            ).fetchall()
+            for (target,) in rows:
+                if target in seen:
+                    continue
+                seen.add(target)
+                # A successor that was itself retired is a waypoint, not an
+                # answer: keep walking rather than reporting a dead code.
+                if self.is_active(target):
+                    out.append(target)
+                else:
+                    frontier.append(target)
+        return sorted(out, key=lambda c: (len(c), c))
+
+    def replacement(self, code: str | None) -> str | None:
+        """The single successor, or None. Ties broken as in `replacements`."""
+        got = self.replacements(code)
+        return got[0] if got else None
 
     # -- lexical -------------------------------------------------------------
 
@@ -516,6 +596,71 @@ def _snapshot_files(release: Path) -> tuple[Path, Path, Path]:
     )
 
 
+def _association_file(release: Path) -> Path:
+    content = release / "Snapshot" / "Refset" / "Content"
+    hits = sorted(content.glob("der2_cRefset_AssociationSnapshot*.txt"))
+    if not hits:
+        raise FileNotFoundError(
+            f"no der2_cRefset_AssociationSnapshot*.txt under {content}"
+        )
+    return hits[0]
+
+
+def _load_associations(db: sqlite3.Connection, release: Path) -> int:
+    """Fill the association table from the release. Returns rows written.
+
+    ACTIVE rows only: an inactive association row is a claim SNOMED has since
+    retracted, and honouring it would credit a successor the release no longer
+    stands behind.
+
+    The refsetId is STORED, not filtered here. Which association types count as
+    a successor is a scoring decision (`REPLACEMENT_REFSETS`), and burning it
+    into a table that takes minutes to rebuild would make revisiting it
+    expensive enough that nobody would.
+    """
+    assoc_f = _association_file(release)
+    print(f"[registry] associations <- {assoc_f.name}", file=sys.stderr)
+    db.executescript(
+        "DROP TABLE IF EXISTS association;"
+        "CREATE TABLE association(source TEXT, target TEXT, refset TEXT);"
+    )
+
+    def rows():
+        with assoc_f.open(encoding="utf-8") as fh:
+            next(fh)
+            for line in fh:
+                p = line.rstrip("\n").split("\t")
+                if p[2] != "1":
+                    continue
+                yield (p[5], p[6], p[4])
+
+    db.executemany("INSERT INTO association VALUES (?,?,?)", rows())
+    db.execute("CREATE INDEX a_source ON association(source)")
+    return db.execute("SELECT count(*) FROM association").fetchone()[0]
+
+
+def build_associations(release: str | os.PathLike, db_path: str | os.PathLike) -> int:
+    """Add (or refresh) the association table on an EXISTING index, in place.
+
+    The full build reads 1.8 M concepts and walks the is-a graph twice; this
+    reads one refset file and takes seconds. It exists because the index is
+    built once and shared between checkouts, so `build(force=True)` would mean
+    rebuilding — and, where the index is reached through a symlink, would
+    replace the symlink with a private copy and silently fork the two.
+    """
+    release, db_path = Path(release), Path(db_path)
+    if not db_path.exists():
+        raise FileNotFoundError(f"{db_path} missing — build the index first")
+    db = sqlite3.connect(db_path)
+    try:
+        n = _load_associations(db, release)
+        db.commit()
+    finally:
+        db.close()
+    print(f"[registry] {n:,} active association rows in {db_path}", file=sys.stderr)
+    return n
+
+
 def build(release: str | os.PathLike, db_path: str | os.PathLike, force: bool = False) -> Path:
     """Build the SQLite index from an RF2 release. Takes a few minutes, once."""
     release = Path(release)
@@ -602,6 +747,7 @@ def build(release: str | os.PathLike, db_path: str | os.PathLike, force: bool = 
         "CREATE INDEX d_concept ON description(concept_id);"
         "CREATE INDEX d_norm ON description(norm);"
     )
+    n_assoc = _load_associations(db, release)
     n_desc = db.execute("SELECT count(*) FROM description").fetchone()[0]
     db.executemany(
         "INSERT INTO meta VALUES (?,?)",
@@ -611,6 +757,7 @@ def build(release: str | os.PathLike, db_path: str | os.PathLike, force: bool = 
             ("active_concepts", str(sum(active.values()))),
             ("clinical_findings", str(len(findings))),
             ("descriptions", str(n_desc)),
+            ("associations", str(n_assoc)),
         ],
     )
     db.commit()
@@ -627,6 +774,11 @@ def default_db(cache_dir: str | os.PathLike = DEFAULT_CACHE) -> Path:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--build", action="store_true")
+    ap.add_argument(
+        "--associations",
+        action="store_true",
+        help="add the retired->replacement table to an EXISTING index, in place",
+    )
     ap.add_argument("--release", help="RF2 release directory (SnomedCT_Release_...)")
     ap.add_argument("--db", default=str(default_db()))
     ap.add_argument("--force", action="store_true")
@@ -636,6 +788,10 @@ def main(argv: list[str] | None = None) -> int:
         if not a.release:
             ap.error("--build needs --release")
         build(a.release, a.db, force=a.force)
+    if a.associations:
+        if not a.release:
+            ap.error("--associations needs --release")
+        build_associations(a.release, a.db)
     if a.check is not None:
         reg = Registry(a.db)
         print(reg.stats())

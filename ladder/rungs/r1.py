@@ -136,6 +136,28 @@ DEFAULTS = {
 }
 
 
+def _record_history(checks: dict, vocab, code) -> None:
+    """Is this code retired, and did SNOMED name what replaced it?
+
+    A FLAG, always — the same posture as meddra_check, negation_action and
+    label_check. Rejecting would throw away a model that named a real concept
+    from an older release, which is precisely the case ladder/score.py exists
+    to score as `outdated` rather than as `incorrect`.
+
+    Written even when reject_inactive has already fired, because the two settle
+    different questions: "is it retired" and "is there a current equivalent".
+    The second is the fact rung 2 would state back.
+
+    `replacements` is absent from an index built before the association table.
+    That reads as "no successor known", never as a crash: the 365 MB SQLite is
+    built once and shared, so a mid-upgrade checkout is a normal state.
+    """
+    repl = getattr(vocab, "replacements", None)
+    got = list(repl(code)) if callable(repl) else []
+    checks["sct_replacement"] = got[0] if got else None
+    checks["sct_outdated"] = bool(got)
+
+
 def zone(
     rec: Record,
     source: str,
@@ -198,6 +220,7 @@ def zone(
         return ZONE_REJECT, R_CODE_UNKNOWN, checks
 
     checks["sct_active"] = vocab.is_active(rec.sct)
+    _record_history(checks, vocab, rec.sct)
     if not checks["sct_active"] and cfg["reject_inactive"]:
         return ZONE_REJECT, R_CODE_INACTIVE, checks
 
@@ -296,6 +319,7 @@ def all_reasons(rec, source, vocab, cfg=None, meddra=None) -> dict:
             reasons.append(R_CODE_UNKNOWN)
         else:
             checks["sct_active"] = vocab.is_active(rec.sct)
+            _record_history(checks, vocab, rec.sct)
             if not checks["sct_active"] and cfg["reject_inactive"]:
                 reasons.append(R_CODE_INACTIVE)
 

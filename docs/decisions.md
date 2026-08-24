@@ -1614,3 +1614,116 @@ to perform, now visible and countable instead of resolved by a coin flip inside
 a build script.
 
     279,059 keywords -> 180,446 codes, 313,780 rows, median 4 words
+
+---
+
+## 2026-08-24 (later still) — "outdated" is a fourth outcome, not a kind of wrong
+
+**The distinction the scorer could not make.** A model that emits `162076009`
+for a mention now coded `12063002` named a real SNOMED concept and lacked
+eleven years of releases. A model that emits `999999999` invented a number.
+Both scored `incorrect`, so the article could not say which one it was looking
+at — and "the local model hallucinates codes" and "the local model learned an
+older SNOMED" are different claims with different fixes.
+
+`score_run` now reports FOUR outcomes:
+
+    correct     the code is in the gold set for that mention
+    outdated    a RETIRED concept whose successor IS the gold code
+    abstained   no code — CONCEPT_LESS, or nothing at all
+    incorrect   everything else
+
+**`outdated` is never folded into `correct`.** Precision, recall and F1 count
+`correct` only. The answer is still stale, and a pharmacovigilance system that
+files a retired code has filed a retired code. What changes is that the error
+now has a name.
+
+**Two association types count, and the exclusions are the point.** SNOMED
+records succession in `der2_cRefset_AssociationSnapshot`, now loaded into the
+SQLite index as an `association` table. Active rows in the AU release, by type:
+
+    REPLACED BY             900000000000526001   147,402   <- followed
+    POSSIBLY EQUIVALENT TO  900000000000523009    48,891
+    SAME AS                 900000000000527005    43,654   <- followed
+    MOVED TO                900000000000524003    20,561
+    PARTIALLY EQUIVALENT TO 734138000             15,815
+    WAS A                   900000000000528000    12,919
+    (six more)                                     8,832
+
+Only SAME AS and REPLACED BY. POSSIBLY EQUIVALENT TO says *possibly* — 48,891
+rows of maybe, and crediting them turns `outdated` into a wastebasket for near
+misses. WAS A points at a PARENT, which is a broader concept and not the same
+one: |Pain| is not a stale spelling of a headache. MOVED TO points at a module,
+not a concept at all. The refsetId is STORED rather than filtered at build
+time, so revisiting this is a scoring change and not a rebuild.
+
+**Chains are followed to the end.** SNOMED retires successors too, so a
+one-hop lookup reports a code as unreplaced when a current equivalent exists
+one more release along. An ACTIVE concept never gets a successor even if a
+stray row names one — nothing replaced it, it is still here.
+
+**A missing index degrades toward `incorrect`, never toward `correct`.**
+`Registry.replacements` returns `[]` when the `association` table is absent,
+and `score_run` without a vocabulary reports `outdated: 0` with the error
+still counted. The 365 MB SQLite is built once and shared between checkouts,
+so a mid-upgrade index is a normal state, not an error — and a missing table
+must never be able to raise a score. `python -m ladder.registry --associations`
+adds the table to an existing index in seconds; the full rebuild reads 1.8 M
+concepts and walks the is-a graph twice, and where the index is reached through
+a symlink `build(force=True)` would replace the symlink with a private copy and
+silently fork the two checkouts.
+
+**Rung 1 flags, it does not reject.** `outdated_check: "flag"` — the same
+posture as `meddra_check`, `negation_action` and `label_check`, and for the
+same reason: rejecting would throw away a model that named a real concept.
+`R_CODE_OUTDATED` is appended to `REJECT_REASONS` so it is nameable and
+countable, not so it can fire. Rung 1 writes `sct_outdated` and
+`sct_replacement` into `checks` even when `reject_inactive` has already
+rejected the record, because the two settle different questions — "is it
+retired" and "is there a current equivalent" — and the second is the fact rung
+2 would state back.
+
+### Measured 2026-08-24, over all 7,311 gold reaction mentions
+
+| | |
+|---|---|
+| gold mentions whose every code is retired | 407 (5.6%) |
+| ...of which SNOMED records a SAME AS / REPLACED BY successor | **111 (27.3%)** |
+| distinct retired gold codes | 57 |
+| ...with a successor | 24 |
+| active association rows loaded into the index | 302,074 |
+
+**A finding this raises and does NOT act on.** `ladder/clean.py` excludes all
+407 retired-gold mentions from the denominator, on the stated grounds that the
+keyword table holds active concepts only, so they "cannot be answered through
+it". The `outdated` logic says the opposite for 111 of them: they have a
+current equivalent, so a model naming that equivalent is answering correctly
+against a stale answer key. Symmetry argues those 111 should re-enter the
+denominator and score `outdated` in the other direction. That is a change to
+the answer key's inventory, which is exactly the class of change this repo
+requires a measurement and a decision for, so it is recorded here rather than
+made quietly. The other 296 have no successor and the exclusion stands.
+
+### Two tests that were wrong, found by adding a correct one
+
+`test_appended_reasons_go_at_the_end` asserted `REJECT_REASONS[-1] ==
+R_LABEL_MISMATCH`. It was written to protect append-only ordering and it
+pinned the NEWEST reason instead, so it failed the moment a reason was
+appended correctly. It now asserts on the frozen PREFIX, which is the
+invariant it meant.
+
+`tests/test_ledger_coverage.py` guarded "no reachable model" with
+`(RuntimeError, SystemExit, OSError)`, which is not what an OpenAI-compatible
+endpoint raises when the manifest names a model tag the local ollama does not
+hold — that is `openai.NotFoundError`. Merging origin/main brought model
+strings resolving on another machine and three tests went red for an
+environmental difference. The guard now also skips on openai's
+NotFound/Connection/Auth/Permission errors, and deliberately NOT on
+`APIError`: a 400 means we sent a bad payload, which is our bug and stays a
+failure.
+
+`ladder/run.py`'s `snapshot_row` — the function that writes every number the
+article quotes — had no test coverage at all. It has some now
+(`tests/test_run_rows.py`), which is how the two new columns are known to
+reach the CSV: `write_results` uses a `DictWriter` over `CSV_COLUMNS`, so a
+key nobody declared is silently dropped.

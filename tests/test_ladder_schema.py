@@ -133,8 +133,35 @@ def test_label_mismatch_is_a_known_reject_reason():
 
 
 def test_appended_reasons_go_at_the_end():
-    """Reasons are append-only — reordering renumbers every earlier report."""
-    from ladder.schema import R_LABEL_MISMATCH, R_SCHEMA_INVALID, REJECT_REASONS
+    """Reasons are append-only — reordering renumbers every earlier report.
 
-    assert REJECT_REASONS[0] == R_SCHEMA_INVALID
-    assert REJECT_REASONS[-1] == R_LABEL_MISMATCH
+    The tuple's PREFIX is what has to hold: a new reason may only extend it.
+    Asserting on [-1] pinned the newest reason instead, so this test failed
+    the moment one was appended correctly — which is the opposite of what it
+    was written to protect.
+    """
+    from ladder.schema import (
+        R_CODE_INACTIVE,
+        R_CODE_UNKNOWN,
+        R_LABEL_MISMATCH,
+        R_MEDDRA_UNKNOWN,
+        R_NEGATED,
+        R_SCHEMA_INVALID,
+        R_SPAN_OUT_OF_RANGE,
+        R_SPAN_UNGROUNDED,
+        R_WRONG_SEMANTIC_TYPE,
+        REJECT_REASONS,
+    )
+
+    frozen = (
+        R_SCHEMA_INVALID,
+        R_SPAN_UNGROUNDED,
+        R_SPAN_OUT_OF_RANGE,
+        R_NEGATED,
+        R_CODE_UNKNOWN,
+        R_CODE_INACTIVE,
+        R_WRONG_SEMANTIC_TYPE,
+        R_MEDDRA_UNKNOWN,
+        R_LABEL_MISMATCH,
+    )
+    assert REJECT_REASONS[: len(frozen)] == frozen

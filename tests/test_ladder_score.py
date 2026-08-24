@@ -300,3 +300,147 @@ def test_no_exclusions_means_everything_is_scored():
     golds = [gold(index=0, spans=[(9, 19)])]
     r = score_run([], golds)
     assert r["excluded"] == 0 and r["n_gold"] == 1
+
+
+# --- the fourth outcome: outdated, not wrong --------------------------------
+#
+# A code the model emitted may be one SNOMED issued and has since retired. The
+# model named a real concept; it just did not have the 2026 release. That is a
+# different failure from inventing a number, and folding it into `correct`
+# would be the opposite mistake — the answer IS stale, and a pharmacovigilance
+# system that files a retired code has filed a retired code.
+#
+# So: four outcomes, reported separately, and `outdated` never counts as
+# correct in precision, recall or F1.
+
+
+class FakeVocab:
+    """The two Registry methods the scorer uses. No 365 MB index in CI."""
+
+    def __init__(self, replacements=None, active=None):
+        self._repl = replacements or {}
+        self._active = active
+
+    def replacements(self, code):
+        return list(self._repl.get(str(code), []))
+
+    def is_active(self, code):
+        if self._active is None:
+            return str(code) not in self._repl
+        return str(code) in self._active
+
+
+# 162076009 |Excessive upper gastrointestinal gas| retired, replaced by
+# 12063002. Shapes taken from the AU release; the codes are real, the
+# association between these two is not — it is a fixture.
+VOCAB = FakeVocab({"162076009": ["271782001"]})
+
+
+def test_outcome_of_a_matching_code_is_correct():
+    from ladder.score import outcome
+
+    assert outcome(rec(), gold(), VOCAB) == "correct"
+
+
+def test_a_retired_code_whose_successor_is_gold_is_outdated():
+    from ladder.score import outcome
+
+    assert outcome(rec(sct="162076009"), gold(sct=["271782001"]), VOCAB) == "outdated"
+
+
+def test_a_retired_code_whose_successor_is_not_gold_is_incorrect():
+    """Retired is not a free pass. It has to land on the right concept."""
+    from ladder.score import outcome
+
+    assert outcome(rec(sct="162076009"), gold(sct=["246636008"]), VOCAB) == "incorrect"
+
+
+def test_outdated_needs_a_vocabulary():
+    """With no vocabulary the outcome degrades to `incorrect`, never to
+    `correct`. A missing index must not inflate a score."""
+    from ladder.score import outcome
+
+    assert outcome(rec(sct="162076009"), gold(sct=["271782001"]), None) == "incorrect"
+
+
+def test_concept_less_against_a_coded_mention_is_abstained():
+    from ladder.score import outcome
+
+    assert outcome(rec(sct=CONCEPT_LESS), gold(), VOCAB) == "abstained"
+
+
+def test_no_code_at_all_is_abstained():
+    from ladder.score import outcome
+
+    assert outcome(rec(sct=None), gold(), VOCAB) == "abstained"
+
+
+def test_concept_less_against_concept_less_gold_is_still_correct():
+    from ladder.score import outcome
+
+    g = gold(sct=[], gold_kind=GOLD_NONE)
+    assert outcome(rec(sct=CONCEPT_LESS), g, VOCAB) == "correct"
+
+
+def test_coding_a_concept_less_mention_is_incorrect_not_outdated():
+    from ladder.score import outcome
+
+    g = gold(sct=[], gold_kind=GOLD_NONE)
+    assert outcome(rec(sct="162076009"), g, VOCAB) == "incorrect"
+
+
+def test_strict_scorer_still_answers_only_correct():
+    """`reaction_sct_strict` is the boolean run.py injects. Outdated is not
+    correct, so the boolean must not move when the fourth outcome arrives."""
+    assert reaction_sct_strict(rec(sct="162076009"), gold(sct=["271782001"])) is False
+
+
+# --- score_run reports the four separately -----------------------------------
+
+
+def test_score_run_counts_outdated_apart_from_correct():
+    golds = [
+        gold(index=0, spans=[(9, 19)], sct=["271782001"]),
+        gold(index=1, spans=[(30, 44)], sct=["271782001"]),
+    ]
+    records = [
+        rec(spans=[(9, 19)], sct="271782001"),     # correct
+        rec(spans=[(30, 44)], sct="162076009"),    # retired -> 271782001
+    ]
+    r = score_run(records, golds, vocab=VOCAB)
+    assert r["correct"] == 1
+    assert r["outdated"] == 1
+    assert r["precision"] == 0.5, "outdated must not be credited as correct"
+
+
+def test_score_run_outcomes_sum_to_the_predictions_paired():
+    golds = [
+        gold(index=0, spans=[(9, 19)], sct=["271782001"]),
+        gold(index=1, spans=[(30, 44)], sct=["271782001"]),
+        gold(index=2, spans=[(50, 60)], sct=["246636008"]),
+        gold(index=3, spans=[(70, 80)], sct=["246636008"]),
+    ]
+    records = [
+        rec(spans=[(9, 19)], sct="271782001"),     # correct
+        rec(spans=[(30, 44)], sct="162076009"),    # outdated
+        rec(spans=[(50, 60)], sct="271782001"),    # incorrect
+        rec(spans=[(70, 80)], sct=CONCEPT_LESS),   # abstained
+    ]
+    r = score_run(records, golds, vocab=VOCAB)
+    assert [r["correct"], r["outdated"], r["incorrect"], r["abstained"]] == [1, 1, 1, 1]
+
+
+def test_score_run_without_a_vocabulary_reports_zero_outdated():
+    golds = [gold(spans=[(9, 19)], sct=["271782001"])]
+    records = [rec(spans=[(9, 19)], sct="162076009")]
+    r = score_run(records, golds)
+    assert r["outdated"] == 0
+    assert r["incorrect"] == 1
+
+
+def test_score_run_buckets_carry_outdated_too():
+    golds = [gold(spans=[(9, 19)], sct=["271782001"])]
+    records = [rec(spans=[(9, 19)], sct="162076009")]
+    r = score_run(records, golds, vocab=VOCAB)
+    assert r["single_code"]["outdated"] == 1
+    assert r["single_code"]["correct"] == 0

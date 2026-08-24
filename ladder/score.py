@@ -30,6 +30,32 @@ for precisely this reason — it matches on `(doc_id, spans)` and temperature-0.
 resamples pick different phrasings, so keys never align and every record comes
 back `not_resampled`. A number is not comparable across modes, so the mode is
 returned alongside it.
+
+FOUR OUTCOMES, NOT TWO
+----------------------
+    correct     the code is in the gold set for that mention
+    outdated    the code is a RETIRED concept whose successor is the gold code
+    abstained   the model gave no code — CONCEPT_LESS, or nothing at all
+    incorrect   everything else
+
+`outdated` exists because SNOMED retires concepts and CADEC was coded in 2015
+against a release the model may well have learned. A model that emits
+162076009 for a mention now coded 12063002 named a real concept and lacked
+eleven years of releases; a model that emits 999999999 invented a number. Those
+are different failures and a scorer that calls both "wrong" cannot tell an
+article's reader which one it is looking at.
+
+It is NEVER folded into `correct`. The answer is still stale, and a
+pharmacovigilance system that files a retired code has filed a retired code —
+precision, recall and F1 all count only `correct`. Successors come from
+`Registry.replacements`, which follows SAME AS and REPLACED BY and nothing
+else; with no vocabulary passed, `outdated` degrades to `incorrect` rather
+than to `correct`, so a missing index can never inflate a score.
+
+`abstained` covers CONCEPT_LESS against a coded mention AND `sct is None`. The
+two are not the same act — CONCEPT_LESS asserts that no concept fits, None is
+the absence of an answer — but neither produced a code, and separating
+over-abstention from wrong-code is what makes rung 5's cost readable.
 """
 
 from __future__ import annotations
@@ -40,6 +66,15 @@ from ladder.corpus import GOLD_NONE, GoldMention
 from ladder.schema import CONCEPT_LESS, REACTION, Record
 
 SPAN_MATCH_MODES = ("exact", "overlap")
+
+CORRECT = "correct"
+OUTDATED = "outdated"
+ABSTAINED = "abstained"
+INCORRECT = "incorrect"
+
+#: Report order, not alphabetical: best answer first, so a table of them reads
+#: as a decline. Append new outcomes at the end.
+OUTCOMES = (CORRECT, OUTDATED, ABSTAINED, INCORRECT)
 
 
 # --- one record against one gold mention ------------------------------------
@@ -62,34 +97,58 @@ def _find_gold(record: Record, gold: Any) -> GoldMention | None:
     return None
 
 
-def reaction_sct_strict(record: Record, gold: Any) -> bool:
-    """Is this record's SNOMED answer correct?
+def outcome(record: Record, gold: Any, vocab: Any = None) -> str:
+    """One of `OUTCOMES` for this record against this gold mention.
 
-    The signature `run.py:load_scorer` expects. `gold` is either one
-    `GoldMention` or the collection `run.py` passes — a dict of them, or a
-    list. A record whose span matches no gold mention is a false positive and
-    scores False; it is never a free pass.
+    `gold` is either one `GoldMention` or the collection `run.py` passes — a
+    dict of them, or a list. A record whose span matches no gold mention is a
+    false positive: INCORRECT, never a free pass.
 
-    Says nothing about how the span was matched: this is exact-span. Use
-    `score_run` for the overlap mode and for the aggregate numbers.
+    `vocab` is anything with `replacements(code)` and `is_active(code)` —
+    `Registry` in the pipeline, a stub in the tests. Optional, because the
+    365 MB index is absent in CI; when it is missing a retired code reads as
+    INCORRECT, which is the conservative direction.
     """
     if not isinstance(gold, GoldMention):
         found = _find_gold(record, gold)
         if found is None:
-            return False
+            return INCORRECT
         gold = found
 
     predicted = record.sct
-    gold_codes = list(gold.sct or [])
+    gold_codes = {str(c) for c in (gold.sct or [])}
 
     # CONCEPT_LESS is symmetric: right only against CONCEPT_LESS gold, and
     # wrong when the vocabulary did have a concept. Over-abstention is an
     # error, not a free pass — that is the cost rung 5 has to earn back.
     if not gold_codes or gold.gold_kind == GOLD_NONE:
-        return predicted == CONCEPT_LESS
+        if predicted == CONCEPT_LESS:
+            return CORRECT
+        # `None` is not CONCEPT_LESS. The model that said nothing did abstain,
+        # but it never made the claim the answer key is testing, so it is not
+        # credited with it either.
+        return ABSTAINED if predicted is None else INCORRECT
+
     if predicted is None or predicted == CONCEPT_LESS:
-        return False
-    return str(predicted) in {str(c) for c in gold_codes}
+        return ABSTAINED
+    if str(predicted) in gold_codes:
+        return CORRECT
+    if vocab is not None and gold_codes & set(vocab.replacements(predicted)):
+        return OUTDATED
+    return INCORRECT
+
+
+def reaction_sct_strict(record: Record, gold: Any) -> bool:
+    """Is this record's SNOMED answer correct?
+
+    The signature `run.py:load_scorer` expects, and deliberately a BOOLEAN
+    over `outcome() == CORRECT` — outdated is not correct, so this answer does
+    not move now that there are four outcomes rather than two.
+
+    Says nothing about how the span was matched: this is exact-span. Use
+    `score_run` for the overlap mode and for the aggregate numbers.
+    """
+    return outcome(record, gold) == CORRECT
 
 
 # --- pairing predictions to gold --------------------------------------------
@@ -144,7 +203,7 @@ def _pair(
 
 
 def _bucket() -> dict[str, int]:
-    return {"n_gold": 0, "n_pred": 0, "correct": 0}
+    return {"n_gold": 0, "n_pred": 0, **{o: 0 for o in OUTCOMES}}
 
 
 def score_run(
@@ -152,6 +211,7 @@ def score_run(
     golds: list[GoldMention],
     span_match: str = "exact",
     exclude: set[str] | None = None,
+    vocab: Any = None,
 ) -> dict[str, Any]:
     """Precision, recall and F1 over reaction mentions, plus the sub-buckets.
 
@@ -161,9 +221,15 @@ def score_run(
 
     A prediction with no gold mention at that span is a false positive. A gold
     mention no prediction reached is a false negative. A paired prediction is
-    correct only if `reaction_sct_strict` says so, so a right span with a wrong
+    correct only if `outcome()` says CORRECT, so a right span with a wrong
     code counts against precision AND recall — which is the honest reading:
     the mention was not correctly coded.
+
+    `vocab` (a `Registry`, or anything with `replacements`/`is_active`) turns
+    on the OUTDATED outcome. Without it the counts still add up; retired codes
+    simply land in `incorrect`. Precision, recall and F1 count CORRECT only in
+    both cases, so passing a vocabulary can never raise the headline number —
+    it only splits the errors into two named piles.
     """
     if span_match not in SPAN_MATCH_MODES:
         raise ValueError(
@@ -197,17 +263,23 @@ def score_run(
     for g in gold_mentions:
         buckets[which(g)]["n_gold"] += 1
 
-    correct = 0
+    tally = {o: 0 for o in OUTCOMES}
     for record, gold in _pair(preds, gold_mentions, span_match):
         if gold is None:
+            # A prediction on no gold mention is a false positive. It is
+            # counted in n_pred (so it costs precision) but it has no gold
+            # answer to be outdated or abstained WITH, so it stays out of the
+            # outcome tally rather than being filed under `incorrect` — the
+            # four outcomes are about PAIRED predictions.
             continue
         b = buckets[which(gold)]
         b["n_pred"] += 1
-        if reaction_sct_strict(record, gold):
-            correct += 1
-            b["correct"] += 1
+        got = outcome(record, gold, vocab)
+        tally[got] += 1
+        b[got] += 1
 
     n_pred, n_gold = len(preds), len(gold_mentions)
+    correct = tally[CORRECT]
     precision = correct / n_pred if n_pred else 0.0
     recall = correct / n_gold if n_gold else 0.0
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
@@ -217,9 +289,9 @@ def score_run(
         "excluded": len(dropped),
         "n_pred": n_pred,
         "n_gold": n_gold,
-        "correct": correct,
         "precision": precision,
         "recall": recall,
         "f1": f1,
+        **tally,
         **buckets,
     }
