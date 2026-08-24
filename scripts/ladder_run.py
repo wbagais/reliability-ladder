@@ -70,20 +70,20 @@ print(f"  mentions {len(recs)}   carrying a code {codes(recs)}")
 print("\n" + "=" * 58, "\nRUNG 1 — validate (observe)\n", "=" * 58, sep="")
 observe(recs, "after r0")
 
-# ---- 3 -----------------------------------------------------------------
-print("\n" + "=" * 58, "\nRUNG 3 — self-correction\n", "=" * 58, sep="")
+# ---- 2 -----------------------------------------------------------------
+print("\n" + "=" * 58, "\nRUNG 2 — self-correction\n", "=" * 58, sep="")
 recs, m2 = call(r2, "r2", recs, {"registry": reg, "llm": S.stub})
-if m3 and hasattr(r3, "report"):
+if m2 and hasattr(r2, "report"):
     r2.report(m2)
-observe(recs, "after r3")
+observe(recs, "after r2")
 print(f"  carrying a code {codes(recs)}")
 
-# ---- 5 -----------------------------------------------------------------
-print("\n" + "=" * 58, "\nRUNG 5 — voting\n", "=" * 58, sep="")
+# ---- 3 -----------------------------------------------------------------
+print("\n" + "=" * 58, "\nRUNG 3 — voting\n", "=" * 58, sep="")
 recs, m3 = call(r3, "r3", recs, {"registry": reg, "llm": S.voter(0.7), "k": 3})
-if m5:
+if m3:
     r3.report(m3)
-observe(recs, "after r5")
+observe(recs, "after r3")
 print(f"  carrying a code {codes(recs)}")
 
 # ---- 4 -----------------------------------------------------------------
@@ -95,8 +95,8 @@ recs, m4 = call(r4, "r4", recs, {"registry": reg,
 if m4:
     r4.report(m4)
 
-# ---- 2 (last) ----------------------------------------------------------
-print("\n" + "=" * 58, "\nRUNG 2 — abstention\n", "=" * 58, sep="")
+# ---- 5 (last) ----------------------------------------------------------
+print("\n" + "=" * 58, "\nRUNG 5 — abstention\n", "=" * 58, sep="")
 recs, _ = call(r5, "r5", recs, {"registry": reg})
 print("  zones:", dict(collections.Counter(r.zone for r in recs)))
 print("  reasons:", dict(collections.Counter(r.reason for r in recs).most_common(8)))
