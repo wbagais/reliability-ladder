@@ -1241,3 +1241,43 @@ rung 4's self-judge guard.
 Verified: 100 pass locally with everything present; 96 pass and 4 deselect under
 the CI invocation; 3 skip with a stated reason when the manifest points at an
 absent corpus and index.
+
+## 2026-08-23 — a second judge: same non-discrimination, opposite direction
+
+`qwen2.5:7b` through the identical 395-record gold control that `llama3.2:3b`
+ran. Same input set — rung 1 split it 76 ACCEPT / 153 BAND / 166 REJECT, third
+reproduction of those figures.
+
+|  | llama3.2:3b | qwen2.5:7b |
+|---|---|---|
+| span_ok, gold | 3% | 83% |
+| span_ok, model output | 3% | 83% |
+| code_ok, gold (correct codes) | 92% | 21% |
+| code_ok, model output (0/105 correct) | 86% | 21% |
+| parse failures | 204/395 | 1/395 |
+
+**Gold and model output score identically within each judge**, on both channels,
+for both models. The small judge fails almost every span and passes almost every
+code; the large one does the reverse. Neither distinguishes a correct answer
+from a fabricated one. Two models, two sizes, two families, same result.
+
+The 7B code channel is the sharper finding: it rejects 79% of human-annotated
+**correct** codes, at the same rate it rejects codes that exist in no release.
+By rung 1 verdict — ACCEPT records score code_ok 29%, REJECT records 21%. Eight
+points apart on a distinction that is a database lookup.
+
+**What did improve: availability.** 204 parse failures to 1. The 43%/58%
+input-dependent failure rate was a property of llama3.2:3b, not of LLM judging.
+A larger model fixed it completely and changed nothing about discrimination.
+
+Agreement with rung 1 is now at its fourth value across four configurations —
+100% / 98% / 49% / 44% — with no relationship to whether the judge was doing
+useful work.
+
+Cost: 209,354 tokens, 5,545s. **Backend confound:** qwen2.5:7b is 4.7 GB and the
+card has 4 GB VRAM, so it ran partially on CPU (2,789 MiB resident, 47% GPU
+utilisation). Timing is not comparable to the llama run; discrimination is not a
+timing property, so the finding stands. Recorded because determinism is bounded
+by the backend — see the CPU/GPU mention-count entry.
+
+Run: `LADDER_JUDGE=qwen2.5:7b LADDER_N=0 PYTHONPATH=. python3 scripts/r4_gold_control.py`
