@@ -104,6 +104,7 @@ from ladder.schema import (
     VERDICTS,
     R_CODE_INACTIVE,
     R_CODE_UNKNOWN,
+    R_LABEL_MISMATCH,
     R_MEDDRA_UNKNOWN,
     R_NEGATED,
     R_WRONG_SEMANTIC_TYPE,
@@ -127,6 +128,11 @@ DEFAULTS = {
     "finding_check": True,
     "finding_scope": "reaction",  # "reaction" | "all"
     "lexical_mode": "exact",
+    # Rung 0's sct_label vs the vocabulary's own words for that code. "flag"
+    # like meddra_check and the negation cue, and for the same reason: its
+    # false-rejection floor has not been measured, and "rectal bleeding"
+    # against |Rectal hemorrhage| is one concept in two wordings.
+    "label_check": "flag",  # "off" | "flag" | "reject"
 }
 
 
@@ -216,6 +222,17 @@ def zone(
             rec.text, rec.meddra, mode=cfg["lexical_mode"]
         )
 
+    # 7 — the model's OWN label against the code it chose. This catches what
+    # exists() cannot: 82249009 is a real, active concept, so every earlier
+    # check passes it, and it means |California chicken (organism)|. The model
+    # naming the concept turns an unverifiable id into a checkable claim.
+    if cfg["label_check"] != "off" and rec.sct_label and rec.sct_label != CONCEPT_LESS:
+        checks["label_verified"] = vocab.lexical_match(
+            rec.sct_label, rec.sct, mode="contained"
+        )
+        if not checks["label_verified"] and cfg["label_check"] == "reject":
+            return ZONE_REJECT, R_LABEL_MISMATCH, checks
+
     # Pass. ACCEPT only where the vocabulary uses these very words.
     checks["lexical_match"] = vocab.lexical_match(rec.text, rec.sct, mode=cfg["lexical_mode"])
     if checks["lexical_match"]:
@@ -292,6 +309,15 @@ def all_reasons(rec, source, vocab, cfg=None, meddra=None) -> dict:
             checks["lexical_match"] = vocab.lexical_match(
                 rec.text, rec.sct, mode=cfg["lexical_mode"]
             )
+
+            # The model's own label against its own code. Run here too, or the
+            # reason table hides it behind whichever check fired first.
+            if cfg["label_check"] != "off" and rec.sct_label and rec.sct_label != CONCEPT_LESS:
+                checks["label_verified"] = vocab.lexical_match(
+                    rec.sct_label, rec.sct, mode="contained"
+                )
+                if not checks["label_verified"] and cfg["label_check"] == "reject":
+                    reasons.append(R_LABEL_MISMATCH)
 
     # --- MedDRA ------------------------------------------------------------
     if meddra is not None and cfg["meddra_check"] != "off" and rec.meddra:

@@ -53,7 +53,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from ladder.schema import CLINICAL_FINDING
+from ladder.schema import CLINICAL_FINDING, CONCEPT_LESS
+from schemas.vocabulary import NOT_FINDING
 
 IS_A = "116680003"
 
@@ -211,6 +212,133 @@ class Registry:
                 break
             out.append({"code": code, "label": self.preferred(code)})
         return out
+
+    # -- candidate retrieval: what rung 0 is SHOWN ---------------------------
+    #
+    # `search()` above answers "does the vocabulary use exactly these words".
+    # These three answer a different question: "what could this mention be?"
+    # Measured over CADEC gold, that difference is most of the task —
+    # exact-matching the patient's own words returns nothing 57.1% of the time,
+    # and where it returns something the gold code is absent 15% of the time.
+
+    def fsn(self, code: str | None) -> str | None:
+        """The fully specified name, semantic tag intact.
+
+        `preferred()` strips the tag. The tag is the cheapest signal there is
+        for telling |Rectal hemorrhage (finding)| from |California chicken
+        (organism)|, so candidates shown to a model keep it.
+        """
+        if not code:
+            return None
+        row = self._db.execute(
+            "SELECT term FROM description WHERE concept_id=? AND fsn=1 LIMIT 1", (str(code),)
+        ).fetchone()
+        return row[0] if row else None
+
+    def semantic_tag(self, code: str | None) -> str:
+        fsn = self.fsn(code) or ""
+        m = _SEMANTIC_TAG.search(fsn)
+        return m.group(0).strip().strip("()").strip() if m else ""
+
+    def _candidate(self, code: str, i: int, via: str = "") -> dict:
+        return {
+            "i": i,
+            "code": code,
+            "fsn": self.fsn(code) or self.preferred(code) or "",
+            "tag": self.semantic_tag(code),
+            "active": self.is_active(code),
+            "via": via,
+        }
+
+    def search_labelled(
+        self, term: str, rows: int = 20, findings_only: bool = False, via: str = "term"
+    ) -> list[dict]:
+        """Exact-term hits, each carrying its FSN, tag and an INDEX.
+
+        The index is the point. 76.8% of multi-candidate sets over CADEC gold
+        contain two concepts with an identical label, so a model that replies
+        with a label string is ambiguous more often than not. It reads the
+        words and answers with the index.
+
+        `findings_only` filters on `finding_status`, which is deliberately not
+        `is_active and is_finding`: 11% of CADEC's codes are retired, and
+        SNOMED retires a concept's is-a rows along with the concept, so an
+        active-only walk calls every retired finding "not a finding".
+        """
+        out = []
+        for code in dict.fromkeys(self.codes_for_term(term)):
+            if findings_only and self.finding_status(code) == NOT_FINDING:
+                continue
+            out.append(self._candidate(code, len(out), via))
+            if len(out) >= rows:
+                break
+        return out
+
+    def shortlist(self, text: str, k: int = 20, findings_only: bool = True) -> list[dict]:
+        """Token-overlap candidates, for when exact match found nothing.
+
+        This is the ONLY fuzzy retrieval in the registry, and it is confined to
+        rung 0's candidate display: it never decides whether a code exists.
+        Ranked by how much of the query a term covers, longer terms losing ties
+        so that |Gas| beats |Gaseous substance quality of something| for "gas".
+        """
+        want = set(normalise_term(text).split())
+        if not want:
+            return []
+        scored: dict[str, tuple[float, int]] = {}
+        for cid, norm in self._db.execute("SELECT concept_id, norm FROM description"):
+            got = set((norm or "").split())
+            shared = want & got
+            if not shared:
+                continue
+            score = len(shared) / len(want | got)
+            if score > scored.get(cid, (0.0, 0))[0]:
+                scored[cid] = (score, len(norm or ""))
+        ranked = sorted(scored.items(), key=lambda kv: (-kv[1][0], kv[1][1], kv[0]))
+        out = []
+        for cid, _ in ranked:
+            if findings_only and self.finding_status(cid) == NOT_FINDING:
+                continue
+            out.append(self._candidate(cid, len(out), "shortlist"))
+            if len(out) >= k:
+                break
+        return out
+
+    def resolve(self, labels, findings_only: bool = True) -> dict:
+        """An ordered list of proposed labels -> one code.
+
+        Rung 0 answers with up to three labels, best first, because a single
+        guess is not enough: MedDRA's own preferred terms fail to exact-match
+        any SNOMED description 36.2% of the time, and the patient's words fail
+        57.1% of the time. Walking the list is NOT a retry loop — no second
+        model call happens, and a retry stated as a fact is rung 2's job.
+
+        `rank` is the position of the label that won, and is worth reporting:
+        if rank 1 and 2 win often, the model's first instinct is systematically
+        wrong, which is a finding about the model rather than the vocabulary.
+        """
+        if isinstance(labels, str):
+            labels = [labels]
+        labels = [str(x) for x in (labels or []) if x is not None and str(x).strip()]
+        none = {"code": None, "rank": None, "ambiguous": False, "label": None, "candidates": []}
+        for rank, label in enumerate(labels):
+            if label.strip().upper() == CONCEPT_LESS:
+                return {**none, "code": CONCEPT_LESS, "rank": rank, "label": CONCEPT_LESS}
+            hits = self.search_labelled(label, findings_only=findings_only)
+            if not hits:
+                continue
+            # Prefer an active concept when several share the term, but never
+            # drop a retired one that is the only candidate — retired is not
+            # the same as wrong, and 11% of CADEC's gold is retired.
+            best = next((h for h in hits if h["active"]), hits[0])
+            return {
+                "code": best["code"],
+                "rank": rank,
+                "ambiguous": len(hits) > 1,
+                "label": label,
+                "candidates": hits,
+            }
+        return none
 
     def codes_for_term(self, text: str) -> list[str]:
         """Reverse lookup — every concept with this exact normalised term."""

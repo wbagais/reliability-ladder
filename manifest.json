@@ -31,13 +31,13 @@
     "snomed_backend_note": "local-rf2 | ols4. Not interchangeable: an OLS4-backed exists() reports 23.9% of CADEC gold as nonexistent codes (7.5% retired, 16.4% AU-extension = 100% of drug mentions). A rung 1 rejection rate is not comparable across backends. See schemas/vocabulary.py and `python -m ladder.vocab_crosscheck`.",
     "meddra_mode": "reference",
     "meddra_mode_note": "reference | answer_space. reference = the list only cross-checks a code produced by other means; retrieval from it is refused. answer_space = the task IS closed-set assignment over this list, which is a DIFFERENT and much easier task and must be declared in the method section.",
-    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent."
+    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active — one concept, release-dependent."
   },
   "model": {
     "extractor": "ollama/ibm/granite4:micro-h",
     "judge": "ollama/gpt-oss:20b",
     "temperature": 0,
-    "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung \u2014 rungs never pick a model."
+    "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung — rungs never pick a model."
   },
   "rung_order": [
     0,
@@ -48,9 +48,9 @@
     5,
     6
   ],
-  "rung_order_note": "Rung ID equals execution position. Renumbered 2026-08-23 from [0,1,3,5,4,2,6]; old->new is 3->2, 5->3, 2->5, others unchanged. Every measurement in docs/decisions.md dated before then uses the OLD ids \u2014 the mapping table is in that file. Order is still read from here rather than assumed, so a different order stays testable.",
+  "rung_order_note": "Rung ID equals execution position. Renumbered 2026-08-23 from [0,1,3,5,4,2,6]; old->new is 3->2, 5->3, 2->5, others unchanged. Every measurement in docs/decisions.md dated before then uses the OLD ids — the mapping table is in that file. Order is still read from here rather than assumed, so a different order stays testable.",
   "rung0_mode": "recall",
-  "rung0_mode_note": "recall | search. Plan v16 \u00a72.1 recommends 'recall' for iteration 1 \u2014 the model emits a code from memory, no tools \u2014 because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
+  "rung0_mode_note": "recall | search. Plan v16 §2.1 recommends 'recall' for iteration 1 — the model emits a code from memory, no tools — because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
   "ablations": [
     {
       "name": "rung0 search vs recall",
@@ -81,7 +81,13 @@
   "rungs": {
     "0": {
       "rung0_offsets": "search",
-      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time."
+      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time.",
+      "rung0_step": null,
+      "rung0_step_note": "null | S0 | S1 | S2 | S3 — the rung 0 prompt-engineering study, added 2026-08-23. null keeps the original A/B mode path. SCOPE IS IDENTICAL IN ALL FOUR STEPS: same mentions, same record keys, same scorer. The only thing that varies is where the CODE comes from — S0 recalls label and code from the model, S1 recalls the label and resolves the code from the vocabulary, S2 picks the label from a shortlist retrieved for the mention, S3 picks it from one fixed keyword list. Set per run with `--rung0-step`, which writes the choice back into this manifest so the copy saved beside the results says which step produced them. Call counts differ (S0/S1 one call, S2/S3 two) and are reported as cost, not hidden.",
+      "rung0_shortlist_k": 20,
+      "rung0_shortlist_note": "How many candidates S2 shows. Retrieval is token overlap over SNOMED descriptions, filtered to clinical findings. Measured 2026-08-23: exact matching the patient's own words returns nothing for 57.1% of gold reaction mentions, and where it returns something the gold code is absent 15% of the time — 'gas' returns |Gaseous substance|. Hence both the shortlist and the findings filter.",
+      "rung0_s3_list": "data/meddra_codes.csv",
+      "rung0_s3_list_note": "S3's keyword list is MedDRA TERMS — never its codes: the scored answer is SNOMED, and the MedDRA code is recorded as a by-product in record.meddra. KNOW WHAT THIS LIST IS: all 666 of its codes appear in CADEC's gold annotations and none do not, so S3 is closed-set assignment over the answer key's inventory and reports as a DECLARED CEILING, not a headline. Measured 2026-08-23, it is a leaky ceiling in any case: 36.2% of the 666 terms exact-match no SNOMED description at all, so the term-to-code hop fails on more than a third of the list."
     },
     "1": {
       "mode": "observe",
@@ -93,7 +99,9 @@
       "finding_scope": "reaction",
       "lexical_mode": "exact",
       "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
-      "meddra_check": "flag"
+      "meddra_check": "flag",
+      "label_check": "flag",
+      "label_check_note": "off | flag | reject. Rung 0's sct_label against the vocabulary's own words for the code it chose. Catches what exists() cannot: 82249009 is real and active and means |California chicken (organism)|, which granite4:micro-h emitted for 'extreme rectal bleed'. FLAG, not reject — 'rectal bleeding' against |Rectal hemorrhage| is one concept in two wordings, and this check's false-rejection floor has not been measured. Same posture as meddra_check and negation_action, and for the same reason."
     },
     "3": {
       "k": 3,
@@ -115,5 +123,7 @@
   },
   "output": {
     "dir": "out"
-  }
+  },
+  "scorer": "ladder.score:reaction_sct_strict",
+  "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align."
 }

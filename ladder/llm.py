@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+from typing import Any
 
 REGISTRY_PATH = Path(__file__).parent / "models.yaml"
 DEFAULT_CACHE_DIR = Path(__file__).parent.parent / ".llm_cache"
@@ -54,6 +55,12 @@ class ModelInfo:
         overrides = (p.get("models") or {}).get(self.model, {})
         self.input_per_mtok: float = overrides.get("input_per_mtok", p["input_per_mtok"])
         self.output_per_mtok: float = overrides.get("output_per_mtok", p["output_per_mtok"])
+        #: Does this model accept temperature/top_p/top_k? The Claude 5 family
+        #: removed them and 400s if one is sent. Registry data rather than a
+        #: branch in a rung: a rung must not know which family it is calling.
+        self.sampling: bool = bool(
+            overrides.get("sampling", p.get("sampling", True))
+        )
 
     def dollars(self, prompt_tokens: int, completion_tokens: int) -> float:
         return (
@@ -113,12 +120,17 @@ class LLMClient:
             self._client = OpenAI(base_url=self.info.base_url, api_key=self._api_key)
 
         t0 = time.monotonic()
-        resp = self._client.chat.completions.create(
-            model=self.info.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        # `temperature` stays in the CACHE KEY above even when it is not sent:
+        # two sampling requests must not collide just because the model has no
+        # dial for them, or rung 3's k votes would be one answer k times.
+        params: dict[str, Any] = {
+            "model": self.info.model,
+            "messages": messages,
+            "max_tokens": max_tokens,
+        }
+        if self.info.sampling:
+            params["temperature"] = temperature
+        resp = self._client.chat.completions.create(**params)
         latency = time.monotonic() - t0
         usage = resp.usage
         data = {

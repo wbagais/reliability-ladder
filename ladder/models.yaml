@@ -37,3 +37,9 @@ providers:
     output_per_mtok: 5.00
     models:
       claude-haiku-4-5-20251001: { input_per_mtok: 1.00, output_per_mtok: 5.00 }
+      # Intro pricing to 2026-08-31 ($3.00/$15.00 after). sampling: false —
+      # the Claude 5 family removed temperature/top_p/top_k and returns 400 if
+      # one is sent. Every rung here calls with temperature=0, so without this
+      # flag the first request fails. See tests/test_llm_registry.py.
+      claude-sonnet-5: { input_per_mtok: 2.00, output_per_mtok: 10.00, sampling: false }
+      claude-opus-5: { input_per_mtok: 5.00, output_per_mtok: 25.00, sampling: false }

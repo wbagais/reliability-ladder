@@ -9,6 +9,7 @@ snapshot of a 700k-concept hierarchy.
 
 from ladder.ledger import Ledger
 from ladder.rungs import r1, r5
+from ladder.schema import R_LABEL_MISMATCH
 from ladder.schema import (
     CONCEPT_LESS,
     R_MEDDRA_UNKNOWN,
@@ -377,3 +378,60 @@ def test_meddra_never_overrides_a_snomed_rejection():
     """Order matters: the SCT checks are the gate, MedDRA is a secondary note."""
     r = rec(sct="999999999", meddra="10013649")
     assert zm(r, meddra_check="reject")[:2] == (ZONE_REJECT, R_CODE_UNKNOWN)
+
+
+# --- rung 1: the model's own label, checked against its own code ------------
+#
+# Rung 0 now emits `sct_label` — what the model SAID its code means. If the
+# vocabulary uses none of those words for that code, the code and the label
+# cannot both be right. Measured on ARTHROTEC.107, granite4:micro-h emitted
+# 82249009 for "extreme rectal bleed"; that code is |California chicken
+# (organism)|, so the label check catches it where `exists()` cannot.
+#
+# It is a FLAG, not a rejection. "rectal bleeding" against "Rectal hemorrhage"
+# is the same concept in different words, and the false-rejection floor has not
+# been measured — the same posture as meddra_check and the negation cue.
+
+
+def test_label_matching_the_code_is_recorded_as_verified():
+    zone, reason, checks = z(rec(sct="271782001", sct_label="Drowsy"))
+    assert checks["label_verified"] is True
+
+
+def test_label_contradicting_the_code_is_flagged_not_rejected():
+    zone, reason, checks = z(rec(sct="271782001", sct_label="California chicken"))
+    assert checks["label_verified"] is False
+    assert zone != ZONE_REJECT
+    assert reason != R_LABEL_MISMATCH
+
+
+def test_label_mismatch_rejects_only_when_the_manifest_says_so():
+    zone, reason, checks = z(
+        rec(sct="271782001", sct_label="California chicken"), label_check="reject"
+    )
+    assert (zone, reason) == (ZONE_REJECT, R_LABEL_MISMATCH)
+
+
+def test_no_label_means_the_check_did_not_run():
+    zone, reason, checks = z(rec(sct="271782001", sct_label=None))
+    assert "label_verified" not in checks
+
+
+def test_label_check_can_be_switched_off():
+    zone, reason, checks = z(
+        rec(sct="271782001", sct_label="California chicken"), label_check="off"
+    )
+    assert "label_verified" not in checks
+
+
+def test_concept_less_has_no_label_to_check():
+    zone, reason, checks = z(rec(sct=CONCEPT_LESS, sct_label=CONCEPT_LESS))
+    assert "label_verified" not in checks
+
+
+def test_the_audit_pass_also_records_the_label_check():
+    """`zone()` short-circuits; the audit pass must not hide a later check."""
+    audit = r1.all_reasons(
+        rec(sct="271782001", sct_label="California chicken"), SOURCE, StubVocab(), {}
+    )
+    assert audit["checks"]["label_verified"] is False

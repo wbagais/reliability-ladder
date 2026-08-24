@@ -48,6 +48,7 @@ from ladder import vocab
 from ladder.ledger import Ledger
 from ladder.rungs import r1
 from ladder.schema import (
+    CONCEPT_LESS,
     REACTION,
     REJECT_REASONS,
     Record,
@@ -63,6 +64,11 @@ DEFAULTS: dict[str, Any] = {
     #: locates span_text in the source. See the module docstring.
     "rung0_offsets": "model",
     "rung0_mode": "recall",
+    #: None keeps the original A/B mode path. "S0".."S3" select the
+    #: prompt-engineering study below, where scope is fixed and only the way
+    #: the CODE is obtained changes.
+    "rung0_step": None,
+    "rung0_shortlist_k": 20,
 }
 
 # ------------------------------------------------------------------ prompts
@@ -71,19 +77,36 @@ BASE = """Extract every adverse reaction the reporter describes in the post belo
 For each one return:
   span_text  - the reporter's exact words, copied character for character
   start,end  - character offsets of span_text in the post
-  code       - the SNOMED CT concept id for that reaction
+  code       - the SNOMED CT concept id for that reaction, or the literal
+               string CONCEPT_LESS if no SNOMED CT concept correctly describes it
   confidence - 0.0 to 1.0
 
 Report only reactions the writer actually experienced. Do not report anything
 they say they did NOT have.
 
+Do not invent a concept id. If you cannot name one you are confident is a real
+SNOMED CT concept for this reaction, answer CONCEPT_LESS. That is a correct
+answer in its own right, not a failure to answer — many reactions people
+describe have no SNOMED CT concept.
+
 Return JSON: {"mentions":[{"span_text":..,"start":..,"end":..,"code":..,"confidence":..}]}
 """
+
+# The literal above has to be the sentinel rung 1 branches on and the scorer
+# grades against, so a rename of the constant must not leave the prompt behind.
+# Checked rather than interpolated because BASE also contains JSON braces.
+if CONCEPT_LESS not in BASE:  # pragma: no cover
+    raise RuntimeError(
+        f"rung 0's prompt does not name {CONCEPT_LESS!r}. A model that is never "
+        "told the sentinel exists cannot answer it, and every abstention it "
+        "meant to make arrives as an invented code instead."
+    )
 
 TOOL_BLOCK = """
 You have a vocabulary search tool. Call it before choosing any code:
     SEARCH("term") -> [{code, label}, ...]
-Choose a code from the results. If nothing fits, set code to null.
+Choose a code from the results. If nothing in the results fits, answer
+CONCEPT_LESS — do not fall back to a code you did not look up.
 """
 
 
@@ -162,6 +185,377 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
     return out, meta
 
 
+# ============================================================================
+# THE PROMPT-ENGINEERING STUDY — steps S0..S3
+#
+# SCOPE IS IDENTICAL IN ALL FOUR. Every step finds the same mentions, writes
+# the same record keys, and is scored the same way. The single thing that
+# varies is where the CODE comes from:
+#
+#   S0  label and code recalled from the model's own weights
+#   S1  label recalled, code resolved from the vocabulary by that label
+#   S2  label PICKED from a shortlist retrieved for the mention
+#   S3  label PICKED from one fixed keyword list, the same for every mention
+#
+# Two facts decide the shape. Measured over CADEC gold: exact-matching the
+# patient's own words against SNOMED returns nothing 57.1% of the time, which
+# is why S2 exists; and 76.8% of multi-candidate sets contain two concepts with
+# an IDENTICAL label, which is why a pick is an INDEX and never a label string.
+#
+# Call counts differ — S0 and S1 are one call, S2 and S3 are two — so they are
+# reported as cost rather than pretended away. S3 differs from S2 in the
+# candidate list ONLY, which is what makes their delta attributable.
+# ============================================================================
+
+STEPS = ("S0", "S1", "S2", "S3")
+
+#: The MedDRA-derived keyword list S3 shows the model. NOTE what this is: the
+#: code list CADEC ships, all 666 of whose codes appear in the gold
+#: annotations. S3 is therefore closed-set assignment over the answer key's
+#: inventory — a declared ceiling, not a headline. See manifest.meddra_mode.
+KEYWORD_CSV = "data/meddra_codes.csv"
+
+_ASK = """  span_text  - the reporter's exact words, copied character for character
+  context    - the three or four words IMMEDIATELY BEFORE span_text, copied the
+               same way, so the quote can be located when it appears twice
+"""
+
+_RULES = """
+Report only reactions the writer actually experienced. Do not report anything
+they say they did NOT have.
+
+Report the reaction, not the treatment for it. A transfusion, an operation, a
+scan or a hospital admission is something done TO the writer, not something the
+drug did to them. Measured: 1 of 7,311 gold mentions names a procedure.
+"""
+
+S0_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
+
+For each one return:
+""" + _ASK + """  start,end  - character offsets of span_text in the post
+  sct_label  - up to three SNOMED CT concept names for the reaction, best first
+  sct_code   - the SNOMED CT concept id matching sct_label[0]
+  confidence - 0.0 to 1.0
+""" + _RULES + """
+If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS for both
+sct_label and sct_code. Do not invent a concept id.
+
+Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"confidence":..}]}
+"""
+
+S1_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
+
+For each one return:
+""" + _ASK + """  sct_label  - up to three SNOMED CT concept NAMES for the reaction, best
+               first. Names, not id numbers — the id is looked up for you.
+  confidence - 0.0 to 1.0
+""" + _RULES + """
+If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS.
+
+Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confidence":..}]}
+"""
+
+FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
+
+For each one return:
+""" + _ASK + """  confidence - 0.0 to 1.0
+""" + _RULES + """
+Quote the reaction itself, not the sentence around it. The concept name is
+chosen in a second step, so do not give one here.
+
+Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
+"""
+
+PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
+
+Each reaction has a number after the word "reaction". Each concept has a number
+in [square brackets]. Answer with the reaction's number and the number in
+brackets of the concept you choose — or null for choice if none of the concepts
+describes the reaction. Answer with numbers only, never with a concept name.
+
+{blocks}
+Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
+"""
+
+
+def keyword_list() -> list[str]:
+    """S3's fixed keyword list — MedDRA preferred terms, deduped, in file order."""
+    return [t for t, _ in _keyword_rows()]
+
+
+def keyword_meddra() -> dict[str, str]:
+    """term -> MedDRA code. A by-product of S3's list, never the scored answer."""
+    return dict(_keyword_rows())
+
+
+def _keyword_rows() -> list[tuple[str, str]]:
+    import csv
+    from pathlib import Path
+
+    path = Path(KEYWORD_CSV)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"{path} missing, and step S3 shows it to the model. It is "
+            "gitignored on purpose — see docs/licences.md."
+        )
+    seen, out = set(), []
+    with path.open(newline="", encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            term = (row.get("meddra_term") or "").strip()
+            if term and term.lower() not in seen:
+                seen.add(term.lower())
+                out.append((term, (row.get("meddra_code") or "").strip()))
+    return out
+
+
+def locate(span_text: str, source: str, context: str = "", claimed=None):
+    """Find span_text in source. Returns (start, end, how).
+
+    Replaces the model's character arithmetic, which is wrong at every model
+    size, with a search anchored on something models are good at: quoting. When
+    the quote appears more than once — 14.5% of CADEC mentions — the preceding
+    words decide which one, and first-occurrence is only right 33.9% of the
+    time, so the anchor is doing real work rather than tidying.
+    """
+    if not span_text:
+        return -1, -1, "empty"
+    hits, i = [], source.find(span_text)
+    while i != -1:
+        hits.append(i)
+        i = source.find(span_text, i + 1)
+    if not hits:
+        low = source.lower().find(span_text.lower())
+        if low == -1:
+            return -1, -1, "not_in_source"
+        return low, low + len(span_text), "context_case_insensitive"
+    if len(hits) == 1:
+        return hits[0], hits[0] + len(span_text), "context_unique"
+
+    ctx = " ".join((context or "").split()).lower()
+    if ctx:
+        for h in hits:
+            before = " ".join(source[max(0, h - len(ctx) - 8):h].split()).lower()
+            if before.endswith(ctx):
+                return h, h + len(span_text), f"context_anchored_of_{len(hits)}"
+    if isinstance(claimed, int) and claimed >= 0:
+        h = min(hits, key=lambda x: abs(x - claimed))
+        return h, h + len(span_text), f"context_claimed_of_{len(hits)}"
+    return hits[0], hits[0] + len(span_text), f"context_first_of_{len(hits)}"
+
+
+def _menu(cands) -> list[str]:
+    if not cands:
+        return ["     (no candidates)"]
+    return [f'     [{c["i"]}] {c.get("fsn") or c.get("label")}' for c in cands]
+
+
+def _blocks(pairs, shared=None) -> str:
+    """Render the numbered candidate menus the PICK call reads.
+
+    `shared` is the one list every mention chooses from — S3. It is printed
+    ONCE, because printing it per mention is how S3's prompt reached 1,998
+    candidate lines and ~13.7k tokens for a 666-item list: the same menu three
+    times over, each copy numbered identically. S2's shortlists are retrieved
+    per mention and genuinely differ, so those still repeat.
+    """
+    if shared is not None:
+        out = ["Concepts:", *_menu(shared), "", "Reactions:"]
+        out += [f'  reaction {i}: "{rec.text}"' for i, (rec, _) in enumerate(pairs)]
+        return "\n".join(out) + "\n"
+
+    out = []
+    for idx, (rec, cands) in enumerate(pairs):
+        out.append("\n".join([f'reaction {idx}: "{rec.text}"', *_menu(cands)]))
+    return "\n\n".join(out) + "\n"
+
+
+def _mention_record(doc_id: str, i: int, m: dict, source: str, step: str) -> Record:
+    """The one place a Record is built, so all four steps write the same keys."""
+    start, end, how = locate(
+        m.get("span_text", ""), source, m.get("context", ""), m.get("start")
+    )
+    rec = Record(
+        doc_id=doc_id,
+        entity_type=REACTION,
+        text=m.get("span_text", ""),
+        spans=[(start, end)],
+        confidence=float(m.get("confidence", 0) or 0),
+        record_id=f"{doc_id}#{i}",
+    )
+    rec.checks.update(rung0_step=step, offsets=how)
+    return rec
+
+
+def _resolve_labels(rec: Record, labels, reg, source_name: str) -> None:
+    """Turn the model's proposed NAMES into a code, and record how it went."""
+    got = reg.resolve(labels)
+    rec.sct = got["code"]
+    rec.sct_label = got["label"]
+    rec.checks.update(
+        label_source=source_name,
+        code_source="tool",
+        label_rank=got["rank"],
+        label_unresolved=got["code"] is None,
+        label_ambiguous=got["ambiguous"],
+    )
+    if got.get("candidates"):
+        rec.checks["candidates"] = got["candidates"]
+
+
+def _step_s0(doc_id, source, llm, cfg, meta):
+    raw, usage = llm(S0_PROMPT, source, "S0")
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["api_calls"] += 1
+    parsed = _parse(raw, meta)
+    if parsed is None:
+        return []
+    out = []
+    for i, m in enumerate(parsed.get("mentions", [])):
+        rec = _mention_record(doc_id, i, m, source, "S0")
+        labels = m.get("sct_label") or []
+        if isinstance(labels, str):
+            labels = [labels]
+        code = m.get("sct_code")
+        rec.sct = str(code) if code is not None else None
+        rec.sct_label = str(labels[0]) if labels else None
+        rec.checks.update(label_source="memory", code_source="memory")
+        out.append(rec)
+    return out
+
+
+def _step_s1(doc_id, source, llm, cfg, meta):
+    raw, usage = llm(S1_PROMPT, source, "S1")
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["api_calls"] += 1
+    parsed = _parse(raw, meta)
+    if parsed is None:
+        return []
+    reg = cfg["registry"]
+    out = []
+    for i, m in enumerate(parsed.get("mentions", [])):
+        rec = _mention_record(doc_id, i, m, source, "S1")
+        _resolve_labels(rec, m.get("sct_label") or [], reg, "memory")
+        out.append(rec)
+    return out
+
+
+def _step_pick(doc_id, source, llm, cfg, meta, step):
+    """S2 and S3: find the mentions, then choose from a numbered menu."""
+    raw, usage = llm(FIND_PROMPT, source, step)
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["api_calls"] += 1
+    parsed = _parse(raw, meta)
+    if parsed is None:
+        return []
+
+    reg = cfg["registry"]
+    fixed = None
+    if step == "S3":
+        fixed = [{"i": n, "label": t, "fsn": t} for n, t in enumerate(keyword_list())]
+
+    pairs = []
+    for i, m in enumerate(parsed.get("mentions", [])):
+        rec = _mention_record(doc_id, i, m, source, step)
+        cands = fixed if fixed is not None else reg.shortlist(
+            rec.text, k=cfg.get("rung0_shortlist_k", 20)
+        )
+        rec.checks["candidates"] = cands
+        rec.checks["label_source"] = "full_list" if step == "S3" else "shortlist"
+        rec.checks["code_source"] = "tool"
+        pairs.append((rec, cands))
+
+    if not pairs:
+        return []
+
+    raw, usage = llm(
+        PICK_PROMPT.format(blocks=_blocks(pairs, shared=fixed)), source, step
+    )
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["api_calls"] += 1
+    # A pick reply that will not parse is NOT the model declining. Measured at
+    # S3: 666 candidates cost 16.9k prompt tokens and came back as 14 tokens of
+    # truncated JSON. Counting that as "saw the menu, chose nothing" would
+    # report a transport failure as an abstention.
+    picked = _parse(raw, {})
+    pick_failed = picked is None
+    if pick_failed:
+        meta["pick_parse_failed"] = True
+    choices = {}
+    if picked is not None:
+        for p in picked.get("picks", []):
+            # "reaction" is what the prompt asks for; "i" is accepted too,
+            # because an earlier prompt used it and its cached replies are
+            # still valid data.
+            ref = p.get("reaction", p.get("i"))
+            try:
+                choices[int(ref)] = p.get("choice")
+            except (TypeError, ValueError):
+                continue
+
+    meddra = keyword_meddra() if step == "S3" else {}
+    for idx, (rec, cands) in enumerate(pairs):
+        if pick_failed:
+            rec.checks["pick_parse_failed"] = True
+            continue
+        if idx not in choices:
+            rec.checks["no_pick"] = True
+            continue
+        choice = choices[idx]
+        if choice is None:
+            # Shown every candidate the vocabulary offered and declining is an
+            # assertion that none fits — which is exactly CONCEPT_LESS.
+            rec.sct = CONCEPT_LESS
+            rec.sct_label = CONCEPT_LESS
+            continue
+        try:
+            n = int(choice)
+        except (TypeError, ValueError):
+            rec.checks["bad_pick"] = choice
+            continue
+        if not 0 <= n < len(cands):
+            # Never clamped: an out-of-range index is the model failing to use
+            # the menu, and clamping it would report that as a code choice.
+            rec.checks["bad_pick"] = n
+            continue
+        chosen = cands[n]
+        label = chosen.get("fsn") or chosen.get("label")
+        if chosen.get("code"):
+            rec.sct = chosen["code"]
+            rec.sct_label = label
+            rec.checks["label_rank"] = 0
+            rec.checks["label_unresolved"] = False
+            rec.checks["label_ambiguous"] = False
+        else:
+            _resolve_labels(rec, [label], cfg["registry"], rec.checks["label_source"])
+            rec.checks["candidates"] = cands
+        if label in meddra:
+            rec.meddra = meddra[label]
+    return [rec for rec, _ in pairs]
+
+
+def _parse(raw: str, meta: dict):
+    """JSON or nothing. A parse failure is rung 0's counter-metric, not a bug
+    to repair — repairing it here would delete the measurement."""
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        meta["parse_failed"] = True
+        return None
+
+
+def run_step(doc_id: str, source: str, step: str, llm, cfg: dict) -> tuple[list[Record], dict]:
+    meta = {"tokens_in": 0, "tokens_out": 0, "api_calls": 0, "tool_calls": 0}
+    if step == "S0":
+        return _step_s0(doc_id, source, llm, cfg, meta), meta
+    if step == "S1":
+        return _step_s1(doc_id, source, llm, cfg, meta), meta
+    return _step_pick(doc_id, source, llm, cfg, meta, step), meta
+
+
 def honoured_tool(rec: Record) -> bool | None:
     """Mode B only, and the most interesting check on the ladder.
 
@@ -198,19 +592,36 @@ def apply(
         )
     ledger = cfg.get("ledger")
     mode = "B" if cfg.get("rung0_mode") == "search" else "A"
+    step = cfg.get("rung0_step")
+    if step is not None and step not in STEPS:
+        raise ValueError(
+            f"rung0_step={step!r} is not one of {STEPS}. A step nobody defined "
+            "would report a run under a label the article cannot explain."
+        )
+    if step is not None and cfg.get("registry") is None:
+        raise RuntimeError(
+            f"step {step} resolves codes through the vocabulary and has no "
+            "registry. Pass one in cfg."
+        )
 
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
-        "tool_calls": 0, "parse_failed": 0, "t0": time.time(),
+        "tool_calls": 0, "api_calls": 0, "parse_failed": 0,
+        "pick_parse_failed": 0, "t0": time.time(),
     }
     out: list[Record] = []
     for doc_id, text in sources.items():
         t0 = time.time()
-        got, meta = rung0(doc_id, text, mode, llm, cfg)
+        if step is None:
+            got, meta = rung0(doc_id, text, mode, llm, cfg)
+            meta.setdefault("api_calls", 1)
+        else:
+            got, meta = run_step(doc_id, text, step, llm, cfg)
         elapsed_ms = (time.time() - t0) * 1000
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
-        for k in ("tokens_in", "tokens_out", "tool_calls"):
+        agg["pick_parse_failed"] += int(meta.get("pick_parse_failed", False))
+        for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls"):
             agg[k] += meta.get(k, 0)
         for rec in got:
             rec.checks["honoured_tool"] = honoured_tool(rec)
@@ -226,9 +637,9 @@ def apply(
                 reason="json_decode" if meta.get("parse_failed") else None,
                 tokens_in=meta["tokens_in"],
                 tokens_out=meta["tokens_out"],
-                api_calls=1,
+                api_calls=meta.get("api_calls", 1),
                 latency_ms=elapsed_ms,
-                mode=mode,
+                mode=step or mode,
                 mentions=len(got),
             )
         out += got

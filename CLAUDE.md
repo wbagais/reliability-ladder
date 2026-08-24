@@ -23,6 +23,15 @@
   in the gold annotations and none of which are not — the answer key's inventory,
   not a vocabulary. `meddra_check` is therefore `"flag"`, not `"reject"`.
 
+## How to work
+- **TDD, always.** Write the failing test first, watch it fail, then write the
+  code that makes it pass. No production code without a test that demanded it.
+  This is not negotiable and applies to every change, including small ones.
+  The reason is specific to this repo: every number here is evidence for an
+  article, and a check that was never seen to fail is a check nobody has
+  shown to work. `scripts/` having no coverage is how a `NameError` in
+  `full_run.py` survived the renumber.
+
 ## Design decisions — do not silently reverse these
 - Rung IDs are fixed to the brief. Execution order lives in `manifest.json` as
   `rung_order` (`[0,1,2,3,4,5,6]` since the 2026-08-23 renumber), so ordering is
@@ -52,6 +61,11 @@
 - Every one of those was found by replaying rung 1 over the gold standard, where
   every rejection is false by construction. It took the gate's own error floor
   from **9.3% to 0.13%**. Do that before trusting any new check.
+- **Rung 0 does NOT retry.** When a proposed label resolves to no code, rung 0
+  walks its next label and then stops. A retry loop inside rung 0 IS rung 2 —
+  building one there would collapse rung 2's measured value into rung 0 and
+  confound the ladder. Rung 0 proposes up to three labels in one call; rung 2
+  is where a failure is stated back as a fact.
 - Rung 2 (self-correct) fires **only on a rung 1 failure**, with the reason stated as a fact
   ("code 999999 does not exist"), never as a question ("are you sure?").
   It cannot fix records that passed validation — there is no fact to feed back.
@@ -77,8 +91,14 @@
 - Cost accounting is complete: every rung logs tokens, api_calls and per-call
   latency. Rung 3 bills the k sampling calls as a DOCUMENT row, paid whether or
   not a record is re-found.
-- `ladder/score.py` is still missing, so accuracy columns are written empty
-  rather than guessed. `run.py` reports a missing rung rather than faking it.
+- **`ladder/score.py` exists** (2026-08-23). Gold is keyed by SPAN, never by
+  position; `span_match` is `exact` (headline) or `overlap`. It accepts the
+  `{record_id: GoldMention}` collection `run.py` passes and re-keys it itself —
+  record_id is a POSITION and the two numberings agree only by luck.
+- **Rung 0 has four steps, S0-S3** — the prompt-engineering study. Scope is
+  identical in all four; only where the CODE comes from changes. Select with
+  `--rung0-step`, which writes the choice into the manifest copy saved beside
+  the results. `rung0_step: null` keeps the original A/B mode path.
 - **An earlier data-agnostic track was retired on 2026-08-22**, along with its
   results. The CADEC track imported none of it. Do not reintroduce its numbers:
   nothing in this repo is runnable that would reproduce them. Git history at
@@ -91,13 +111,22 @@
 - `ladder/vocab.py` wired in as a global resource, formalised as
   `schemas/vocabulary.py` (contract 2).
 - Variable-length mention arrays checked against the scorer: **they break it**,
-  and the fix is span-keying. Numbers under "Next" item 1.
+  and the fix is span-keying — now implemented in `ladder/score.py`.
+- `Record.sct_label` appended, and rung 1's `label_check` (default `"flag"`).
+  The model names the concept it thinks it coded; the vocabulary checks it for
+  free. Catches what `exists()` cannot — 82249009 is real, active, and means
+  |California chicken (organism)|.
 - `ladder/rungs/r0.py`, then `r2` / `r3` / `r4` — all written and running.
 - Rung IDs renumbered to match execution order (2026-08-23). Old→new is
   3→2, 5→3, 2→5. Anything in `docs/decisions.md` dated earlier uses the OLD ids.
 
 ## Next, in order
-1. **`ladder/score.py` — the shared scorer.** The single biggest gap: without it
+1. **The four dev runs — S0, S1, S2, S3.** Everything measured so far is ONE
+   document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
+   winning step, freeze it in the manifest, and run the ladder from there —
+   otherwise rungs 1-6 are measured against four different rung 0s and nothing
+   above is comparable. `python -m ladder.run ladder --split dev --rung0-step S1`
+2. ~~**`ladder/score.py` — the shared scorer.**~~ DONE 2026-08-23. The single biggest gap: without it
    there is no accuracy axis, so no marginal-cost-per-prevented-error curve,
    which the plan calls the headline number of the study. Everything else is
    ready for it — `run.py` already injects a scorer via `load_scorer` and writes

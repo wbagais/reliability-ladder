@@ -30,6 +30,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
+from ladder import clean as clean_mod
 from ladder import corpus as corpus_mod
 from ladder import llm as llm_mod
 from ladder.ledger import Ledger
@@ -419,6 +420,8 @@ def _load_inputs(man: dict[str, Any], split: str):
 
 def cmd_ladder(a) -> int:
     man = load_manifest(a.manifest)
+    man = apply_overrides(man, getattr(a, "rung0_step", None),
+                          getattr(a, "extractor", None))
     docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
     rungs = _parse_rungs(a.rungs)
     if getattr(a, "limit", 0):
@@ -447,7 +450,18 @@ def cmd_ladder(a) -> int:
         man, a.split, rungs, records, sources, registry, out_dir, run_id, meddra=meddra
     )
 
-    gold = {m.record_id: m for d in doc_ids for m in docs[d].mentions}
+    # Declared exclusions are applied to the ANSWER KEY, once, here — see
+    # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
+    # only invalid codes, 4 quote text that is not at their offsets). They are
+    # excluded and counted, never corrected.
+    excluded = clean_mod.load_exclusions()
+    gold = {
+        m.record_id: m
+        for d in doc_ids for m in docs[d].mentions
+        if m.record_id not in excluded
+    }
+    if excluded:
+        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
     scorer = load_scorer(a.scorer)
     rows = results_rows(result, is_correct=scorer, gold=gold)
     write_results(rows, out_dir / f"{run_id}.results.csv")
@@ -486,6 +500,8 @@ def cmd_ablate(a) -> int:
     output) and is reported as the `input` row the other rows are read against.
     """
     man = load_manifest(a.manifest)
+    man = apply_overrides(man, getattr(a, "rung0_step", None),
+                          getattr(a, "extractor", None))
     docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_ablate_{time.strftime('%Y%m%d-%H%M%S')}"
@@ -502,7 +518,18 @@ def cmd_ablate(a) -> int:
         )
         base = seed["records"]
 
-    gold = {m.record_id: m for d in doc_ids for m in docs[d].mentions}
+    # Declared exclusions are applied to the ANSWER KEY, once, here — see
+    # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
+    # only invalid codes, 4 quote text that is not at their offsets). They are
+    # excluded and counted, never corrected.
+    excluded = clean_mod.load_exclusions()
+    gold = {
+        m.record_id: m
+        for d in doc_ids for m in docs[d].mentions
+        if m.record_id not in excluded
+    }
+    if excluded:
+        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
     scorer = load_scorer(a.scorer)
     rows = [
         snapshot_row(
@@ -601,6 +628,20 @@ def main(argv: list[str] | None = None) -> int:
                        help="run on the first N documents of the split. A smoke "
                             "run: the result is not a result for the split")
         p.add_argument("--scorer", help="module:function, defaults to ladder.score if present")
+        p.add_argument(
+            "--extractor",
+            help="provider/model from ladder/models.yaml for rungs 0/2/3, "
+                 "overriding manifest.model.extractor for this run. Never "
+                 "changes model.judge — rung 4 must stay a different family. "
+                 "A non-local provider still needs LADDER_ALLOW_REMOTE=1.",
+        )
+        p.add_argument(
+            "--rung0-step", choices=["S0", "S1", "S2", "S3"],
+            help="rung 0's extraction step for the prompt-engineering study. "
+                 "Scope is identical in all four; only the way the CODE is "
+                 "obtained changes. Overrides manifest.rungs.0.rung0_step so "
+                 "four runs are four commands rather than four manifest edits.",
+        )
         p.add_argument("--run-id")
         return p
 
@@ -612,6 +653,34 @@ def main(argv: list[str] | None = None) -> int:
 
     a = ap.parse_args(argv)
     return friendly(a.fn, a)
+
+
+def apply_overrides(
+    man: dict[str, Any], step: str | None = None, extractor: str | None = None,
+    **_: Any,
+) -> dict[str, Any]:
+    """Fold per-run CLI overrides into the manifest the run reports.
+
+    Into the MANIFEST, not a side channel: the step and the model both change
+    what every number in the run means, so they have to appear in the copy
+    written beside the results. A setting that only lived in argv would leave
+    two runs looking identical on disk.
+
+    `--extractor` never touches `model.judge`. Rung 4 must be a different
+    family from the extractor, and an override that quietly made them the same
+    would turn the judge into a self-judge — which measures self-consistency,
+    not correctness.
+    """
+    if step:
+        man.setdefault("rungs", {}).setdefault("0", {})["rung0_step"] = step
+    if extractor:
+        man.setdefault("model", {})["extractor"] = extractor
+    return man
+
+
+def apply_rung0_step(man: dict[str, Any], step: str | None) -> dict[str, Any]:
+    """Back-compatible alias for `apply_overrides`."""
+    return apply_overrides(man, step=step)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,438 @@
+"""Rung 0's four extraction steps — the prompt-engineering study.
+
+Scope is IDENTICAL in all four. What varies is how the code is obtained:
+
+    S0  label and code from memory, offsets from the model
+    S1  label from memory, code from the vocabulary, offsets from a tool
+    S2  label picked from a retrieved shortlist
+    S3  label picked from a fixed keyword list
+
+The record written to disk has the same shape in every step, or the four are
+not comparable and the study reports nothing.
+
+No network and no release download: the LLM is a scripted callable and the
+vocabulary is the nine-concept index from test_registry_lookup.
+"""
+
+import json
+
+import pytest
+
+from ladder.rungs import r0
+from ladder.schema import CONCEPT_LESS, REACTION
+from tests.test_registry_lookup import reg  # noqa: F401  (fixture)
+
+SOURCE = (
+    "Hospitalization due extreme rectal bleed that required blood transfusion.\n"
+    "I was extremely sick and initially felt I might not survive.\n"
+)
+SOURCES = {"D1": SOURCE}
+
+
+class FakeLLM:
+    """Replies from a scripted queue and records every prompt it was given."""
+
+    def __init__(self, *replies):
+        self.replies = list(replies)
+        self.prompts = []
+
+    def __call__(self, prompt, text, mode, **kw):
+        self.prompts.append(prompt)
+        raw = self.replies.pop(0) if self.replies else "{}"
+        if not isinstance(raw, str):
+            raw = json.dumps(raw)
+        return raw, {"in": 10, "out": 5}
+
+
+def cfg(reg, step, **kw):  # noqa: F811
+    return {"rung0_step": step, "registry": reg, "llm": kw.pop("llm", None), **kw}
+
+
+FIND = {"mentions": [
+    {"span_text": "extreme rectal bleed", "context": "due", "confidence": 0.9},
+    {"span_text": "extremely sick", "context": "I was", "confidence": 0.8},
+]}
+
+
+# --- the fixed record contract ----------------------------------------------
+
+
+@pytest.mark.parametrize("step", ["S0", "S1", "S2", "S3"])
+def test_every_step_writes_the_same_record_keys(reg, step, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage", "Generally unwell"])
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "start": 20, "end": 40, "sct_label": ["Rectal hemorrhage"],
+                       "sct_code": "12063002", "confidence": 0.9}]},
+        {"picks": [{"i": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, step, llm=llm))
+    assert recs, f"{step} produced nothing"
+    d = recs[0].to_dict()
+    for key in ("doc_id", "entity_type", "text", "spans", "sct", "sct_label",
+                "meddra", "confidence", "zone", "record_id", "checks"):
+        assert key in d, f"{step} record is missing {key}"
+    assert d["checks"]["rung0_step"] == step
+
+
+# --- S0: everything from memory ---------------------------------------------
+
+
+def test_s0_takes_the_code_from_the_model(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "start": 20, "end": 40,
+        "sct_label": ["Rectal hemorrhage"], "sct_code": "999999", "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct == "999999"
+    assert recs[0].checks["code_source"] == "memory"
+
+
+def test_s0_asks_for_a_code_and_for_offsets(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": []})
+    r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert "sct_code" in llm.prompts[0]
+    assert "start" in llm.prompts[0]
+
+
+def test_s0_still_locates_spans_deterministically(reg):  # noqa: F811
+    """Offsets are asked for, and thrown away: the model's arithmetic is wrong
+    at every model size while its quoting is verbatim 77% of the time."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extremely sick", "start": 999, "end": 1200,
+        "sct_label": ["Generally unwell"], "sct_code": "213257006", "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].spans == [(80, 94)]
+
+
+# --- S1: label from memory, code from the vocabulary ------------------------
+
+
+def test_s1_does_not_ask_the_model_for_a_code_or_offsets(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": []})
+    r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert "sct_code" not in llm.prompts[0]
+    assert "start,end" not in llm.prompts[0]
+
+
+def test_s1_resolves_the_code_from_the_label(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due",
+        "sct_label": ["Rectal hemorrhage"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert recs[0].sct_label == "Rectal hemorrhage"
+    assert recs[0].checks["code_source"] == "tool"
+
+
+def test_s1_walks_the_label_list_and_reports_the_rank(reg):  # noqa: F811
+    """One guess is not enough: the patient's own words miss SNOMED 57.1% of
+    the time. Which rank won is a finding about the model."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due",
+        "sct_label": ["Extreme rectal bleed", "Rectal hemorrhage"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert recs[0].checks["label_rank"] == 1
+
+
+def test_s1_leaves_no_code_when_nothing_resolves(reg):  # noqa: F811
+    """A dead end is NOT CONCEPT_LESS: the model never asserted no code fits."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due",
+        "sct_label": ["Extreme rectal bleed"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["label_unresolved"] is True
+
+
+def test_s1_passes_concept_less_through(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extremely sick", "context": "I was",
+        "sct_label": [CONCEPT_LESS], "confidence": 0.5}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct == CONCEPT_LESS
+
+
+def test_s1_uses_context_to_locate_the_span(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extremely sick", "context": "I was",
+        "sct_label": ["Generally unwell"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].spans == [(80, 94)]
+    assert recs[0].checks["offsets"].startswith("context")
+
+
+def test_s1_is_one_model_call_per_document(reg):  # noqa: F811
+    """Same call count as S0, so the two stay comparable."""
+    llm = FakeLLM(FIND)
+    _, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert len(llm.prompts) == 1
+    assert agg["api_calls"] == 1
+
+
+# --- S2: label picked from a retrieved shortlist ----------------------------
+
+
+def test_s2_shows_the_model_a_shortlist_and_takes_its_index(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": None}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["label_source"] == "shortlist"
+    assert recs[0].sct is not None
+    assert len(llm.prompts) == 2
+
+
+def test_s2_candidates_are_recorded_for_audit(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["candidates"]
+    assert "fsn" in recs[0].checks["candidates"][0]
+
+
+def test_s2_null_choice_is_concept_less(reg):  # noqa: F811
+    """Shown every candidate the vocabulary has and declining is an assertion."""
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": None}, {"i": 1, "choice": None}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct == CONCEPT_LESS
+
+
+def test_s2_out_of_range_index_is_refused_not_clamped(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 99}, {"i": 1, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["bad_pick"] == 99
+
+
+# --- S3: label picked from a fixed keyword list -----------------------------
+
+
+def test_s3_shows_the_same_list_for_every_mention(reg, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage", "Generally unwell"])
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": 1}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert recs[1].sct == "213257006"
+    assert recs[0].checks["label_source"] == "full_list"
+
+
+def test_s3_is_two_calls_like_s2(reg, monkeypatch):  # noqa: F811
+    """S3 differs from S2 in the list only — not in the number of calls."""
+    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage"])
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": None}]})
+    _, agg = r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
+    assert agg["api_calls"] == 2
+
+
+def test_s3_records_the_meddra_code_as_a_byproduct(reg, monkeypatch):  # noqa: F811
+    """The list is MedDRA terms, so its code is free. Never the scored answer."""
+    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage"])
+    monkeypatch.setattr(r0, "keyword_meddra", lambda: {"Rectal hemorrhage": "10038063"})
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": None}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
+    assert recs[0].meddra == "10038063"
+    assert recs[0].sct == "12063002"
+
+
+# --- shared behaviour -------------------------------------------------------
+
+
+def test_an_unknown_step_is_refused(reg):  # noqa: F811
+    with pytest.raises(ValueError, match="rung0_step"):
+        r0.apply([], SOURCES, cfg(reg, "S9", llm=FakeLLM()))
+
+
+def test_a_parse_failure_is_counted_never_repaired(reg):  # noqa: F811
+    llm = FakeLLM("not json at all")
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs == []
+    assert agg["parse_failed"] == 1
+
+
+def test_a_span_absent_from_the_source_is_kept_and_flagged(reg):  # noqa: F811
+    """Rung 0 does not silently drop what it cannot ground — rung 1 rejects it."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "purple monkey dishwasher", "context": "",
+        "sct_label": ["Generally unwell"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].checks["offsets"] == "not_in_source"
+    assert recs[0].spans == [(-1, -1)]
+
+
+def test_rung0_refuses_a_populated_record_list(reg):  # noqa: F811
+    from ladder.schema import Record
+
+    existing = [Record(doc_id="D1", entity_type=REACTION, text="x", spans=[(0, 1)])]
+    with pytest.raises(RuntimeError, match="CREATES"):
+        r0.apply(existing, SOURCES, cfg(reg, "S1", llm=FakeLLM()))
+
+
+# --- the study has to be runnable without editing the manifest --------------
+
+
+def test_run_py_exposes_a_rung0_step_flag():
+    """Four dev runs, four commands. Editing the manifest between runs is how
+    two runs end up labelled the same."""
+    from ladder.run import main
+    import argparse
+
+    ap = argparse.ArgumentParser()
+    with pytest.raises(SystemExit):
+        main(["ladder", "--rung0-step", "S9", "--split", "dev"])
+
+
+def test_the_step_flag_reaches_the_rung_config(monkeypatch):
+    from ladder import run as run_mod
+
+    seen = {}
+
+    def fake(man, split, rungs, records, sources, registry, out_dir, run_id, meddra=None):
+        seen.update(man["rungs"]["0"])
+        raise SystemExit(0)
+
+    monkeypatch.setattr(run_mod, "run_ladder", fake)
+    with pytest.raises(SystemExit):
+        run_mod.main(["ladder", "--rung0-step", "S2", "--split", "dev", "--limit", "1"])
+    assert seen.get("rung0_step") == "S2"
+
+
+# --- the pick menu has to be unambiguous ------------------------------------
+#
+# Measured on ARTHROTEC.107: with mentions numbered "0." and candidates
+# numbered "0)", granite4:micro-h replied {"i":17,"choice":17} and
+# {"i":11,"choice":"Bleeding"} — it conflated the two numbering systems and
+# then answered with a name. Every record came back no_pick. That is a prompt
+# defect, not a model finding, so the menu uses two different notations and the
+# reply key says what it refers to.
+
+
+def test_the_menu_does_not_number_mentions_and_candidates_alike():
+    from ladder.schema import Record
+
+    r = Record(doc_id="D1", entity_type=REACTION, text="extremely sick", spans=[(80, 94)])
+    blocks = r0._blocks([(r, [{"i": 0, "fsn": "Generally unwell (finding)"}])])
+    assert "reaction 0" in blocks
+    assert "[0]" in blocks
+    assert "0)" not in blocks
+
+
+def test_a_pick_may_name_the_reaction_key(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is not None
+
+
+def test_the_old_i_key_still_works(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is not None
+
+
+def test_a_named_choice_is_recorded_as_a_bad_pick(reg):  # noqa: F811
+    """Answering |Myalgia| when asked for a number is a measurable failure."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": "Myalgia"}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["bad_pick"] == "Myalgia"
+
+
+# --- scope must not drift between steps -------------------------------------
+
+
+def test_every_step_asks_for_spans_in_the_same_words():
+    """Scope is fixed across the study. Measured: an earlier FIND prompt that
+    added 'Finding it is the whole task here' made the model return whole
+    SENTENCES as spans, which is a different task from the one S0 and S1 did.
+    """
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert r0._ASK in prompt
+    assert "whole task" not in r0.FIND_PROMPT
+
+
+def test_an_unparseable_pick_reply_is_distinguishable_from_declining(reg):  # noqa: F811
+    """Measured on ARTHROTEC.107 at S3: a 666-item menu costs 16.9k prompt
+    tokens and came back as 14 completion tokens of malformed JSON. Landing
+    that as no_pick would read as 'the model saw the menu and declined', which
+    is the opposite of what happened.
+    """
+    llm = FakeLLM(FIND, '{"picks":[{"reaction":0,"choice":1}]}"')
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["pick_parse_failed"] is True
+    assert "no_pick" not in recs[0].checks
+    assert agg["pick_parse_failed"] == 1
+
+
+def test_a_clean_reply_leaves_no_pick_failure_flag(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert "pick_parse_failed" not in recs[0].checks
+    assert agg["pick_parse_failed"] == 0
+
+
+# --- a shared menu is printed once ------------------------------------------
+#
+# Measured: S3's 666-keyword list rendered per-mention put 1,998 candidate
+# lines and ~13.7k tokens into one prompt — the SAME menu three times, each
+# copy numbered identically. S2's shortlists genuinely differ per mention and
+# must repeat; S3's list does not.
+
+
+def test_a_shared_menu_is_printed_once():
+    from ladder.schema import Record
+
+    cands = [{"i": 0, "fsn": "Pain"}, {"i": 1, "fsn": "Myalgia"}]
+    recs = [Record(doc_id="D1", entity_type=REACTION, text=t, spans=[(0, 1)])
+            for t in ("a", "b", "c")]
+    blocks = r0._blocks([(r, cands) for r in recs], shared=cands)
+    assert blocks.count("[0] Pain") == 1
+    assert blocks.count("[1] Myalgia") == 1
+    for i in range(3):
+        assert f"reaction {i}" in blocks
+
+
+def test_per_mention_menus_still_repeat():
+    """S2's shortlists differ per mention, so each one has to be shown."""
+    from ladder.schema import Record
+
+    r1 = Record(doc_id="D1", entity_type=REACTION, text="a", spans=[(0, 1)])
+    r2 = Record(doc_id="D1", entity_type=REACTION, text="b", spans=[(0, 1)])
+    blocks = r0._blocks([(r1, [{"i": 0, "fsn": "Pain"}]), (r2, [{"i": 0, "fsn": "Nausea"}])])
+    assert "[0] Pain" in blocks and "[0] Nausea" in blocks
+
+
+def test_s3_sends_the_keyword_list_once(reg, monkeypatch):  # noqa: F811
+    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage", "Generally unwell"])
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
+    pick_prompt = llm.prompts[1]
+    assert pick_prompt.count("Rectal hemorrhage") == 1
+    assert pick_prompt.count("Generally unwell") == 1
+
+
+def test_s2_still_sends_a_menu_per_mention(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert llm.prompts[1].count("reaction ") >= 2
+
+
+# --- prompt rules, each one measured against the corpus before writing ------
+
+
+def test_every_step_excludes_treatments_and_procedures():
+    """Measured: 1 of 7,311 gold reaction mentions names a procedure (0.01%).
+    Sonnet 5 emitted "required blood transfusion" as a reaction in BOTH S2 and
+    S3 — a false positive in each. The rule is safe to state as prose because
+    the corpus is near-unanimous.
+    """
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "treatment" in prompt.lower()
+
+
+def test_no_step_tells_the_model_to_drop_intensifiers():
+    """Measured: 506 gold mentions (6.9%) START with an intensifier and KEEP
+    it — "severe stomach pain", "extreme stomach pain", "extremely sick". An
+    earlier plan to add "quote the reaction, not the intensifier" would have
+    broken those to fix a minority case. CADEC's own boundary convention is
+    not stateable as prose; it is a job for examples.
+    """
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        low = prompt.lower()
+        assert "intensifier" not in low
+        assert "not the words around it" not in low

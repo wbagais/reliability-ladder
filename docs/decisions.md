@@ -1241,3 +1241,263 @@ rung 4's self-judge guard.
 Verified: 100 pass locally with everything present; 96 pass and 4 deselect under
 the CI invocation; 3 skip with a stated reason when the manifest points at an
 absent corpus and index.
+
+---
+
+## 2026-08-23 — the scorer, and the rung 0 prompt-engineering study
+
+**TDD is now a hard rule** (CLAUDE.md, "How to work"). Every change below was
+written test-first. The reason is local, not doctrinal: every number here is
+evidence for an article, and a check nobody watched fail is a check nobody has
+shown to work.
+
+**`ladder/score.py` exists.** The accuracy axis was the single blocking gap —
+`load_scorer` returned `None` and every accuracy column was written empty.
+Gold is keyed by SPAN, never position, which is the whole design: index-keyed
+comparison scores a *perfect* extraction 0.216 when it is listed in another
+order. `span_match` is a declared choice — `exact` is the headline, `overlap`
+exists because rung 3 keys on exact spans and its temperature-0.7 resamples
+never align, which is why every rung 3 record comes back `not_resampled`.
+
+**A bug found by writing the tests, not by running the code.** `run.py:450`
+builds gold as `{record_id: GoldMention}` and hands that whole dict to the
+scorer. `record_id` is `f"{doc_id}#{index}"` — a POSITION. Rung 0 numbers its
+records by the order the model emitted them; the annotation file numbers gold
+by the order it was annotated. Looking a record up by its own id would have
+graded most mentions against somebody else's answer, silently. The scorer
+therefore accepts the collection and re-keys it by span itself.
+
+**Rung 0 gained four steps, S0–S3.** Scope is identical in all four — same
+mentions, same record keys, same scorer — and the ONLY thing that varies is
+where the code comes from: S0 recalls label and code; S1 recalls the label and
+resolves the code from the vocabulary; S2 picks the label from a shortlist
+retrieved for the mention; S3 picks it from one fixed keyword list. Run with
+`--rung0-step`, which writes the choice back into the manifest copy saved
+beside the results, so two runs can never look identical on disk.
+
+Two things collapsed into the baseline rather than becoming steps, because
+neither is prompt engineering: naming CONCEPT_LESS (it is task specification —
+4.1% of gold reaction mentions have no code, and a prompt that never says so
+asks the impossible on those) and locating spans deterministically (the model's
+character arithmetic is wrong at every model size).
+
+**`Record.sct_label`, appended.** What the model SAID its code means. A bare
+code is an unverifiable claim; a code plus a label is checkable against the
+vocabulary for free, with no extra model call. Rung 1 gained `label_check`,
+default `"flag"` — the same posture as `meddra_check` and the negation cue, and
+for the same reason: "rectal bleeding" against |Rectal hemorrhage| is one
+concept in two wordings and the false-rejection floor is unmeasured.
+
+### Measured 2026-08-23, over all 7,311 gold reaction mentions
+
+| | |
+|---|---|
+| exact search on the patient's own words returns nothing | **57.1%** |
+| ...returns something, gold code absent | 15% of hits |
+| gold code found by searching the raw quote | **36.5%** — the ceiling for "search the span" |
+| gold reaction mentions that are CONCEPT_LESS | 4.1% (302) |
+| quote occurs more than once in its document | 14.5% (906) |
+| ...of those, first occurrence is the right one | 33.9% — so dropping the offset anchor risks 9.6% of all mentions |
+| multi-candidate sets where two share an IDENTICAL label | **76.8%** |
+| MedDRA terms matching no SNOMED description | **36.2%** (241 of 666) |
+
+The label collision number is why a pick is an INDEX and never a label string.
+The 36.2% is why S3 is a *leaky* ceiling: a third of the answer-key-derived
+list cannot reach a SNOMED code at all, so S3 measures MedDRA↔SNOMED term
+overlap as much as it measures closed-set assignment.
+
+### Two prompt defects found by running it, and fixed
+
+**The pick menu numbered mentions and candidates alike.** With mentions as
+`0.` and candidates as `0)`, granite4:micro-h replied `{"i":17,"choice":17}`
+and `{"i":11,"choice":"Bleeding"}` — it conflated the two numbering systems and
+then answered with a name. Every record came back `no_pick`. Mentions are now
+`reaction N` and candidates `[N]`, and the reply key is `reaction`.
+
+**Telling the model not to code made it stop finding.** The first FIND prompt
+ended "Finding it is the whole task here", and the model returned whole
+SENTENCES as spans — `"Hospitalization due extreme rectal bleed that required
+blood transfusion."` where S0 and S1 both returned `"extreme rectal bleed"`.
+That is scope drift between steps, which would have made the study
+uninterpretable. There is now a test asserting all three prompts share the same
+span instruction verbatim.
+
+**S3's first failure was mine: the menu was printed once per mention.** 666
+keywords rendered per-mention put **1,998 candidate lines** and ~13.7k tokens
+into one prompt — the same list three times, each copy numbered identically.
+The model replied with 14 tokens of invalid JSON (a stray trailing quote) and
+answered 1 of 3 reactions, so every pick was discarded and S3 scored 0.0.
+
+NOT a context limit: granite4:micro-h's window is 1,048,576 tokens. Printing a
+shared list once fixed it outright, and `_blocks(pairs, shared=...)` now does
+that for S3 while S2's genuinely-different shortlists still repeat:
+
+    prompt tokens      16,899 -> 5,768
+    completion         14, invalid JSON -> 22, valid
+    reactions answered 1 of 3 (discarded) -> 2 of 3
+    coverage           0.0 -> 0.667
+    latency            16.1s -> 6.1s
+
+**S3's real failure, now visible.** The model picked `choice: 1` and
+`choice: 0` — the FIRST TWO ENTRIES of the 666-item list:
+
+    list position 0 = Pain     -> chosen for "might not survive"
+    list position 1 = Myalgia  -> chosen for "extreme rectal bleed"  (Muscle pain)
+
+It is not searching the menu, it is anchoring on the top of it. One of three
+mentions got no pick at all. A long menu buys position bias, not selection —
+which is a finding about closed-set assignment, and it only became visible once
+the rendering bug stopped masking it.
+
+**A limitation of `label_check` this exposed.** Both wrong answers above carry
+`label_verified: True`, because |Myalgia| really is a term for 68962001 and
+|Pain| really is one for 22253000. The check confirms label-to-CODE
+consistency and says nothing about label-to-SPAN correctness. It catches a
+model that names one concept and emits another's id; it cannot catch a model
+that is confidently, coherently wrong. Do not read it as an accuracy signal.
+
+A malformed reply is recorded as `pick_parse_failed`, distinct from `no_pick`:
+reporting one as the other would be a lie about what the model did.
+
+### Not done
+
+The four dev runs. Everything above except the corpus-wide measurements is
+still ONE document, ARTHROTEC.107.
+
+---
+
+## 2026-08-24 — the keyword table, and four corrupted codes in the answer key
+
+**`ladder/keywords.py` — a two-column `keyword,code` CSV built from the SNOMED
+release alone.** 299,523 keywords -> 172,206 codes, 14 MB, written to
+`data/keywords.csv`: cleaned DATA, not a cache. It is produced before any rung
+runs and a run whose keyword table changed is a different run, so it belongs
+with the corpus and the splits. `.gitignore` covers `data/*` except
+`data/splits/`, so it stays unpublished like `snomed.sqlite`. Rung 0 deals in
+WORDS: it names the concept, the table maps the name to a code, and the model
+never emits a nine-digit integer it could mistype. "Did it name the right
+concept" becomes separable from "did it recall the right id".
+
+Restricted to concepts whose FSN semantic tag is `(finding)` or `(disorder)`.
+Measured over CADEC's 923 distinct gold reaction codes:
+
+    every concept in the release   1,822,645 rows   99.95% of coded mentions
+    tag in {finding, disorder}       521,946 rows   99.90%   <- built
+
+The 0.05% difference is four mentions; the exclusion removes every organism,
+product, substance and qualifier — the class that produced |California chicken
+(organism)| for a rectal bleed and let |Gaseous substance| outrank the right
+answer for "gas". 55,501 keywords collide (two concepts, one label); the tie is
+broken by lowest concept id — arbitrary but STABLE, since a table that
+reshuffled between builds would move every number derived from it.
+
+**Rejected: a refset filter.** SNOMED's Clinical finding foundation reference
+set (126,101 members) looked like the principled way to exclude junk, but it
+covers only 94.1% of gold codes against 99.96% for the tag allowlist — 150x
+more lossy. Rejected on measurement. Also rejected: topping a list up with the
+gold codes it misses (that is answer-key derivation, the exact defect of the
+666-term MedDRA list), and a frequency list from the pool split (does not exist
+in deployment, so it cannot generalise).
+
+### 100% coverage is unreachable, and the answer key is why
+
+Four of CADEC's 1,047 distinct gold codes (0.38%) are absent from the release.
+None is a retired concept. **All four fail the Verhoeff check digit** that
+terminates every SNOMED identifier, so none was ever issued by SNOMED — they
+are corrupted strings, and each corruption is identifiable:
+
+    20070731            NOT A CODE — a date, 2007-07-31 in RF2's YYYYMMDD
+                        effectiveTime format. Sits in the post-coordinated pair
+                        ['67849003', '20070731'] where 67849003 is |Excruciating
+                        pain|, correct for "excruciating pain in my legs". A
+                        release date leaked into the code column.
+    21499005            transposition of 24199005 |Feeling agitated| — the 4 and
+                        the 1 are swapped. Gold text "Severe aggitation".
+    81680008            81680005 |Neck pain| with the check digit wrong. Single
+                        character. Gold text "pain neck".
+    21290011000036100   17 digits in the AU extension namespace shape, for
+                        "testosterone". A mistyped AMT identifier.
+
+Three affect reaction mentions (~4 of 7,273). **They are NOT corrected.**
+Editing gold so our numbers improve is how a benchmark stops being evidence.
+They are recorded here so the 99.95% ceiling is explained rather than
+mysterious, and `ladder/registry.py`'s older note ("three annotation typos, one
+code CADEC got wrong") is now precise: all four are Verhoeff-invalid.
+
+
+### Preprocessing is now four steps, in order
+
+    python -m ladder.registry --build     RF2 -> SQLite index      (existing)
+    python -m ladder.keywords --build     data/keywords.csv        (new)
+    python -m ladder.clean    --build     data/exclusions.csv      (new)
+    python -m ladder.run init             freeze the splits        (existing)
+
+**`ladder/clean.py` — exclusions, not corrections.** 7 of 7,311 gold reaction
+mentions (0.10%) cannot be answered and now leave the denominator with a stated
+reason: 3 carry only Verhoeff-invalid codes, 4 quote text that is not at their
+offsets (`'renal failure'` vs `'rena  failure'`, `'pain in stomach'` vs
+`'pain i stomach'` — off-by-one annotation slips). `score_run(exclude=...)`
+reports the count; `run.py` applies the list to the answer key once, at load.
+The temptation to repair rather than exclude is the thing being refused: 21499005
+is obviously 24199005 and 81680008 is obviously 81680005, and editing an answer
+key so the system under test scores better is how a benchmark stops being
+evidence.
+
+**A collision-ordering bug the real data exposed.** The tiebreak documented as
+"lowest concept id" compared ids as STRINGS, so `"224968006" < "24199005"` and
+|Feeling agitated| resolved to the wrong concept. Now numeric, which also
+prefers core international concepts over extensions. Collisions 55,501 ->
+51,082.
+
+**Audited and needing nothing:** duplicate gold spans (0), mentions with no
+spans (0), empty mention text (0), mentions with neither a code nor
+CONCEPT_LESS (0).
+
+**Audited and NOT a preprocessing problem: 850 overlapping gold pairs.** Gold
+reaction mentions nest and cross one another. That is legitimate annotation,
+not corruption, but it means `span_match="overlap"` is looser than it looks — a
+prediction can overlap two different gold mentions and the matcher takes the
+first in prediction order. Exact matching is unaffected. Stated here so the
+overlap column is read with the caveat attached.
+
+
+---
+
+## 2026-08-24 (later) — "keywords, not sentences", and the collision that cost 10%
+
+**The table was built from every description row.** FSN, preferred term and
+every synonym alike, which is how 42-word TNM staging text ended up in a column
+labelled `keyword`. SNOMED makes the distinction itself and the build now
+respects it — measured over finding/disorder concepts:
+
+    Synonym/preferred    197,537 rows   median 4 words
+    Synonym/acceptable   135,949 rows   median 4 words
+    FSN/preferred        188,459 rows   median 6 words   14.4% over 8 words
+
+The FSN exists to disambiguate, not to be said, and dropping it costs nothing
+because every concept has a preferred synonym. Also dropped: descriptions over
+10 words (10,715) and Read/CTV3 migration artifacts such as `#radius &/or ulna`
+and `([provider initiated encounter] or [patient asked to come in]) or` (7,582)
+— together 0 gold mentions. `keywords.py` now reads the RF2 description file
+directly, because the SQLite index carries no `typeId`.
+
+**A 10-point error in my own reporting, and the design change it forced.** The
+"99.90% coverage" logged earlier counted concepts that HAVE a qualifying
+synonym. It did not account for deduplication. Measured against the built file:
+
+    one row per keyword, numeric tiebreak       164,182 codes   89.85%
+    one row per keyword, preferred > acceptable 168,490 codes   93.50%
+    a keyword may repeat                        180,446 codes   99.90%
+
+A keyword is not a unique key. |coma| is both 371632003 and 50061006, |neuroma|
+both 443892003 and 154622009, and every tiebreak discards a concept CADEC
+actually uses — 111 gold codes, 10.05% of mentions. The table now allows a
+keyword on several rows: still two columns, 12% more rows, full coverage
+restored, and 27,307 keywords (9.8%) explicitly ambiguous. `lookup()` returns a
+LIST; one element is the common case at 90.2%.
+
+The ambiguity is not a defect to hide. It is the disambiguation rung 0 exists
+to perform, now visible and countable instead of resolved by a coin flip inside
+a build script.
+
+    279,059 keywords -> 180,446 codes, 313,780 rows, median 4 words

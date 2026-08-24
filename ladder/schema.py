@@ -76,6 +76,12 @@ R_UNRESOLVED = "unresolved"  # rung 5 only: still in BAND when the ladder ran ou
 # Appended 2026-08-22 with the MedDRA check. See registry.MeddraTable for why
 # this is not a rejection reason by default.
 R_MEDDRA_UNKNOWN = "meddra_code_unknown"  # code is not in the MedDRA table
+# Appended 2026-08-23 with rung 0's sct_label. The model names the concept it
+# thinks it coded; if the vocabulary uses none of those words for that code,
+# the code and the label cannot both be right. A FLAG first, not a rejection —
+# "rectal bleeding" against "Rectal hemorrhage" is the same concept in
+# different words, and its false-rejection floor has not been measured yet.
+R_LABEL_MISMATCH = "label_mismatch"  # model's own label does not match its code
 
 REJECT_REASONS = (
     R_SCHEMA_INVALID,
@@ -86,6 +92,7 @@ REJECT_REASONS = (
     R_CODE_INACTIVE,
     R_WRONG_SEMANTIC_TYPE,
     R_MEDDRA_UNKNOWN,
+    R_LABEL_MISMATCH,
 )
 
 #: What rung 1 concluded about a record, independent of whether it acted on it.
@@ -129,6 +136,10 @@ class Record:
     text: str  # the span exactly as written in the source
     spans: list[Span]  # character offsets into the source document
     sct: str | None = None  # SNOMED code, CONCEPT_LESS, or None (= no answer)
+    #: What the model SAID that code means. Appended 2026-08-23. A bare code is
+    #: an unverifiable claim; a code plus a label is checkable against the
+    #: vocabulary with no extra model call. Never scored — the answer is `sct`.
+    sct_label: str | None = None
     meddra: str | None = None  # secondary, never the primary scored target
     confidence: float | None = None
 
