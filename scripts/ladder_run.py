@@ -15,7 +15,7 @@ from ladder.registry import Registry
 from ladder.rungs.r0 import run
 from ladder.rungs import r1, r2, r3, r4, r5
 from ladder.ledger import Ledger
-import argparse, contextlib, io, sys
+import argparse, contextlib, io, sys, select, shutil
 from ladder import stub_llm as S
 
 ORDER = [0, 1, 2, 3, 4, 5, 6]
@@ -25,10 +25,10 @@ reg = Registry(man["vocabulary"]["snomed_db"])
 items = S.load_items(man["corpus"]["splits_dir"])
 src = {i["doc_id"]: i["text"] for i in items}
 
-print("rung order:", ORDER)
+say("rung order:", ORDER)
 for name, mod in (("r2", r3), ("r4", r4), ("r3", r5), ("r5", r2)):
     print(f"  {name}.apply{inspect.signature(mod.apply)}")
-print()
+say()
 
 
 def call(mod, name, records, cfg):
@@ -160,14 +160,40 @@ say("  Blocked upstream, not unfinished: rung 0 produced 0 correct codes,")
 say("  so every record reaching a reviewer carries a wrong answer or none.")
 
 # ---- summary -----------------------------------------------------------
-print("\n" + "=" * 58, "\nEND TO END\n", "=" * 58, sep="")
+say("\n" + "=" * 58, "\nEND TO END\n", "=" * 58, sep="")
 say(f"  order {ORDER}")
 say(f"  records {len(recs)}   published {codes(recs)}   withheld {withheld}")
 say(f"  coverage {codes(recs) / len(recs):.3f}")
+def offer_r6(withheld: int) -> None:
+    """Offer the rung 6 desk, with a timeout so an unattended run never blocks.
+
+    Asked here rather than at the start: at the start the answer is given 77
+    minutes before it matters. Without the timeout, a run left alone overnight
+    waits forever on input that never comes.
+    """
+    cmd = "PYTHONPATH=. python3 scripts/r6_desk.py"
+    if not sys.stdin.isatty():
+        print(f"\n  rung 6 queue ready — {withheld} withheld records")
+        print(f"  review:  {cmd}")
+        return
+    print(f"\n  rung 6 — {withheld} records withheld and reviewable.")
+    print("  The desk is a blind, timed study; it is not part of the run.")
+    print("  Open it now? [y/N]  (20s, defaults to no) ", end="", flush=True)
+    ready, _, _ = select.select([sys.stdin], [], [], 20)
+    ans = sys.stdin.readline().strip().lower() if ready else ""
+    print()
+    if ans.startswith("y"):
+        import subprocess
+        subprocess.run([sys.executable, "scripts/r6_desk.py"])
+    else:
+        print(f"  skipped. Review later with:  {cmd}")
+
+
 LEDGER.close()
 if MON:
     MON.stop()
     print(f"\nreports written to runs/{RUN_ID}.report.txt")
+offer_r6(withheld)
 say(f"  wall clock {time.perf_counter() - t_start:.1f}s")
-print("\n  Compare against the standalone runs. Any difference is rung")
+say("\n  Compare against the standalone runs. Any difference is rung")
 say("  interaction, which every per-rung figure so far assumes is zero.")

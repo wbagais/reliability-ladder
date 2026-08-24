@@ -67,6 +67,27 @@ RUNGS = [
 
 PASS, FAIL, CNR, WARN = "green", "dark_orange3", "grey42", "yellow"
 
+RUNG_NAME = {r: (n, k) for r, n, k in RUNGS}
+
+
+def visible_rungs(rungs: dict) -> list[tuple[int, str, str]]:
+    """Which rungs to draw.
+
+    Nothing yet: all seven, greyed — a rung that produced nothing and a rung
+    that never ran must not look identical. That confusion is what hid rung 0's
+    unreachable ledger row for the life of the project.
+
+    Rows present: everything from the lowest to the highest seen, so a GAP IN
+    THE MIDDLE stays visible (rung 3 ran, rung 2 did not — worth knowing).
+    Trailing absence is not shown: a single-rung run should not draw four empty
+    rows below itself.
+    """
+    seen = sorted(rungs)
+    if not seen:
+        return list(RUNGS)
+    lo, hi = seen[0], seen[-1]
+    return [(r, *RUNG_NAME.get(r, (f"rung {r}", "?"))) for r in range(lo, hi + 1)]
+
 # Thresholds for the Watch panel. Each is a real failure from this project.
 MINORITY_FLOOR = 0.10     # rung 4's guard fired only on a SINGLE value; two
                           # BAND records out of 96 slipped past and a
@@ -157,7 +178,7 @@ def summarise(text: str) -> str:
 
 def watch_items(st: State) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
-    for rid, name, _ in RUNGS:
+    for rid, name, _ in visible_rungs(st.rung):
         s = st.rung.get(rid)
         if not s:
             continue
@@ -243,6 +264,8 @@ def _drift(lat: list[float]) -> tuple[float, float, float] | None:
     like a measurement.
     """
     if len(lat) < 12:
+        return None
+    if _median(lat) < 10:      # sub-10ms: deterministic, drift is noise
         return None
     q = max(3, len(lat) // 4)
     a = sum(lat[:q]) / q
@@ -341,7 +364,8 @@ def render(st: State, path: pathlib.Path, provenance: dict | None = None) -> Gro
         reports, gpu = list(st.reports), list(st.gpu)
         last_row_at, t0 = st.last_row_at, st.t0
 
-    elapsed = time.time() - t0
+    all_ts = [t for r in rungs.values() for t in (r.get('ts') or [])]
+    elapsed = (max(all_ts) - min(all_ts)) if len(all_ts) > 1 else time.time() - t0
     age = ""
     if last_row_at:
         d = time.time() - last_row_at
@@ -367,7 +391,7 @@ def render(st: State, path: pathlib.Path, provenance: dict | None = None) -> Gro
     tbl.add_column("p95", width=7, justify="right")
 
     tot_tok, worst = 0, 0.0
-    for rid, name, kind in RUNGS:
+    for rid, name, kind in visible_rungs(rungs):
         s = rungs.get(rid)
         if not s:
             tbl.add_row(str(rid), Text(name, style="grey35"),
