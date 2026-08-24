@@ -2187,3 +2187,91 @@ carries over to splitting across three labels is a HYPOTHESIS, not a
 measurement — same method, three queries is not the same as two methods, one
 query. `checks["labels_proposed"]` and `label_rank` are what settle it, and
 they need a model that names concepts.
+
+---
+
+## 2026-08-24 — the DECIDE step, shared by S1 and S2
+
+**Multi-label was never doing what it was for.** The prompt asks for up to
+three concept names to raise the chance that SOMETHING maps. `resolve()` then
+walked the list and returned the FIRST that mapped, so the alternatives only
+ever fired on a total miss. Measured on the real keyword table:
+
+    span:      "extreme rectal bleed"
+    proposed:  ['rectal pain', 'rectal bleeding', 'rectal hemorrhage']
+
+    'rectal pain'        -> 77880009    <- WON, on list position alone
+    'rectal bleeding'    -> 12063002    <- right, mapped fine, discarded
+    'rectal hemorrhage'  -> 12063002    <- right, mapped fine, discarded
+
+All three mapped. The wrong one won because the model happened to write it
+first, and **the span text was never consulted at the decision point.** That
+is not three shots at a mapping; it is one shot with two spares.
+
+**The missing half is a DECIDE step**, and S2 already had it: show the
+candidates next to the original wording and let the model say which matches.
+`_decide()` is now factored out and **shared** — not a new rung 0 step. What
+distinguishes S0/S1/S2 is where the CODE comes from, and that is unchanged:
+S0 memory, S1 the keyword table, S2 retrieval. Adding a fourth step for a
+mechanism both already need would have split the study along the wrong axis.
+
+**What S1 does now:**
+
+    call 1   propose up to three names
+    lookup   map EVERY name, dedupe by code, keep proposal order
+    call 2   decide against the original span   <- only when >1 candidate
+
+**One candidate is not a choice**, so S1 pays for the second call only when
+there is something to decide. Its call count is therefore data about the
+corpus rather than a constant, and it is reported as cost like every other
+call-count difference in the study.
+
+**Ambiguous keywords now contribute all their concepts.** |coma| is both
+371632003 and 50061006; `resolve()` took `hits[0]`. Choosing between two
+concepts sharing a keyword is the same judgement as choosing between two
+names, not a coin for a build script to flip.
+
+**Menu position is not mention position.** Only mentions with something to
+decide go in the menu, so a mention resolved without a pick must not occupy a
+slot — padding it would assign one mention's answer to another, silently.
+There is a test for exactly that.
+
+### A vacuous check, caught by an old test failing
+
+The first implementation filled `sct_label` from the VOCABULARY's term for the
+chosen code. `schema.py` defines that field as "what the MODEL said that code
+means", and rung 1's `label_check` compares it against the vocabulary's own
+words for the code — so filling it from the vocabulary makes the check
+**incapable of failing**. It would have passed 100% forever and looked like a
+clean bill of health.
+
+The record now keeps the model's own proposing name; the MENU still shows the
+vocabulary's FSN, because showing the model its own wording back invites it to
+prefer whichever it wrote first, which is the bias being removed. Two
+different strings for two different jobs.
+
+**S2 still has this defect.** Its retrieved candidates carry no proposing
+name, so `sct_label` comes from the menu and `label_check` is vacuous for S2
+records. Not fixed here — S2 genuinely has no model-proposed label to record,
+so the honest options are to leave the field empty for S2 or to accept that
+the check only applies to S1. Recorded, not chosen.
+
+### What this changes about "is the lookup a tool?"
+
+It was not, and the distinction is already in the notes for mode B:
+`vocab.search()` ran AFTER the model replied and its results never reached the
+model, so it measured "would a search have found the code it invented?".
+
+With the decide step, the lookup result DOES reach the model — as a second
+PROMPT, not as a tool response. No function-calling protocol, no mid-
+generation call, no loop the model controls. That is two-turn retrieval
+augmentation, and it is worth naming precisely, because the tool ablation
+(`--compare`) is about real tool access and this still is not that. The model
+gets its guess checked and a chance to revise; it does not get to decide when
+to look something up.
+
+**Both calls are the SAME model.** `ROLE_BY_RUNG` binds rungs 0/2/3 to
+`extractor` and only rung 4 to `judge`, so the decide step is the model
+reconsidering its own proposals, not a second opinion. If the model cannot
+tell rectal bleeding from rectal pain, asking it twice will not help — what
+the step removes is the ARBITRARY loss of a right answer to list position.

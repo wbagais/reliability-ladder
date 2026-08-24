@@ -483,7 +483,55 @@ def _step_s0(doc_id, source, llm, cfg, meta):
     return out
 
 
+def _label_candidates(proposed, cfg) -> list[dict]:
+    """Every concept EVERY proposed name maps to, deduped, in proposal order.
+
+    This is what multi-label was always for and never did: raise the chance
+    that something maps, then hand the alternatives to the decide step. The
+    old path took the first name that mapped and threw the rest away.
+
+    Ambiguous keywords contribute ALL their concepts, not just the first —
+    |coma| is both 371632003 and 50061006, and choosing between them is the
+    same judgement as choosing between two names, not a coin for a build
+    script to flip.
+
+    Displayed by the VOCABULARY's own words where it has them, not by the
+    model's proposal: showing the model its own wording back invites it to
+    prefer whichever it wrote first, which is the bias being removed.
+    """
+    table = _keywords(cfg)
+    reg = cfg.get("registry")
+    out, seen = [], set()
+    for rank, label in enumerate(proposed):
+        if str(label).strip().upper() == CONCEPT_LESS:
+            continue
+        for code in table.lookup(label):
+            if code in seen:
+                continue
+            seen.add(code)
+            shown = None
+            if reg is not None:
+                shown = (getattr(reg, "fsn", lambda c: None)(code)
+                         or getattr(reg, "preferred", lambda c: None)(code))
+            out.append({
+                "i": len(out),
+                "code": code,
+                "label": shown or label,
+                "fsn": shown or label,
+                "via": "keyword_table",
+                "from_rank": rank,
+                "from_label": label,
+            })
+    return out
+
+
 def _step_s1(doc_id, source, llm, cfg, meta):
+    """Propose names, map ALL of them, then decide against the original text.
+
+    Two calls when there is something to decide, ONE when there is not — a
+    single candidate is not a choice, and paying for a pick over it is pure
+    cost. So S1's call count is data about the corpus, not a constant.
+    """
     raw, usage = llm(S1_PROMPT, source, "S1")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
@@ -492,12 +540,55 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     parsed = _parse(raw, meta)
     if parsed is None:
         return []
-    reg = cfg["registry"]
-    out = []
+
+    out, undecided = [], []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, "S1")
-        _resolve_labels(rec, m.get("sct_label") or [], cfg, "memory")
+        labels = m.get("sct_label") or []
+        if isinstance(labels, str):
+            labels = [labels]
+        proposed = [str(x) for x in labels if x is not None and str(x).strip()]
+        cands = _label_candidates(proposed, cfg)
+        rec.checks.update(
+            label_source="memory",
+            code_source="keyword_table",
+            labels_proposed=proposed,
+            label_ambiguous=len(cands) > 1,
+            label_unresolved=not cands,
+        )
+        if cands:
+            rec.checks["candidates"] = cands
         out.append(rec)
+
+        if len(cands) > 1:
+            undecided.append((rec, cands))
+            continue
+        if len(cands) == 1:
+            rec.sct = cands[0]["code"]
+            # The model's own name, not the vocabulary's — see _decide.
+            rec.sct_label = cands[0]["from_label"]
+            rec.checks["label_rank"] = cands[0]["from_rank"]
+            continue
+        # Nothing mapped. CONCEPT_LESS is an ASSERTION the model made, and a
+        # dead end is not one — the two must not collapse into each other.
+        if any(str(x).strip().upper() == CONCEPT_LESS for x in proposed):
+            rec.sct = CONCEPT_LESS
+            rec.sct_label = CONCEPT_LESS
+            rec.checks["label_unresolved"] = False
+            rec.checks["label_rank"] = next(
+                i for i, x in enumerate(proposed)
+                if str(x).strip().upper() == CONCEPT_LESS
+            )
+        else:
+            rec.sct = None
+            rec.sct_label = None
+            rec.checks["label_rank"] = None
+
+    # ONE decide call per document, over only the mentions that need one.
+    # Menu position is the answer key, so a mention that was never shown must
+    # not occupy a slot in it.
+    if undecided:
+        _decide(undecided, source, llm, cfg, meta, "S1")
     return out
 
 
@@ -566,7 +657,31 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
 
     if not pairs:
         return []
+    _decide(pairs, source, llm, cfg, meta, step)
+    return [rec for rec, _ in pairs]
 
+
+def _decide(pairs, source, llm, cfg, meta, step) -> None:
+    """THE DECIDE STEP. One call, one menu, the ORIGINAL text beside each menu.
+
+    Shared by S1 and S2, and that is the point rather than an economy. Getting
+    several candidate concepts is only half the job; the other half is saying
+    which of them matches what the reporter actually wrote, and it is the same
+    judgement whichever way the candidates were obtained.
+
+    S2 always had this. S1 did not — `resolve()` walked the proposed names and
+    returned the FIRST that mapped, so the span was never consulted. Measured
+    on the real keyword table for "extreme rectal bleed":
+
+        'rectal pain'       -> 77880009   WON, on list position alone
+        'rectal bleeding'   -> 12063002   right, mapped fine, discarded
+        'rectal hemorrhage' -> 12063002   right, mapped fine, discarded
+
+    `pairs` is (record, candidates) for the mentions that HAVE something to
+    decide. Callers must leave out mentions with none: menu position is the
+    answer key here, and padding it with entries the model was not shown would
+    assign one mention's pick to another.
+    """
     raw, usage = llm(PICK_PROMPT.format(blocks=_blocks(pairs)), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
@@ -617,17 +732,26 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
             rec.checks["bad_pick"] = n
             continue
         chosen = cands[n]
-        label = chosen.get("fsn") or chosen.get("label")
+        # `sct_label` is "what the MODEL said that code means", and rung 1's
+        # label_check compares it against the vocabulary's own words for the
+        # code. Filling it FROM the vocabulary makes that check vacuous — it
+        # could never fail. So when the candidate carries the model's own
+        # proposing name (S1 does; S2's retrieved candidates do not), that is
+        # what is recorded.
+        label = (chosen.get("from_label")
+                 or chosen.get("fsn") or chosen.get("label"))
         if chosen.get("code"):
             rec.sct = chosen["code"]
             rec.sct_label = label
-            rec.checks["label_rank"] = 0
             rec.checks["label_unresolved"] = False
-            rec.checks["label_ambiguous"] = False
+            # Which of the model's OWN names reached the chosen concept. That
+            # is the finding multi-label exists to produce, so it survives onto
+            # the record; S2's candidates carry no proposing name and get 0.
+            rec.checks["label_rank"] = chosen.get("from_rank", 0)
+            rec.checks["label_ambiguous"] = len(cands) > 1
         else:
             _resolve_labels(rec, [label], cfg, rec.checks["label_source"])
             rec.checks["candidates"] = cands
-    return [rec for rec, _ in pairs]
 
 
 def _parse(raw: str, meta: dict):

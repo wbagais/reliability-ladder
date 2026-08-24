@@ -649,3 +649,223 @@ def test_no_labels_proposed_is_an_empty_list_not_a_missing_key(reg):  # noqa: F8
         "span_text": "extreme rectal bleed", "context": "due", "confidence": 0.9}]})
     recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
     assert recs[0].checks["labels_proposed"] == []
+
+
+# --- the DECIDE step, shared by S1 and S2 -----------------------------------
+#
+# Multi-label exists to raise the chance that SOMETHING maps. What was missing
+# is the second half: once several names map, the model has to say which
+# candidate matches the ORIGINAL text.
+#
+# Measured on the real keyword table — the model proposes three names for
+# "extreme rectal bleed" and all three map:
+#
+#     'rectal pain'       -> 77880009   <- WON, on list position alone
+#     'rectal bleeding'   -> 12063002   <- right, mapped fine, discarded
+#     'rectal hemorrhage' -> 12063002   <- right, mapped fine, discarded
+#
+# `resolve()` walks the list and returns the FIRST hit, so the span text is
+# never consulted at the decision point. Multi-label was not three shots at a
+# mapping; it was one shot with two spares that fire only on a total miss.
+#
+# S2 already had this step. S1 now uses the SAME one — not a new rung 0 step,
+# because the thing that distinguishes S0/S1/S2 is where the CODE comes from
+# and that is unchanged.
+
+
+def test_s1_pools_every_label_that_maps_instead_of_taking_the_first(reg):  # noqa: F811
+    """The measured defect, pinned. All three map; the pick decides."""
+    kw = keyword_table(**{
+        "rectal pain": ["77880009"],
+        "rectal bleeding": ["12063002"],
+        "rectal hemorrhage": ["12063002"],
+    })
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["rectal pain", "rectal bleeding",
+                                     "rectal hemorrhage"], "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == "12063002", "the pick must beat list position"
+    assert len(recs[0].checks["candidates"]) == 2, "12063002 appears once, deduped"
+
+
+def test_s1_shows_the_original_text_in_the_pick(reg):  # noqa: F811
+    """The whole point: the decision is against the SPAN, not against the
+    model's own first guess."""
+    kw = keyword_table(**{"rectal pain": ["77880009"], "rectal bleeding": ["12063002"]})
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["rectal pain", "rectal bleeding"],
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert "extreme rectal bleed" in llm.prompts[1]
+
+
+def test_s1_does_not_pay_for_a_pick_when_there_is_nothing_to_decide(reg):  # noqa: F811
+    """One candidate is not a choice. A second call for it is pure cost."""
+    kw = keyword_table(**{"rectal bleeding": ["12063002"]})
+    llm = FakeLLM({"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                                 "sct_label": ["rectal bleeding"], "confidence": 0.9}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == "12063002"
+    assert agg["api_calls"] == 1
+
+
+def test_s1_pools_an_ambiguous_keywords_own_candidates(reg):  # noqa: F811
+    """A keyword naming two concepts is a decision too, and `resolve` used to
+    take hits[0] silently. 9.8% of keywords named more than one concept before
+    the build picked an owner."""
+    kw = keyword_table(**{"coma": ["371632003", "50061006"]})
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["coma"], "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == "50061006"
+
+
+def test_s1_still_reports_nothing_when_no_label_maps(reg):  # noqa: F811
+    kw = keyword_table(**{"rectal bleeding": ["12063002"]})
+    llm = FakeLLM({"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                                 "sct_label": ["AFTERPROMPT"], "confidence": 0.9}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct is None
+    assert recs[0].checks["label_unresolved"] is True
+    assert agg["api_calls"] == 1, "nothing to decide, so nothing to pay for"
+
+
+def test_s1_concept_less_needs_no_pick(reg):  # noqa: F811
+    kw = keyword_table(**{"rectal bleeding": ["12063002"]})
+    llm = FakeLLM({"mentions": [{"span_text": "extremely sick", "context": "I was",
+                                 "sct_label": [CONCEPT_LESS], "confidence": 0.5}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == CONCEPT_LESS
+    assert agg["api_calls"] == 1
+
+
+def test_s1_declining_the_menu_is_concept_less(reg):  # noqa: F811
+    """Shown every concept its own names reached and declining is an assertion
+    that none fits — the same reading S2 already gives choice: null."""
+    kw = keyword_table(**{"rectal pain": ["77880009"], "rectal bleeding": ["12063002"]})
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["rectal pain", "rectal bleeding"],
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": None}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == CONCEPT_LESS
+
+
+def test_s1_records_which_label_reached_the_chosen_code(reg):  # noqa: F811
+    """Which of the model's names won is the finding multi-label exists to
+    produce. It has to survive onto the record."""
+    kw = keyword_table(**{"rectal pain": ["77880009"], "rectal bleeding": ["12063002"]})
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["rectal pain", "rectal bleeding"],
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].checks["label_rank"] == 1
+    assert recs[0].checks["labels_proposed"] == ["rectal pain", "rectal bleeding"]
+    assert recs[0].checks["code_source"] == "keyword_table"
+
+
+def test_s1_batches_the_pick_into_one_call_per_document(reg):  # noqa: F811
+    """Two mentions needing a decision is ONE second call, not two — the same
+    batching S2 uses, or S1's cost stops being comparable to it."""
+    kw = keyword_table(**{
+        "rectal pain": ["77880009"], "rectal bleeding": ["12063002"],
+        "generally unwell": ["213257006"], "feeling unwell": ["267036007"],
+    })
+    llm = FakeLLM(
+        {"mentions": [
+            {"span_text": "extreme rectal bleed", "context": "due",
+             "sct_label": ["rectal pain", "rectal bleeding"], "confidence": 0.9},
+            {"span_text": "extremely sick", "context": "I was",
+             "sct_label": ["generally unwell", "feeling unwell"], "confidence": 0.8},
+        ]},
+        {"picks": [{"reaction": 0, "choice": 1}, {"reaction": 1, "choice": 0}]},
+    )
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert agg["api_calls"] == 2
+    assert [r.sct for r in recs] == ["12063002", "213257006"]
+
+
+def test_s1_mixes_decided_and_undecided_mentions_without_shifting_indices(reg):  # noqa: F811
+    """Only the ambiguous mentions go in the menu, so menu position is NOT
+    mention position. Getting that wrong assigns one mention's pick to
+    another, silently."""
+    kw = keyword_table(**{
+        "rectal bleeding": ["12063002"],
+        "generally unwell": ["213257006"], "feeling unwell": ["267036007"],
+    })
+    llm = FakeLLM(
+        {"mentions": [
+            {"span_text": "extreme rectal bleed", "context": "due",
+             "sct_label": ["rectal bleeding"], "confidence": 0.9},   # 1 candidate
+            {"span_text": "extremely sick", "context": "I was",
+             "sct_label": ["generally unwell", "feeling unwell"], "confidence": 0.8},
+        ]},
+        {"picks": [{"reaction": 0, "choice": 1}]},   # menu index 0 == mention 1
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == "12063002", "decided without a pick"
+    assert recs[1].sct == "267036007", "the pick belongs to the SECOND mention"
+
+
+def test_s1_records_the_models_own_words_as_sct_label(reg):  # noqa: F811
+    """`sct_label` is "what the MODEL said that code means" (schema.py), and
+    rung 1's label_check compares it against the vocabulary's own terms for
+    that code. Filling it FROM the vocabulary makes the check vacuous — it
+    could never fail. The menu shows the vocabulary's words so the model can
+    judge the concept; the RECORD keeps the model's."""
+    kw = keyword_table(**{"rectal pain": ["77880009"], "rectal bleed": ["12063002"]})
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["rectal pain", "rectal bleed"],
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == "12063002"
+    assert recs[0].sct_label == "rectal bleed", "the model's words, not the FSN"
+
+
+def test_the_menu_shows_the_vocabularys_words_not_the_models(reg):  # noqa: F811
+    """Showing the model its own wording back invites it to prefer whichever
+    it wrote first, which is the bias the decide step exists to remove."""
+    kw = keyword_table(**{"rectal haemorrhage": ["12063002"], "rectal pain": ["77880009"]})
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
+                       "sct_label": ["rectal haemorrhage", "rectal pain"],
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    menu = llm.prompts[1]
+    assert "Rectal hemorrhage (finding)" in menu, "the vocabulary's FSN"
+
+
+def test_label_check_can_still_fail_on_an_s1_record(reg):  # noqa: F811
+    """The regression this guards: a model that names one concept and lands on
+    another must still be catchable by rung 1."""
+    from ladder.rungs import r1
+    from tests.test_ladder_rungs import StubVocab
+
+    kw = keyword_table(**{"california chicken": ["271782001"], "drowsy": ["999999999"]})
+    llm = FakeLLM({"mentions": [{"span_text": "bit drowsy", "context": "feel a",
+                                 "sct_label": ["california chicken"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], {"D1": "I feel a bit drowsy today."},
+                       cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct == "271782001"
+    assert recs[0].sct_label == "california chicken"
+    _, _, checks = r1.zone(recs[0], "I feel a bit drowsy today.", StubVocab(), {})
+    assert checks["label_verified"] is False, "label_check must still be able to fail"
