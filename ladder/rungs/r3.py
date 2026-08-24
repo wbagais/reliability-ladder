@@ -158,14 +158,20 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         agg["documents"] += 1
         samples = []
         doc_in = doc_out = 0
+        doc_usd = 0.0
         doc_t0 = time.time()
         for _ in range(k):
             got, meta = sample_document(doc_id, text, mode, llm, cfg)
             agg["calls"] += 1
             doc_in += meta.get("tokens_in", 0)
             doc_out += meta.get("tokens_out", 0)
+            # k times the price of one extraction, and paid whether or not a
+            # record is re-found below. The caller computed it; dropping it
+            # made rung 3 — the most expensive rung — the cheapest on paper.
+            doc_usd += meta.get("usd", 0.0)
             agg["tokens_in"] += meta.get("tokens_in", 0)
             agg["tokens_out"] += meta.get("tokens_out", 0)
+            agg["usd"] = agg.get("usd", 0.0) + meta.get("usd", 0.0)
             if meta.get("parse_failed"):
                 agg["parse_failed"] += 1
             samples.append({_key(r): r for r in got})
@@ -177,7 +183,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             ledger.log(
                 rung=RUNG, doc_id=doc_id, record_id=doc_id, zone="NEW",
                 outcome="sampled", api_calls=k,
-                tokens_in=doc_in, tokens_out=doc_out,
+                tokens_in=doc_in, tokens_out=doc_out, usd=doc_usd,
                 latency_ms=(time.time() - doc_t0) * 1000, k=k,
                 denominator="r3_documents", evaluable="pass",
             )

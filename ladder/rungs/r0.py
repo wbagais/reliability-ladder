@@ -152,10 +152,11 @@ def recover_offsets(span_text: str, source: str, claimed: tuple[int, int]) -> tu
 
 def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record], dict]:
     """One document, one model call. Identical for A and B except the tool block."""
-    meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
+    meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0, "usd": 0.0}
     raw, usage = llm(build_prompt(mode), text, mode)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
 
     try:
         parsed = json.loads(raw)
@@ -422,6 +423,7 @@ def _step_s0(doc_id, source, llm, cfg, meta):
     raw, usage = llm(S0_PROMPT, source, "S0")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -444,6 +446,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     raw, usage = llm(S1_PROMPT, source, "S1")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -462,6 +465,7 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     raw, usage = llm(FIND_PROMPT, source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -483,6 +487,7 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     raw, usage = llm(PICK_PROMPT.format(blocks=_blocks(pairs)), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["api_calls"] += 1
     # A pick reply that will not parse is NOT the model declining. Measured on
     # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
@@ -553,7 +558,8 @@ def _parse(raw: str, meta: dict):
 
 
 def run_step(doc_id: str, source: str, step: str, llm, cfg: dict) -> tuple[list[Record], dict]:
-    meta = {"tokens_in": 0, "tokens_out": 0, "api_calls": 0, "tool_calls": 0}
+    meta = {"tokens_in": 0, "tokens_out": 0, "api_calls": 0,
+            "tool_calls": 0, "usd": 0.0}
     if step == "S0":
         return _step_s0(doc_id, source, llm, cfg, meta), meta
     if step == "S1":
@@ -627,7 +633,7 @@ def apply(
 
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
-        "tool_calls": 0, "api_calls": 0, "parse_failed": 0,
+        "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "t0": time.time(),
     }
     out: list[Record] = []
@@ -642,7 +648,7 @@ def apply(
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
         agg["pick_parse_failed"] += int(meta.get("pick_parse_failed", False))
-        for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls"):
+        for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:
             rec.checks["honoured_tool"] = honoured_tool(rec)
@@ -660,6 +666,10 @@ def apply(
                 tokens_out=meta["tokens_out"],
                 api_calls=meta.get("api_calls", 1),
                 latency_ms=elapsed_ms,
+                # The caller already priced the call from models.yaml. Not
+                # passing it logged 0.0 for every paid run, and the bug hid
+                # because zero is RIGHT for a local model.
+                usd=meta.get("usd", 0.0),
                 denominator="r0_documents",
                 evaluable="could_not_run" if meta.get("parse_failed") else "pass",
                 mode=step or mode,
@@ -727,6 +737,7 @@ def run(items, mode, llm, cfg=None):
                 tokens_out=meta.get("tokens_out", 0),
                 api_calls=1,
                 latency_ms=elapsed_ms,
+                usd=meta.get("usd", 0.0),
                 mentions=len(got),
                 denominator="r0_documents",
                 evaluable="could_not_run" if meta.get("parse_failed") else "pass",

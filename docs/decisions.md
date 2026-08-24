@@ -1842,3 +1842,34 @@ one does.
 
 `manifest.rungs.0.keyword_table` records the path, so a run whose keyword
 table moved is visibly a different run.
+
+---
+
+## 2026-08-24 — `usd` was a column of zeroes, in four rungs
+
+`ladder/llm.py:Caller.__call__` has always computed the dollar cost of every
+call from `models.yaml`'s per-Mtok rates and returned it in `usage["usd"]`.
+Rungs 0, 2, 3 and 4 all dropped it, so `Ledger.totals()["usd"]` was 0.0 for
+every run — including the ones that cost money.
+
+**The bug hid because zero was RIGHT for the default configuration.** Local
+ollama is free, `local: true` is the default, and a number that is correct by
+accident for the configuration you run every day is the hardest kind to
+notice. It was wrong for exactly the configurations the study needs it in: the
+claude-sonnet-5 comparison these steps were measured against, and any hosted
+judge at rung 4.
+
+**Fixed in all four, not just rung 0.** Fixing one would have left
+`totals()["usd"]` reporting one rung's spend as the run's spend, which is
+worse than a zero — a zero is visibly absent, a partial total reads as a
+total. Rung 3 mattered most: it bills k sampling calls as a DOCUMENT row, paid
+whether or not a record is re-found, so a dropped price made the most
+expensive rung the cheapest on paper.
+
+A caller that reports no `usd` at all logs 0.0 rather than raising, and there
+is a test for that: a stub or an older caller is a normal state, and a cost
+column is not worth a crash.
+
+**Cost is still three separate measures** — tokens, latency p95, records
+routed to a person. `usd` is carried alongside them and never fused into them.
+That is unchanged; what changed is that it is now carried at all.
