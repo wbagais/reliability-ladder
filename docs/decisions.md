@@ -1305,3 +1305,47 @@ skipped silently instead of failing.
 Fixed to `ollama/granite4:micro-h` and `ollama/qwen2.5:7b`. Judge remains a
 different family from the extractor, as required, and qwen is the judge with
 1/395 parse failures against llama3.2:3b's 204.
+
+## 2026-08-24 — Registry.search() is literal substring matching
+
+Found while building the rung 6 desk, which needed to offer a reviewer
+candidates and offered nothing for most records.
+
+`Registry.search(text, k)` matches the query as a literal substring of SNOMED
+labels. No tokenisation, no stemming, no term overlap:
+
+    'low back pain'    -> 3 results
+    'lower back pain'  -> 0
+    'back pain lower'  -> 0
+    'lower back'       -> 1
+    'back'             -> 2
+
+The full phrase does not appear character-for-character in any label, so
+nothing matches. Case is NOT the mechanism.
+
+**141 of 343 gold reaction spans return a candidate. 202 return nothing — 59%.**
+Of those 202, **0** are recovered by lowercasing. These are the annotators' own
+phrases, the ones a human judged codable, and the lookup finds nothing for six
+in ten.
+
+Blast radius, because several rungs lean on this:
+
+- **Rung 0 mode B.** The post-hoc lookup returns empty for most mentions, so
+  `honoured_tool` is None rather than False far more often than its docstring
+  implies. The arm's failure has a simpler explanation than the one currently
+  written into the code.
+- **Rung 1's `lexical_match`.** If it uses the same matcher, ACCEPT vs BAND is
+  partly an artefact of substring matching — and the 43.1% pooled / 35.0%
+  reactions-only accept rates inherit it. UNVERIFIED; check before the article
+  quotes those figures again.
+- **Rung 6's strata.** "No candidates" mostly means the search missed, not that
+  the record is intrinsically hard to code. The 27s median therefore measures
+  reviewing records the lookup failed on, and the 1.2 reviewer-hour
+  extrapolation is not the coding-from-scratch cost it was designed to be.
+
+The fix is not small — proper matching means tokenising labels and scoring
+overlap, in a component every rung uses. A to decide.
+
+Also fixed in scripts/r6_desk.py: search results use the key `label`, not
+`term` or `fsn`, so candidates were displayed as bare SCTIDs with no text. The
+reviewer picked blind for all six records.
