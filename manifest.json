@@ -56,7 +56,7 @@
       "name": "rung0 search vs recall",
       "rung0_mode": "search",
       "scope": "R0+R1 only",
-      "why": "does a lookup tool remove errors, or just move them into 'overrode_tool'?"
+      "why": "POST-HOC ONLY — the search runs after generation and the model never sees it, so this measures prompt wording plus a coincidence rate, NOT tool access. A real tool loop (model calls search mid-generation) is untested and is the experiment this ablation is often mistaken for."
     },
     {
       "name": "rung order",

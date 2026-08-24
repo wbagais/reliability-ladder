@@ -156,6 +156,10 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
         rec.checks["rung0_mode"] = mode
         rec.checks["offsets"] = how
         if mode == "B" and rec.text:
+            # POST-HOC. The model has already emitted rec.sct above; this search
+            # happens after generation and its results never reach the model.
+            # The cost is real (one search per mention) but the model had no
+            # tool. See honoured_tool() below.
             rec.checks["tool_results"] = vocab.search(rec.text, 5)
             meta["tool_calls"] += 1
         out.append(rec)
@@ -163,11 +167,27 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
 
 
 def honoured_tool(rec: Record) -> bool | None:
-    """Mode B only, and the most interesting check on the ladder.
+    """Mode B only. NOT what the name says — read this before quoting it.
 
-    The model searched, got candidates back, then emitted a code. Did it emit
-    one of them, or override its own lookup with something invented? None when
-    no search was made for this record.
+    The name claims tool fidelity: the model searched, got candidates, and
+    either used one or overrode it. **That is not what happens.** `vocab.search`
+    runs in the parse loop above, AFTER the model has returned its JSON and
+    after `rec.sct` is set from it. The model never sees the results.
+
+    What this actually measures is a COINCIDENCE RATE: does the code the model
+    invented from memory happen to appear in the candidates a search returns for
+    the same text? On the dev split it is never True, which is unsurprising
+    given rung 0 produces 0/105 correct codes.
+
+    Mode B is therefore **not a tool-access arm**. It is recall plus a post-hoc
+    lookup, and the A/B against mode A measures prompt wording plus one extra
+    search per mention. Reporting it as tool access would be a claim the
+    experiment cannot support. A real tool loop — the model calling search
+    mid-generation and seeing results — is untested and is the obvious next
+    experiment, since the model's failure is missing knowledge and a tool is
+    what would supply it.
+
+    Returns None when no search was made for this record.
     """
     results = rec.checks.get("tool_results")
     if not results:
