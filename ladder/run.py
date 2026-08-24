@@ -682,11 +682,12 @@ def main(argv: list[str] | None = None) -> int:
                  "A non-local provider still needs LADDER_ALLOW_REMOTE=1.",
         )
         p.add_argument(
-            "--rung0-step", choices=["S0", "S1", "S2", "S3"],
+            "--rung0-step", choices=["S0", "S1", "S2"],
             help="rung 0's extraction step for the prompt-engineering study. "
-                 "Scope is identical in all four; only the way the CODE is "
+                 "Scope is identical in all three; only the way the CODE is "
                  "obtained changes. Overrides manifest.rungs.0.rung0_step so "
-                 "four runs are four commands rather than four manifest edits.",
+                 "three runs are three commands rather than three manifest "
+                 "edits. S3 was dropped 2026-08-24 — see docs/decisions.md.",
         )
         p.add_argument("--run-id")
         return p

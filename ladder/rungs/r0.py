@@ -64,11 +64,17 @@ DEFAULTS: dict[str, Any] = {
     #: locates span_text in the source. See the module docstring.
     "rung0_offsets": "model",
     "rung0_mode": "recall",
-    #: None keeps the original A/B mode path. "S0".."S3" select the
+    #: None keeps the original A/B mode path. "S0".."S2" select the
     #: prompt-engineering study below, where scope is fixed and only the way
     #: the CODE is obtained changes.
     "rung0_step": None,
     "rung0_shortlist_k": 20,
+    #: Where S1's names are turned into codes. `data/keywords.csv` — findings
+    #: and disorders only, built from the SNOMED release by
+    #: `python -m ladder.keywords --build`. NOT the registry: resolving
+    #: against every description in the release is what returned
+    #: |California chicken (organism)| for a rectal bleed.
+    "keyword_table": "data/keywords.csv",
 }
 
 # ------------------------------------------------------------------ prompts
@@ -190,34 +196,34 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
 
 
 # ============================================================================
-# THE PROMPT-ENGINEERING STUDY — steps S0..S3
+# THE PROMPT-ENGINEERING STUDY — steps S0, S1, S2
 #
-# SCOPE IS IDENTICAL IN ALL FOUR. Every step finds the same mentions, writes
+# SCOPE IS IDENTICAL IN ALL THREE. Every step finds the same mentions, writes
 # the same record keys, and is scored the same way. The single thing that
 # varies is where the CODE comes from:
 #
 #   S0  label and code recalled from the model's own weights
-#   S1  label recalled, code resolved from the vocabulary by that label
+#   S1  label recalled, code resolved from the KEYWORD TABLE by that label
 #   S2  label PICKED from a shortlist retrieved for the mention
-#   S3  label PICKED from one fixed keyword list, the same for every mention
 #
 # Two facts decide the shape. Measured over CADEC gold: exact-matching the
 # patient's own words against SNOMED returns nothing 57.1% of the time, which
 # is why S2 exists; and 76.8% of multi-candidate sets contain two concepts with
 # an IDENTICAL label, which is why a pick is an INDEX and never a label string.
 #
-# Call counts differ — S0 and S1 are one call, S2 and S3 are two — so they are
-# reported as cost rather than pretended away. S3 differs from S2 in the
-# candidate list ONLY, which is what makes their delta attributable.
+# Call counts differ — S0 and S1 are one call, S2 is two — so they are reported
+# as cost rather than pretended away.
+#
+# S3 WAS DROPPED 2026-08-24. It was a pick from one fixed list printed in the
+# prompt, and no printable list survives its own measurement: the MedDRA list
+# it used is the answer key's own inventory (all 666 of its codes appear in the
+# gold and none do not), the best ontology-native alternative — SNOMED's
+# Clinical manifestation refset, 743 codes — caps at 48.7% of gold, the real
+# keyword table is 227,554 rows and cannot be printed at all, and a list
+# retrieved per mention is S2 by another name. See docs/decisions.md.
 # ============================================================================
 
-STEPS = ("S0", "S1", "S2", "S3")
-
-#: The MedDRA-derived keyword list S3 shows the model. NOTE what this is: the
-#: code list CADEC ships, all 666 of whose codes appear in the gold
-#: annotations. S3 is therefore closed-set assignment over the answer key's
-#: inventory — a declared ceiling, not a headline. See manifest.meddra_mode.
-KEYWORD_CSV = "data/meddra_codes.csv"
+STEPS = ("S0", "S1", "S2")
 
 _ASK = """  span_text  - the reporter's exact words, copied character for character
   context    - the three or four words IMMEDIATELY BEFORE span_text, copied the
@@ -282,36 +288,6 @@ Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
 """
 
 
-def keyword_list() -> list[str]:
-    """S3's fixed keyword list — MedDRA preferred terms, deduped, in file order."""
-    return [t for t, _ in _keyword_rows()]
-
-
-def keyword_meddra() -> dict[str, str]:
-    """term -> MedDRA code. A by-product of S3's list, never the scored answer."""
-    return dict(_keyword_rows())
-
-
-def _keyword_rows() -> list[tuple[str, str]]:
-    import csv
-    from pathlib import Path
-
-    path = Path(KEYWORD_CSV)
-    if not path.exists():
-        raise FileNotFoundError(
-            f"{path} missing, and step S3 shows it to the model. It is "
-            "gitignored on purpose — see docs/licences.md."
-        )
-    seen, out = set(), []
-    with path.open(newline="", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            term = (row.get("meddra_term") or "").strip()
-            if term and term.lower() not in seen:
-                seen.add(term.lower())
-                out.append((term, (row.get("meddra_code") or "").strip()))
-    return out
-
-
 def locate(span_text: str, source: str, context: str = "", claimed=None):
     """Find span_text in source. Returns (start, end, how).
 
@@ -353,20 +329,17 @@ def _menu(cands) -> list[str]:
     return [f'     [{c["i"]}] {c.get("fsn") or c.get("label")}' for c in cands]
 
 
-def _blocks(pairs, shared=None) -> str:
+def _blocks(pairs) -> str:
     """Render the numbered candidate menus the PICK call reads.
 
-    `shared` is the one list every mention chooses from — S3. It is printed
-    ONCE, because printing it per mention is how S3's prompt reached 1,998
-    candidate lines and ~13.7k tokens for a 666-item list: the same menu three
-    times over, each copy numbered identically. S2's shortlists are retrieved
-    per mention and genuinely differ, so those still repeat.
+    One menu per mention, because S2's shortlists are retrieved per mention
+    and genuinely differ. A `shared=` path printed one identical list once —
+    S3's, and S3 alone; it went with S3 rather than staying as scaffolding a
+    later reader would mistake for a code path in use. The measurement it
+    encoded (a 666-item list rendered per mention put 1,998 candidate lines
+    and ~13.7k tokens into one prompt) is in docs/decisions.md, which is where
+    a finding survives its mechanism.
     """
-    if shared is not None:
-        out = ["Concepts:", *_menu(shared), "", "Reactions:"]
-        out += [f'  reaction {i}: "{rec.text}"' for i, (rec, _) in enumerate(pairs)]
-        return "\n".join(out) + "\n"
-
     out = []
     for idx, (rec, cands) in enumerate(pairs):
         out.append("\n".join([f'reaction {idx}: "{rec.text}"', *_menu(cands)]))
@@ -390,14 +363,53 @@ def _mention_record(doc_id: str, i: int, m: dict, source: str, step: str) -> Rec
     return rec
 
 
-def _resolve_labels(rec: Record, labels, reg, source_name: str) -> None:
-    """Turn the model's proposed NAMES into a code, and record how it went."""
-    got = reg.resolve(labels)
+def _keywords(cfg: dict):
+    """The keyword table, loaded once per run and cached on the cfg.
+
+    NOT the registry. `Registry.resolve` searched every description in the
+    release — organisms, products, substances and qualifiers included — which
+    is the class that answered |California chicken (organism)| for a rectal
+    bleed and let |Gaseous substance| outrank the right concept for "gas". The
+    keyword table is findings and disorders only.
+
+    The registry stays in cfg and is still S2's retrieval source; rung 1 needs
+    it over the WHOLE release, because 82249009 is real, active, and absent
+    from the keyword table on purpose.
+
+    A missing table RAISES. Resolving nothing silently would report a build
+    step nobody ran as a model that named no concepts.
+    """
+    table = cfg.get("keywords")
+    if table is None:
+        from ladder.keywords import DEFAULT_OUT, KeywordTable
+
+        path = cfg.get("keyword_table") or DEFAULT_OUT
+        try:
+            table = KeywordTable(path)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"rung 0 resolves names through {path}, which is missing. "
+                "Build it once with:\n    python -m ladder.keywords --build"
+            ) from exc
+        cfg["keywords"] = table
+    return table
+
+
+def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
+    """Turn the model's proposed NAMES into a code, and record how it went.
+
+    There is no fallback to the registry when the table has no row. An
+    unresolved name is UNRESOLVED — falling back would reinstate the search
+    the table exists to replace and hide which of the two answered. Rung 0
+    does not retry either: it walks its remaining names and stops, because a
+    retry loop here IS rung 2.
+    """
+    got = _keywords(cfg).resolve(labels)
     rec.sct = got["code"]
     rec.sct_label = got["label"]
     rec.checks.update(
         label_source=source_name,
-        code_source="tool",
+        code_source="keyword_table",
         label_rank=got["rank"],
         label_unresolved=got["code"] is None,
         label_ambiguous=got["ambiguous"],
@@ -440,13 +452,13 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     out = []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, "S1")
-        _resolve_labels(rec, m.get("sct_label") or [], reg, "memory")
+        _resolve_labels(rec, m.get("sct_label") or [], cfg, "memory")
         out.append(rec)
     return out
 
 
 def _step_pick(doc_id, source, llm, cfg, meta, step):
-    """S2 and S3: find the mentions, then choose from a numbered menu."""
+    """S2: find the mentions, then choose from a shortlist retrieved for each."""
     raw, usage = llm(FIND_PROMPT, source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
@@ -456,34 +468,26 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
         return []
 
     reg = cfg["registry"]
-    fixed = None
-    if step == "S3":
-        fixed = [{"i": n, "label": t, "fsn": t} for n, t in enumerate(keyword_list())]
-
     pairs = []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, step)
-        cands = fixed if fixed is not None else reg.shortlist(
-            rec.text, k=cfg.get("rung0_shortlist_k", 20)
-        )
+        cands = reg.shortlist(rec.text, k=cfg.get("rung0_shortlist_k", 20))
         rec.checks["candidates"] = cands
-        rec.checks["label_source"] = "full_list" if step == "S3" else "shortlist"
-        rec.checks["code_source"] = "tool"
+        rec.checks["label_source"] = "shortlist"
+        rec.checks["code_source"] = "shortlist"
         pairs.append((rec, cands))
 
     if not pairs:
         return []
 
-    raw, usage = llm(
-        PICK_PROMPT.format(blocks=_blocks(pairs, shared=fixed)), source, step
-    )
+    raw, usage = llm(PICK_PROMPT.format(blocks=_blocks(pairs)), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["api_calls"] += 1
-    # A pick reply that will not parse is NOT the model declining. Measured at
-    # S3: 666 candidates cost 16.9k prompt tokens and came back as 14 tokens of
-    # truncated JSON. Counting that as "saw the menu, chose nothing" would
-    # report a transport failure as an abstention.
+    # A pick reply that will not parse is NOT the model declining. Measured on
+    # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
+    # 14 tokens of truncated JSON. Counting that as "saw the menu, chose
+    # nothing" would report a transport failure as an abstention.
     picked = _parse(raw, {})
     pick_failed = picked is None
     if pick_failed:
@@ -500,7 +504,6 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
             except (TypeError, ValueError):
                 continue
 
-    meddra = keyword_meddra() if step == "S3" else {}
     for idx, (rec, cands) in enumerate(pairs):
         if pick_failed:
             rec.checks["pick_parse_failed"] = True
@@ -534,10 +537,8 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
             rec.checks["label_unresolved"] = False
             rec.checks["label_ambiguous"] = False
         else:
-            _resolve_labels(rec, [label], cfg["registry"], rec.checks["label_source"])
+            _resolve_labels(rec, [label], cfg, rec.checks["label_source"])
             rec.checks["candidates"] = cands
-        if label in meddra:
-            rec.meddra = meddra[label]
     return [rec for rec, _ in pairs]
 
 

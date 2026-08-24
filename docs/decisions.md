@@ -1727,3 +1727,118 @@ article quotes — had no test coverage at all. It has some now
 (`tests/test_run_rows.py`), which is how the two new columns are known to
 reach the CSV: `write_results` uses a `DictWriter` over `CSV_COLUMNS`, so a
 key nobody declared is silently dropped.
+
+---
+
+## 2026-08-24 — S3 dropped, and rung 0 resolves through the keyword table
+
+**The study is three steps now: S0, S1, S2.** Scope is still identical in all
+three; the only thing that varies is where the CODE comes from.
+
+    S0  label and code recalled from the model's own weights
+    S1  label recalled, code resolved from the KEYWORD TABLE by that label
+    S2  label PICKED from a shortlist retrieved for the mention
+
+### Why S3 went, and why nothing replaces it
+
+S3 was closed-set assignment over one fixed list printed in the prompt. Every
+candidate list that could fill that slot fails its own measurement:
+
+| list | size | ceiling |
+|---|---|---|
+| the MedDRA list CADEC ships | 666 | it IS the answer key's inventory |
+| SNOMED Clinical manifestation refset | 743 | **48.7%** of gold |
+| the keyword table | 227,554 | cannot be printed at all |
+| a list retrieved per mention | 20 | that is S2 |
+
+The MedDRA list was never a method — all 666 of its codes appear in CADEC's
+gold annotations and none do not, so S3 measured a declared ceiling. The
+ontology-native replacement is the honest version of the same idea and it caps
+at under half the corpus, which is a worse ceiling than the one it was meant
+to remove. The real table is three orders of magnitude too large to render.
+And a list retrieved for the mention is S2 by another name, so a fourth step
+would be a duplicate rather than a contrast.
+
+S3's own last measurement is worth keeping: shown a 666-item menu, the model
+picked positions 1 and 0 — |Myalgia| for "extreme rectal bleed". A long menu
+buys **position bias, not selection**. That finding is about long printed
+menus in general, which is the thing being retired.
+
+**What went with it.** `keyword_list`, `keyword_meddra`, `KEYWORD_CSV`, and
+`_blocks(pairs, shared=...)` — the shared-menu renderer that printed one
+identical list once. None had another caller. Dead scaffolding in a
+measurement harness is scaffolding somebody later mistakes for a code path in
+use; the measurement it encoded (a 666-item list rendered per mention put
+1,998 candidate lines and ~13.7k tokens into one prompt) survives here, which
+is where a finding is supposed to outlive its mechanism.
+
+**Rung 0 no longer touches the MedDRA CSV at all.** It was reachable only
+through S3. `meddra_mode` stays `reference`: the list cross-checks a code
+produced by other means, and retrieval from it is refused. There is a test
+asserting the string `meddra_codes.csv` does not appear in `r0.py`.
+
+### Rung 0 resolves names through data/keywords.csv, not through the registry
+
+`Registry.resolve` searched every description in the release — organisms,
+products, substances and qualifiers included. That is the class that answered
+|California chicken (organism)| for a rectal bleed and let |Gaseous substance|
+outrank the right concept for "gas". `KeywordTable.resolve` has the same
+return shape (`code`, `rank`, `ambiguous`, `label`, `candidates`) over a table
+restricted to findings and disorders, so the swap is one line at the call site
+rather than a rewrite.
+
+**No fallback to the registry.** A name absent from the table is UNRESOLVED.
+Falling back would reinstate the search the table exists to replace and would
+make "which of the two answered" unrecoverable from the record. Rung 0 still
+does not retry: it walks its remaining names and stops, because a retry loop
+here IS rung 2.
+
+**A missing table raises.** `python -m ladder.keywords --build` is one of four
+preprocessing steps, and resolving nothing silently would report a build step
+nobody ran as a model that named no concepts.
+
+**THE REGISTRY DOES NOT GO AWAY, and this is the part to not get wrong.** Rung
+1 needs `exists` / `is_active` / `finding_status` / `terms` over the WHOLE
+release. The keyword table is deliberately filtered: 82249009 |California
+chicken (organism)| is real and active, rung 1 must be able to look it up in
+order to catch it, and rung 0 must never be able to reach it. S2's shortlist
+also still comes from the registry. `code_source` is now `"keyword_table"` for
+S1 and `"shortlist"` for S2, where both used to say `"tool"` — one label for
+two different sources is one label too few.
+
+### A documentation error found while wiring this
+
+`ladder/keywords.py`'s docstring described a table where "a keyword may
+repeat" — 279,059 keywords, 313,780 rows, 180,446 codes, 99.90% gold
+coverage. The code does not build that table. It drops retired concepts and
+writes ONE ROW PER KEYWORD. Both designs were built; the docstring was left
+describing the earlier one. Corrected in place, and re-measured rather than
+re-estimated:
+
+    keywords                       227,554
+    rows                           227,554   (one per keyword)
+    codes                          127,515
+    keywords naming two concepts       103
+    codes left with no keyword          32   (none used by CADEC)
+
+The apparent coverage regression — 99.90% to **94.11%** of coded gold reaction
+mentions — is entirely the 407 mentions whose every gold code is retired, which
+`ladder/clean.py` already excludes from the denominator for the same reason
+this build drops them. With the exclusions applied, which is how the ladder
+actually reads gold:
+
+    coded gold reaction mentions   6,595
+    reachable through the table    6,592   **99.95%**
+
+The three misses are 1806006, 183202003 and 251377007, one mention each. 99.95%
+is the ceiling for any release-derived table, and the cause is the answer key:
+three distinct gold codes are absent from this SNOMED release entirely.
+
+The `lookup()` contract is unchanged and still returns a LIST — this build
+never puts two codes under one keyword, but ambiguity is a property of
+vocabularies rather than of one filter setting, and a signature that changes
+when a filter changes is a signature that will be wrong again the next time
+one does.
+
+`manifest.rungs.0.keyword_table` records the path, so a run whose keyword
+table moved is visibly a different run.

@@ -3,9 +3,12 @@
 Scope is IDENTICAL in all four. What varies is how the code is obtained:
 
     S0  label and code from memory, offsets from the model
-    S1  label from memory, code from the vocabulary, offsets from a tool
+    S1  label from memory, code from the KEYWORD TABLE, offsets from a tool
     S2  label picked from a retrieved shortlist
-    S3  label picked from a fixed keyword list
+
+S3 — a pick from one fixed keyword list — was dropped 2026-08-24. See
+docs/decisions.md: the best ontology-native printed list caps at 48.7%, the
+full table cannot be printed, and per-mention retrieval is S2 by another name.
 
 The record written to disk has the same shape in every step, or the four are
 not comparable and the study reports nothing.
@@ -44,8 +47,33 @@ class FakeLLM:
         return raw, {"in": 10, "out": 5}
 
 
+def keyword_table(**mapping):
+    from ladder.keywords import KeywordTable
+
+    return KeywordTable.from_mapping({k: list(v) for k, v in mapping.items()})
+
+
+#: The keyword table rung 0 resolves names through — findings and disorders
+#: only. Note what is NOT in it: 82249009 |California chicken (organism)| is
+#: in the registry fixture and real, and rung 0 must not be able to reach it.
+KW = keyword_table(**{
+    "rectal hemorrhage": ["12063002"],
+    "generally unwell": ["213257006"],
+    "drowsy": ["271782001"],
+})
+
+
 def cfg(reg, step, **kw):  # noqa: F811
-    return {"rung0_step": step, "registry": reg, "llm": kw.pop("llm", None), **kw}
+    """A rung 0 config. The keyword table is injected by default because
+    every step that resolves a NAME needs one; pass keywords=None to run
+    without it."""
+    return {
+        "rung0_step": step,
+        "registry": reg,
+        "llm": kw.pop("llm", None),
+        "keywords": kw.pop("keywords", KW),
+        **kw,
+    }
 
 
 FIND = {"mentions": [
@@ -57,16 +85,15 @@ FIND = {"mentions": [
 # --- the fixed record contract ----------------------------------------------
 
 
-@pytest.mark.parametrize("step", ["S0", "S1", "S2", "S3"])
-def test_every_step_writes_the_same_record_keys(reg, step, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage", "Generally unwell"])
+@pytest.mark.parametrize("step", ["S0", "S1", "S2"])
+def test_every_step_writes_the_same_record_keys(reg, step):  # noqa: F811
     llm = FakeLLM(
         {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
                        "start": 20, "end": 40, "sct_label": ["Rectal hemorrhage"],
                        "sct_code": "12063002", "confidence": 0.9}]},
         {"picks": [{"i": 0, "choice": 0}]},
     )
-    recs, _ = r0.apply([], SOURCES, cfg(reg, step, llm=llm))
+    recs, _ = r0.apply([], SOURCES, cfg(reg, step, llm=llm, keywords=KW))
     assert recs, f"{step} produced nothing"
     d = recs[0].to_dict()
     for key in ("doc_id", "entity_type", "text", "spans", "sct", "sct_label",
@@ -121,7 +148,7 @@ def test_s1_resolves_the_code_from_the_label(reg):  # noqa: F811
     recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
     assert recs[0].sct == "12063002"
     assert recs[0].sct_label == "Rectal hemorrhage"
-    assert recs[0].checks["code_source"] == "tool"
+    assert recs[0].checks["code_source"] == "keyword_table"
 
 
 def test_s1_walks_the_label_list_and_reports_the_rank(reg):  # noqa: F811
@@ -202,36 +229,6 @@ def test_s2_out_of_range_index_is_refused_not_clamped(reg):  # noqa: F811
     assert recs[0].checks["bad_pick"] == 99
 
 
-# --- S3: label picked from a fixed keyword list -----------------------------
-
-
-def test_s3_shows_the_same_list_for_every_mention(reg, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage", "Generally unwell"])
-    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": 1}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
-    assert recs[0].sct == "12063002"
-    assert recs[1].sct == "213257006"
-    assert recs[0].checks["label_source"] == "full_list"
-
-
-def test_s3_is_two_calls_like_s2(reg, monkeypatch):  # noqa: F811
-    """S3 differs from S2 in the list only — not in the number of calls."""
-    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage"])
-    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": None}]})
-    _, agg = r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
-    assert agg["api_calls"] == 2
-
-
-def test_s3_records_the_meddra_code_as_a_byproduct(reg, monkeypatch):  # noqa: F811
-    """The list is MedDRA terms, so its code is free. Never the scored answer."""
-    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage"])
-    monkeypatch.setattr(r0, "keyword_meddra", lambda: {"Rectal hemorrhage": "10038063"})
-    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": None}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
-    assert recs[0].meddra == "10038063"
-    assert recs[0].sct == "12063002"
-
-
 # --- shared behaviour -------------------------------------------------------
 
 
@@ -269,14 +266,21 @@ def test_rung0_refuses_a_populated_record_list(reg):  # noqa: F811
 
 
 def test_run_py_exposes_a_rung0_step_flag():
-    """Four dev runs, four commands. Editing the manifest between runs is how
-    two runs end up labelled the same."""
+    """Three dev runs, three commands. Editing the manifest between runs is
+    how two runs end up labelled the same."""
     from ladder.run import main
-    import argparse
 
-    ap = argparse.ArgumentParser()
     with pytest.raises(SystemExit):
         main(["ladder", "--rung0-step", "S9", "--split", "dev"])
+
+
+def test_the_cli_no_longer_accepts_s3():
+    """Dropped 2026-08-24. A flag that still takes it would fail deep inside
+    run_step instead of at the command line."""
+    from ladder.run import main
+
+    with pytest.raises(SystemExit):
+        main(["ladder", "--rung0-step", "S3", "--split", "dev"])
 
 
 def test_the_step_flag_reaches_the_rung_config(monkeypatch):
@@ -366,44 +370,21 @@ def test_a_clean_reply_leaves_no_pick_failure_flag(reg):  # noqa: F811
     assert agg["pick_parse_failed"] == 0
 
 
-# --- a shared menu is printed once ------------------------------------------
+# --- one menu per mention ---------------------------------------------------
 #
-# Measured: S3's 666-keyword list rendered per-mention put 1,998 candidate
-# lines and ~13.7k tokens into one prompt — the SAME menu three times, each
-# copy numbered identically. S2's shortlists genuinely differ per mention and
-# must repeat; S3's list does not.
+# S2's shortlists genuinely differ per mention, so each one has to be shown.
+# `_blocks(pairs, shared=...)`, which printed one identical menu once, went
+# with S3 — it had no other caller, and dead scaffolding in a measurement
+# harness is scaffolding somebody will later mistake for a code path in use.
 
 
-def test_a_shared_menu_is_printed_once():
-    from ladder.schema import Record
-
-    cands = [{"i": 0, "fsn": "Pain"}, {"i": 1, "fsn": "Myalgia"}]
-    recs = [Record(doc_id="D1", entity_type=REACTION, text=t, spans=[(0, 1)])
-            for t in ("a", "b", "c")]
-    blocks = r0._blocks([(r, cands) for r in recs], shared=cands)
-    assert blocks.count("[0] Pain") == 1
-    assert blocks.count("[1] Myalgia") == 1
-    for i in range(3):
-        assert f"reaction {i}" in blocks
-
-
-def test_per_mention_menus_still_repeat():
-    """S2's shortlists differ per mention, so each one has to be shown."""
+def test_per_mention_menus_are_shown_per_mention():
     from ladder.schema import Record
 
     r1 = Record(doc_id="D1", entity_type=REACTION, text="a", spans=[(0, 1)])
     r2 = Record(doc_id="D1", entity_type=REACTION, text="b", spans=[(0, 1)])
     blocks = r0._blocks([(r1, [{"i": 0, "fsn": "Pain"}]), (r2, [{"i": 0, "fsn": "Nausea"}])])
     assert "[0] Pain" in blocks and "[0] Nausea" in blocks
-
-
-def test_s3_sends_the_keyword_list_once(reg, monkeypatch):  # noqa: F811
-    monkeypatch.setattr(r0, "keyword_list", lambda: ["Rectal hemorrhage", "Generally unwell"])
-    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
-    r0.apply([], SOURCES, cfg(reg, "S3", llm=llm))
-    pick_prompt = llm.prompts[1]
-    assert pick_prompt.count("Rectal hemorrhage") == 1
-    assert pick_prompt.count("Generally unwell") == 1
 
 
 def test_s2_still_sends_a_menu_per_mention(reg):  # noqa: F811
@@ -418,8 +399,8 @@ def test_s2_still_sends_a_menu_per_mention(reg):  # noqa: F811
 def test_every_step_excludes_treatments_and_procedures():
     """Measured: 1 of 7,311 gold reaction mentions names a procedure (0.01%).
     Sonnet 5 emitted "required blood transfusion" as a reaction in BOTH S2 and
-    S3 — a false positive in each. The rule is safe to state as prose because
-    the corpus is near-unanimous.
+    the retired S3 — a false positive in each. The rule is safe to state as
+    prose because the corpus is near-unanimous.
     """
     for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
         assert "treatment" in prompt.lower()
@@ -436,3 +417,90 @@ def test_no_step_tells_the_model_to_drop_intensifiers():
         low = prompt.lower()
         assert "intensifier" not in low
         assert "not the words around it" not in low
+
+
+# --- S3 is gone, and stays gone ---------------------------------------------
+#
+# Dropped 2026-08-24 on measurement. S3 was closed-set assignment over a
+# PRINTED list, and no printable list works:
+#
+#   * the MedDRA list it used is the answer key's own inventory (all 666 codes
+#     appear in the gold, none do not), so it measured a ceiling, not a method
+#   * the best ontology-native alternative — SNOMED's Clinical manifestation
+#     refset, 743 codes — caps at 48.7% of gold
+#   * the real table is 227,554 keywords and cannot be printed at all
+#   * a per-mention retrieved list IS S2
+#
+# The mechanism it left behind went with it: `_blocks(shared=...)` and the
+# MedDRA CSV, neither of which had another caller.
+
+
+def test_the_study_has_three_steps():
+    assert r0.STEPS == ("S0", "S1", "S2")
+
+
+def test_s3_is_refused_like_any_unknown_step(reg):  # noqa: F811
+    with pytest.raises(ValueError, match="rung0_step"):
+        r0.apply([], SOURCES, cfg(reg, "S3", llm=FakeLLM()))
+
+
+@pytest.mark.parametrize("gone", ["keyword_list", "keyword_meddra", "KEYWORD_CSV"])
+def test_the_fixed_list_machinery_is_removed(gone):
+    assert not hasattr(r0, gone)
+
+
+def test_rung_0_never_reads_the_meddra_csv():
+    """The MedDRA table is a rung 1 cross-check, at `reference` mode. Rung 0
+    reaching for it made the answer key's inventory a retrieval source."""
+    import inspect
+
+    src = inspect.getsource(r0)
+    assert "meddra_codes.csv" not in src
+
+
+# --- the keyword table is where rung 0's codes come from --------------------
+#
+# `Registry.resolve` searched every description in the release — organisms,
+# products, substances and qualifiers included. That is the class that
+# produced |California chicken (organism)| for a rectal bleed. rung 0 now
+# resolves against data/keywords.csv, which is findings and disorders only.
+#
+# The registry stays in cfg: rung 1 needs exists / is_active / finding_status
+# / terms over the WHOLE release, and 82249009 is real, active, and absent
+# from the keyword table by design.
+
+
+def test_s1_resolves_through_the_keyword_table(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [
+        {"span_text": "extreme rectal bleed", "context": "due",
+         "sct_label": ["Rectal hemorrhage"], "confidence": 0.9},
+    ]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert recs[0].checks["code_source"] == "keyword_table"
+
+
+def test_s1_does_not_fall_back_to_the_registry(reg):  # noqa: F811
+    """A name absent from the keyword table is UNRESOLVED, not looked up in
+    the release. Falling back would reinstate exactly the search the table
+    exists to replace, and hide which one answered."""
+    assert reg.resolve(["California chicken"], findings_only=False)["code"] == "82249009"
+    llm = FakeLLM({"mentions": [
+        {"span_text": "extreme rectal bleed", "context": "due",
+         "sct_label": ["California chicken"], "confidence": 0.9},
+    ]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["label_unresolved"] is True
+
+
+def test_a_missing_keyword_table_is_refused_loudly(reg):  # noqa: F811
+    """Silently resolving nothing would report a build step nobody ran as a
+    model that named no concepts."""
+    llm = FakeLLM({"mentions": [
+        {"span_text": "extreme rectal bleed", "context": "due",
+         "sct_label": ["Rectal hemorrhage"], "confidence": 0.9},
+    ]})
+    with pytest.raises(RuntimeError, match="ladder.keywords --build"):
+        r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=None,
+                                  keyword_table="data/no-such-table.csv"))

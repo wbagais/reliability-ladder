@@ -30,30 +30,43 @@ Building from all three put 42-word TNM staging text in the keyword column
 limited to dermis..."). Synonym rows alone cost nothing — every concept has a
 preferred synonym.
 
-A KEYWORD IS NOT A UNIQUE KEY, and pretending otherwise was expensive.
-Measured against the built file, not estimated from the release:
+RETIRED CONCEPTS ARE DROPPED, AND THAT IS WHAT MAKES A KEYWORD A KEY. A
+retired concept is almost always a duplicate superseded by a live one, and
+keeping them made 23,334 keywords ambiguous against 103 without them. With
+them gone the table is one row per keyword — 227,554 keywords, 227,554 rows,
+127,515 codes — and the 103 remaining collisions go to whichever concept owns
+the FEWEST other keywords, so a concept is not left unreachable merely because
+it shares its only term. 32 codes end up with no keyword; none is used by
+CADEC.
 
-    one row per keyword, numeric tiebreak      164,182 codes   89.85%
-    one row per keyword, preferred > acceptable 168,490 codes   93.50%
-    a keyword may repeat                       180,446 codes   99.90%  <- built
+An earlier build kept retired concepts and let a keyword repeat (279,059
+keywords, 313,780 rows, 180,446 codes). It reached 99.90% of coded gold
+mentions against this build's 94.11% — but the 5.8pt difference is ENTIRELY
+the 407 mentions whose every gold code is retired, and `ladder/clean.py`
+excludes those from the denominator for the same reason this build drops them.
+Measured 2026-08-24 with the exclusions applied, which is how the ladder
+actually reads gold:
 
-|coma| is 371632003 and 50061006; |neuroma| is 443892003 and 154622009. Any
-tiebreak discards a concept CADEC actually uses, and that cost 10.05% of gold
-mentions. Letting a keyword appear on several rows recovers all of it, keeps
-the file to two columns, and adds only 12% more rows (313,780). 27,307 keywords
-(9.8%) name more than one concept; those are where rung 0 must disambiguate,
-which is a measurable sub-problem rather than a coin the table flips.
+    coded gold reaction mentions   6,595
+    reachable through the table    6,592   99.95%
 
-100% IS NOT REACHABLE, and the reason is the answer key rather than the
-vocabulary: three gold codes are absent from this SNOMED release entirely —
-annotation typos, see ladder/registry.py. 99.95% is the ceiling for any
-release-derived table, and restricting to findings and disorders costs a
-further 0.05% (four mentions) while removing every organism, product, substance
-and qualifier — the class that produced |California chicken (organism)| for a
+The three misses are 1806006, 183202003 and 251377007 — one mention each.
+That 99.95% is the ceiling for ANY release-derived table: three of CADEC's
+distinct gold codes are absent from this SNOMED release entirely (annotation
+typos, see ladder/registry.py). Restricting to findings and disorders costs
+nothing further while removing every organism, product, substance and
+qualifier — the class that produced |California chicken (organism)| for a
 rectal bleed and let |Gaseous substance| outrank the right answer for "gas".
 
-IT IS A LOOKUP, NOT A PROMPT LIST. At half a million rows it is far too large
-to show a model. It is the resolution step behind rung 0, not a menu.
+`lookup()` still returns a LIST even though this build never puts two codes
+under one keyword. Ambiguity is a property of vocabularies rather than of one
+filter setting, and a signature that changes when a filter changes is a
+signature that will be wrong again the next time one does. |coma| really is
+both 371632003 and 50061006.
+
+IT IS A LOOKUP, NOT A PROMPT LIST. At 227,554 rows it is far too large to show
+a model. It is the resolution step behind rung 0, not a menu — which is one of
+the reasons S3, a pick from one printed list, was dropped on 2026-08-24.
 
 WHERE IT LIVES. `data/keywords.csv` — cleaned data, not a cache. It is produced
 once, before any rung runs, and a run whose keyword table changed is a different
@@ -320,6 +333,79 @@ def lookup(table: dict[str, list[str]], keyword: str | None) -> list[str]:
     if not keyword:
         return []
     return list(table.get(_normalise(keyword), ()))
+
+
+class KeywordTable:
+    """The table as rung 0 uses it: names in, one code out, plus the audit.
+
+    Mirrors `Registry.resolve`'s return shape on purpose — the two are
+    interchangeable at the call site, so the difference between "resolve
+    against every description in the release" and "resolve against the
+    filtered ontology table" is one line in rung 0 and not a rewrite. The
+    keys are `code`, `rank`, `ambiguous`, `label`, `candidates`.
+
+    THE REGISTRY DOES NOT GO AWAY. Rung 1 needs exists / is_active /
+    finding_status / terms over the WHOLE release, and this table is
+    deliberately filtered: 82249009 |California chicken (organism)| is real
+    and active, rung 1 must be able to look it up, and rung 0 must never be
+    able to reach it.
+    """
+
+    def __init__(self, path: str | Path = DEFAULT_OUT):
+        self.path = Path(path)
+        self._t = load_keyword_table(self.path)
+
+    @classmethod
+    def from_mapping(cls, mapping: dict[str, list[str]]) -> "KeywordTable":
+        """Build one in memory. For tests and for callers holding the dict."""
+        obj = cls.__new__(cls)
+        obj.path = None
+        obj._t = {_normalise(k): list(v) for k, v in mapping.items()}
+        return obj
+
+    def __len__(self) -> int:
+        return len(self._t)
+
+    def lookup(self, keyword: str | None) -> list[str]:
+        return lookup(self._t, keyword)
+
+    def resolve(self, labels) -> dict:
+        """An ordered list of proposed NAMES -> one code.
+
+        Rung 0 answers with up to three names, best first, because one guess
+        is not enough: the patient's own words exact-match no SNOMED
+        description 57.1% of the time. Walking the list is NOT a retry loop —
+        no second model call happens, and a failure stated back as a fact is
+        rung 2's job.
+
+        `rank` is the position of the name that won. If rank 1 and 2 win
+        often, the model's first instinct is systematically wrong, which is a
+        finding about the model rather than about the vocabulary.
+        """
+        from ladder.schema import CONCEPT_LESS
+
+        if isinstance(labels, str):
+            labels = [labels]
+        labels = [str(x) for x in (labels or []) if x is not None and str(x).strip()]
+        none = {"code": None, "rank": None, "ambiguous": False,
+                "label": None, "candidates": []}
+        for rank, label in enumerate(labels):
+            if label.strip().upper() == CONCEPT_LESS:
+                return {**none, "code": CONCEPT_LESS, "rank": rank, "label": CONCEPT_LESS}
+            hits = self.lookup(label)
+            if not hits:
+                continue
+            # First, not "best": the table has no ranking to offer and
+            # inventing one here would hide the ambiguity rather than report
+            # it. `candidates` carries the rest.
+            return {
+                "code": hits[0],
+                "rank": rank,
+                "ambiguous": len(hits) > 1,
+                "label": label,
+                "candidates": hits if len(hits) > 1 else [],
+            }
+        return none
 
 
 def main(argv: list[str] | None = None) -> int:

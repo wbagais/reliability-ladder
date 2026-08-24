@@ -426,3 +426,106 @@ def test_a_blank_row_in_an_existing_file_is_refused(tmp_path):
     path.write_text("keyword,code\nrectal hemorrhage,12063002\n,999\n", encoding="utf-8")
     with pytest.raises(ValueError, match="blank"):
         load_keyword_table(path)
+
+
+# --- KeywordTable: the resolution step behind rung 0 -------------------------
+#
+# Rung 0 named concepts and `Registry.resolve` turned the name into a code by
+# searching every description in the release — organisms, products, substances,
+# qualifiers and all. The keyword table is the filtered, ontology-only version
+# of that same step, and it is what rung 0 resolves against now.
+#
+# The registry does NOT go away. Rung 1 needs exists / is_active /
+# finding_status / terms over the WHOLE release, and the keyword table is
+# deliberately filtered — 82249009 |California chicken| is a real, active
+# concept that rung 1 must be able to look up and rung 0 must never reach.
+
+
+def table(**mapping):
+    from ladder.keywords import KeywordTable
+
+    return KeywordTable.from_mapping({k: list(v) for k, v in mapping.items()})
+
+
+T = table(
+    **{
+        "rectal hemorrhage": ["12063002"],
+        "generally unwell": ["213257006"],
+        "coma": ["371632003", "50061006"],
+    }
+)
+
+
+def test_resolve_returns_the_code_for_a_name():
+    assert T.resolve(["Rectal hemorrhage"])["code"] == "12063002"
+
+
+def test_resolve_is_case_and_tag_insensitive():
+    """The model writes "Rectal hemorrhage"; the release stores it with a
+    semantic tag. Both have to reach the same row."""
+    assert T.resolve(["RECTAL HEMORRHAGE (finding)"])["code"] == "12063002"
+
+
+def test_resolve_walks_the_label_list_and_reports_the_rank():
+    """Rung 0 proposes up to three names. Walking them is not a retry loop —
+    no second model call happens. Rank is worth reporting: if rank 1 wins
+    often, the model's first instinct is systematically wrong."""
+    got = T.resolve(["Not a concept", "Generally unwell"])
+    assert (got["code"], got["rank"]) == ("213257006", 1)
+
+
+def test_resolve_reports_an_unresolved_label():
+    got = T.resolve(["Not a concept at all"])
+    assert got["code"] is None and got["rank"] is None
+
+
+def test_resolve_passes_concept_less_through_without_a_lookup():
+    from ladder.schema import CONCEPT_LESS
+
+    got = T.resolve([CONCEPT_LESS])
+    assert got["code"] == CONCEPT_LESS
+    assert got["ambiguous"] is False
+
+
+def test_resolve_of_nothing_is_no_code():
+    assert T.resolve([])["code"] is None
+    assert T.resolve(None)["code"] is None
+    assert T.resolve("")["code"] is None
+
+
+def test_resolve_accepts_a_bare_string():
+    assert T.resolve("Generally unwell")["code"] == "213257006"
+
+
+def test_an_ambiguous_keyword_is_reported_as_ambiguous():
+    """9.8% of keywords named more than one concept before the build picked an
+    owner per keyword. The table can still express it, and resolve must say so
+    rather than pick silently."""
+    got = T.resolve(["coma"])
+    assert got["ambiguous"] is True
+    assert got["candidates"] == ["371632003", "50061006"]
+    assert got["code"] == "371632003"
+
+
+def test_an_unambiguous_keyword_carries_no_candidate_list():
+    assert T.resolve(["Rectal hemorrhage"])["ambiguous"] is False
+
+
+def test_the_table_reports_its_own_size():
+    assert len(T) == 3
+
+
+def test_a_table_loads_from_the_csv_the_build_writes(release, tmp_path):
+    from ladder.keywords import KeywordTable
+
+    out = tmp_path / "kw.csv"
+    build_keyword_table(release, out)
+    t = KeywordTable(out)
+    assert t.resolve(["Rectal hemorrhage"])["code"] == "12063002"
+
+
+def test_a_missing_csv_says_how_to_build_it(tmp_path):
+    from ladder.keywords import KeywordTable
+
+    with pytest.raises(FileNotFoundError, match="ladder.keywords --build"):
+        KeywordTable(tmp_path / "nope.csv")
