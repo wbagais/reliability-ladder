@@ -144,3 +144,57 @@ def test_the_extractor_flag_leaves_the_judge_alone():
     judge = man["model"]["judge"]
     out = apply_overrides(man, extractor="anthropic/claude-sonnet-5", rung0_step=None)
     assert out["model"]["judge"] == judge
+
+
+# --- the output budget is per MODEL, not a global constant -------------------
+#
+# Measured 2026-08-24 on ARTHROTEC.107: gpt-oss:20b returned exactly 2000
+# completion tokens for S0 and S2 and both were logged parse_failed /
+# json_decode. It is a REASONING model — it spends the budget thinking before
+# it emits the JSON, so a cap tuned for a 2B instruct model truncates it
+# mid-structure every time.
+#
+# That failure is indistinguishable in the ledger from a model that cannot
+# produce JSON, which is the reliability number rung 0 exists to report. A
+# harness-imposed truncation counted as a model failure is a measurement of
+# the harness.
+
+
+def test_max_tokens_comes_from_the_registry():
+    """models.yaml carries the budget, so a reasoning model can be given room
+    without moving it for every model."""
+    from ladder.llm import ModelInfo
+
+    info = ModelInfo("ollama/gpt-oss:20b")
+    assert info.max_tokens >= 8000, "a reasoning model needs room to think"
+
+
+def test_an_ordinary_model_keeps_the_default_budget():
+    from ladder.llm import DEFAULT_MAX_TOKENS, ModelInfo
+
+    info = ModelInfo("ollama/ibm/granite4:micro-h")
+    assert info.max_tokens == DEFAULT_MAX_TOKENS
+
+
+def test_the_caller_sends_the_models_own_budget(monkeypatch):
+    """The number has to REACH the request, or the registry entry is decoration."""
+    from ladder.llm import LLMClient
+
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            sent.update(kw)
+            raise RuntimeError("stop here — the payload is the assertion")
+
+    class FakeClient:
+        def __init__(self, **kw):
+            self.chat = type("C", (), {"completions": FakeCompletions()})()
+
+    client = LLMClient("ollama/gpt-oss:20b")
+    client._client = FakeClient()
+    try:
+        client.chat([{"role": "user", "content": "hi"}])
+    except RuntimeError:
+        pass
+    assert sent["max_tokens"] >= 8000

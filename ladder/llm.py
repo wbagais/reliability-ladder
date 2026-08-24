@@ -21,6 +21,11 @@ import yaml
 from typing import Any
 
 REGISTRY_PATH = Path(__file__).parent / "models.yaml"
+
+#: Completion tokens allowed when models.yaml names no budget. Enough for a
+#: document's worth of mentions from an instruct model; a reasoning model
+#: needs its own entry — see ModelInfo.max_tokens.
+DEFAULT_MAX_TOKENS = 2000
 DEFAULT_CACHE_DIR = Path(__file__).parent.parent / ".llm_cache"
 
 
@@ -60,6 +65,16 @@ class ModelInfo:
         #: branch in a rung: a rung must not know which family it is calling.
         self.sampling: bool = bool(
             overrides.get("sampling", p.get("sampling", True))
+        )
+        #: Completion-token budget. REGISTRY DATA, not a constant, because a
+        #: reasoning model spends the budget thinking before it emits an
+        #: answer. Measured 2026-08-24: gpt-oss:20b returned exactly 2000
+        #: completion tokens for rung 0's S0 and S2 and both were logged
+        #: parse_failed/json_decode — truncated mid-structure by a cap tuned
+        #: for a 2B instruct model. That is the harness failing, recorded as
+        #: the model failing, in the one number rung 0 exists to report.
+        self.max_tokens: int = int(
+            overrides.get("max_tokens", p.get("max_tokens", DEFAULT_MAX_TOKENS))
         )
 
     def dollars(self, prompt_tokens: int, completion_tokens: int) -> float:
@@ -101,7 +116,7 @@ class LLMClient:
         messages: list[dict],
         sample_index: int = 0,
         temperature: float = 0.0,
-        max_tokens: int = 2000,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         payload = {
             "model": self.info.spec,
@@ -126,7 +141,8 @@ class LLMClient:
         params: dict[str, Any] = {
             "model": self.info.model,
             "messages": messages,
-            "max_tokens": max_tokens,
+            # The model's own budget unless the caller overrides it.
+            "max_tokens": max_tokens or self.info.max_tokens,
         }
         if self.info.sampling:
             params["temperature"] = temperature

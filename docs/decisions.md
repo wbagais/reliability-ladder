@@ -2275,3 +2275,69 @@ to look something up.
 reconsidering its own proposals, not a second opinion. If the model cannot
 tell rectal bleeding from rectal pain, asking it twice will not help — what
 the step removes is the ARBITRARY loss of a right answer to list position.
+
+---
+
+## 2026-08-24 — the 2000-token cap was measuring the harness, not the model
+
+**Every rung 0 number produced with `gpt-oss:20b` was a harness artefact.**
+`LLMClient.chat` hard-coded `max_tokens=2000`. Measured on ARTHROTEC.107:
+
+    S0   389 in / 2000 out   parse_failed / json_decode
+    S1   341 in / 1830 out   extracted, 2 mentions
+    S2   308 in / 2000 out   parse_failed / json_decode
+
+Exactly 2000 on both failures is a cap, not a coincidence. `gpt-oss:20b` is a
+REASONING model — it emits a chain of thought before the answer, so a budget
+tuned for a 2B instruct model truncates it mid-JSON every time. The ledger
+recorded that as `parse_failed`, which is the specific number rung 0 exists to
+report: **the harness's own limit was being published as the model's
+reliability.**
+
+`max_tokens` is now REGISTRY DATA (`ModelInfo.max_tokens`, `models.yaml`),
+defaulting to `DEFAULT_MAX_TOKENS = 2000` and set to 16000 for `gpt-oss:20b`.
+A per-model property belongs in the registry for the same reason `sampling`
+does — a rung must not know which family it is calling.
+
+With the cap raised, on the same document:
+
+    S1   341 in / 1830 out   2 mentions
+    S2  1070 in / 5207 out   3 mentions   <- was parse_failed
+
+### S0 still fails, and it is not the cap
+
+S0 burns all 16,000 completion tokens and returns an EMPTY string. S0 is the
+step that asks the model to recall a nine-digit SNOMED identifier from memory,
+and the reasoning model appears to loop on it rather than commit. Recorded as
+an observation on one document, not a rate — but note the shape: the failure
+is specific to the step whose task is exact-id recall, which is the thing S1
+exists to remove.
+
+### What the models actually produced, and the span problem it exposes
+
+| step | span | code | outcome |
+|---|---|---|---|
+| S1 | `'extreme rectal bleed'` | **12063002** | scored **incorrect** |
+| S2 | `'extreme rectal bleed'` | **12063002** | scored **incorrect** |
+
+Gold is `12063002` |Rectal hemorrhage|. **Both steps got the code exactly
+right and were scored wrong**, because gold's span is `'rectal bleed'` (28,40)
+and the model's is `'extreme rectal bleed'` (20,40) — eight characters wider,
+so exact span matching finds no gold mention there and calls it a false
+positive.
+
+    span_match   S1                       S2
+    exact        P 0.00  R 0.00  F1 0.00  P 0.00  R 0.00  F1 0.00
+    overlap      P 0.50  R 0.33  F1 0.40  P 0.33  R 0.33  F1 0.33
+
+This is the intensifier-boundary problem from the other direction. 506 gold
+mentions (6.9%) START with an intensifier and KEEP it — "severe stomach pain",
+"extremely sick" — so a "drop the intensifier" instruction would break those.
+Here gold DROPPED it and the model kept it. The convention is not stateable as
+prose in either direction, which is why the note that it is a few-shot job
+stands, and why the exact/overlap gap has to be reported rather than one
+number chosen.
+
+S1's proposed labels also show the decide step is now reachable with a capable
+model: `['Rectal hemorrhage', 'Rectal bleeding', 'Severe rectal bleeding']` —
+three real clinical names where granite4:micro-h produced `AFTERPROMPT`.

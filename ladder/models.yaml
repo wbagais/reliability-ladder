@@ -7,6 +7,13 @@ providers:
     local: true
     input_per_mtok: 0.0
     output_per_mtok: 0.0
+    models:
+      # REASONING MODEL. It emits a chain of thought before the answer, so the
+      # 2000-token default truncates it mid-JSON every time. Measured
+      # 2026-08-24 on ARTHROTEC.107: S0 and S2 both returned exactly 2000
+      # completion tokens and both were logged parse_failed/json_decode, which
+      # is the harness's cap recorded as the model's reliability.
+      gpt-oss:20b: { max_tokens: 16000 }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY
