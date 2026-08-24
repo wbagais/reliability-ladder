@@ -492,10 +492,33 @@ Running the layers individually versus end-to-end produced **identical token
 counts** and wall clocks 2–4× longer in the pipeline: self-correction 230s →
 977s, voting 505s → 2,050s, judging 265s → 504s.
 
-Identical work, different duration, on a laptop GPU already at 24W of a 25W cap.
-Thermal throttling is the obvious hypothesis. Whatever the cause, p95 latency —
-one of the three cost measures — is contaminated in a way tokens are not, and
-nothing in the run stamp records run position or thermal state.
+Thermal throttling was the obvious hypothesis, and it does not survive
+measurement. Instrumenting per-record latency and comparing each rung's first
+quarter of records against its last — same rung, same run, same work — gives:
+
+| rung | first quarter | last quarter | |
+|---|---|---|---|
+| extract | 4.06s | 6.83s | +68% |
+| self-correct | 1.86s | 2.19s | +18% |
+| vote | 29.04s | 21.38s | **−26%** |
+| judge | 2.20s | 15.35s | **+597%** |
+
+Voting got *faster*. Judging did not creep, it cliffed — flat for three
+quarters of its records and then a step change. Neither is thermal, and the
+run's wall clock (42m23s) is almost exactly its total call time (42m28s), so
+there is no orchestration overhead hiding the difference either.
+
+The honest statement is that **wall-clock latency varies substantially within a
+run in ways token counts do not predict, and we do not know why.** That is
+weaker than a thermal explanation and considerably more useful, because p95
+latency is one of the three cost measures and it is evidently not a stable
+property of a rung. It is a property of a rung *in a particular position on a
+particular machine at a particular point in a run*, and nothing in the run stamp
+records any of those.
+
+The drift columns above came from a monitor built to watch runs progress. It
+found this on its first render, which is its own small lesson about what
+instrumentation is for.
 
 ### The tooling does not model any of this
 
