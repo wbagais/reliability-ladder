@@ -1181,16 +1181,26 @@ time is what keeps the contracts between them honest.</p>
 const RUNG=["bare LLM","deterministic","abstention","self-correct","LLM judge","voting","human loop"];
 /* tok = mean tokens (in+out) per record · hum = records per 100 routed to a person */
 /* rej = % of R0 output rejected by deterministic checks alone, at no model cost */
-const D=[{f1:.55,cov:100,err:44.0,tok:850, hum:0, rej:0, p95:2.1},
- {f1:.63,cov:100,err:34.0,tok:850, hum:0, rej:18,p95:2.4},
- {f1:.74,cov:71, err:19.0,tok:850, hum:0, rej:18,p95:2.4},
- {f1:.78,cov:76, err:16.0,tok:1150,hum:0, rej:18,p95:3.5},
- {f1:.81,cov:79, err:14.0,tok:2400,hum:0, rej:18,p95:6.1},
- {f1:.87,cov:83, err:10.0,tok:4700,hum:0, rej:18,p95:9.0},
- {f1:.95,cov:96, err:3.5, tok:4700,hum:17,rej:18,p95:44.0}];
-const REJ_EASY=[0,9,9,9,9,9,9], EASY_TOK=[780,780,780,1000,2000,3900,3900],
-      EASY_ERR=[26,15,9,7.5,6.8,5.4,1.8], EASY_HUM=[0,0,0,0,0,0,6];
-const N=800, ESC=0.11;
+/* MEASURED 2026-08-23. Dev split, 40 documents, 169 mentions.
+   granite4:micro-h extractor, qwen2.5:7b judge, SNOMED CT-AU AU1000036_20260731.
+   The previous values here were illustrative and described a ladder that
+   improves: F1 .55 -> .95, error 44% -> 3.5%. Neither happened. Span F1 is
+   flat at 0.543 throughout and code accuracy is 0/105 at every rung, so the
+   charts below now draw a flat line. That IS the result.
+   Note this array has no field for code accuracy — the dashboard was built
+   around a metric that moved, with no slot for the one that did not. */
+const D=[{f1:.543,cov:100,err:100,tok:19354, hum:0,  rej:0,  p95:2.1},
+ {f1:.543,cov:1.8, err:100,tok:0,     hum:0,  rej:98, p95:0.0},
+ {f1:.543,cov:1.8, err:100,tok:72539, hum:0,  rej:98, p95:2.4},
+ {f1:.543,cov:1.8, err:100,tok:55704, hum:0,  rej:98, p95:12.1},
+ {f1:.543,cov:1.8, err:100,tok:87130, hum:0,  rej:98, p95:3.1},
+ {f1:.543,cov:0,   err:100,tok:0,     hum:0,  rej:100,p95:0.0},
+ {f1:.543,cov:0,   err:100,tok:0,     hum:100,rej:100,p95:0.0}];
+/* No second corpus was run. The 'easy' arm was illustrative; it is now a copy
+   of D so nothing draws a contrast that was never measured. */
+const REJ_EASY=[0,98,98,98,98,100,100], EASY_TOK=[19354,0,72539,55704,87130,0,0],
+      EASY_ERR=[100,100,100,100,100,100,100], EASY_HUM=[0,0,0,0,0,0,100];
+const N=169, ESC=1.00;
 const $=i=>document.getElementById(i);
 const EC=()=>Math.max(1,+$("ec").value||500);   // tokens you'd spend per error prevented
 const HR=()=>Math.max(0,+$("hr").value||11);    // review budget, % of records
