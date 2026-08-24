@@ -123,6 +123,15 @@
   manifestation refset, 743 codes) caps at 48.7% of gold, the real keyword
   table is 227,554 rows, and a list retrieved per mention is S2. Do not
   reintroduce it.
+- **S2 retrieves DENSELY by default** (2026-08-24). `rung0_retrieval` is
+  `dense | lexical`. Measured over the same 6,595 gold mentions, same k, same
+  answer key: lexical recall@20 61.8%, dense 86.1%, and dense's top hit alone
+  (63.8%) beats the lexical top-20. Lexical is kept, not deleted — a recall
+  number under one retriever is only interpretable next to the other, and
+  `checks.rung0_retrieval` is on every record. Dense is not magic: `"gas"`
+  returns |gas gangrene|. **The 41.7% shortlist recall in the older notes
+  could not be reproduced under any denominator or k** — see docs/decisions.md;
+  do not requote it.
 - **Rung 0 resolves NAMES through `data/keywords.csv`, not through the
   registry.** `KeywordTable.resolve` has the same return shape as
   `Registry.resolve` over a findings-and-disorders-only table. There is NO
@@ -178,13 +187,20 @@
    `full_run.py` survived the renumber. One import smoke test per script closes
    it. `ladder/run.py:snapshot_row` was in the same state until 2026-08-24 and
    now has `tests/test_run_rows.py`.
-6. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+6. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
+   `_step_s0` does `str(code)`, so a model answering `sct_code: ["21456007",
+   ...]` gets `sct = "['21456007', ...]"` — never a valid code, so those
+   mentions score 0 by construction. A RECORDING defect, not a model one: it
+   makes "the model named two codes" indistinguishable from "the model emitted
+   garbage". Decide what S0 should measure (first code / parse failure / its
+   own outcome) BEFORE the dev runs, or S0's number is not the model's.
+7. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
    answer.** All 407 wholly-retired gold mentions leave the denominator, on the
    grounds that the keyword table is active-only. 111 of them (27.3%) have a
    SNOMED-recorded successor, so a model naming that successor is right against
    a stale answer key. Changing the answer key's inventory needs a measurement
    and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
-7. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+8. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".

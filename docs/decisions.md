@@ -1873,3 +1873,108 @@ column is not worth a crash.
 **Cost is still three separate measures** — tokens, latency p95, records
 routed to a person. `usd` is carried alongside them and never fused into them.
 That is unchanged; what changed is that it is now carried at all.
+
+---
+
+## 2026-08-24 — dense retrieval beats lexical by 24 points, and the 41.7% could not be reproduced
+
+**Measured before wiring, as required.** Same 6,595 scorable coded gold
+reaction mentions (exclusions applied), same k, same answer key. The only
+thing that changes between the rows is the retriever.
+
+|  | recall@1 | @5 | @10 | @20 | @50 |
+|---|---|---|---|---|---|
+| lexical (`Registry.shortlist`) | 19.5% | 52.4% | 57.6% | **61.8%** | 66.7% |
+| dense (`granite-embedding:30m`) | **63.8%** | 76.7% | 82.1% | **86.1%** | 90.3% |
+
+**Dense's single top hit (63.8%) beats the lexical top-20 (61.8%).** That is
+the headline, and it is why the default moved. It is also 19x faster over the
+corpus — 21.8s against 407.7s — because cosine over a pre-normalised matrix is
+one multiply while Jaccard rescans 2.2M description rows per mention.
+
+**Both motivating defects are gone, and they were the stated reason:**
+
+    "extreme rectal bleed"  ->  0.902  12063002  rectal bleeding      (rank 0)
+    "bleed"                 ->  0.866  131148009 bleeding             (rank 0)
+    "cramping"              ->  0.884  279093005 cramping pain        (rank 0)
+
+The lexical path ranked |Rectal| above |Rectal hemorrhage| for the first,
+because Jaccard's denominator penalises every extra word in a correct term,
+and never reached "bleeding" from "bleed" for the second, because there is no
+stemming. Neither is a weighting choice.
+
+**Dense has its own failure mode and it is not being hidden.** `"gas"` returns
+|gas gangrene|, |gas gangrene smell|, |gas gangrene-back| — surface-similar
+clinical compounds, none of them right. The lexical path failed the same query
+differently (|Gaseous substance|). Embeddings move the errors; they do not
+remove them.
+
+`rung0_retrieval` is `dense | lexical` and the lexical path is KEPT, not
+deleted: a recall number produced under one retriever is only interpretable
+next to the other, and `checks.rung0_retrieval` is written onto every record
+so two runs differing only in retrieval cannot look identical on disk.
+
+### The 41.7% in the brief could not be reproduced, under any denominator
+
+The working note carried "S2 is 41.7% (shortlist recall@20)". Measuring
+`Registry.shortlist`'s own output across every denominator and k available:
+
+| denominator | n | @1 | @5 | @10 | @20 | @50 |
+|---|---|---|---|---|---|---|
+| coded reactions, exclusions applied | 6,595 | 19.5% | 52.4% | 57.6% | 61.8% | 66.7% |
+| coded reactions, no exclusions | 7,009 | 18.7% | 51.1% | 56.3% | 60.5% | 65.2% |
+| ALL reactions, CONCEPT_LESS a miss | 7,311 | 17.9% | 49.0% | 54.0% | 58.0% | 62.5% |
+| ALL gold mentions, drugs included | 9,111 | 14.4% | 39.3% | 43.3% | 46.5% | 50.2% |
+
+Nothing lands on 41.7%. The closest cell is 43.3% — recall@**10** over ALL
+gold mentions including drugs, a denominator a findings-only retriever cannot
+answer by construction.
+
+**The reimplementation was verified before the disagreement was reported.**
+`Registry.shortlist` rescans every description row per call, which is ~0.6s a
+mention and hours over the corpus, so the sweep uses an inverted index with
+the identical Jaccard, the identical tie-break and the identical
+`findings_only` filter. Checked against `reg.shortlist` itself on 40 sampled
+mentions: **40/40 identical candidate lists**. The disagreement is therefore in
+the corpus, the denominator or the k of the original figure — not in the
+rewrite. Recorded as unreproducible rather than quietly replaced, and 41.7%
+should not be requoted until whoever produced it can say which denominator it
+was over.
+
+### The build had to survive a bad minute
+
+The first full build reached 184,832 of 227,554 keywords — 24 minutes — and
+died on one 400 from the local ollama. Re-running the same batch afterwards
+succeeded, and bisecting the whole surrounding window found no offending row:
+the server was briefly unwell under memory pressure from a concurrent job, and
+the input was fine.
+
+A failing batch is now retried with backoff, then SPLIT recursively until a
+single row is isolated and zeroed — one unembeddable keyword costs one row,
+holding its position so the sidecar keeps indexing the matrix correctly. A
+batch where NOTHING embeds raises instead: that is the embedder, not 512
+simultaneously bad keywords, and it should fail at minute 24 rather than write
+175 MB of zeroes that answer every query with silence and look like a
+retrieval result. The rebuild: 227,554 vectors, dim 384, 433.6s, 0 retries, 0
+zeroed.
+
+### Verified end to end on ARTHROTEC.107
+
+S0, S1 and S2 all run through rungs 0-1 with `ollama/ibm/granite4:micro-h`.
+`checks.rung0_retrieval` reads `dense` on S2, `code_source` reads
+`keyword_table` on S1, `sct_outdated` and `sct_replacement` are written, and
+`sct_outdated` / `sct_abstained` reach the results CSV. This is WIRING
+verification on one document with a 2B model — it is not the study, and none
+of its numbers should be quoted as one.
+
+**One thing it exposed, recorded and NOT fixed.** S0 asks for a scalar
+`sct_code` and granite4:micro-h returned a LIST. `_step_s0` does
+`str(code) if code is not None else None`, so the record's `sct` became the
+literal string `"['21456007', '...']"` — which can never be a valid code, so
+those mentions score 0 by construction. That is a RECORDING defect rather than
+a model defect: it makes "the model named two codes" indistinguishable from
+"the model emitted garbage", and the first is a real thing a model does. What
+the right behaviour is — take the first, treat it as a parse failure, or count
+it as its own outcome — is a decision about what S0 measures, so it is logged
+here rather than chosen quietly. **It will bias S0 downward in the dev runs
+until it is settled.**

@@ -70,13 +70,20 @@ DEFAULTS: dict[str, Any] = {
     "rung0_step": None,
     "rung0_shortlist_k": 20,
     #: Which retriever builds S2's candidate menu. "lexical" is
-    #: Registry.shortlist — token overlap over every SNOMED description.
-    #: "dense" is cosine over the embedded keyword table (ladder/embed.py).
-    #: LEXICAL IS THE DEFAULT and stays so until a measurement moves it: a
-    #: recall number produced under one retriever is not comparable to one
-    #: produced under the other, which is why the choice lives here and is
-    #: written onto every record.
-    "rung0_retrieval": "lexical",  # "lexical" | "dense"
+    #: Registry.shortlist — Jaccard token overlap over every SNOMED
+    #: description. "dense" is cosine over the embedded keyword table
+    #: (ladder/embed.py). Measured 2026-08-24 over the same 6,595 scorable
+    #: gold reaction mentions, same k, same answer key:
+    #:
+    #:                recall@1  @5     @10    @20    @50
+    #:     lexical    19.5%     52.4%  57.6%  61.8%  66.7%
+    #:     dense      63.8%     76.7%  82.1%  86.1%  90.3%
+    #:
+    #: Dense's TOP HIT alone beats the lexical top-20. The default moved on
+    #: that and on nothing else; lexical stays reachable because a number
+    #: produced under one retriever is only interpretable next to the other,
+    #: which is why the choice is written onto every record.
+    "rung0_retrieval": "dense",  # "dense" | "lexical"
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
@@ -480,7 +487,7 @@ def _retriever(cfg: dict):
     different shape would fail at the PICK rather than at the swap, which is
     a long way from the cause.
     """
-    which = cfg.get("rung0_retrieval", "lexical")
+    which = cfg.get("rung0_retrieval", DEFAULTS["rung0_retrieval"])
     if which not in RETRIEVERS:
         raise ValueError(
             f"rung0_retrieval={which!r} is not one of {RETRIEVERS}. A retriever "

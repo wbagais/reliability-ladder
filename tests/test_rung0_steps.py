@@ -202,7 +202,8 @@ def test_s1_is_one_model_call_per_document(reg):  # noqa: F811
 
 def test_s2_shows_the_model_a_shortlist_and_takes_its_index(reg):  # noqa: F811
     llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 0}, {"i": 1, "choice": None}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        rung0_retrieval="lexical"))
     assert recs[0].checks["label_source"] == "shortlist"
     assert recs[0].sct is not None
     assert len(llm.prompts) == 2
@@ -527,10 +528,22 @@ class FakeDense:
                  "fsn": "Rectal hemorrhage", "score": 0.91, "via": "dense"}]
 
 
-def test_lexical_is_still_the_default(reg):  # noqa: F811
+def test_dense_is_the_default_after_the_measurement(reg):  # noqa: F811
+    """Measured 2026-08-24 over the same 6,595 gold mentions, same k, same
+    answer key: lexical recall@20 = 61.8%, dense = 86.1%. Dense's TOP HIT
+    alone (63.8%) beats the lexical top-20. The default moved on that, and on
+    nothing else."""
+    assert r0.DEFAULTS["rung0_retrieval"] == "dense"
+
+
+def test_lexical_stays_reachable(reg):  # noqa: F811
+    """The retired path is kept, not deleted: a number produced under one
+    retriever is only interpretable next to the other."""
     llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        rung0_retrieval="lexical"))
     assert recs[0].checks["candidates"][0]["via"] == "shortlist"
+    assert recs[0].checks["rung0_retrieval"] == "lexical"
 
 
 def test_dense_retrieval_is_used_when_declared(reg):  # noqa: F811
