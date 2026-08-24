@@ -25,10 +25,25 @@ reg = Registry(man["vocabulary"]["snomed_db"])
 items = S.load_items(man["corpus"]["splits_dir"])
 src = {i["doc_id"]: i["text"] for i in items}
 
-say("rung order:", ORDER)
-for name, mod in (("r2", r3), ("r4", r4), ("r3", r5), ("r5", r2)):
-    print(f"  {name}.apply{inspect.signature(mod.apply)}")
-say()
+# The signature banner moved BELOW say()'s definition. It was called at import
+# time, above it, so this script raised NameError before doing anything at all
+# — every run, on every machine, since the --tui commit introduced say(). It
+# survived because nothing imported the module; tests/test_scripts_import.py
+# now does.
+#
+# The pairing was also stale. Rung IDs were renumbered 2026-08-23 (old->new:
+# 3->2, 5->3, 2->5) and the MODULES were renamed with them, so r2.py is
+# self-correction and r3.py is voting. The line still read
+# (("r2", r3), ("r4", r4), ("r3", r5), ("r5", r2)) and printed each module's
+# signature under a different rung's name — wrong only in the output, which is
+# the hardest place to notice it. 9849c31 fixed the body and missed this.
+
+
+def banner():
+    say("rung order:", ORDER)
+    for name, mod in (("r2", r2), ("r3", r3), ("r4", r4), ("r5", r5)):
+        say(f"  {name}.apply{inspect.signature(mod.apply)}")
+    say()
 
 
 def call(mod, name, records, cfg):
@@ -112,6 +127,7 @@ LEDGER = Ledger("runs/ladder.ledger.jsonl",
 t_start = time.perf_counter()
 
 # ---- 0 -----------------------------------------------------------------
+banner()
 say("=" * 58, "\nRUNG 0 — extract\n", "=" * 58, sep="")
 recs, m0 = run(items, "A", S.stub, {"registry": reg, "ledger": LEDGER, "rung0_offsets": "search"})
 say(f"  mentions {len(recs)}   carrying a code {codes(recs)}")

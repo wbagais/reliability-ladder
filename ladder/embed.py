@@ -144,19 +144,83 @@ def _rows_from_table(path: str | Path) -> list[tuple[str, str]]:
         return [(row[0], row[1]) for row in r if len(row) == 2]
 
 
+DEFAULT_RETRIES = 4
+DEFAULT_BACKOFF = 2.0
+
+
+def _embed_chunk(
+    chunk: Sequence[str],
+    embedder: Callable[[Sequence[str]], list[list[float]]],
+    retries: int,
+    backoff: float,
+    tally: dict[str, int],
+) -> list[list[float] | None]:
+    """Embed one batch, retrying and then splitting. Never raises for one row.
+
+    Measured 2026-08-24: the first full build reached 184,832 of 227,554
+    keywords — 24 minutes — and died on a single 400 from the local ollama.
+    The same batch succeeded on a re-run, so the input was fine and the server
+    was briefly unwell (another job on the same machine). A build that throws
+    away 24 minutes because one HTTP call blinked is a build nobody finishes.
+
+    TWO DIFFERENT FAILURES, HANDLED DIFFERENTLY. A batch that fails is
+    RETRIED, with backoff, `retries` times. A batch that STILL fails is SPLIT
+    in half and each half retried, recursively, until either it succeeds or a
+    single row is isolated — and one unembeddable row costs one row.
+
+    An isolated row comes back as None and is filled with ZEROS once the
+    dimension is known from a row that worked. Zero scores 0 against every
+    query, so the keyword is invisible rather than randomly close to
+    something, and its POSITION is held — the sidecar indexes the matrix by
+    row, and a dropped row would shift every later keyword onto another
+    concept's code.
+    """
+    last: Exception | None = None
+    for attempt in range(retries + 1):
+        try:
+            got = embedder(chunk)
+            if attempt:
+                tally["retried"] += attempt
+            return got
+        except Exception as exc:  # noqa: BLE001 — any transport failure
+            last = exc
+            if attempt < retries:
+                tally["retried"] += 0
+                if backoff:
+                    time.sleep(backoff * (2 ** attempt))
+
+    tally["retried"] += retries
+    if len(chunk) == 1:
+        # One row, retried to exhaustion. It is the input, not the server.
+        tally["unembeddable"] += 1
+        print(
+            f"[embed] unembeddable, zeroed: {chunk[0]!r} ({last})", file=sys.stderr
+        )
+        return [None]
+
+    half = len(chunk) // 2
+    return (
+        _embed_chunk(chunk[:half], embedder, retries, backoff, tally)
+        + _embed_chunk(chunk[half:], embedder, retries, backoff, tally)
+    )
+
+
 def build_index(
     rows: Iterable[tuple[str, str]],
     prefix: str | Path = DEFAULT_PREFIX,
     embedder: Callable[[Sequence[str]], list[list[float]]] | None = None,
     batch: int = DEFAULT_BATCH,
     progress: bool = False,
+    retries: int = DEFAULT_RETRIES,
+    backoff: float = DEFAULT_BACKOFF,
 ) -> dict[str, Any]:
     """Embed every keyword and write `<prefix>.vectors.npy` + `.rows.json`.
 
     The sidecar keeps (keyword, code) in MATRIX ORDER. The matrix carries no
     labels of its own, so if the two ever drift apart every hit is attributed
     to whatever concept happens to sit at that row — which is why the loader
-    checks their lengths agree rather than trusting the pair.
+    checks their lengths agree rather than trusting the pair, and why a failing
+    batch is split rather than skipped.
     """
     np = _np()
     rows = [(str(k), str(c)) for k, c in rows]
@@ -164,21 +228,47 @@ def build_index(
     prefix = Path(prefix)
     prefix.parent.mkdir(parents=True, exist_ok=True)
 
-    vectors: list[list[float]] = []
+    tally = {"retried": 0, "unembeddable": 0}
+    vectors: list[list[float] | None] = []
     t0 = time.time()
     for start in range(0, len(rows), batch):
         chunk = [k for k, _ in rows[start:start + batch]]
-        vectors.extend(embedder(chunk))
+        got = _embed_chunk(chunk, embedder, retries, backoff, tally)
+        if len(got) != len(chunk):
+            raise RuntimeError(
+                f"batch at {start} returned {len(got)} vectors for {len(chunk)} "
+                "keywords. A short batch shifts every later row against its code."
+            )
+        # A whole batch with nothing usable in it is a broken EMBEDDER, not 512
+        # simultaneously bad keywords. Raising here fails at minute 24 instead
+        # of writing a 175 MB matrix of zeroes that answers every query with
+        # silence and looks like a retrieval result.
+        if len(chunk) > 1 and not any(v for v in got):
+            raise RuntimeError(
+                f"every keyword in the batch at {start} failed to embed. That "
+                "is the embedder, not the input — check that ollama is running "
+                "and the model is pulled. Nothing was written."
+            )
+        vectors.extend(got)
         if progress and start and not (start // batch) % 20:
             done = start + len(chunk)
             rate = done / max(time.time() - t0, 1e-6)
             print(
                 f"[embed] {done:,}/{len(rows):,}  {rate:.0f}/s  "
-                f"eta {(len(rows) - done) / max(rate, 1e-6) / 60:.1f} min",
+                f"eta {(len(rows) - done) / max(rate, 1e-6) / 60:.1f} min"
+                + (f"  ({tally['retried']} retries)" if tally["retried"] else ""),
                 file=sys.stderr,
             )
 
-    m = np.asarray(vectors, dtype=np.float32)
+    dim = next((len(v) for v in vectors if v), 0)
+    if not dim:
+        raise RuntimeError(
+            "no keyword could be embedded. Nothing was written — an index of "
+            "zeroes answers every query with silence and looks like a result."
+        )
+    # Isolated rows become zeros only now, when the dimension is known from a
+    # row that worked. Guessing it earlier produced a ragged matrix.
+    m = np.asarray([v if v else [0.0] * dim for v in vectors], dtype=np.float32)
     if m.ndim != 2 or m.shape[0] != len(rows):
         raise RuntimeError(
             f"embedder returned {m.shape} for {len(rows)} keywords. A matrix "
@@ -200,6 +290,7 @@ def build_index(
         "dim": int(m.shape[1]) if m.size else 0,
         "seconds": round(time.time() - t0, 1),
         "prefix": str(prefix),
+        **tally,
     }
 
 
@@ -276,6 +367,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--prefix", default=str(DEFAULT_PREFIX))
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--batch", type=int, default=DEFAULT_BATCH)
+    ap.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
+    ap.add_argument("--backoff", type=float, default=DEFAULT_BACKOFF)
     ap.add_argument("--query", nargs="*", help="search the built index")
     a = ap.parse_args(argv)
     if not a.build and a.query is None:
@@ -285,11 +378,13 @@ def main(argv: list[str] | None = None) -> int:
         rows = _rows_from_table(a.table)
         print(f"[embed] {len(rows):,} keywords through {a.model}", file=sys.stderr)
         stats = build_index(
-            rows, a.prefix, ollama_embedder(a.model), a.batch, progress=True
+            rows, a.prefix, ollama_embedder(a.model), a.batch, progress=True,
+            retries=a.retries, backoff=a.backoff,
         )
         print(
             f"[embed] {stats['rows']:,} vectors, dim {stats['dim']}, "
-            f"{stats['seconds']}s -> {stats['prefix']}.vectors.npy",
+            f"{stats['seconds']}s  {stats['retried']} retries, "
+            f"{stats['unembeddable']} zeroed -> {stats['prefix']}.vectors.npy",
             file=sys.stderr,
         )
     if a.query:

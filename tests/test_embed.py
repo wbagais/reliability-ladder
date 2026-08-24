@@ -187,3 +187,87 @@ def test_an_index_whose_sidecar_disagrees_with_its_matrix_is_refused(tmp_path):
     (tmp_path / "kw.rows.json").write_text(json.dumps(ROWS[:2]))
     with pytest.raises(ValueError, match="rows"):
         EmbeddingIndex(tmp_path / "kw", FakeEmbedder())
+
+
+# --- a 28-minute build must survive one bad minute ---------------------------
+#
+# Measured 2026-08-24: the first full build reached 184,832 of 227,554 keywords
+# — 24 minutes — and died on a single 400 from the local ollama. Re-running the
+# same batch afterwards succeeded, so the input was fine; the server was under
+# memory pressure from another job on the same machine.
+#
+# Two separate failures were possible there and only one of them is transient,
+# so they are handled differently: a batch that fails is RETRIED, and a batch
+# that keeps failing is SPLIT, until either it succeeds or one row is isolated
+# as genuinely unembeddable. A build that discards 24 minutes of work because
+# one HTTP call blinked is a build nobody finishes.
+
+
+class FlakyEmbedder(FakeEmbedder):
+    """Fails the first `n` calls, then behaves."""
+
+    def __init__(self, n):
+        super().__init__()
+        self.left = n
+
+    def __call__(self, texts):
+        self.calls += 1
+        if self.left > 0:
+            self.left -= 1
+            raise RuntimeError("500 from the server")
+        return [self.VECTORS.get(t, [0.0, 0.0, 0.0]) for t in texts]
+
+
+class PoisonEmbedder(FakeEmbedder):
+    """Fails on any batch containing one particular input, forever."""
+
+    def __call__(self, texts):
+        self.calls += 1
+        if "rectal" in texts:
+            raise RuntimeError("400 Bad Request")
+        return [self.VECTORS.get(t, [0.0, 0.0, 0.0]) for t in texts]
+
+
+def test_a_transient_failure_is_retried_not_fatal(tmp_path):
+    e = FlakyEmbedder(2)
+    stats = build_index(ROWS, tmp_path / "kw", e, batch=4, retries=3, backoff=0)
+    assert stats["rows"] == 4
+    assert stats["retried"] == 2
+
+
+def test_retries_are_bounded(tmp_path):
+    """A server that is down stays down. Retrying forever turns a failed build
+    into a hung one, which is strictly worse — nobody knows to stop it."""
+    with pytest.raises(RuntimeError):
+        build_index(ROWS, tmp_path / "kw", FlakyEmbedder(99), batch=4,
+                    retries=2, backoff=0)
+
+
+def test_a_persistently_failing_batch_is_split_to_isolate_the_row(tmp_path):
+    """One unembeddable keyword must cost one row, not the whole build."""
+    stats = build_index(ROWS, tmp_path / "kw", PoisonEmbedder(), batch=4,
+                        retries=1, backoff=0)
+    assert stats["rows"] == 4
+    assert stats["unembeddable"] == 1
+
+
+def test_an_isolated_row_is_a_zero_vector_and_never_a_hit(tmp_path):
+    """A keyword with no vector must be invisible, not randomly close to
+    something. Zero scores 0 against every query."""
+    build_index(ROWS, tmp_path / "kw", PoisonEmbedder(), batch=4,
+                retries=1, backoff=0)
+    idx = EmbeddingIndex(tmp_path / "kw", FakeEmbedder())
+    got = idx.search("extreme rectal bleed", k=4)
+    assert "72002" not in [h["code"] for h in got[:1]]
+    m = np.load(tmp_path / "kw.vectors.npy")
+    assert not m[1].any(), "the isolated row should be all zeros"
+
+
+def test_the_row_count_still_matches_after_a_split(tmp_path):
+    """Splitting must not reorder or drop rows: the sidecar indexes the matrix
+    by position, and a shifted row attributes every hit to the wrong code."""
+    build_index(ROWS, tmp_path / "kw", PoisonEmbedder(), batch=3,
+                retries=1, backoff=0)
+    idx = EmbeddingIndex(tmp_path / "kw", FakeEmbedder())
+    assert [c for _, c in idx.rows] == [c for _, c in ROWS]
+    assert idx.matrix.shape[0] == len(ROWS)
