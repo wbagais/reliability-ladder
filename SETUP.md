@@ -28,7 +28,7 @@ git push
 ## Turn Pages on
 
 Settings → Pages. After the first `main` pipeline the site is at
-`https://pushpdeep.gitlab.io/ai-reliability-ladder/`.
+`https://reliability-ladder-d32865.gitlab.io/`.
 
 Pages serves `public/`, built by the `pages` job from `docs/plan.html`. Static
 only — no Python runs there, so the published page cannot touch the corpus.
