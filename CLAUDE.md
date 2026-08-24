@@ -200,25 +200,36 @@
    (`LADDER_ALLOW_REMOTE=1`, CADEC is non-transferable) as well as a cost one.
    `checks["labels_proposed"]` now records what the model offered, which is
    what makes the comparison possible at all.
-7. **Schema enforcement is an A/B, not a switch.** It does not delete the
+7. **Dense retrieval's 13.9% miss is mostly NOT fixable by a better
+   retriever, and a hybrid loses.** Measured at equal budget: dense@40 89.5%
+   beats dense@20+lexical@20 88.0% and dense@20+char-trigram@20 89.3%. The fix
+   for recall is `rung0_shortlist_k`, not a second index — but raising k costs
+   at the PICK step, where a long menu bought position bias (measured at the
+   retired S3). That trade-off is its own experiment. Miss profile: 8.6% are
+   SENTENCES retrieved against 4-word terms (the same defect query rewriting
+   would fix), 1.6% post-coordinated gold, 0.3% absent from the table, and the
+   rest are ranked-too-low — a large part of which is gold naming one concept
+   where the span literally names another ("little blurred vision" -> gold
+   |Hazy vision|, retrieved "blurred vision").
+8. **Schema enforcement is an A/B, not a switch.** It does not delete the
    parse-failure metric — it MOVES the failure (truncation, empty mention
    lists, plausible wrong values) and costs output quality, because
    probability mass goes to satisfying the grammar. Run both arms and report
    what it removed and what it cost. Not built.
-8. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
+9. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
    `_step_s0` does `str(code)`, so a model answering `sct_code: ["21456007",
    ...]` gets `sct = "['21456007', ...]"` — never a valid code, so those
    mentions score 0 by construction. A RECORDING defect, not a model one: it
    makes "the model named two codes" indistinguishable from "the model emitted
    garbage". Decide what S0 should measure (first code / parse failure / its
    own outcome) BEFORE the dev runs, or S0's number is not the model's.
-9. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+10. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
    answer.** All 407 wholly-retired gold mentions leave the denominator, on the
    grounds that the keyword table is active-only. 111 of them (27.3%) have a
    SNOMED-recorded successor, so a model naming that successor is right against
    a stale answer key. Changing the answer key's inventory needs a measurement
    and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
-10. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+11. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".

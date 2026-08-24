@@ -2099,3 +2099,91 @@ report what enforcement removed and what it cost. That is strictly more
 evidence than either arm alone, and it keeps a non-zero failure rate that
 measures something more interesting than well-formedness. NOT BUILT — recorded
 so the decision is made deliberately.
+
+---
+
+## 2026-08-24 — why dense retrieval misses 13.9%, and why a hybrid does not fix it
+
+**The misses were categorised rather than guessed at.** 918 of 6,595 gold
+mentions have no gold code in the dense top-20:
+
+| | | |
+|---|---|---|
+| 821 | 89.4% | the gold code IS in the table; retrieval ranked it below 20 |
+| 79 | 8.6% | the query is a SENTENCE, not a term |
+| 15 | 1.6% | post-coordinated gold (A + B); retrieval returns one concept |
+| 3 | 0.3% | the gold code is not in the keyword table at all |
+
+**The largest category is not what it looks like.** Reading the examples, a
+substantial part of "genuine semantic miss" is retrieval finding the concept
+the SPAN literally names while gold names a different one:
+
+    "little blurred vision"   gold |Hazy vision|
+                              retrieved: blurred vision, blurry vision
+    "gastric problems"        gold |Excessive upper gastrointestinal gas|
+                              retrieved: stomach problem, gastrointestinal tract problem
+
+Those are not retrieval failures. They are the answer key selecting one
+concept where several fit, and no retriever can be graded on them fairly.
+Alongside them sit real misses ("extremely sick" -> |Generally unwell|) and
+one clearly fixable kind — **typos**: `"Insomina"` is |Insomnia| with two
+letters transposed, and the embedder put `inflared innominate` at rank 0. The
+category has not been split further because doing it properly means deciding
+which of those readings the answer key should have taken, which is not a
+retrieval question.
+
+**The second category is the actionable one, and it is the same defect as
+S0's span drift.** 79 misses are queries like `"I can't stand or walk for any
+lengths of time"` (gold |Reduced mobility|) — a sentence retrieved against a
+table of 4-word terms. Retrieval is being asked the wrong question. This is
+exactly what "have the model name the concept first" would fix, which is the
+independent case for query rewriting.
+
+### A hybrid was tested at equal budget, and lost
+
+Union of dense top-20 with a second retriever's top-20 is 40 candidates, so
+the honest comparison is dense top-40, not dense top-20:
+
+| | recall | candidates |
+|---|---|---|
+| dense@20 | 86.1% | 20 |
+| **dense@40** | **89.5%** | 40 |
+| hybrid dense@20 + lexical@20 | 88.0% | 40 |
+| hybrid dense@20 + char-trigram@20 | 89.3% | 40 |
+| hybrid dense@20 + lexical@10 + char@10 | 88.8% | 40 |
+
+**Every hybrid loses to simply asking dense for more.** Spending 20 extra
+slots on more dense results beats spending them on a second retriever, and the
+character-trigram variant — the one built specifically for the `Insomina`
+case — does not even break even. So the fix for "retrieval misses 14%" is
+`rung0_shortlist_k`, not a second index.
+
+NOT BUILT, deliberately: raising k has its own cost at the PICK step, where a
+long menu bought position bias rather than selection (measured at the retired
+S3, 666 items). The retrieval-vs-pick trade-off is a rung 0 experiment in its
+own right, and 89.5% recall the model cannot use is not 89.5%.
+
+### Multi-label: the feature is right, the stated reason is not
+
+Rung 0 asks for up to three concept names. The implied justification is that a
+mention has several plausible readings. Measured over the corpus:
+
+    distinct coded gold span texts                     3,272
+      ...coded MORE THAN ONE WAY anywhere in CADEC        24   (0.7%)
+    mentions whose exact wording is coded >1 way         256   (3.9%)
+
+So genuinely ambiguous wording is rare. The real work multi-label does is
+compensate for EXACT lookup being brittle: three shots at a string match,
+free, in one call. `"high blood pressure"` (|Venous pressure above reference
+range| / |Blood pressure above reference range| / |Hypertensive disorder|) is
+a real case, but it is 0.7% of the vocabulary problem, not the reason.
+
+**Which means the answer depends on the retriever, and that is testable.**
+With exact lookup, multi-label is the only retry there is — keep it. With
+dense retrieval, ONE label already returns k candidates, so the retries are
+largely redundant, and the hybrid result above is suggestive: splitting a
+candidate budget across sources lost to spending it all on one. Whether that
+carries over to splitting across three labels is a HYPOTHESIS, not a
+measurement — same method, three queries is not the same as two methods, one
+query. `checks["labels_proposed"]` and `label_rank` are what settle it, and
+they need a model that names concepts.
