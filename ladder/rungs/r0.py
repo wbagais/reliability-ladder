@@ -428,7 +428,10 @@ def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
     does not retry either: it walks its remaining names and stops, because a
     retry loop here IS rung 2.
     """
-    got = _keywords(cfg).resolve(labels)
+    if isinstance(labels, str):
+        labels = [labels]
+    proposed = [str(x) for x in (labels or []) if x is not None and str(x).strip()]
+    got = _keywords(cfg).resolve(proposed)
     rec.sct = got["code"]
     rec.sct_label = got["label"]
     rec.checks.update(
@@ -437,6 +440,21 @@ def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
         label_rank=got["rank"],
         label_unresolved=got["code"] is None,
         label_ambiguous=got["ambiguous"],
+        # WHAT the model said, not just whether it worked. `sct_label` holds
+        # only the name that WON, so a failed resolution used to record that
+        # it failed and not what was proposed — and two very different
+        # failures then looked identical on disk: the model naming nothing
+        # usable, and the model naming a real concept this table happens not
+        # to carry. The first is a model problem and the second is a
+        # vocabulary problem.
+        #
+        # Measured on ARTHROTEC.107 with granite4:micro-h at S1: the model
+        # answered sct_label: ["AFTERPROMPT"], a prompt artifact rather than a
+        # clinical term. Emphatically the first kind, and invisible until this
+        # was recorded. It is also what makes lookup-vs-retrieval measurable
+        # at all — you cannot test whether dense retrieval rescues an
+        # imperfect label if the imperfect label was discarded.
+        labels_proposed=proposed,
     )
     if got.get("candidates"):
         rec.checks["candidates"] = got["candidates"]

@@ -2014,3 +2014,88 @@ the right behaviour is — take the first, treat it as a parse failure, or count
 it as its own outcome — is a decision about what S0 measures, so it is logged
 here rather than chosen quietly. **It will bias S0 downward in the dev runs
 until it is settled.**
+
+---
+
+## 2026-08-24 — the lookup-vs-RAG 2x2, and why its bottom row is unmeasurable at 2B
+
+**The question.** Rung 0 currently retrieves on the patient's raw words. Would
+asking the model to name the concept first, and retrieving on THAT, match
+better? A 2x2 answers it: perfect label vs actual model label, crossed with
+exact keyword-table lookup vs dense retrieval.
+
+**The top row, over all 6,595 scorable coded gold reaction mentions:**
+
+| | lookup | RAG@20 |
+|---|---|---|
+| perfect label (gold's own preferred term) | 99.3% | **99.3%** |
+| actual model label | ? | ? |
+
+Retrieving on the correct clinical term scores 99.3% at k=20 and 96.5% at
+k=1, against 86.1% / 63.8% for the patient's raw words. Enormous headroom on
+paper — but note what the ceiling IS: **99.3% is the same number an exact
+lookup already gets**, because a perfect name needs no retrieval. The two
+columns of the top row coincide by construction. Retrieval can only be worth
+something on an IMPERFECT label, which is the bottom row.
+
+**The bottom row could not be measured, and the reason is the finding.** Run
+on ARTHROTEC.107 with `ollama/ibm/granite4:micro-h` at S1:
+
+    gold "rectal bleed"    12063002   model proposed: "AFTERPROMPT"
+    gold "extremely sick"  213257006  model proposed: CONCEPT_LESS
+    gold "felt I might not survive"   CONCEPT_LESS — no code to retrieve
+
+    perfect label   lookup 2/2   RAG 2/2
+    actual label    lookup 0/2   RAG 0/2
+
+`AFTERPROMPT` is a prompt artifact, not a clinical term. Dense retrieval
+cannot rescue it because there is no concept in it to be near. **At this model
+size the bottleneck is not lookup-vs-retrieval — it is that the model does not
+name concepts at all**, which is one step earlier than the thing the 2x2 was
+built to compare. Two coded mentions in one document: an OBSERVATION, not a
+rate, and emphatically not evidence that RAG fails to help.
+
+Answering the question properly needs a model that produces clinical labels.
+`claude-sonnet-5` is the one the earlier ARTHROTEC.107 comparison used, and it
+is a licence decision (CADEC is non-transferable; `LADDER_ALLOW_REMOTE=1`) as
+well as a cost one.
+
+### A recording gap the experiment exposed
+
+`_resolve_labels` wrote `label_unresolved: True` and discarded the names the
+model actually proposed — `sct_label` holds only the name that WON. So two
+completely different failures were identical on disk:
+
+    the model named nothing usable                    -> a MODEL failure
+    the model named a real concept the table lacks    -> a VOCABULARY failure
+
+The first needs a better model or a better prompt; the second needs a wider
+table. Rung 0 could not tell them apart, and neither could anyone reading the
+records afterwards. `checks["labels_proposed"]` now records every name the
+model offered, on success and on failure alike — which is also what makes the
+2x2's bottom row measurable at all, since an imperfect label that was thrown
+away cannot be retrieved on.
+
+Found by running the experiment, not by a test. The tests came after.
+
+### Schema enforcement — revisited, and the first framing was wrong
+
+Enforcing a JSON schema on rung 0 was raised as a way to guarantee one code
+per mention (see the `sct_code`-as-a-list defect). The objection recorded
+earlier — that it would delete rung 0's JSON-parse-failure counter-metric — is
+too strong, and the better reading is that enforcement MOVES the failure
+rather than removing it:
+
+  * a constrained model can still truncate mid-structure, answer
+    `{"mentions": []}` for a post with three reactions, or fill a required
+    field with a plausible wrong value. Those are the same reliability
+    failures without the JSON costume, and they stay countable.
+  * grammar constraints are known to cost output QUALITY — probability mass
+    goes to satisfying the schema instead of answering. So enforcement is an
+    INTERVENTION with a price, not a free repair.
+
+Which makes it an A/B like `rung0_mode`, not a switch: run both arms and
+report what enforcement removed and what it cost. That is strictly more
+evidence than either arm alone, and it keeps a non-zero failure rate that
+measures something more interesting than well-formedness. NOT BUILT — recorded
+so the decision is made deliberately.

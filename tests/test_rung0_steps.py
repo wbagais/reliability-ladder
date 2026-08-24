@@ -589,3 +589,63 @@ def test_the_two_retrievers_hand_back_the_same_shape(reg):  # noqa: F811
     keys = {"i", "code", "label", "fsn", "via"}
     assert keys <= set(lex[0].checks["candidates"][0])
     assert keys <= set(den[0].checks["candidates"][0])
+
+
+# --- what the model PROPOSED, not just what resolved -------------------------
+#
+# `_resolve_labels` wrote `label_unresolved: True` and nothing else, so a
+# failed resolution recorded THAT it failed and not WHAT was said. Two very
+# different failures then looked identical on disk:
+#
+#     the model named nothing usable       -> a MODEL failure
+#     the model named a real concept the
+#     keyword table happens not to carry   -> a TABLE failure
+#
+# Measured on ARTHROTEC.107 with granite4:micro-h, S1: the model answered
+# sct_label: ["AFTERPROMPT"] — a prompt artifact, not a clinical term. That is
+# emphatically the first kind, and it was invisible in the record.
+#
+# It also makes the lookup-vs-retrieval comparison impossible: you cannot
+# measure whether dense retrieval rescues an imperfect label if the imperfect
+# label was discarded.
+
+
+def test_the_proposed_labels_are_recorded_even_when_none_resolves(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due",
+        "sct_label": ["AFTERPROMPT", "Not a concept"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["label_unresolved"] is True
+    assert recs[0].checks["labels_proposed"] == ["AFTERPROMPT", "Not a concept"]
+
+
+def test_the_proposed_labels_are_recorded_when_one_does_resolve(reg):  # noqa: F811
+    """Kept on success too. Which RANK won is only interpretable next to what
+    the losing names were."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due",
+        "sct_label": ["Not a concept", "Rectal hemorrhage"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert recs[0].checks["labels_proposed"] == ["Not a concept", "Rectal hemorrhage"]
+    assert recs[0].checks["label_rank"] == 1
+
+
+def test_a_bare_string_label_is_recorded_as_a_list(reg):  # noqa: F811
+    """The prompt asks for up to three names and models sometimes send one
+    string. One shape on disk, or the column cannot be read."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due",
+        "sct_label": "Rectal hemorrhage", "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].checks["labels_proposed"] == ["Rectal hemorrhage"]
+
+
+def test_no_labels_proposed_is_an_empty_list_not_a_missing_key(reg):  # noqa: F811
+    """'the model named nothing' is a fact worth recording, and an absent key
+    reads as 'this run predates the column'."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm))
+    assert recs[0].checks["labels_proposed"] == []

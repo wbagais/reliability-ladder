@@ -191,20 +191,34 @@
    `full_run.py` survived the renumber. One import smoke test per script closes
    it. `ladder/run.py:snapshot_row` was in the same state until 2026-08-24 and
    now has `tests/test_run_rows.py`.
-6. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
+6. **The lookup-vs-RAG 2x2 needs a model that names concepts.** Top row
+   measured: a perfect clinical term scores 99.3% by exact lookup AND 99.3% by
+   dense retrieval — they coincide by construction, so retrieval can only pay
+   on an IMPERFECT label. Bottom row unmeasurable at 2B: granite4:micro-h
+   proposed `AFTERPROMPT` for "rectal bleed", so there was no concept to
+   retrieve on. Needs claude-sonnet-5, which is a licence call
+   (`LADDER_ALLOW_REMOTE=1`, CADEC is non-transferable) as well as a cost one.
+   `checks["labels_proposed"]` now records what the model offered, which is
+   what makes the comparison possible at all.
+7. **Schema enforcement is an A/B, not a switch.** It does not delete the
+   parse-failure metric — it MOVES the failure (truncation, empty mention
+   lists, plausible wrong values) and costs output quality, because
+   probability mass goes to satisfying the grammar. Run both arms and report
+   what it removed and what it cost. Not built.
+8. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
    `_step_s0` does `str(code)`, so a model answering `sct_code: ["21456007",
    ...]` gets `sct = "['21456007', ...]"` — never a valid code, so those
    mentions score 0 by construction. A RECORDING defect, not a model one: it
    makes "the model named two codes" indistinguishable from "the model emitted
    garbage". Decide what S0 should measure (first code / parse failure / its
    own outcome) BEFORE the dev runs, or S0's number is not the model's.
-7. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+9. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
    answer.** All 407 wholly-retired gold mentions leave the denominator, on the
    grounds that the keyword table is active-only. 111 of them (27.3%) have a
    SNOMED-recorded successor, so a model naming that successor is right against
    a stale answer key. Changing the answer key's inventory needs a measurement
    and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
-8. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+10. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".
