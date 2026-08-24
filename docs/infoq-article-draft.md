@@ -40,27 +40,44 @@ one measured for what it buys and what it costs.
 
 ```mermaid
 flowchart TD
-    R0["**Extract**<br/>bare model, one call"] --> R1
-    R1["**Validate**<br/>deterministic lookup<br/>zero model calls"] --> R3
-    R3["**Self-correct**<br/>tell the model its code<br/>failed, ask for another"] --> R5
-    R5["**Vote**<br/>k samples, majority<br/>on the normalised code"] --> R4
-    R4["**Judge**<br/>second model scores<br/>span and code"] --> R2
-    R2["**Abstain**<br/>withdraw what cannot<br/>be verified"] --> R6
-    R6["**Triage**<br/>route to a human"]
+    R0["**0 · Extract**<br/>bare model, one call"] --> R1
+    R1["**1 · Validate**<br/>deterministic lookup<br/>zero model calls"] --> R2
+    R2["**2 · Self-correct**<br/>tell the model its code<br/>failed, ask for another"] --> R3
+    R3["**3 · Vote**<br/>k samples, majority<br/>on the normalised code"] --> R4
+    R4["**4 · Judge**<br/>second model scores<br/>span and code"] --> R5
+    R5["**5 · Abstain**<br/>withdraw what cannot<br/>be verified"] --> R6
+    R6["**6 · Triage**<br/>route to a human"]
 
     style R1 fill:#2d4f2d,color:#fff
-    style R2 fill:#2d4f2d,color:#fff
+    style R5 fill:#2d4f2d,color:#fff
     style R6 stroke-dasharray: 5 5
 ```
 
 Two design choices matter for what follows.
 
-**Rung order is configuration, not a constant.** Execution order is
-`[0, 1, 3, 5, 4, 2, 6]` — cheap fixes before expensive sampling, judging after
-both so the judge grades the best available answer, abstention last because
-withdrawing early throws away records the layers above might have recovered.
-Because the order lives in a manifest rather than in code, it can be varied and
-measured rather than asserted.
+**Rung order is configuration, not a constant.** Cheap fixes before expensive
+sampling, judging after both so the judge grades the best available answer,
+abstention last because withdrawing early throws away records the layers above
+might have recovered. The order lives in a manifest rather than in code, so it
+can be varied and measured rather than asserted.
+
+For most of the project those two things were separate: IDs came from the
+original brief and execution order was `[0, 1, 3, 5, 4, 2, 6]`, so abstention
+was numbered second and ran last. Holding both mappings at once turned out to
+cost more than it bought, and midway through we renumbered so that ID equals
+position — self-correction 3→2, voting 5→3, abstention 2→5, the rest unchanged.
+
+That is a small thing, but it is worth saying how it was handled, because the
+rest of this article is about exactly this kind of hazard. Every measurement
+recorded before the change uses the old IDs. Rather than rewrite the history,
+the mapping table went into the manifest and the decisions log beside the
+entries that need it, so *"rung 2 abstained on all three"* in an earlier entry
+is still readable and still means what it meant. The measurements did not
+change; only the labels moved, and the translation is written down where someone
+reading the old numbers will find it.
+
+A renumbering with no mapping table is indistinguishable from a silent
+denominator shift, and this article has several of those in it.
 
 **Cost is three numbers, never one.** Tokens per record, p95 latency, and
 records routed to a person. Fusing them into a single figure hides which
@@ -178,7 +195,7 @@ shared model caller was not varying the sample index, which is part of the disk
 cache key. All k votes were hitting the same cache entry. Her words from the
 decisions log: *unanimity that was never measured, in 0.00s, for free.*
 
-## Result five: a judge with no discriminative power on either channel
+## Result five: two judges, opposite failure modes, neither reading its input
 
 The judge is a second model, from a different family — a model judging its own
 output measures self-consistency and reports it as verification, so the
@@ -188,90 +205,101 @@ counted separately:
 - `span_ok` — is the quoted text really a reported reaction?
 - `code_ok` — is this code right for it?
 
-First run, 40 documents:
+The first report pooled the two into one verdict and concluded the judge always
+agreed with the deterministic checker — two checkers paid for twice, a null
+result. Splitting the channels showed something else entirely, and splitting
+them is what made the rest of this section possible.
 
-| | |
-|---|---|
-| offered | 169 |
-| judged | 96 |
-| parse failures | 73 |
-| span_ok | 3 |
-| code_ok | 83 |
+### The control
 
-The v1 report pooled the two questions into one verdict and concluded the judge
-always agreed with the deterministic checker — two checkers paid for twice, a
-null result. Splitting the channels showed something different: the judge fails
-almost every span and passes almost every code, and the codes it passes are ones
-the deterministic lookup has already established do not exist.
+Judging model output alone cannot separate a harsh judge from an accurate one:
+those records had already been rejected, so a low pass rate might be correct.
+The fix is to mix in ground truth. 226 gold reaction mentions — spans written by
+human annotators, codes correct by construction — go in with the 169 model
+records, all 395 judged in one pass. The validator splits the set three ways, so
+both questions have known answers on each side.
 
-That is worth stating plainly. The judge affirms fabricated codes. My
-collaborator caught a verbatim instance: the judge asserted that *SNOMED CT
-41456009 represents rectal hemorrhage*, at 0.95 confidence, for a code the
-existence check had already rejected. It confabulated a label for a hallucinated
-identifier, because nothing in a judge prompt touches the vocabulary.
+Two judges were run through the identical set: `llama3.2:3b`, and `qwen2.5:7b`
+at roughly twice the size and from a different family again.
 
-But 3% on spans and 86% on codes could still mean the judge is right — those
-records had *already been rejected*, so a harsh span verdict might be accurate
-and a lenient code verdict might be a model treating a moot question as moot.
-Distinguishing those readings needs ground truth on both sides.
+| | | `llama3.2:3b` | `qwen2.5:7b` |
+|---|---|---|---|
+| `span_ok` | gold (correct by construction) | 3% | **83%** |
+| | model output | 3% | **83%** |
+| `code_ok` | gold (correct codes) | 92% | **21%** |
+| | model output (0/105 correct) | 86% | **21%** |
+| parse failures | | 204 / 395 | **1 / 395** |
 
-### The gold control
+Read the rows, not the columns. Within each judge, **gold and model output score
+identically** — to the percentage point on three of the four channel pairs. The
+small judge fails almost every span and passes almost every code. The large
+judge does the reverse. Neither distinguishes a correct answer from a fabricated
+one.
 
-Mix 226 gold reaction mentions — spans written by human annotators, codes
-correct by construction — with the 169 model records, and judge all 395 in one
-pass. Now the validation layer splits the set three ways and both questions have
-known answers on each side.
+The larger model's code channel is the sharper result. Those gold codes are
+right — human-annotated, valid, active, correct for the mention. It rejects 79%
+of them, at precisely the rate it rejects codes that do not exist in any
+release. That is not strictness. A strict judge would reject fabricated codes
+*more often* than correct ones.
 
-| | gold (correct by construction) | model output (0/105 codes correct) |
-|---|---|---|
-| judged | 95 | 96 |
-| `span_ok` | 3 — **3%** | 3 — **3%** |
-| `code_ok` | 87 — **92%** | 83 — **86%** |
+The breakdown by validation verdict says the same thing a third way: records the
+deterministic checker accepted score `code_ok` 29%; records it rejected score
+21%. Eight points apart, on a distinction that is a database lookup.
 
-The judge fails the annotators' own spans at exactly the rate it fails the
-model's. On codes, it passes valid ones and fabricated ones six points apart on
-n≈95 each — about 1.4 standard errors, no detectable discrimination.
+### What did improve with model size
 
-**Both channels are constants.** The judge is not reading its input. It returns
-approximately the same answer to both questions regardless of whether the answer
-is right.
+One thing, and it is worth separating out because it is a genuine difference:
+**parse failures fell from 204 of 395 to 1.**
 
-It is not uniformly useless — on one record it returned `span_ok: false` with
-the explanation *a fear, not an adverse reaction*, which is a genuine catch no
-deterministic check could make and exactly the work a judge is for. But that is
-an anecdote, and 3% versus 3% is a measurement.
+The small judge failed to produce usable output on 52% of records — and not at
+random, 58% on gold against 43% on model output, so the records it could answer
+about were a biased subsample of the records it was given. That is an
+availability problem, and it belongs in the cost column rather than the accuracy
+discussion. It was a property of that model, not of LLM judging, and a larger
+model fixed it completely.
+
+It fixed availability and changed nothing about discrimination. The judge now
+answers reliably, and its answers still do not depend on whether the thing being
+judged is correct.
 
 ### The number that moved 51 points while nothing changed
 
-Because the judge fails everything on the pooled verdict, its agreement with the
-deterministic checker equals that checker's rejection rate on whatever set you
-hand it:
+Because the pooled verdict is near-constant, agreement with the deterministic
+checker is mostly a function of that checker's rejection rate on whatever set
+you hand it:
 
-| set | validator's REJECT share | reported agreement |
-|---|---|---|
-| 5 documents | 9 / 9 | **100%** |
-| 40 documents | 94 / 96 | **98%** |
-| mixed gold control | 94 / 191 | **49%** |
+| judge | set | validator's REJECT share | reported agreement |
+|---|---|---|---|
+| llama3.2:3b | 5 documents | 9 / 9 | **100%** |
+| llama3.2:3b | 40 documents | 94 / 96 | **98%** |
+| llama3.2:3b | mixed control | 94 / 191 | **49%** |
+| qwen2.5:7b | mixed control | 165 / 394 | **44%** |
 
-Same judge. Same prompt. Same model. Identical behaviour on every record. The
-agreement metric moved across half its range purely because the composition of
-the comparison set changed.
+Four configurations, four agreement figures spanning 56 points, and no
+relationship between any of them and whether the judge was doing useful work.
+The 100% and the 44% are the same finding.
 
 If you take one thing from this article, take that table. A reliability metric
-swung 51 points with no change whatsoever in the thing being measured, and
+swung across most of its range while the thing it measures did not change, and
 nothing in the metric's presentation would have told you.
 
-### Availability is input-dependent
+### Cost
 
-Parse failures ran **58% on gold (131/226) against 43% on model output
-(73/169)**. So the records the judge can answer about are not a random sample of
-the records it is given — every rate above is conditioned on the judge having
-produced parseable output at all.
+`llama3.2:3b`: 207,529 tokens, 611 seconds for the control.
+`qwen2.5:7b`: 209,354 tokens, 5,545 seconds — the larger model did not fit
+entirely in 4 GB of VRAM and ran partially on CPU, which is a compute-backend
+difference and is recorded as one.
 
-At 43–58% failure, this judge has an availability problem before it has an
-accuracy problem, and the cost belongs to the judge rather than to the
-extractor. Total for the control run: 207,529 tokens, 611 seconds — by a wide
-margin the most expensive layer, for two constants.
+Similar token counts, an order of magnitude apart in wall clock, for two
+constants each.
+
+It was not uniformly useless. On one record the small judge returned `span_ok:
+false` with the explanation *a fear, not an adverse reaction* — a genuine catch
+no deterministic check could make, and exactly the work a judge is for. Another
+time it asserted that *SNOMED CT 41456009 represents rectal hemorrhage* at 0.95
+confidence, for a code the existence check had already rejected, confabulating a
+label for a hallucinated identifier. Both are anecdotes. 83% versus 83% is a
+measurement.
 
 ## The layer that worked, and what it cost
 
@@ -557,6 +585,8 @@ outcome — a lookup against a file, and a function that withdraws answers.
 - Split pooled ratios by the populations you pooled, before publishing either.
 - Never report an agreement figure without the composition of the set it was
   computed on.
+- Test a judge against known-correct input before trusting it on unknown input.
+  If it scores both the same, it is not reading them.
 - Stamp backend, release, corpus version, temperature, and rung order into every
   run record.
 - Verify the label on an experimental arm before reporting the contrast.
