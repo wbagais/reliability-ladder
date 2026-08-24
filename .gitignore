@@ -79,3 +79,5 @@ data/*
 # python docs/wiki/build.py
 docs/wiki/site/
 *.bak
+runs/*.ledger.jsonl
+runs/*.report.txt
