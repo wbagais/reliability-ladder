@@ -869,3 +869,61 @@ def test_label_check_can_still_fail_on_an_s1_record(reg):  # noqa: F811
     assert recs[0].sct_label == "california chicken"
     _, _, checks = r1.zone(recs[0], "I feel a bit drowsy today.", StubVocab(), {})
     assert checks["label_verified"] is False, "label_check must still be able to fail"
+
+
+# --- truncated is not the same as malformed ---------------------------------
+#
+# Measured 2026-08-24: gpt-oss:20b at S0 burned all 16,000 completion tokens
+# and returned an empty string. The ledger said parse_failed / json_decode,
+# which is the number rung 0 exists to report — the harness's own cap
+# published as the model's JSON reliability.
+
+
+class TruncatedLLM(FakeLLM):
+    def __call__(self, prompt, text, mode, **kw):
+        self.prompts.append(prompt)
+        return "", {"in": 10, "out": 16000, "usd": 0.0, "truncated": True}
+
+
+def test_a_truncated_reply_is_flagged_as_truncated_not_just_parse_failed(reg):  # noqa: F811
+    _, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=TruncatedLLM()))
+    assert agg["truncated"] == 1
+
+
+def test_a_truncated_reply_still_counts_as_a_parse_failure(reg):  # noqa: F811
+    """It IS one — nothing usable came back. The two counts overlap on
+    purpose; what must not happen is the cause being unrecoverable."""
+    _, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=TruncatedLLM()))
+    assert agg["parse_failed"] == 1
+
+
+def test_the_ledger_row_carries_the_reason(reg):  # noqa: F811
+    """`reason` is what a report groups by. json_decode and truncated are
+    different findings and must not share a label."""
+    from ladder.ledger import Ledger
+    import json as _json, pathlib, tempfile
+
+    with tempfile.TemporaryDirectory() as d:
+        led = Ledger(pathlib.Path(d) / "l.jsonl", run_id="t")
+        r0.apply([], SOURCES, cfg(reg, "S1", llm=TruncatedLLM(), ledger=led))
+        led.flush()
+        rows = [_json.loads(x) for x in (pathlib.Path(d) / "l.jsonl").read_text().splitlines() if x.strip()]
+        assert rows[0]["reason"] == "truncated"
+
+
+def test_an_ordinary_bad_reply_is_still_json_decode(reg):  # noqa: F811
+    from ladder.ledger import Ledger
+    import json as _json, pathlib, tempfile
+
+    class Garbage(FakeLLM):
+        def __call__(self, prompt, text, mode, **kw):
+            self.prompts.append(prompt)
+            return "not json at all", {"in": 10, "out": 5, "usd": 0.0}
+
+    with tempfile.TemporaryDirectory() as d:
+        led = Ledger(pathlib.Path(d) / "l.jsonl", run_id="t")
+        _, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=Garbage(), ledger=led))
+        led.flush()
+        rows = [_json.loads(x) for x in (pathlib.Path(d) / "l.jsonl").read_text().splitlines() if x.strip()]
+        assert rows[0]["reason"] == "json_decode"
+        assert agg["truncated"] == 0

@@ -198,3 +198,70 @@ def test_the_caller_sends_the_models_own_budget(monkeypatch):
     except RuntimeError:
         pass
     assert sent["max_tokens"] >= 8000
+
+
+# --- a truncation is not a model failure -------------------------------------
+#
+# Measured 2026-08-24: gpt-oss:20b at S0 burned all 16,000 completion tokens
+# and returned an EMPTY STRING. The ledger logged parse_failed / json_decode —
+# identical to a model that emitted malformed JSON, which is the specific
+# reliability number rung 0 exists to report.
+#
+# They are not the same event. One is the model failing; the other is the
+# harness cutting it off. Raising the cap does not fix that — it just moves
+# where the confusion happens. The provider already says which occurred
+# (finish_reason == "length"), so it is recorded.
+
+
+class _Resp:
+    def __init__(self, text, finish_reason):
+        self.choices = [type("C", (), {
+            "message": type("M", (), {"content": text})(),
+            "finish_reason": finish_reason,
+        })()]
+        self.usage = type("U", (), {"prompt_tokens": 10, "completion_tokens": 20})()
+
+
+def _client_returning(resp, tmp_path):
+    from ladder.llm import LLMClient
+
+    class FakeCompletions:
+        def create(self, **kw):
+            return resp
+
+    client = LLMClient("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()
+    })()
+    return client
+
+
+def test_a_completed_reply_is_not_truncated(tmp_path):
+    client = _client_returning(_Resp('{"mentions":[]}', "stop"), tmp_path)
+    assert client.chat([{"role": "user", "content": "x"}]).truncated is False
+
+
+def test_hitting_the_cap_is_recorded_as_truncated(tmp_path):
+    client = _client_returning(_Resp("", "length"), tmp_path)
+    assert client.chat([{"role": "user", "content": "x"}]).truncated is True
+
+
+def test_truncation_survives_the_cache(tmp_path):
+    """A cached reply that was truncated is still truncated. Losing the flag on
+    a rerun would make the same run report two different failure counts."""
+    client = _client_returning(_Resp("", "length"), tmp_path)
+    client.chat([{"role": "user", "content": "x"}])
+    again = client.chat([{"role": "user", "content": "x"}])
+    assert again.cached is True
+    assert again.truncated is True
+
+
+def test_the_caller_passes_truncation_through_to_the_rung(tmp_path):
+    """usage["truncated"] is what a rung logs. Without it the flag stops at
+    the client and nothing downstream can tell the two failures apart."""
+    from ladder.llm import Caller
+
+    caller = Caller("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    caller.client = _client_returning(_Resp("", "length"), tmp_path)
+    _, usage = caller("prompt", "text", "S0")
+    assert usage["truncated"] is True

@@ -36,6 +36,14 @@ class LLMResponse:
     completion_tokens: int
     latency_s: float
     cached: bool = False
+    #: Did the provider stop because the token budget ran out?
+    #: A TRUNCATION IS NOT A MODEL FAILURE. Measured 2026-08-24: gpt-oss:20b
+    #: at rung 0's S0 burned all 16,000 completion tokens and returned an
+    #: empty string, and the ledger recorded parse_failed/json_decode —
+    #: identical to a model that emitted malformed JSON, which is the number
+    #: rung 0 exists to report. Raising the cap does not fix that, it moves
+    #: it; the provider already says which happened, so it is kept.
+    truncated: bool = False
 
 
 class ModelInfo:
@@ -127,6 +135,9 @@ class LLMClient:
         path = self._cache_path(payload)
         if path.exists():
             data = json.loads(path.read_text())
+            # Older cache entries predate the flag; absent means "not known to
+            # be truncated", never "known not to be".
+            data.setdefault("truncated", False)
             return LLMResponse(**data, cached=True)
 
         if self._client is None:
@@ -149,11 +160,15 @@ class LLMClient:
         resp = self._client.chat.completions.create(**params)
         latency = time.monotonic() - t0
         usage = resp.usage
+        choice = resp.choices[0]
         data = {
-            "text": resp.choices[0].message.content or "",
+            "text": choice.message.content or "",
             "prompt_tokens": usage.prompt_tokens if usage else 0,
             "completion_tokens": usage.completion_tokens if usage else 0,
             "latency_s": round(latency, 3),
+            # Cached alongside the text: a cached reply that was truncated is
+            # still truncated, or one run reports two different failure counts.
+            "truncated": getattr(choice, "finish_reason", None) == "length",
         }
         path.write_text(json.dumps(data, ensure_ascii=False))
         return LLMResponse(**data, cached=False)
@@ -244,6 +259,9 @@ class Caller:
             "model": self.spec,
             "cached": resp.cached,
             "usd": self.client.info.dollars(resp.prompt_tokens, resp.completion_tokens),
+            # The rung logs this. Without it the flag stops at the client and
+            # nothing downstream can tell a cut-off reply from a bad one.
+            "truncated": resp.truncated,
         }
         return self._unfence(resp.text), usage
 

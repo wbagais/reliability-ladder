@@ -180,6 +180,7 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
 
     try:
         parsed = json.loads(raw)
@@ -465,6 +466,7 @@ def _step_s0(doc_id, source, llm, cfg, meta):
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -536,6 +538,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -637,6 +640,7 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -686,6 +690,7 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
     meta["api_calls"] += 1
     # A pick reply that will not parse is NOT the model declining. Measured on
     # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
@@ -841,7 +846,7 @@ def apply(
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
-        "pick_parse_failed": 0, "t0": time.time(),
+        "pick_parse_failed": 0, "truncated": 0, "t0": time.time(),
     }
     out: list[Record] = []
     for doc_id, text in sources.items():
@@ -855,6 +860,11 @@ def apply(
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
         agg["pick_parse_failed"] += int(meta.get("pick_parse_failed", False))
+        # Counted SEPARATELY, and it overlaps parse_failed on purpose: a
+        # truncated reply IS unusable, but "the harness cut it off" and "the
+        # model cannot emit JSON" are different findings and must not share a
+        # label. Raising max_tokens moves this, it does not remove it.
+        agg["truncated"] += int(meta.get("truncated", False))
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:
@@ -868,7 +878,11 @@ def apply(
                 record_id=doc_id,
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
-                reason="json_decode" if meta.get("parse_failed") else None,
+                reason=(
+                    "truncated" if meta.get("truncated")
+                    else "json_decode" if meta.get("parse_failed")
+                    else None
+                ),
                 tokens_in=meta["tokens_in"],
                 tokens_out=meta["tokens_out"],
                 api_calls=meta.get("api_calls", 1),
@@ -939,7 +953,11 @@ def run(items, mode, llm, cfg=None):
                 record_id=it["doc_id"],
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
-                reason="json_decode" if meta.get("parse_failed") else None,
+                reason=(
+                    "truncated" if meta.get("truncated")
+                    else "json_decode" if meta.get("parse_failed")
+                    else None
+                ),
                 tokens_in=meta.get("tokens_in", 0),
                 tokens_out=meta.get("tokens_out", 0),
                 api_calls=1,

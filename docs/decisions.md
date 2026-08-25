@@ -2341,3 +2341,88 @@ number chosen.
 S1's proposed labels also show the decide step is now reachable with a capable
 model: `['Rectal hemorrhage', 'Rectal bleeding', 'Severe rectal bleeding']` —
 three real clinical names where granite4:micro-h produced `AFTERPROMPT`.
+
+---
+
+## 2026-08-24 — a truncation is not a model failure
+
+Raising `max_tokens` for `gpt-oss:20b` fixed S2 and left the real defect in
+place: **the ledger could not tell a cut-off reply from a bad one.** S0 burns
+all 16,000 completion tokens and returns an EMPTY STRING, and that was logged
+`parse_failed / json_decode` — the same label as a model that emitted
+malformed JSON, which is the specific reliability number rung 0 exists to
+report.
+
+Raising the cap does not fix that. It moves where the confusion happens. The
+provider already says which occurred, so it is now recorded:
+
+    LLMResponse.truncated     finish_reason == "length"
+    usage["truncated"]        passed through to the rung
+    agg["truncated"]          counted per run
+    ledger reason             "truncated", not "json_decode"
+
+The two counts OVERLAP on purpose. A truncated reply IS unusable, so it stays
+a parse failure; what must not happen is the cause becoming unrecoverable. The
+flag is cached alongside the text, because a cached reply that was truncated
+is still truncated and losing it would make one run report two different
+failure counts.
+
+### Is 2000 too low as the default?
+
+Not for the models it was written for. Measured completion tokens on
+ARTHROTEC.107:
+
+    granite4:micro-h   S0 185   S1 164   S2 167      ~10x headroom at 2000
+    gpt-oss:20b        S0 16000 (truncated, empty)
+                       S1 1830
+                       S2 3303 + 1904 = 5207
+
+A reasoning model needs 10-30x what an instruct model does, and the spread is
+a property of the MODEL, not of the task — which is exactly why the budget is
+registry data now. The default stays 2000: raising it globally means a model
+stuck in a loop burns 16k tokens per document instead of 2k, on every document
+in the split, and tokens per record is one of the three cost measures. With
+truncation recorded, a too-low budget is now VISIBLE rather than silently
+recorded as unreliability, which is the property that makes a conservative
+default safe.
+
+### S0 with a reasoning model: 16,000 tokens, empty output
+
+Not the cap — it was 2000, then 16000, and both produced nothing. S0 is the
+step that asks for a nine-digit SNOMED identifier from memory. The model
+appears to loop rather than commit to an id it cannot recall. One observation
+on one document, but the shape is worth stating: the failure is specific to
+the step whose task is exact-id recall, which is the thing S1 exists to
+remove.
+
+### What the three steps actually produced
+
+    S0   1 call    389 in / 16000 out   truncated, empty, 0 records
+
+    S1   1 call    341 in / 1830 out    2 records
+         {"mentions":[
+           {"span_text":"extreme rectal bleed",
+            "sct_label":["Rectal hemorrhage","Rectal bleeding",
+                         "Severe rectal bleeding"],"confidence":0.95},
+           {"span_text":"extremely sick",
+            "sct_label":["Severe illness","Severe sickness",
+                         "Critical illness"],"confidence":0.8}]}
+         -> 12063002 (rank 0, 1 candidate, no decide call needed)
+         -> "extremely sick": all three names miss the keyword table entirely
+
+    S2   2 calls   1070 in / 5207 out   3 records
+         finds all three spans, picks 3 of 3
+         -> 12063002 | 162471005 |Symptom very severe| | 17029006 |Feeling despair|
+
+**S1 named the right concept first try.** `Rectal hemorrhage` is the gold
+label; it mapped, and because only one candidate survived, no decide call was
+needed. Against granite's `AFTERPROMPT` this is a different class of model.
+
+**S1's second mention shows the keyword table's edge.** `Severe illness`,
+`Severe sickness` and `Critical illness` are all reasonable English for
+"extremely sick" and NONE is a SNOMED synonym of |Generally unwell|. Three
+plausible names, zero candidates — the failure multi-label was supposed to
+prevent, and it is a VOCABULARY failure rather than a model one. `dense`
+retrieval over the same labels would have offered something; exact lookup
+offers nothing. That is the strongest argument yet for the lookup-vs-RAG
+question, and it is now visible only because `labels_proposed` is recorded.
