@@ -92,7 +92,19 @@ print(f"\n  after rung 2: code {tot2['code_correct']}/{g2} "
       f"(was {tot['code_correct']}/{g})")
 
 # ---------------------------------------------------------------- provenance
+from ladder import provenance as _prov
+_stamp = _prov.gather(
+    man, split="dev", n_docs=len(items), vocab=cfg["registry"],
+    entry_point="scripts/full_run.py",
+    models_spec={"extractor": (man.get("model", {}).get("extractor"), S.MODEL)},
+    sampling={"temperature": 0.0},
+    extra={"mode": MODE})
+for _w in _prov.warnings(_stamp):
+    print(f"  WARNING  {_w}")
+
 out = {
+    "provenance": _stamp,
+    # kept so anything reading these keys still works
     "mode": MODE, "compute_backend": backend,
     "model": S.MODEL, "documents": len(items),
     "snomed_release": man["vocabulary"]["snomed_release"],

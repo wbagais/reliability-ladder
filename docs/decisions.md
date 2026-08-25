@@ -1434,45 +1434,53 @@ still ONE document, ARTHROTEC.107.
 
 ---
 
-## 2026-08-24 — Registry.search() is literal substring matching
+## 2026-08-24 — exact-term retrieval finds nothing for 59% of gold spans
 
 Found while building the rung 6 desk, which needed to offer a reviewer
 candidates and offered nothing for most records.
 
-`Registry.search(text, k)` matches the query as a literal substring of SNOMED
-labels. No tokenisation, no stemming, no term overlap:
+**Correction to the first version of this entry.** I wrote that `search()` was
+literal substring matching. It is not. `search()` calls `codes_for_term()`,
+which is `WHERE norm=?` — exact equality on the normalised term, and
+`normalise_term()` lowercases, drops the semantic tag and squashes punctuation.
+The evidence was in front of me and I read it backwards: `'back'` returning 2
+results rules substring matching out, because substring matching would return
+hundreds. The mechanism is exact match, and A documented the choice in the
+docstring: fuzzy local search "would quietly become a different experiment from
+the OLS4 one it is meant to be comparable with."
 
-    'low back pain'    -> 3 results
-    'lower back pain'  -> 0
-    'back pain lower'  -> 0
-    'lower back'       -> 1
-    'back'             -> 2
-
-The full phrase does not appear character-for-character in any label, so
-nothing matches. Case is NOT the mechanism.
+So this is not a bug. It is the measured consequence of a deliberate design
+decision, which makes it more interesting rather than less.
 
 **141 of 343 gold reaction spans return a candidate. 202 return nothing — 59%.**
-Of those 202, **0** are recovered by lowercasing. These are the annotators' own
-phrases, the ones a human judged codable, and the lookup finds nothing for six
-in ten.
 
-Blast radius, because several rungs lean on this:
+    'low back pain'    -> 3 results
+    'lower back pain'  -> 0        no description normalises to this
+    'back'             -> 2
+
+These are the annotators' own phrases, the ones a human judged codable. Exact
+term retrieval finds six in ten of them absent from the vocabulary's
+description table. That is a ceiling on any rung that depends on term lookup,
+and it is a fact about the gap between patient language and terminology
+descriptions rather than about the matcher.
+
+Consequences:
 
 - **Rung 0 mode B.** The post-hoc lookup returns empty for most mentions, so
   `honoured_tool` is None rather than False far more often than its docstring
-  implies. The arm's failure has a simpler explanation than the one currently
-  written into the code.
-- **Rung 1's `lexical_match`.** If it uses the same matcher, ACCEPT vs BAND is
-  partly an artefact of substring matching — and the 43.1% pooled / 35.0%
-  reactions-only accept rates inherit it. UNVERIFIED; check before the article
-  quotes those figures again.
-- **Rung 6's strata.** "No candidates" mostly means the search missed, not that
-  the record is intrinsically hard to code. The 27s median therefore measures
-  reviewing records the lookup failed on, and the 1.2 reviewer-hour
+  implies. Its failure has a simpler explanation than the one written into the
+  code — most of the time there were no candidates to honour.
+- **Rung 6's strata.** "No candidates" means the term is not in the description
+  table, not that the record is intrinsically hard. The 27s median measures
+  reviewing records the exact index could not serve, and the 1.2 reviewer-hour
   extrapolation is not the coding-from-scratch cost it was designed to be.
+- **Rung 1's `lexical_match` is NOT affected.** Checked: it is a separate
+  function comparing normalised text against a given code's own terms, with
+  `mode="exact"` chosen by measurement. The 43.1% / 35.0% accept rates stand.
 
-The fix is not small — proper matching means tokenising labels and scoring
-overlap, in a component every rung uses. A to decide.
+Open question for A, not a defect report: is exact-term retrieval the right
+choice for rung 6 candidates, where the OLS4 comparability argument does not
+apply? A reviewer needs recall, not comparability.
 
 Also fixed in scripts/r6_desk.py: search results use the key `label`, not
 `term` or `fsn`, so candidates were displayed as bare SCTIDs with no text. The

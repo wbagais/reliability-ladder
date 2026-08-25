@@ -192,9 +192,33 @@ maps it — the discrimination is the lookup's. Coverage cost: **150 of 226
 correct gold codes withheld, 66%**, free here only because the model produced no
 correct codes to lose.
 
-**Rung 6 is blocked, not unfinished.** It would receive 169 withheld records,
-every one carrying a wrong answer or none. The ladder terminates before the top
-because the bottom produces no signal to pass upward.
+**Rung 6 is measured, not built.** A triage desk over 169 records that are all
+wrong would be re-annotation, not triage. But the third cost measure — records
+routed to a person — was zero everywhere, so the ladder's full cost could not be
+stated. It was run instead as a blind, stratified timing study: 6 records, gold
+and model mixed and presented identically, terminology searchable, decisions and
+seconds recorded, accuracy deliberately not scored.
+
+| | n | median | range |
+|---|---|---|---|
+| with candidates | 3 | 12.5s | 7–19s |
+| without | 3 | 27.1s | 21–46s |
+
+Extrapolated from n=3, by a reviewer who is not a trained coder: the 155 records
+with no valid code are roughly **1.2 reviewer-hours**, against 234,727 tokens
+that produced 0 correct codes.
+
+```bash
+LADDER_N=8 PYTHONPATH=. python3 scripts/r6_desk.py
+```
+
+**The vocabulary is a ceiling.** `Registry.search()` is exact-term retrieval —
+the query is normalised and matched for equality against SNOMED's description
+table. Deliberate: a fuzzy local index has no relevance ranking and would stop
+being comparable with the OLS4 backend. The measured cost had not been taken:
+**141 of 343 gold reaction spans return a candidate, 202 return nothing (59%)**.
+`low back pain` resolves; `lower back pain` does not. Every rung that depends on
+term lookup inherits that ceiling.
 
 **No rung interaction.** Run end to end in the specified order, every per-rung
 figure reproduced exactly.
@@ -202,6 +226,50 @@ figure reproduced exactly.
 ```bash
 LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
 ```
+
+## Watching a run
+
+Two views over the same append-only ledger, so they cannot disagree.
+
+```bash
+python3 scripts/ladder_top.py            # terminal, follows the ledger
+python3 scripts/ladder_top.py --once     # render a finished run
+LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py --tui
+```
+
+```bash
+python3 -m http.server 8000              # from the repo root
+# then http://localhost:8000/docs/ladder-monitor.html
+```
+
+Both draw each rung over **its own denominator**, never the run total, and both
+render `could_not_run` as a hatch rather than a colour — it is the absence of a
+measurement and must not read as one.
+
+The terminal view adds two panels that have already earned their place. **Watch**
+runs live checks derived from this project's own mistakes: a verdict
+distribution whose minority class is under 10% (agreement over such a set
+measures its composition, not the checker), a rung losing more than a quarter of
+its input to could-not-run, rows with no denominator. **Time** gives per-rung
+latency distribution, throughput, ETA and drift — and it found on its first
+render that rung 4's apparent 6x degradation was a single 134-second model load
+followed by partial GPU offload, not degradation at all.
+
+## Provenance — what actually ran
+
+`ladder/provenance.py` gathers a run stamp from live objects rather than from
+the manifest's intentions, because the two diverge. It records requested against
+resolved model strings, the vocabulary backend and whether it is the lossy one,
+sampling temperature, rung order, git SHA and whether the tree was dirty, and
+whether the model fits in VRAM.
+
+```bash
+PYTHONPATH=. python3 -m ladder.provenance
+```
+
+It warns rather than raises. On its first real run it caught that the pipeline
+judges with `llama3.2:3b` while the manifest specifies `qwen2.5:7b` — two models
+that produced opposite results, and nothing had recorded which one ran.
 
 ## The ledger, and what it records that tools do not
 
@@ -301,9 +369,18 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
 - [x] InfoQ article — first draft in [docs/infoq-article-draft.md](docs/infoq-article-draft.md)
 - [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns
       empty rather than guessing, and reports a missing rung rather than faking it
-- [ ] Rung 0 mode B — currently measures prompt wording, not tool access
-      (`honoured_tool` is never true; the lookup runs after generation). Rename
-      it or build a real loop; do not publish the current framing either way
+- [x] Rung 6 measured as a timing study — 1.2 reviewer-hours extrapolated
+- [x] Provenance stamps on every script that produces a figure
+- [x] Contract tests — vocabulary Protocol conformance, exact-term search
+      pinned, the never-fired guards exercised, rung 0's two entry points
+      asserted to agree
+- [ ] Rung 0 mode B — measures prompt wording plus a post-hoc lookup, NOT tool
+      access. The search runs after generation and the model never sees it;
+      worse, exact-term retrieval returns nothing for most mentions, so
+      `honoured_tool` is undefined rather than false. Do not publish the current
+      framing. A real tool loop is untested and is the obvious next experiment
+- [ ] `ladder/rungs/r0.py` has two entry points, `run()` and `apply()`. They now
+      agree and a test enforces it, but the duplication is the underlying issue
 - [ ] `docs/plan.html` — audited against measured results, six blocking items
       open. See [docs/plan-html-audit.md](docs/plan-html-audit.md)
 - [—] Rung 6 — **structurally blocked, not pending.** Nothing below it produces

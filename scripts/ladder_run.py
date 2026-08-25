@@ -210,6 +210,19 @@ if MON:
     MON.stop()
     print(f"\nreports written to runs/{RUN_ID}.report.txt")
 offer_r6(withheld)
+from ladder import provenance as _prov
+_stamp = _prov.gather(
+    man, n_docs=len(items), vocab=reg, rung_order=ORDER,
+    entry_point="scripts/ladder_run.py", run_id=RUN_ID,
+    models_spec={"extractor": (man.get("model", {}).get("extractor"), S.MODEL),
+                 "judge": (man.get("model", {}).get("judge"), "llama3.2:3b")},
+    sampling={"temperature": 0.7, "k": 3},
+    extra={"records": len(recs), "withheld": withheld})
+_prov.write(f"runs/{RUN_ID}.json", _stamp)
+for _w in _prov.warnings(_stamp):
+    print(f"  WARNING  {_w}")
+print(f"  provenance  runs/{RUN_ID}.json")
+
 say(f"  wall clock {time.perf_counter() - t_start:.1f}s")
 say("\n  Compare against the standalone runs. Any difference is rung")
 say("  interaction, which every per-rung figure so far assumes is zero.")

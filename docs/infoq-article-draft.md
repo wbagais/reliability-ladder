@@ -347,16 +347,44 @@ flowchart LR
 ## Where the ladder terminates
 
 The top of the ladder is a triage desk: route what could not be verified to a
-human. It has never taken a review, and it cannot usefully take one.
+human. It was never built as a product, and building one would have been the
+wrong response — it would receive 169 withheld records, every one carrying a
+wrong answer or none, and a reviewer opening that queue is re-annotating rather
+than triaging.
 
-It would receive 169 withheld model records, every one of which carries either a
-wrong answer or no answer. There is nothing for a reviewer to adjudicate. The
-ladder terminates before the top not because the top is unfinished, but because
-the bottom produces no signal to pass upward.
+But the rung still has something to contribute, and it is the thing the cost
+model was missing. Two of the three cost measures — tokens and latency — had
+real numbers. The third, *records routed to a person*, was zero everywhere, not
+because review is free but because nobody had timed it. The ladder's full cost
+could not be stated.
 
-That is a result, not a gap in the implementation. A seven-rung ladder with
+So rung 6 was built as a timing study rather than a desk. Six records, drawn
+blind from a mixture of gold and model output, presented identically, with the
+terminology searchable. Decisions and seconds recorded; accuracy deliberately
+not scored, because the moment it is an accuracy test it measures the reviewer.
+Stratified by whether the vocabulary returned candidates, and reported that way,
+because picking from a list and searching a 129,675-concept terminology are
+different jobs:
+
+| | n | median | range |
+|---|---|---|---|
+| with candidates | 3 | 12.5s | 7–19s |
+| without | 3 | 27.1s | 21–46s |
+
+Extrapolated — and it is an extrapolation from three records, by a reviewer who
+is not a trained safety officer — the 155 records with no valid code represent
+roughly **1.2 reviewer-hours**, against 234,727 tokens that produced zero
+correct codes.
+
+That is the whole ladder's cost, stated for the first time: a quarter of a
+million tokens, an hour of machine time, and an hour or so of human attention.
+The human hour is the only part of it that would have produced correct codes.
+
+The ladder terminates before the top not because the top is unfinished, but
+because the bottom produces no signal to pass upward. A seven-rung ladder with
 seven green checkmarks would have been a less honest artefact than one that
-stops.
+stops — and one that stops while still costing the reviewer an hour is more
+useful than either.
 
 ## The instrumentation was wrong the whole time
 
@@ -589,6 +617,38 @@ checks codes in isolation and structurally cannot notice.
 
 A deterministic checker is a floor, not a grader. It tells you what is
 impossible, never what is right.
+
+## The vocabulary is a ceiling nobody measured
+
+The rung 6 desk needed to offer a reviewer candidate codes, and for most
+records it offered none. That turned out to be a property of the whole system.
+
+The local terminology index does exact-term retrieval: a query is normalised —
+lowercased, semantic tag stripped, punctuation squashed — and matched for
+equality against SNOMED's description table. Not substring, not fuzzy. The
+choice is documented and deliberate: a fuzzy local index has no relevance
+ranking, and would quietly stop being comparable with the networked backend it
+is meant to be measured against.
+
+The consequence had not been measured. **Of 343 gold reaction spans — the
+annotators' own phrases, the ones a human judged codable — 141 return a
+candidate and 202 return nothing.** Fifty-nine percent. `low back pain`
+resolves; `lower back pain` does not, because no description normalises to
+exactly that string.
+
+This is not a defect. It is the measured cost of a design decision, and it puts
+a ceiling on every layer that depends on term lookup. The tool-shaped prompt's
+post-hoc search returns empty for most mentions, so its tool-fidelity flag is
+*undefined* rather than *false* far more often than its own documentation
+implies. The triage desk's "no candidates" stratum does not mean "hard to code";
+it means "not in the description table".
+
+Worth stating plainly because I got it wrong first: I initially diagnosed this
+as substring matching, wrote it up, and pushed it. The evidence against was
+already in front of me — a query for `back` returned two results, and substring
+matching would have returned hundreds. The correction is in the decisions log
+next to the original, which is the only reason anyone reading it later will know
+which claim to trust.
 
 ## The answer key is not clean either
 
