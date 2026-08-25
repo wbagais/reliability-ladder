@@ -31,7 +31,7 @@ ladder/cache/
 # compared to iteration 1.
 
 # ── CACHES: large, and they contain document text ───────────────────
-.llm_cache/
+.llm_cache
 cache/
 .vocab_cache/
 

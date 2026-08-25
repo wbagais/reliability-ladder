@@ -494,6 +494,36 @@ def test_every_step_says_vague_states_count():
         assert "vague" in prompt.lower() or "general" in prompt.lower()
 
 
+def test_every_step_scopes_to_all_conditions_not_only_adrs():
+    """The answer key is WIDER than "adverse reaction": CADEC's Symptom,
+    Disease and Finding annotations all map to REACTION (schema.py
+    CADEC_TYPE_MAP), so gold includes the condition the drug was taken for —
+    "Lower back pain" in dev doc ARTHROTEC.139. Measured on the 2026-08-25
+    arm-2 dev run: 20 of 68 false negatives were these non-ADR mentions. A
+    prompt that says only "adverse reaction" tells the model to skip a fifth
+    of its misses."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "taken for" in prompt.lower()
+
+
+def test_every_step_demands_the_whole_list():
+    """Measured on the arm-2 dev run: false negatives concentrate in
+    symptom-dense posts — docs with 12-14 gold mentions got 5-8 from the
+    model, which stops partway through comma-lists like "drowsiness,
+    grogginess, memory loss, loss of stamina". """
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "whole post" in prompt.lower()
+
+
+def test_the_pick_prompt_states_the_base_concept_rule():
+    """The single biggest dev failure: 45 of 226 mentions (20%) had the gold
+    code ON the menu and the model picked a more specific sibling — gold is
+    |Abdominal pain| for "Very very severe abdonimal pain", |Neck pain| for
+    "neck pain while turning head". CADEC codes the plain base concept."""
+    low = r0.PICK_PROMPT.lower()
+    assert "plain" in low
+
+
 def test_no_step_tells_the_model_to_drop_intensifiers():
     """Measured: 506 gold mentions (6.9%) START with an intensifier and KEEP
     it — "severe stomach pain", "extreme stomach pain", "extremely sick". An
@@ -547,6 +577,73 @@ def test_the_fewshot_example_keeps_its_intensifier():
     """The dominant gold convention (6.8% keep vs 2.2% drop) — the example
     must model it, not fight it."""
     assert "terrible cramps" in r0.FEWSHOT.lower()
+
+
+# --- the no_concept pick ------------------------------------------------------
+
+
+def test_no_concept_pick_is_concept_less(reg):  # noqa: F811
+    """`"choice": "no_concept"` is the explicit assertion the decline change
+    removed: not "none of these candidates" but "this is not a codable
+    reaction". 10 of 226 dev gold mentions (4%) are concept-less, and after
+    the decline fix S2 had no way to ever answer them."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": "no_concept"},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct == CONCEPT_LESS
+    assert recs[0].sct_label == CONCEPT_LESS
+    assert agg["declined_shortlist"] == 0
+    assert recs[1].sct is not None
+
+
+def test_a_null_choice_still_declines_not_asserts(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": None},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["declined_shortlist"] is True
+
+
+def test_the_pick_prompt_offers_no_concept():
+    assert "no_concept" in r0.PICK_PROMPT
+
+
+# --- pool-derived few-shot ----------------------------------------------------
+#
+# The synthetic example teaches span mechanics; only real CADEC examples can
+# teach CADEC's own conventions (base-concept coding, exhaustive lists, the
+# treated condition counting). They are rendered AT RUNTIME from data/ — the
+# corpus is non-transferable and never committed; only doc IDs are. Examples
+# must come from the POOL split: a dev example would put its own gold answers
+# in the prompt while that document is being scored.
+
+
+def test_render_fewshot_shows_post_and_every_mention():
+    block = r0.render_fewshot([
+        ("Got cramps. Then cramps again.", ["cramps", "cramps"]),
+    ])
+    assert "Got cramps. Then cramps again." in block
+    assert block.count('"cramps"') == 2
+    assert "again" in block.lower()  # the repeat is annotated as a repeat
+
+
+def test_pool_fewshot_docs_reach_the_prompt(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": []})
+    r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_fewshot=True,
+                              rung0_fewshot_block="POOLBLOCK-SENTINEL"))
+    assert "POOLBLOCK-SENTINEL" in llm.prompts[0]
+    assert r0.FEWSHOT not in llm.prompts[0]
+
+
+def test_fewshot_docs_must_come_from_the_pool(tmp_path):
+    """A dev or test example doc would leak its gold into the prompt of a
+    scored run. Refused, not warned."""
+    import json as _json
+    (tmp_path / "pool.json").write_text(
+        _json.dumps({"split": "pool", "doc_ids": ["ARTHROTEC.1"]}))
+    man = {"corpus": {"splits_dir": str(tmp_path), "cadec_root": "unused"}}
+    with pytest.raises(ValueError, match="pool"):
+        r0.pool_fewshot_block(man, ["ARTHROTEC.107"], loader=lambda root: {})
 
 
 # --- S3 is gone, and stays gone ---------------------------------------------

@@ -265,6 +265,12 @@ _RULES = """
 Report only reactions the writer actually experienced. Do not report anything
 they say they did NOT have.
 
+Report EVERY symptom, condition or health problem the writer says they
+experienced — including the condition the drug was taken for, and conditions
+they merely compare themselves to. Work through the WHOLE POST: posts often
+list many reactions in one sentence, and every item in the list is reported
+separately.
+
 Report a reaction EVERY TIME it is described. If the writer mentions the same
 reaction twice, report it twice, each one where it appears — never merge
 repeat mentions into one.
@@ -301,10 +307,82 @@ def _extraction_prompt(base: str, cfg: dict | None) -> str:
     """The step's extraction prompt, plus the worked example when the few-shot
     arm is on. Appended to ALL of S0/S1/FIND identically — scope is identical
     across steps by design, and an example only some steps saw would break
-    that."""
-    if (cfg or {}).get("rung0_fewshot"):
-        return base + FEWSHOT
-    return base
+    that.
+
+    Pool-derived examples (rung0_fewshot_block, rendered by apply() from
+    rung0_fewshot_docs) replace the synthetic FEWSHOT when present: real
+    CADEC examples carry the corpus's own conventions, which the synthetic
+    one cannot. The synthetic block stays as the no-configuration fallback.
+    """
+    cfg = cfg or {}
+    if not cfg.get("rung0_fewshot"):
+        return base
+    return base + (cfg.get("rung0_fewshot_block") or FEWSHOT)
+
+
+def render_fewshot(examples: list[tuple[str, list[str]]]) -> str:
+    """Worked examples as the prompt shows them: the post, then its mentions.
+
+    `examples` is (post_text, [mention texts in document order]). A repeated
+    mention text is annotated as a repeat — the convention it exists to
+    teach. Pure so it is testable without the corpus; the corpus-reading
+    wrapper is pool_fewshot_block below.
+    """
+    out = []
+    for text, mentions in examples:
+        seen: set[str] = set()
+        lines = []
+        for m in mentions:
+            key = " ".join(m.lower().split())
+            note = "  - the same reaction, reported again where it reappears" \
+                if key in seen else ""
+            seen.add(key)
+            lines.append(f'  "{m}"{note}')
+        body = "\n   ".join(text.strip().splitlines())
+        out.append(
+            f'Example. A post reading:\n  "{body}"\n'
+            "has exactly these mentions, each one reported separately:\n"
+            + "\n".join(lines)
+        )
+    return "\n\n" + "\n\n".join(out) + "\n"
+
+
+def pool_fewshot_block(man: dict, doc_ids: list[str], loader=None) -> str:
+    """Render rung0_fewshot_docs into a prompt block, from data/ at runtime.
+
+    The corpus is non-transferable, so the examples can never live in a
+    tracked file — only the doc IDs are configuration, and the text is read
+    from the licensed local copy each run.
+
+    POOL ONLY, refused otherwise: a dev or test example would put that
+    document's own gold answers in the prompt while the document is being
+    scored. Pool is disjoint from both by construction and is never scored.
+    """
+    from ladder import clean
+    from ladder import corpus as corpus_mod
+
+    pool = set(corpus_mod.read_split(man["corpus"]["splits_dir"], "pool"))
+    outside = [d for d in doc_ids if d not in pool]
+    if outside:
+        raise ValueError(
+            f"rung0_fewshot_docs {outside} are not in the pool split. An "
+            "example from dev or test puts its own gold answers in the "
+            "prompt of a scored run."
+        )
+    docs = (loader or corpus_mod.load_corpus)(man["corpus"]["cadec_root"])
+    excluded = clean.load_exclusions()
+    examples = []
+    for d in doc_ids:
+        doc = docs[d]
+        # Document order, not annotation-file order — the example reads as a
+        # walk through the post, which is the behaviour it teaches.
+        kept = sorted(
+            (m for m in doc.mentions
+             if m.entity_type == REACTION and m.record_id not in excluded),
+            key=lambda m: m.spans[0][0] if m.spans else 0,
+        )
+        examples.append((doc.text, [m.text for m in kept]))
+    return render_fewshot(examples)
 
 S0_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
 
@@ -353,10 +431,17 @@ Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
 
 PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
 
+Choose the PLAIN concept that names the reaction itself. When the list has
+both a plain concept and a more specific variant of it, the plain one is
+correct — severity, timing and circumstances the writer added do not belong
+in the concept.
+
 Each reaction has a number after the word "reaction". Each concept has a number
 in [square brackets]. Answer with the reaction's number and the number in
-brackets of the concept you choose — or null for choice if none of the concepts
-describes the reaction. Answer with numbers only, never with a concept name.
+brackets of the concept you choose. Answer with numbers only, never with a
+concept name. Two other answers exist for choice:
+  null          - the reaction is real, but none of these concepts describes it
+  "no_concept"  - this is not something any clinical concept could describe
 
 {blocks}
 Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
@@ -803,6 +888,15 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             meta["no_pick"] = meta.get("no_pick", 0) + 1
             continue
         choice = choices[idx]
+        if isinstance(choice, str) and choice.strip().lower() == "no_concept":
+            # The explicit assertion the decline is not: "this is not a
+            # codable reaction". This is what CONCEPT_LESS means, and the one
+            # way S2 can say it — 10 of 226 dev gold mentions (4%) are
+            # concept-less, and after the decline revision below a null could
+            # no longer reach them.
+            rec.sct = CONCEPT_LESS
+            rec.sct_label = CONCEPT_LESS
+            continue
         if choice is None:
             # REVISED 2026-08-25: this used to write CONCEPT_LESS, on the
             # theory that declining the menu asserts no concept fits. But the
@@ -934,6 +1028,11 @@ def apply(
         raise RuntimeError(
             f"step {step} resolves codes through the vocabulary and has no "
             "registry. Pass one in cfg."
+        )
+    if (cfg.get("rung0_fewshot") and cfg.get("rung0_fewshot_docs")
+            and not cfg.get("rung0_fewshot_block")):
+        cfg["rung0_fewshot_block"] = pool_fewshot_block(
+            cfg["manifest"], cfg["rung0_fewshot_docs"]
         )
 
     agg: dict[str, Any] = {

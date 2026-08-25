@@ -93,7 +93,12 @@
       "embed_prefix": "ladder/cache/keywords",
       "embed_prefix_note": "Where the dense index lives: <prefix>.vectors.npy (float16, L2-normalised, one row per keyword) and <prefix>.rows.json (keyword,code in MATRIX ORDER). A CACHE, unlike data/keywords.csv \u2014 derived from the table by a fixed function and rebuildable in minutes, so it sits beside snomed.sqlite. REBUILD IT WHENEVER THE KEYWORD TABLE CHANGES: the loader checks the row counts agree, which catches a truncated write but not a stale matrix built from a different table of the same size.",
       "rung0_fewshot": true,
-      "rung0_fewshot_note": "FLIPPED TRUE 2026-08-25 on the dev measurement (docs/decisions.md same date): the synthetic worked example is +5.7pt exact / +5.3pt overlap F1 over the frozen S2 (0.266/0.363 vs 0.209/0.310) at 1.55x the baseline tokens (106,627 vs 68,906), same call count, zero parse failures. This changes the frozen rung 0, so it was a joint manifest edit; rungs 1-6 must be measured against THIS configuration. The example is synthetic \u2014 never CADEC text, test-enforced \u2014 and False reproduces the pre-example arm."
+      "rung0_fewshot_note": "FLIPPED TRUE 2026-08-25 on the dev measurement (docs/decisions.md same date): the synthetic worked example is +5.7pt exact / +5.3pt overlap F1 over the frozen S2 (0.266/0.363 vs 0.209/0.310) at 1.55x the baseline tokens (106,627 vs 68,906), same call count, zero parse failures. This changes the frozen rung 0, so it was a joint manifest edit; rungs 1-6 must be measured against THIS configuration. The example is synthetic \u2014 never CADEC text, test-enforced \u2014 and False reproduces the pre-example arm.",
+      "rung0_fewshot_docs": [
+        "ARTHROTEC.22",
+        "ARTHROTEC.110"
+      ],
+      "rung0_fewshot_docs_note": "Pool-split documents rendered into the few-shot block AT RUNTIME from data/ (2026-08-25) \u2014 the corpus is non-transferable, so only these IDs are configuration and the text never enters a tracked file. POOL ONLY, enforced: a dev or test example would put its own gold answers in the prompt of a scored run. Chosen from the 2026-08-25 dev failure analysis to teach what the synthetic example cannot: ARTHROTEC.22 is a seven-item comma list (exhaustiveness; kept intensifier; a compared-to condition annotated), ARTHROTEC.110 repeats one mention three times and includes the condition the drug was taken for. Empty list or absent falls back to the synthetic FEWSHOT block in ladder/rungs/r0.py."
     },
     "1": {
       "mode": "observe",
