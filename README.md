@@ -59,6 +59,14 @@ results rather than reconstructed afterwards.
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
 ```
 
+**The model is named in `manifest.json` and nowhere else.** `ladder/llm.py`
+carries no default and raises if the manifest names none, so a run always
+knows which model produced its numbers. Override for a single run with
+`--extractor` or `LADDER_MODEL_SPEC`; both are written into the manifest copy
+saved beside the results. Per-model request settings — `max_tokens`,
+`sampling`, `reasoning_effort` — live in `ladder/models.yaml`, because a rung
+must never know which family it is calling.
+
 Four preprocessing steps, in order. Each produces gitignored, licence-bound
 data; a fresh clone runs all four before any rung.
 

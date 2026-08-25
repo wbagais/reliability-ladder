@@ -23,9 +23,20 @@ providers:
       #   reasoning_effort=medium      8000 tokens, content EMPTY, truncated
       #   reasoning_effort=low          104 tokens, content OK,       2s
       #
-      # "low" is 150x cheaper and 17x faster on the step that needed it most.
-      # 8000 keeps headroom for S2's longer pick prompts at that effort.
-      gpt-oss:20b: { max_tokens: 8000, reasoning_effort: low }
+      # reasoning_effort is DELIBERATELY UNSET. "low" fixed S0's truncation
+      # and cost the thing under measurement. Measured over 3 documents,
+      # 17 gold reaction mentions:
+      #
+      #                        S0    S1    S2   tok_out    sec
+      #   effort=low  cap 8k    1    10     9      ~900     ~1
+      #   default     cap 32k  11    12    13   5.8-28.6k  106-539
+      #
+      # S0 finds ONE mention of seventeen at low effort — that is not a
+      # speed-up, it is a different experiment. And scope must be identical
+      # across S0/S1/S2 or their comparison means nothing, so the effort
+      # cannot differ per step either. The cost is real and is reported: the
+      # dev split takes hours, not minutes.
+      gpt-oss:20b: { max_tokens: 32000 }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY

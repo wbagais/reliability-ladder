@@ -2426,3 +2426,75 @@ prevent, and it is a VOCABULARY failure rather than a model one. `dense`
 retrieval over the same labels would have offered something; exact lookup
 offers nothing. That is the strongest argument yet for the lookup-vs-RAG
 question, and it is now visible only because `labels_proposed` is recorded.
+
+---
+
+## 2026-08-24 — S0 fixed, one source of truth for models, and a stale cache
+
+### S0's failure was a separate reasoning channel, not a loop
+
+`gpt-oss:20b` writes its chain of thought to a **separate `reasoning` field**
+and leaves `content` EMPTY until it finishes. S0 — the step that asks the
+model to recall a nine-digit SNOMED identifier from memory — spent its entire
+budget there and returned nothing. Measured on ARTHROTEC.107:
+
+    default effort, 16000 cap   16000 tokens   content EMPTY   truncated
+    default effort, 32000 cap    2306 tokens   content OK        34s
+    reasoning_effort=medium      8000 tokens   content EMPTY   truncated
+    reasoning_effort=low          104 tokens   content OK         2s
+
+`reasoning_effort` is registry data in `models.yaml`, like `max_tokens` and
+`sampling`, and is omitted for models that declare none — sending it to a
+model with no reasoning channel is at best ignored and at worst a 400.
+
+### But `low` is not a speed-up, it is a different experiment
+
+The 104-token result was tempting and wrong. Measured over 3 documents,
+17 gold reaction mentions:
+
+| setting | S0 | S1 | S2 | tok_out | sec |
+|---|---|---|---|---|---|
+| `reasoning_effort=low`, cap 8k | **1** | 10 | 9 | ~900 | ~1 |
+| default effort, cap 32k | **11** | 12 | 13 | 5.8–28.6k | 106–539 |
+
+**S0 finds ONE mention of seventeen at low effort.** It stops truncating and
+starts missing instead, which is the same failure wearing a cheaper coat. S1
+and S2 lose less (10 vs 12, 9 vs 13) but they lose.
+
+And the effort **cannot differ per step**: scope is identical across S0/S1/S2
+by design, and a step that thought harder than its neighbours would make the
+comparison meaningless. So `reasoning_effort` is left UNSET with a 32000 cap,
+and the cost is reported rather than avoided — the dev split takes hours, not
+minutes. The mechanism stays in the registry for when a model needs it.
+
+### `manifest.model` is now the ONLY place a model is named
+
+`ladder/llm.py` carried `DEFAULT_MODEL = "ollama/gpt-oss:20b"` while
+`manifest.model.extractor` said `granite4:micro-h`. "Which model produced this
+number" therefore had two answers depending on whether a manifest reached the
+call — the exact defect that centralising model selection was supposed to
+remove, because the run still produces numbers, just not the ones the manifest
+describes.
+
+`resolve()` now RAISES on a missing entry. Order is `--extractor` >
+`LADDER_MODEL_SPEC` > manifest, and nothing after.
+
+**Extractor moved to `ollama/gpt-oss:20b`** on measurement, and the cost is
+stated in the manifest rather than buried: **the judge is now the WEAKER
+model.** `granite4:micro-h` (2B) is the only locally installed family that
+differs from the extractor, and rung 4 refuses to self-judge, so rung 4 is a
+2B model grading a 20B one. That is the wrong way round and every rung 4
+number has to be read with it said. A third local family would fix it.
+
+### The cache key was incomplete, and it bit within minutes
+
+The key was `(model, messages, temperature, sample_index)`. `max_tokens` and
+`reasoning_effort` were absent, so rerunning S0 after lowering the effort
+served the **old entry** and reported 16,000 tokens and a truncation that no
+longer happened. A cache that survives a parameter change is not a cache, it
+is a stale result presented as a fresh one. Both are now in the key.
+
+Worth noting how it was found: a `rm -rf .llm_cache out/final_S*` was aborted
+by zsh's `nomatch` on the glob, so the delete never ran and the stale entry
+was served. The bug was real either way; the shell just made it visible on the
+first rerun instead of the tenth.

@@ -94,6 +94,30 @@
 ## Current state
 - **All seven rung slots exist except rung 6.** The full ladder runs end to end,
   cold, in order `[0,1,2,3,4,5,6]`. 100 tests (96 + 4 integration), CI green.
+- **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
+  carries no default and `resolve()` RAISES on a missing entry — it used to
+  fall back to `ollama/gpt-oss:20b` while the manifest said
+  `granite4:micro-h`, so "which model produced this number" had two answers
+  depending on whether a manifest reached the call. Order is `--extractor` >
+  `LADDER_MODEL_SPEC` > manifest, and nothing after.
+- **Extractor is `ollama/gpt-oss:20b`** (2026-08-24, on measurement).
+  granite4:micro-h answered `AFTERPROMPT`; gpt-oss names real concepts.
+  **It is a REASONING model** — its chain of thought goes to a separate
+  `reasoning` field and `content` stays EMPTY until it finishes, so
+  `max_tokens` and `reasoning_effort` are per-model registry data in
+  `models.yaml`. **`reasoning_effort` is deliberately UNSET** with a 32000
+  cap: `low` answers S0 in 104 tokens but finds **1 of 17** gold mentions
+  across 3 documents against 11 at default effort. It stops truncating and
+  starts missing — the same failure in a cheaper coat. The effort also cannot
+  differ per step, since scope is identical across S0/S1/S2 by design. The
+  cost is reported, not avoided: **a dev-split run takes hours, not minutes.**
+- **The judge is now the WEAKER model** (granite4:micro-h, 2B, judging a 20B
+  extractor). It is the only locally installed family that differs from the
+  extractor, and rung 4 refuses to self-judge. Read rung 4's numbers with that
+  stated, or install a third family.
+- **The LLM cache key covers max_tokens and reasoning_effort.** It did not,
+  and rerunning S0 with a new effort served the old truncated entry. A cache
+  that survives a parameter change is a stale result.
 - **Model selection is centralised.** `ladder/llm.py:for_rung` is the ONLY place
   a model is resolved. `run.py` injects `cfg["llm"]`; a rung never names a
   model. Bound by ROLE from `manifest.model` — `extractor` for rungs 0/2/3,
@@ -216,20 +240,25 @@
    lists, plausible wrong values) and costs output quality, because
    probability mass goes to satisfying the grammar. Run both arms and report
    what it removed and what it cost. Not built.
-9. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
+9. **A truncation is not a model failure.** `finish_reason == "length"` is
+   carried to `agg["truncated"]` and the ledger `reason`, because a cut-off
+   reply logged as `json_decode` publishes the harness's own cap as the
+   model's JSON reliability. The counts overlap on purpose; the CAUSE must
+   stay recoverable.
+10. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
    `_step_s0` does `str(code)`, so a model answering `sct_code: ["21456007",
    ...]` gets `sct = "['21456007', ...]"` — never a valid code, so those
    mentions score 0 by construction. A RECORDING defect, not a model one: it
    makes "the model named two codes" indistinguishable from "the model emitted
    garbage". Decide what S0 should measure (first code / parse failure / its
    own outcome) BEFORE the dev runs, or S0's number is not the model's.
-10. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+11. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
    answer.** All 407 wholly-retired gold mentions leave the denominator, on the
    grounds that the keyword table is active-only. 111 of them (27.3%) have a
    SNOMED-recorded successor, so a model naming that successor is right against
    a stale answer key. Changing the answer key's inventory needs a measurement
    and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
-11. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+12. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".

@@ -338,9 +338,12 @@ def test_the_env_override_still_wins_over_the_manifest():
 # a rung must not know which family it is calling.
 
 
-def test_reasoning_effort_comes_from_the_registry():
-    info = ModelInfo("ollama/gpt-oss:20b")
-    assert info.reasoning_effort == "low"
+def test_reasoning_effort_is_unset_for_the_extractor():
+    """Measured over 3 documents / 17 gold mentions: at effort=low S0 finds
+    ONE. That is not a speed-up, it is a different experiment — and scope must
+    be identical across S0/S1/S2, so the effort cannot differ per step either.
+    The mechanism stays; the value is deliberately absent."""
+    assert ModelInfo("ollama/gpt-oss:20b").reasoning_effort is None
 
 
 def test_a_model_with_no_reasoning_channel_declares_none():
@@ -360,6 +363,7 @@ def test_reasoning_effort_reaches_the_request(tmp_path):
             raise RuntimeError("payload captured")
 
     client = LLMClient("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    client.info.reasoning_effort = "low"      # as if models.yaml declared it
     client._client = type("C", (), {
         "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
     try:
