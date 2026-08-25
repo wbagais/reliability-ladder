@@ -2724,3 +2724,31 @@ example — never CADEC text; a test asserts it — appended to every extraction
 prompt, teaching the three things prose could carry plus the one it could
 not: repeats reported again, vague states reported, treatments excluded,
 intensifier kept. Off until measured against the frozen S2 on dev.
+
+**MEASURED SAME DAY — the arms, dev split, 40 docs, 226 gold mentions,
+gpt-oss:20b, effort low, rung 0 only.** Baseline is the frozen S2 row from
+2026-08-24. Arm 1 is the committed changes with the example OFF; arm 2 turns
+`rung0_fewshot` on. Both arms carry the dedupe and the decline change, so the
+few-shot delta is arm2 - arm1, not arm2 - baseline.
+
+    |                     | F1 exact | F1 overlap | mentions | calls | tokens  |
+    | frozen S2           | 0.209    | 0.310      | ~92      | 75    | 68,906  |
+    | arm 1 (rules only)  | 0.204    | 0.308      | 184      | 77    | 97,878  |
+    | arm 2 (+ few-shot)  | 0.266    | 0.363      | 196      | 77    | 106,627 |
+
+**The rules alone are a wash; the example is what cashes them in.** The
+coverage rules doubled emitted mentions (recall exact 0.181 vs an estimated
+~0.15 baseline) and paid for it in precision — F1 flat. With the worked
+example added, precision comes back (0.294 exact) while the recall holds:
++5.7pt exact and +5.3pt overlap over the frozen S2, which is a bigger step
+than S1->S2 was (+3.8 exact). Zero parse failures in either arm; the decline
+change (which can only remove credit) is included in both, so the gains are
+conservative.
+
+**Cost, stated:** arm 2 is 1.55x the frozen baseline's tokens (106,627 vs
+68,906). Same call count (77 vs 75).
+
+**Not flipped in the manifest.** `rung0_fewshot: true` would change the
+frozen rung 0 that rungs 1-6 are measured against — the same freeze argument
+as 2026-08-24 — so turning it on is a joint manifest edit, proposed but not
+taken unilaterally. Until then the arm is reproducible with the flag.
