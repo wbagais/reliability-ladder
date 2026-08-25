@@ -421,15 +421,12 @@ Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confide
 FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
 
 For each one return:
-""" + _ASK + """  sct_label  - up to three SNOMED CT concept NAMES that could describe the
-               reaction, best first. These are used to SEARCH the vocabulary;
-               the final concept is chosen for you in a second step, so name
-               freely rather than carefully.
-  confidence - 0.0 to 1.0
+""" + _ASK + """  confidence - 0.0 to 1.0
 """ + _RULES + """
-Quote the reaction itself, not the sentence around it.
+Quote the reaction itself, not the sentence around it. The concept name is
+chosen in a second step, so do not give one here.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
 """
 
 PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.

@@ -648,15 +648,24 @@ def test_fewshot_docs_must_come_from_the_pool(tmp_path):
 
 # --- name-augmented retrieval (S2) -------------------------------------------
 #
-# Measured on arm 3: 35 of 226 mentions never had the gold code on the menu,
-# and the recurring case is a colloquial span whose embedding cannot reach the
-# clinical concept — "extremely sick" never surfaces |Generally unwell|. The
-# model can PROPOSE clinical names (S1 proves it), so S2's FIND step now asks
-# for them and the retriever queries the span AND each proposed name.
+# The MACHINERY: when a FIND reply carries sct_label names, the retriever
+# queries the span AND each name and merges the menus. Built for arm 4
+# (2026-08-25) because 35 of 226 arm-3 mentions never had the gold code on a
+# span-only menu ("extremely sick" cannot surface |Generally unwell|).
+#
+# THE PROMPT NO LONGER ASKS FOR NAMES — a measured retreat, not an oversight.
+# Arm 4 (k=40) and 4b (k=20) both asked, and both LOST to arm 3 (F1 exact
+# 0.236 / 0.232 vs 0.289): retrieval misses fell 35 -> 23 but the find step
+# emitted fewer, worse-bounded mentions and the pick step erred more. The
+# merge stays because it is exercised by any reply that carries labels and
+# is inert otherwise.
 
 
-def test_find_asks_for_names_to_search_with():
-    assert "sct_label" in r0.FIND_PROMPT
+def test_find_does_not_ask_for_names():
+    """Asking FIND for concept names cost more at extraction than the better
+    menus bought back — see the section comment. The field must not creep
+    back into the prompt without a new measurement."""
+    assert "sct_label" not in r0.FIND_PROMPT
 
 
 def test_s2_retrieves_on_span_and_proposed_names(reg):  # noqa: F811

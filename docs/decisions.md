@@ -2800,3 +2800,48 @@ Cost, stated: 1.84x the frozen baseline's tokens. Same 77 calls.
 Risk, stated: three prompt iterations have now been tuned against the same
 40 dev documents. The test split has never been touched and remains the
 only number that can go in the article.
+
+---
+
+## 2026-08-25 — arm 4 lost to arm 3, and the retreat is the finding
+
+Three approved enhancements were bundled as arm 4: FIND asks for up to three
+concept NAMES and retrieval queries span + names merged (targeting arm 3's
+35 menu misses), k 20 -> 40 deduped (offline recall@40 90.2% vs 87.0%), and
+a third pool example (LIPITOR.968, span conventions) plus a worked
+no_concept line in the PICK prompt.
+
+    | arm   | names | k  | examples | F1 exact | F1 overlap | FN | pick-past-gold | retr-miss |
+    | 3     | no    | 20 | 2        | 0.289    | 0.430      | 53 | 34             | 35        |
+    | 4     | yes   | 40 | 3        | 0.236    | 0.411      | 63 | 47             | 23        |
+    | 4b    | yes   | 20 | 3        | 0.232    | 0.421      | 63 | 40             | 27        |
+    | FINAL | no    | 20 | 2        | 0.294    | 0.447      |    |                |           |
+
+**Name-augmented retrieval did exactly what it promised and still lost.**
+Menu misses fell 35 -> 23, and the cost surfaced two steps away: the find
+step emitted fewer and worse-bounded mentions (asking for names competes
+with finding spans at low effort), and the pick step erred more. k=40 made
+picks worse again (34 -> 47 at k=40): MENU RECALL IS NOT MENU ACCURACY, and
+the k=20 + dedupe setting stands on that measurement, not on the recall
+table. The merge machinery stays (inert without labels, exercised by tests);
+the sct_label field is out of the FIND prompt and a test keeps it out.
+
+**An isolation run was voided and rerun honestly.** Arm 4d meant to isolate
+the third example but left `"sct_label"` in FIND's JSON template while the
+prose said not to give one — a self-contradictory prompt measures nothing.
+The third example therefore has NO clean solo measurement; it went out with
+the bundle, recorded as unproven rather than harmful.
+
+**FINAL is arm 3 plus only the no_concept worked line** (used twice on dev,
+first uses ever) and it edges arm 3: exact 0.294, overlap 0.447, 240
+mentions, 129,792 tokens. Against the 2026-08-24 freeze: F1 exact 0.209 ->
+0.294, overlap 0.310 -> 0.447, at 1.88x tokens. Five dev-tuned prompt
+iterations now: the test split remains untouched and is the only number
+that can go in the article.
+
+**Also surfaced, not acted on:** the extraction rule "do not report anything
+they say they did NOT have" contradicts the answer key — CADEC annotates
+mentions regardless of polarity (the 2026-08-22 negation note measured 427
+gold mentions, 4.7%), e.g. DICLOFENAC-SODIUM.5's "no stomach pains" is
+annotated. Changing scope again is a decision, not an edit; it would also
+collide with rung 1's negation flag. Parked.
