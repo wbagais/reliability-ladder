@@ -2550,3 +2550,74 @@ machine rather than of the model. The ledger `reason` is now
 Three layers of the same principle now: a cut-off reply must never be counted
 as a model that cannot produce JSON, and a hung machine must never be counted
 as either.
+
+---
+
+## 2026-08-24 — rung 0 measured on the dev split: S0, S1, S2
+
+First numbers over more than one document. 40 documents, 226 scorable gold
+reaction mentions, `ollama/gpt-oss:20b`, `reasoning_effort: low`, rung 1 in
+observe mode.
+
+| | records | P | R | F1 | correct | abstained | wrong | calls | tokens |
+|---|---|---|---|---|---|---|---|---|---|
+| S0 exact | 105 | 0.029 | 0.013 | **0.018** | 3 | 6 | 48 | 40 | 43,998 |
+| S1 exact | 161 | 0.205 | 0.146 | **0.171** | 33 | 15 | 29 | 57 | 36,079 |
+| S2 exact | 148 | 0.264 | 0.173 | **0.209** | 39 | 1 | 27 | 75 | 68,906 |
+| S0 overlap | 105 | 0.029 | 0.013 | 0.018 | 3 | 10 | 79 | | |
+| S1 overlap | 161 | 0.366 | 0.261 | 0.305 | 59 | 20 | 63 | | |
+| S2 overlap | 148 | 0.392 | 0.257 | 0.310 | 58 | 3 | 66 | | |
+
+**S0 is not a weaker step, it is a broken one.** F1 0.018 against S1's 0.171
+and S2's 0.209 — an order of magnitude, on identical scope, identical spans
+and the same model. It also costs MORE than S1 (43,998 tokens against 36,079)
+to be ten times worse, because recalling an identifier takes more deliberation
+than recalling a name. **The single most expensive thing rung 0 can be asked
+to do is the one thing it cannot do.**
+
+**S1 and S2 are close, and S2 costs nearly twice as much.** F1 0.171 vs 0.209
+exact, 0.305 vs 0.310 on overlap — where they are within half a point. S2 pays
+75 calls and 68,906 tokens for that; S1 pays 57 calls and 36,079. On the
+overlap reading, retrieval buys almost nothing over an exact keyword lookup at
+1.9x the cost. On the exact reading it buys 3.8 points of F1.
+
+**Every step's exact/overlap gap is large** — S1 0.171 -> 0.305, S2 0.209 ->
+0.310. That gap is span boundaries, not coding: the model quotes "extreme
+rectal bleed" where gold says "rectal bleed". Same concept, eight characters
+wider, scored as both a false positive and a false negative under exact
+matching. The gap is the intensifier problem measured end to end, and it is
+why both numbers are reported and neither is "the" result.
+
+**S0 is the only step that fails to parse: 5 of 40 documents (12.5%).** S1 and
+S2 parse 40 of 40. Same model, same effort, same documents — the difference is
+that S0's schema demands a nine-digit integer the model does not have.
+
+### The escape hatch did not stop the fabrication
+
+S0 was given a legal way to decline: name the concept, answer `null` for the
+id. It used it 13 times in 105 records (12.4%), which is a real and useful
+abstention rate.
+
+It also still invents. On ARTHROTEC.107 the model answered `sct_label:
+["Rectal hemorrhage"]` — correct — with `sct_code: "2714004"`, which is not a
+SNOMED concept, in the same reply that was told never to invent one and shown
+`null` as acceptable. **Offering an abstention reduces fabrication; it does not
+remove it.** That is the S0 finding, and it is the argument for rung 1
+existing at all.
+
+### Cost, per document
+
+    S0   1.00 calls   1,100 tokens
+    S1   1.43 calls     902 tokens     <- 0.43 = the decide step, when needed
+    S2   1.88 calls   1,723 tokens
+
+S1's second call fires only when more than one distinct concept survives the
+lookup. 43% of documents needed one; the rest were decided by the vocabulary
+alone and paid nothing.
+
+### Not measured
+
+The dev split is 40 documents and every figure above is a rate over 226
+mentions, not a confidence interval. S1 vs S2 differ by 3.8 points of exact F1
+and 0.5 on overlap — neither gap is large enough, at this n, to call a winner
+without the test split.

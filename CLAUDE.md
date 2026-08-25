@@ -216,8 +216,31 @@
   "the model named three codes" identical to "the model emitted garbage";
   the first is taken and the violation is counted.
 
+## Rung 0 measured — dev split, 40 docs, 226 gold mentions (2026-08-24)
+`ollama/gpt-oss:20b`, `reasoning_effort: low`, rung 1 observe.
+
+| | F1 exact | F1 overlap | calls | tokens | parse fails |
+|---|---|---|---|---|---|
+| S0 | **0.018** | 0.018 | 40 | 43,998 | 5 of 40 |
+| S1 | **0.171** | 0.305 | 57 | 36,079 | 0 |
+| S2 | **0.209** | 0.310 | 75 | 68,906 | 0 |
+
+- **S0 is broken, not weak.** Ten times worse than S1 for MORE tokens. The one
+  thing rung 0 cannot do — recall a nine-digit id — is also the most expensive.
+  It is the only step that fails to parse, and the failure is its schema.
+- **S1 and S2 are close and S2 costs 1.9x.** Half a point apart on overlap,
+  3.8 points on exact. At n=226 that is not a winner; the test split decides.
+- **The exact/overlap gap is span boundaries, not coding.** The model quotes
+  "extreme rectal bleed" where gold says "rectal bleed" — same concept, scored
+  as both a false positive and a false negative. Report both numbers.
+- **An abstention hatch reduces fabrication but does not remove it.** S0 may
+  answer `null` for an id it does not know and does so 12.4% of the time — and
+  still emitted `2714004`, a nonexistent code, beside a correct label.
+
 ## Next, in order
-1. **The three dev runs — S0, S1, S2.** Everything measured so far is ONE
+1. **The three dev runs — S0, S1, S2.** DONE, see above. Still to do: pick the
+   winning step, freeze it in the manifest, and run the ladder from there —
+   otherwise rungs 1-6 are measured against three different rung 0s. Everything measured so far is ONE
    document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
    winning step, freeze it in the manifest, and run the ladder from there —
    otherwise rungs 1-6 are measured against three different rung 0s and nothing
