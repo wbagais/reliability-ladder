@@ -104,6 +104,7 @@ from ladder.schema import (
     VERDICTS,
     R_CODE_INACTIVE,
     R_CODE_UNKNOWN,
+    R_LABEL_MISMATCH,
     R_MEDDRA_UNKNOWN,
     R_NEGATED,
     R_WRONG_SEMANTIC_TYPE,
@@ -127,7 +128,34 @@ DEFAULTS = {
     "finding_check": True,
     "finding_scope": "reaction",  # "reaction" | "all"
     "lexical_mode": "exact",
+    # Rung 0's sct_label vs the vocabulary's own words for that code. "flag"
+    # like meddra_check and the negation cue, and for the same reason: its
+    # false-rejection floor has not been measured, and "rectal bleeding"
+    # against |Rectal hemorrhage| is one concept in two wordings.
+    "label_check": "flag",  # "off" | "flag" | "reject"
 }
+
+
+def _record_history(checks: dict, vocab, code) -> None:
+    """Is this code retired, and did SNOMED name what replaced it?
+
+    A FLAG, always — the same posture as meddra_check, negation_action and
+    label_check. Rejecting would throw away a model that named a real concept
+    from an older release, which is precisely the case ladder/score.py exists
+    to score as `outdated` rather than as `incorrect`.
+
+    Written even when reject_inactive has already fired, because the two settle
+    different questions: "is it retired" and "is there a current equivalent".
+    The second is the fact rung 2 would state back.
+
+    `replacements` is absent from an index built before the association table.
+    That reads as "no successor known", never as a crash: the 365 MB SQLite is
+    built once and shared, so a mid-upgrade checkout is a normal state.
+    """
+    repl = getattr(vocab, "replacements", None)
+    got = list(repl(code)) if callable(repl) else []
+    checks["sct_replacement"] = got[0] if got else None
+    checks["sct_outdated"] = bool(got)
 
 
 def zone(
@@ -192,6 +220,7 @@ def zone(
         return ZONE_REJECT, R_CODE_UNKNOWN, checks
 
     checks["sct_active"] = vocab.is_active(rec.sct)
+    _record_history(checks, vocab, rec.sct)
     if not checks["sct_active"] and cfg["reject_inactive"]:
         return ZONE_REJECT, R_CODE_INACTIVE, checks
 
@@ -215,6 +244,17 @@ def zone(
         checks["meddra_lexical_match"] = meddra.lexical_match(
             rec.text, rec.meddra, mode=cfg["lexical_mode"]
         )
+
+    # 7 — the model's OWN label against the code it chose. This catches what
+    # exists() cannot: 82249009 is a real, active concept, so every earlier
+    # check passes it, and it means |California chicken (organism)|. The model
+    # naming the concept turns an unverifiable id into a checkable claim.
+    if cfg["label_check"] != "off" and rec.sct_label and rec.sct_label != CONCEPT_LESS:
+        checks["label_verified"] = vocab.lexical_match(
+            rec.sct_label, rec.sct, mode="contained"
+        )
+        if not checks["label_verified"] and cfg["label_check"] == "reject":
+            return ZONE_REJECT, R_LABEL_MISMATCH, checks
 
     # Pass. ACCEPT only where the vocabulary uses these very words.
     checks["lexical_match"] = vocab.lexical_match(rec.text, rec.sct, mode=cfg["lexical_mode"])
@@ -279,6 +319,7 @@ def all_reasons(rec, source, vocab, cfg=None, meddra=None) -> dict:
             reasons.append(R_CODE_UNKNOWN)
         else:
             checks["sct_active"] = vocab.is_active(rec.sct)
+            _record_history(checks, vocab, rec.sct)
             if not checks["sct_active"] and cfg["reject_inactive"]:
                 reasons.append(R_CODE_INACTIVE)
 
@@ -292,6 +333,15 @@ def all_reasons(rec, source, vocab, cfg=None, meddra=None) -> dict:
             checks["lexical_match"] = vocab.lexical_match(
                 rec.text, rec.sct, mode=cfg["lexical_mode"]
             )
+
+            # The model's own label against its own code. Run here too, or the
+            # reason table hides it behind whichever check fired first.
+            if cfg["label_check"] != "off" and rec.sct_label and rec.sct_label != CONCEPT_LESS:
+                checks["label_verified"] = vocab.lexical_match(
+                    rec.sct_label, rec.sct, mode="contained"
+                )
+                if not checks["label_verified"] and cfg["label_check"] == "reject":
+                    reasons.append(R_LABEL_MISMATCH)
 
     # --- MedDRA ------------------------------------------------------------
     if meddra is not None and cfg["meddra_check"] != "off" and rec.meddra:

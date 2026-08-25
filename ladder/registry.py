@@ -53,9 +53,29 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from ladder.schema import CLINICAL_FINDING
+from ladder.schema import CLINICAL_FINDING, CONCEPT_LESS
+from schemas.vocabulary import NOT_FINDING
 
 IS_A = "116680003"
+
+# --- historical associations ------------------------------------------------
+# SNOMED never deletes a concept; it retires one and records what took its
+# place, in the association reference set. That record is what makes "the model
+# named a real concept from an older release" separable from "the model made a
+# number up" — see ladder/score.py's `outdated` outcome.
+ASSOC_SAME_AS = "900000000000527005"
+ASSOC_REPLACED_BY = "900000000000526001"
+ASSOC_POSSIBLY_EQUIVALENT_TO = "900000000000523009"
+ASSOC_WAS_A = "900000000000528000"
+ASSOC_MOVED_TO = "900000000000524003"
+ASSOC_ALTERNATIVE = "900000000000530003"
+
+#: The only two SNOMED states as THE successor. Deliberately narrow.
+#: POSSIBLY EQUIVALENT TO says "possibly" — 48,891 active rows in the AU
+#: release, and treating a maybe as a yes turns `outdated` into a wastebasket
+#: for near misses. WAS A points at a PARENT, which is a broader concept and
+#: not the same one; MOVED TO points at a module, not a concept at all.
+REPLACEMENT_REFSETS = (ASSOC_SAME_AS, ASSOC_REPLACED_BY)
 
 DEFAULT_CACHE = Path(__file__).parent / "cache"
 
@@ -91,10 +111,12 @@ class Registry:
                 f"{db_path} missing. Build it once with:\n"
                 f"    python -m ladder.registry --build --release <SnomedCT_Release_dir>"
             )
+        self.path = db_path
         self._db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True, check_same_thread=False)
         self._db.row_factory = None
         self.release: str = self._meta("release")
         self._cache: dict[str, tuple[bool, bool] | None] = {}
+        self._assoc: bool | None = None
 
     def _meta(self, key: str) -> str:
         row = self._db.execute("SELECT value FROM meta WHERE key=?", (key,)).fetchone()
@@ -143,6 +165,65 @@ class Registry:
         if active:
             return "not_finding"
         return "finding" if finding_hist else "unknown"
+
+    # -- history: what replaced a retired concept ----------------------------
+
+    def _has_association(self) -> bool:
+        """Does this index carry the association table?
+
+        The 365 MB SQLite is built once and shared, so an index built before
+        this table existed is a normal state, not an error. It reads as "no
+        successors known" — which degrades `outdated` back into `incorrect`,
+        the conservative direction. `python -m ladder.registry --associations`
+        adds the table to an existing index in place.
+        """
+        if self._assoc is None:
+            self._assoc = bool(
+                self._db.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='association'"
+                ).fetchone()
+            )
+        return self._assoc
+
+    def replacements(self, code: str | None) -> list[str]:
+        """The concept(s) that replaced a retired one. Empty for a live code.
+
+        Follows SAME AS / REPLACED BY to the END of the chain: SNOMED retires
+        successors too, so a single hop can stop one release short and report
+        a code as unreplaced when a current equivalent exists. Cycles are
+        guarded because the release is data, not a promise.
+
+        An ACTIVE concept is never given a successor even if a stray row
+        names one — nothing replaced it, it is still here.
+        """
+        if not code or code == CONCEPT_LESS or not self._has_association():
+            return []
+        code = str(code)
+        if self._concept(code) is None or self.is_active(code):
+            return []
+        marks = ",".join("?" * len(REPLACEMENT_REFSETS))
+        seen, frontier, out = {code}, [code], []
+        while frontier:
+            rows = self._db.execute(
+                f"SELECT target FROM association WHERE source=? AND refset IN ({marks})",
+                (frontier.pop(), *REPLACEMENT_REFSETS),
+            ).fetchall()
+            for (target,) in rows:
+                if target in seen:
+                    continue
+                seen.add(target)
+                # A successor that was itself retired is a waypoint, not an
+                # answer: keep walking rather than reporting a dead code.
+                if self.is_active(target):
+                    out.append(target)
+                else:
+                    frontier.append(target)
+        return sorted(out, key=lambda c: (len(c), c))
+
+    def replacement(self, code: str | None) -> str | None:
+        """The single successor, or None. Ties broken as in `replacements`."""
+        got = self.replacements(code)
+        return got[0] if got else None
 
     # -- lexical -------------------------------------------------------------
 
@@ -211,6 +292,145 @@ class Registry:
                 break
             out.append({"code": code, "label": self.preferred(code)})
         return out
+
+    # -- candidate retrieval: what rung 0 is SHOWN ---------------------------
+    #
+    # `search()` above answers "does the vocabulary use exactly these words".
+    # These three answer a different question: "what could this mention be?"
+    # Measured over CADEC gold, that difference is most of the task —
+    # exact-matching the patient's own words returns nothing 57.1% of the time,
+    # and where it returns something the gold code is absent 15% of the time.
+
+    def fsn(self, code: str | None) -> str | None:
+        """The fully specified name, semantic tag intact.
+
+        `preferred()` strips the tag. The tag is the cheapest signal there is
+        for telling |Rectal hemorrhage (finding)| from |California chicken
+        (organism)|, so candidates shown to a model keep it.
+        """
+        if not code:
+            return None
+        row = self._db.execute(
+            "SELECT term FROM description WHERE concept_id=? AND fsn=1 LIMIT 1", (str(code),)
+        ).fetchone()
+        return row[0] if row else None
+
+    def semantic_tag(self, code: str | None) -> str:
+        fsn = self.fsn(code) or ""
+        m = _SEMANTIC_TAG.search(fsn)
+        return m.group(0).strip().strip("()").strip() if m else ""
+
+    #: The keys EVERY retriever must return, whichever one built the menu.
+    #: rung 0's pick logic reads `i`, `code` and `fsn`/`label`, and the audit
+    #: reads `via`; a retriever returning a different shape fails at the PICK
+    #: rather than at the swap, which is a long way from the cause. Extras are
+    #: allowed and are retriever-specific: `tag`/`active` here, `score` from
+    #: the dense index in ladder/embed.py.
+    CANDIDATE_KEYS = ("i", "code", "label", "fsn", "via")
+
+    def _candidate(self, code: str, i: int, via: str = "") -> dict:
+        return {
+            "i": i,
+            "code": code,
+            # The FSN carries the semantic tag — |Rectal hemorrhage (finding)|
+            # — and the label does not. Both, because the menu shows one and a
+            # later comparison against the model's own words wants the other.
+            "label": self.preferred(code) or "",
+            "fsn": self.fsn(code) or self.preferred(code) or "",
+            "tag": self.semantic_tag(code),
+            "active": self.is_active(code),
+            "via": via,
+        }
+
+    def search_labelled(
+        self, term: str, rows: int = 20, findings_only: bool = False, via: str = "term"
+    ) -> list[dict]:
+        """Exact-term hits, each carrying its FSN, tag and an INDEX.
+
+        The index is the point. 76.8% of multi-candidate sets over CADEC gold
+        contain two concepts with an identical label, so a model that replies
+        with a label string is ambiguous more often than not. It reads the
+        words and answers with the index.
+
+        `findings_only` filters on `finding_status`, which is deliberately not
+        `is_active and is_finding`: 11% of CADEC's codes are retired, and
+        SNOMED retires a concept's is-a rows along with the concept, so an
+        active-only walk calls every retired finding "not a finding".
+        """
+        out = []
+        for code in dict.fromkeys(self.codes_for_term(term)):
+            if findings_only and self.finding_status(code) == NOT_FINDING:
+                continue
+            out.append(self._candidate(code, len(out), via))
+            if len(out) >= rows:
+                break
+        return out
+
+    def shortlist(self, text: str, k: int = 20, findings_only: bool = True) -> list[dict]:
+        """Token-overlap candidates, for when exact match found nothing.
+
+        This is the ONLY fuzzy retrieval in the registry, and it is confined to
+        rung 0's candidate display: it never decides whether a code exists.
+        Ranked by how much of the query a term covers, longer terms losing ties
+        so that |Gas| beats |Gaseous substance quality of something| for "gas".
+        """
+        want = set(normalise_term(text).split())
+        if not want:
+            return []
+        scored: dict[str, tuple[float, int]] = {}
+        for cid, norm in self._db.execute("SELECT concept_id, norm FROM description"):
+            got = set((norm or "").split())
+            shared = want & got
+            if not shared:
+                continue
+            score = len(shared) / len(want | got)
+            if score > scored.get(cid, (0.0, 0))[0]:
+                scored[cid] = (score, len(norm or ""))
+        ranked = sorted(scored.items(), key=lambda kv: (-kv[1][0], kv[1][1], kv[0]))
+        out = []
+        for cid, _ in ranked:
+            if findings_only and self.finding_status(cid) == NOT_FINDING:
+                continue
+            out.append(self._candidate(cid, len(out), "shortlist"))
+            if len(out) >= k:
+                break
+        return out
+
+    def resolve(self, labels, findings_only: bool = True) -> dict:
+        """An ordered list of proposed labels -> one code.
+
+        Rung 0 answers with up to three labels, best first, because a single
+        guess is not enough: MedDRA's own preferred terms fail to exact-match
+        any SNOMED description 36.2% of the time, and the patient's words fail
+        57.1% of the time. Walking the list is NOT a retry loop — no second
+        model call happens, and a retry stated as a fact is rung 2's job.
+
+        `rank` is the position of the label that won, and is worth reporting:
+        if rank 1 and 2 win often, the model's first instinct is systematically
+        wrong, which is a finding about the model rather than the vocabulary.
+        """
+        if isinstance(labels, str):
+            labels = [labels]
+        labels = [str(x) for x in (labels or []) if x is not None and str(x).strip()]
+        none = {"code": None, "rank": None, "ambiguous": False, "label": None, "candidates": []}
+        for rank, label in enumerate(labels):
+            if label.strip().upper() == CONCEPT_LESS:
+                return {**none, "code": CONCEPT_LESS, "rank": rank, "label": CONCEPT_LESS}
+            hits = self.search_labelled(label, findings_only=findings_only)
+            if not hits:
+                continue
+            # Prefer an active concept when several share the term, but never
+            # drop a retired one that is the only candidate — retired is not
+            # the same as wrong, and 11% of CADEC's gold is retired.
+            best = next((h for h in hits if h["active"]), hits[0])
+            return {
+                "code": best["code"],
+                "rank": rank,
+                "ambiguous": len(hits) > 1,
+                "label": label,
+                "candidates": hits,
+            }
+        return none
 
     def codes_for_term(self, text: str) -> list[str]:
         """Reverse lookup — every concept with this exact normalised term."""
@@ -388,6 +608,71 @@ def _snapshot_files(release: Path) -> tuple[Path, Path, Path]:
     )
 
 
+def _association_file(release: Path) -> Path:
+    content = release / "Snapshot" / "Refset" / "Content"
+    hits = sorted(content.glob("der2_cRefset_AssociationSnapshot*.txt"))
+    if not hits:
+        raise FileNotFoundError(
+            f"no der2_cRefset_AssociationSnapshot*.txt under {content}"
+        )
+    return hits[0]
+
+
+def _load_associations(db: sqlite3.Connection, release: Path) -> int:
+    """Fill the association table from the release. Returns rows written.
+
+    ACTIVE rows only: an inactive association row is a claim SNOMED has since
+    retracted, and honouring it would credit a successor the release no longer
+    stands behind.
+
+    The refsetId is STORED, not filtered here. Which association types count as
+    a successor is a scoring decision (`REPLACEMENT_REFSETS`), and burning it
+    into a table that takes minutes to rebuild would make revisiting it
+    expensive enough that nobody would.
+    """
+    assoc_f = _association_file(release)
+    print(f"[registry] associations <- {assoc_f.name}", file=sys.stderr)
+    db.executescript(
+        "DROP TABLE IF EXISTS association;"
+        "CREATE TABLE association(source TEXT, target TEXT, refset TEXT);"
+    )
+
+    def rows():
+        with assoc_f.open(encoding="utf-8") as fh:
+            next(fh)
+            for line in fh:
+                p = line.rstrip("\n").split("\t")
+                if p[2] != "1":
+                    continue
+                yield (p[5], p[6], p[4])
+
+    db.executemany("INSERT INTO association VALUES (?,?,?)", rows())
+    db.execute("CREATE INDEX a_source ON association(source)")
+    return db.execute("SELECT count(*) FROM association").fetchone()[0]
+
+
+def build_associations(release: str | os.PathLike, db_path: str | os.PathLike) -> int:
+    """Add (or refresh) the association table on an EXISTING index, in place.
+
+    The full build reads 1.8 M concepts and walks the is-a graph twice; this
+    reads one refset file and takes seconds. It exists because the index is
+    built once and shared between checkouts, so `build(force=True)` would mean
+    rebuilding — and, where the index is reached through a symlink, would
+    replace the symlink with a private copy and silently fork the two.
+    """
+    release, db_path = Path(release), Path(db_path)
+    if not db_path.exists():
+        raise FileNotFoundError(f"{db_path} missing — build the index first")
+    db = sqlite3.connect(db_path)
+    try:
+        n = _load_associations(db, release)
+        db.commit()
+    finally:
+        db.close()
+    print(f"[registry] {n:,} active association rows in {db_path}", file=sys.stderr)
+    return n
+
+
 def build(release: str | os.PathLike, db_path: str | os.PathLike, force: bool = False) -> Path:
     """Build the SQLite index from an RF2 release. Takes a few minutes, once."""
     release = Path(release)
@@ -474,6 +759,7 @@ def build(release: str | os.PathLike, db_path: str | os.PathLike, force: bool = 
         "CREATE INDEX d_concept ON description(concept_id);"
         "CREATE INDEX d_norm ON description(norm);"
     )
+    n_assoc = _load_associations(db, release)
     n_desc = db.execute("SELECT count(*) FROM description").fetchone()[0]
     db.executemany(
         "INSERT INTO meta VALUES (?,?)",
@@ -483,6 +769,7 @@ def build(release: str | os.PathLike, db_path: str | os.PathLike, force: bool = 
             ("active_concepts", str(sum(active.values()))),
             ("clinical_findings", str(len(findings))),
             ("descriptions", str(n_desc)),
+            ("associations", str(n_assoc)),
         ],
     )
     db.commit()
@@ -499,6 +786,11 @@ def default_db(cache_dir: str | os.PathLike = DEFAULT_CACHE) -> Path:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--build", action="store_true")
+    ap.add_argument(
+        "--associations",
+        action="store_true",
+        help="add the retired->replacement table to an EXISTING index, in place",
+    )
     ap.add_argument("--release", help="RF2 release directory (SnomedCT_Release_...)")
     ap.add_argument("--db", default=str(default_db()))
     ap.add_argument("--force", action="store_true")
@@ -508,6 +800,10 @@ def main(argv: list[str] | None = None) -> int:
         if not a.release:
             ap.error("--build needs --release")
         build(a.release, a.db, force=a.force)
+    if a.associations:
+        if not a.release:
+            ap.error("--associations needs --release")
+        build_associations(a.release, a.db)
     if a.check is not None:
         reg = Registry(a.db)
         print(reg.stats())

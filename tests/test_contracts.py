@@ -231,11 +231,22 @@ def test_rung0_entry_points_agree():
         la = Ledger(pathlib.Path(d) / "a.jsonl", run_id="via-run")
         lb = Ledger(pathlib.Path(d) / "b.jsonl", run_id="via-apply")
 
-        recs_run, _ = run(items, "A", S.stub,
-                          {"registry": reg, "ledger": la, "rung0_offsets": "search"})
-        recs_apply, _ = apply([], sources,
-                              {"registry": reg, "ledger": lb, "llm": S.stub,
+        # The corpus and the registry are guarded above; the MODEL is the
+        # third prerequisite and was not. stub_llm defaults to
+        # granite4:micro-h and a machine that pulled it under another tag
+        # (ibm/granite4:micro-h) gets a 404, which stub_llm raises as
+        # RuntimeError — a red suite for an environmental difference, which
+        # is how a suite stops being read. Same guard as
+        # test_ledger_coverage.py, and for the same reason.
+        try:
+            recs_run, _ = run(items, "A", S.stub,
+                              {"registry": reg, "ledger": la,
                                "rung0_offsets": "search"})
+            recs_apply, _ = apply([], sources,
+                                  {"registry": reg, "ledger": lb, "llm": S.stub,
+                                   "rung0_offsets": "search"})
+        except (RuntimeError, OSError) as exc:
+            pytest.skip(f"no reachable model for rung 0: {exc}")
         la.close(); lb.close()
 
         rows_a = [r for r in la.rows if r.rung == 0]

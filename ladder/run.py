@@ -30,6 +30,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Callable
 
+from ladder import clean as clean_mod
 from ladder import corpus as corpus_mod
 from ladder import llm as llm_mod
 from ladder.ledger import Ledger
@@ -95,6 +96,24 @@ def load_scorer(spec: str | None) -> Callable[[Record, Any], bool] | None:
         return getattr(mod, "reaction_sct_strict", None)
     mod_name, _, fn = spec.partition(":")
     return getattr(importlib.import_module(mod_name), fn or "reaction_sct_strict")
+
+
+def load_outcome(spec: str | None = None) -> Callable[..., str] | None:
+    """`ladder.score:outcome` — the four-way version of the same judgement.
+
+    Injected the same way and for the same reason as `load_scorer`: run.py must
+    not import the scorer, so a checkout without one still produces every cost
+    and zone number. Absent, the outcome columns are written empty; they are
+    never inferred from the boolean, which cannot tell outdated from invented.
+    """
+    if spec:
+        mod_name, _, fn = spec.partition(":")
+        return getattr(importlib.import_module(mod_name), fn or "outcome", None)
+    try:
+        mod = importlib.import_module("ladder.score")
+    except ModuleNotFoundError:
+        return None
+    return getattr(mod, "outcome", None)
 
 
 # --- rung 0 input -----------------------------------------------------------
@@ -240,6 +259,12 @@ CSV_COLUMNS = [
     "yield",
     "settled",
     "corrupted",
+    # Appended 2026-08-24 with the fourth outcome. `corrupted` is still every
+    # error; these two name which KIND, and are never subtracted from it. A
+    # retired code the release replaced with the gold answer is out of date,
+    # not invented — see ladder/score.py.
+    "sct_outdated",
+    "sct_abstained",
     "err_per_100",
     "tokens_per_record",
     "p95_s",
@@ -259,6 +284,8 @@ def snapshot_row(
     cost: dict[str, float],
     is_correct=None,
     gold=None,
+    outcome_fn=None,
+    vocab=None,
 ) -> tuple[dict[str, Any], int | None]:
     """One results row from one snapshot of the record set.
 
@@ -297,10 +324,20 @@ def snapshot_row(
         row["yield"] = round(correct / len(snap), 5) if snap else 0.0
         row["corrupted"] = errors
         row["err_per_100"] = round(100 * errors / len(snap), 3) if snap else ""
+        if outcome_fn is not None:
+            # Which KIND of error, not how many. `corrupted` is unchanged and
+            # these do not sum to it: `incorrect` is the remainder and is left
+            # implicit rather than given a column that would invite the three
+            # to be read as a partition of the record set.
+            got = [outcome_fn(r, gold, vocab) for r in answered]
+            row["sct_outdated"] = got.count("outdated")
+            row["sct_abstained"] = got.count("abstained")
     return row, errors
 
 
-def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dict[str, Any]]:
+def results_rows(
+    result: dict[str, Any], is_correct=None, gold=None, outcome_fn=None, vocab=None
+) -> list[dict[str, Any]]:
     ledger: Ledger = result["ledger"]
     n = len(result["records"])
     costs = ledger.cost_by_rung(n_records=n)
@@ -317,7 +354,9 @@ def results_rows(result: dict[str, Any], is_correct=None, gold=None) -> list[dic
         verdicts = ledger.verdicts(rung)
         z = verdicts if verdicts else Counter(r.zone for r in snap)
         cost = costs.get(rung, {})
-        row, errors = snapshot_row(rung, RUNG_NAMES[rung], snap, z, cost, is_correct, gold)
+        row, errors = snapshot_row(
+            rung, RUNG_NAMES[rung], snap, z, cost, is_correct, gold, outcome_fn, vocab
+        )
         if rung == 1:
             row["r1_reject_pct"] = round(100 * z[ZONE_REJECT] / len(snap), 3) if snap else ""
             row["r1_mode"] = next(
@@ -419,6 +458,8 @@ def _load_inputs(man: dict[str, Any], split: str):
 
 def cmd_ladder(a) -> int:
     man = load_manifest(a.manifest)
+    man = apply_overrides(man, getattr(a, "rung0_step", None),
+                          getattr(a, "extractor", None))
     docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
     rungs = _parse_rungs(a.rungs)
     if getattr(a, "limit", 0):
@@ -447,9 +488,23 @@ def cmd_ladder(a) -> int:
         man, a.split, rungs, records, sources, registry, out_dir, run_id, meddra=meddra
     )
 
-    gold = {m.record_id: m for d in doc_ids for m in docs[d].mentions}
+    # Declared exclusions are applied to the ANSWER KEY, once, here — see
+    # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
+    # only invalid codes, 4 quote text that is not at their offsets). They are
+    # excluded and counted, never corrected.
+    excluded = clean_mod.load_exclusions()
+    gold = {
+        m.record_id: m
+        for d in doc_ids for m in docs[d].mentions
+        if m.record_id not in excluded
+    }
+    if excluded:
+        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
     scorer = load_scorer(a.scorer)
-    rows = results_rows(result, is_correct=scorer, gold=gold)
+    rows = results_rows(
+        result, is_correct=scorer, gold=gold,
+        outcome_fn=load_outcome(), vocab=registry,
+    )
     write_results(rows, out_dir / f"{run_id}.results.csv")
     (out_dir / f"{run_id}.records.jsonl").write_text(dumps(result["records"]), encoding="utf-8")
     (out_dir / f"{run_id}.manifest.json").write_text(json.dumps(man, indent=2))
@@ -486,6 +541,8 @@ def cmd_ablate(a) -> int:
     output) and is reported as the `input` row the other rows are read against.
     """
     man = load_manifest(a.manifest)
+    man = apply_overrides(man, getattr(a, "rung0_step", None),
+                          getattr(a, "extractor", None))
     docs, doc_ids, sources, registry, meddra = _load_inputs(man, a.split)
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_ablate_{time.strftime('%Y%m%d-%H%M%S')}"
@@ -502,11 +559,24 @@ def cmd_ablate(a) -> int:
         )
         base = seed["records"]
 
-    gold = {m.record_id: m for d in doc_ids for m in docs[d].mentions}
+    # Declared exclusions are applied to the ANSWER KEY, once, here — see
+    # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
+    # only invalid codes, 4 quote text that is not at their offsets). They are
+    # excluded and counted, never corrected.
+    excluded = clean_mod.load_exclusions()
+    gold = {
+        m.record_id: m
+        for d in doc_ids for m in docs[d].mentions
+        if m.record_id not in excluded
+    }
+    if excluded:
+        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
     scorer = load_scorer(a.scorer)
+    outcome_fn = load_outcome()
     rows = [
         snapshot_row(
-            "", f"input ({a.source})", base, Counter(r.zone for r in base), {}, scorer, gold
+            "", f"input ({a.source})", base, Counter(r.zone for r in base), {},
+            scorer, gold, outcome_fn, registry,
         )[0]
     ]
     missing: list[int] = []
@@ -532,7 +602,10 @@ def cmd_ablate(a) -> int:
             f"{run_id}.r{n}",
             meddra=meddra,
         )
-        rows.extend(results_rows(result, is_correct=scorer, gold=gold))
+        rows.extend(results_rows(
+            result, is_correct=scorer, gold=gold,
+            outcome_fn=outcome_fn, vocab=registry,
+        ))
 
     write_results(rows, out_dir / f"{run_id}.results.csv")
     (out_dir / f"{run_id}.manifest.json").write_text(json.dumps(man, indent=2))
@@ -601,6 +674,21 @@ def main(argv: list[str] | None = None) -> int:
                        help="run on the first N documents of the split. A smoke "
                             "run: the result is not a result for the split")
         p.add_argument("--scorer", help="module:function, defaults to ladder.score if present")
+        p.add_argument(
+            "--extractor",
+            help="provider/model from ladder/models.yaml for rungs 0/2/3, "
+                 "overriding manifest.model.extractor for this run. Never "
+                 "changes model.judge — rung 4 must stay a different family. "
+                 "A non-local provider still needs LADDER_ALLOW_REMOTE=1.",
+        )
+        p.add_argument(
+            "--rung0-step", choices=["S0", "S1", "S2"],
+            help="rung 0's extraction step for the prompt-engineering study. "
+                 "Scope is identical in all three; only the way the CODE is "
+                 "obtained changes. Overrides manifest.rungs.0.rung0_step so "
+                 "three runs are three commands rather than three manifest "
+                 "edits. S3 was dropped 2026-08-24 — see docs/decisions.md.",
+        )
         p.add_argument("--run-id")
         return p
 
@@ -612,6 +700,34 @@ def main(argv: list[str] | None = None) -> int:
 
     a = ap.parse_args(argv)
     return friendly(a.fn, a)
+
+
+def apply_overrides(
+    man: dict[str, Any], step: str | None = None, extractor: str | None = None,
+    **_: Any,
+) -> dict[str, Any]:
+    """Fold per-run CLI overrides into the manifest the run reports.
+
+    Into the MANIFEST, not a side channel: the step and the model both change
+    what every number in the run means, so they have to appear in the copy
+    written beside the results. A setting that only lived in argv would leave
+    two runs looking identical on disk.
+
+    `--extractor` never touches `model.judge`. Rung 4 must be a different
+    family from the extractor, and an override that quietly made them the same
+    would turn the judge into a self-judge — which measures self-consistency,
+    not correctness.
+    """
+    if step:
+        man.setdefault("rungs", {}).setdefault("0", {})["rung0_step"] = step
+    if extractor:
+        man.setdefault("model", {})["extractor"] = extractor
+    return man
+
+
+def apply_rung0_step(man: dict[str, Any], step: str | None) -> dict[str, Any]:
+    """Back-compatible alias for `apply_overrides`."""
+    return apply_overrides(man, step=step)
 
 
 if __name__ == "__main__":

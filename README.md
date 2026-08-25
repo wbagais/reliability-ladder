@@ -48,18 +48,63 @@ and it silently merges three costs that are not interchangeable. Keeping them
 apart forces the honest question — *would you rather spend tokens or human
 attention?*
 
+The ledger does carry a `usd` column alongside the three, computed per call
+from `ladder/models.yaml`. It is never fused into them and no headline is
+reported in it — it exists so a hosted run's bill is recoverable from the
+results rather than reconstructed afterwards.
+
 ## Quick start
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
 ```
 
+**The model is named in `manifest.json` and nowhere else.** `ladder/llm.py`
+carries no default and raises if the manifest names none, so a run always
+knows which model produced its numbers. Override for a single run with
+`--extractor` or `LADDER_MODEL_SPEC`; both are written into the manifest copy
+saved beside the results. Per-model request settings — `max_tokens`,
+`sampling`, `reasoning_effort` — live in `ladder/models.yaml`, because a rung
+must never know which family it is calling.
+
+Four preprocessing steps, in order. Each produces gitignored, licence-bound
+data; a fresh clone runs all four before any rung.
+
 ```bash
 python -m ladder.registry --build --release data/SnomedCT_Release_<yours>
 ```
 
 ```bash
+python -m ladder.keywords --build
+```
+
+```bash
+python -m ladder.clean --build
+```
+
+```bash
 python -m ladder.run init
+```
+
+`registry --build` indexes the RF2 release to SQLite, including the
+retired→replacement association refset that lets a stale code score as
+*outdated* rather than as wrong. `keywords --build` writes `data/keywords.csv`,
+the name→code table rung 0 resolves through — SNOMED-derived only, nothing in
+it reads the answer key. `clean --build` writes `data/exclusions.csv`, the gold
+mentions that cannot be answered and leave the denominator with a stated
+reason.
+
+Optional, for S2's dense retrieval — a few minutes and a local embedding model:
+
+```bash
+python -m ladder.embed --build
+```
+
+An index built before 2026-08-24 has no association table. Add it in place,
+in seconds, rather than rebuilding:
+
+```bash
+python -m ladder.registry --associations --release data/SnomedCT_Release_<yours>
 ```
 
 `init` verifies the corpus parses, runs the critical-path gate (a real code

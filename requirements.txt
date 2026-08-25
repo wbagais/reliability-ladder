@@ -8,3 +8,9 @@ pyyaml==6.0.2
 # produce them, which happens on your machine and nowhere else (plan §1).
 # openai==1.59.6      # rungs 0/3/4/5
 # pytest==8.3.4
+# numpy==2.3.3        # ladder/embed.py — S2's dense retrieval only
+# httpx==0.28.1       # ladder/embed.py — batch calls to the local embedder
+#
+# numpy is imported LATE, inside ladder/embed.py, with a message naming this
+# file. A checkout that reads out/*.csv and never builds an embedding index
+# does not need it, and the lexical retrieval path runs without it.

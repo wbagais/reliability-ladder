@@ -22,6 +22,30 @@
   must go in the manifest. The available list is 666 codes, every one of which is
   in the gold annotations and none of which are not — the answer key's inventory,
   not a vocabulary. `meddra_check` is therefore `"flag"`, not `"reject"`.
+  **Rung 0 does not read it at all** (since 2026-08-24) — it was reachable only
+  through S3, and there is a test asserting the filename is absent from `r0.py`.
+- **Preprocessing is FIVE steps now, in this order.** A fresh clone runs all of
+  them; `data/` and `ladder/cache/` are gitignored.
+
+      python -m ladder.registry --build     RF2 -> SQLite index
+      python -m ladder.keywords --build     data/keywords.csv
+      python -m ladder.clean    --build     data/exclusions.csv
+      python -m ladder.embed    --build     ladder/cache/keywords.*  (dense S2)
+      python -m ladder.run init             freeze the splits
+
+  An index built before 2026-08-24 has no `association` table. Upgrade it in
+  place with `python -m ladder.registry --associations --release <dir>` — a few
+  seconds. Do NOT `build --force` where the index is reached through a symlink:
+  the rebuild replaces the symlink with a private copy and forks the checkouts.
+
+## How to work
+- **TDD, always.** Write the failing test first, watch it fail, then write the
+  code that makes it pass. No production code without a test that demanded it.
+  This is not negotiable and applies to every change, including small ones.
+  The reason is specific to this repo: every number here is evidence for an
+  article, and a check that was never seen to fail is a check nobody has
+  shown to work. `scripts/` having no coverage is how a `NameError` in
+  `full_run.py` survived the renumber.
 
 ## Design decisions — do not silently reverse these
 - Rung IDs are fixed to the brief. Execution order lives in `manifest.json` as
@@ -52,6 +76,11 @@
 - Every one of those was found by replaying rung 1 over the gold standard, where
   every rejection is false by construction. It took the gate's own error floor
   from **9.3% to 0.13%**. Do that before trusting any new check.
+- **Rung 0 does NOT retry.** When a proposed label resolves to no code, rung 0
+  walks its next label and then stops. A retry loop inside rung 0 IS rung 2 —
+  building one there would collapse rung 2's measured value into rung 0 and
+  confound the ladder. Rung 0 proposes up to three labels in one call; rung 2
+  is where a failure is stated back as a fact.
 - Rung 2 (self-correct) fires **only on a rung 1 failure**, with the reason stated as a fact
   ("code 999999 does not exist"), never as a question ("are you sure?").
   It cannot fix records that passed validation — there is no fact to feed back.
@@ -65,6 +94,42 @@
 ## Current state
 - **All seven rung slots exist except rung 6.** The full ladder runs end to end,
   cold, in order `[0,1,2,3,4,5,6]`. 100 tests (96 + 4 integration), CI green.
+- **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
+  carries no default and `resolve()` RAISES on a missing entry — it used to
+  fall back to `ollama/gpt-oss:20b` while the manifest said
+  `granite4:micro-h`, so "which model produced this number" had two answers
+  depending on whether a manifest reached the call. Order is `--extractor` >
+  `LADDER_MODEL_SPEC` > manifest, and nothing after.
+- **Extractor is `ollama/gpt-oss:20b`** (2026-08-24, on measurement).
+  granite4:micro-h answered `AFTERPROMPT`; gpt-oss names real concepts.
+  **It is a REASONING model** — its chain of thought goes to a separate
+  `reasoning` field and `content` stays EMPTY until it finishes, so
+  `max_tokens` and `reasoning_effort` are per-model registry data in
+  `models.yaml`. **`reasoning_effort` is deliberately UNSET** with a 32000
+  cap: `low` answers S0 in 104 tokens but finds **1 of 17** gold mentions
+  across 3 documents against 11 at default effort. It stops truncating and
+  starts missing — the same failure in a cheaper coat. The effort also cannot
+  differ per step, since scope is identical across S0/S1/S2 by design. The
+  cost is reported, not avoided: **a dev-split run takes hours, not minutes.**
+- **The judge is now the WEAKER model** (granite4:micro-h, 2B, judging a 20B
+  extractor). It is the only locally installed family that differs from the
+  extractor, and rung 4 refuses to self-judge. Read rung 4's numbers with that
+  stated, or install a third family.
+- **The LLM cache key covers max_tokens and reasoning_effort.** It did not,
+  and rerunning S0 with a new effort served the old truncated entry. A cache
+  that survives a parameter change is a stale result. A TIMEOUT is never
+  cached — it is a property of the run, not of the question.
+- **Every call has a wall-clock budget** (`timeout_s`, registry data,
+  300s for gpt-oss). Measured: a dev-split run stopped dead when one call
+  generated for 25 minutes on a 761-character post. 90% of calls finish under
+  3,244 completion tokens; the tail is what makes a run unbounded. The timeout
+  does NOT raise — it returns an empty response flagged `timed_out`, so one
+  runaway document costs ONE RECORD, not the run.
+- **Three failure labels, most specific first: `timed_out` > `truncated` >
+  `json_decode`.** They overlap on purpose. A cut-off reply must never be
+  counted as a model that cannot produce JSON, and a hung machine must never
+  be counted as either. **Timeouts belong in the cost column, not the accuracy
+  one** — they measure this machine's throughput on a 20B model.
 - **Model selection is centralised.** `ladder/llm.py:for_rung` is the ONLY place
   a model is resolved. `run.py` injects `cfg["llm"]`; a rung never names a
   model. Bound by ROLE from `manifest.model` — `extractor` for rungs 0/2/3,
@@ -74,11 +139,53 @@
 - **Local by default, and remote is deliberate.** `ollama/gpt-oss:20b` unless
   overridden. Rung prompts carry CADEC text verbatim, so any provider with
   `local: false` in `models.yaml` is refused without `LADDER_ALLOW_REMOTE=1`.
-- Cost accounting is complete: every rung logs tokens, api_calls and per-call
-  latency. Rung 3 bills the k sampling calls as a DOCUMENT row, paid whether or
-  not a record is re-found.
-- `ladder/score.py` is still missing, so accuracy columns are written empty
-  rather than guessed. `run.py` reports a missing rung rather than faking it.
+- Cost accounting is complete: every rung logs tokens, api_calls, per-call
+  latency **and `usd`** (fixed 2026-08-24 — all four paid rungs dropped the
+  price the caller had already computed, which was invisible because zero is
+  right for a local model). Rung 3 bills the k sampling calls as a DOCUMENT
+  row, paid whether or not a record is re-found. Cost is still three separate
+  measures; `usd` is carried alongside, never fused in.
+- **`ladder/score.py` exists** (2026-08-23). Gold is keyed by SPAN, never by
+  position; `span_match` is `exact` (headline) or `overlap`. It accepts the
+  `{record_id: GoldMention}` collection `run.py` passes and re-keys it itself —
+  record_id is a POSITION and the two numberings agree only by luck.
+- **Rung 0 has THREE steps, S0-S2** — the prompt-engineering study. Scope is
+  identical in all three; only where the CODE comes from changes. Select with
+  `--rung0-step`, which writes the choice into the manifest copy saved beside
+  the results. `rung0_step: null` keeps the original A/B mode path.
+  **S3 was dropped 2026-08-24.** It was a pick from one fixed PRINTED list and
+  no printable list survives measurement: its MedDRA list is the answer key's
+  own inventory, the best ontology-native alternative (SNOMED's Clinical
+  manifestation refset, 743 codes) caps at 48.7% of gold, the real keyword
+  table is 227,554 rows, and a list retrieved per mention is S2. Do not
+  reintroduce it.
+- **S2 retrieves DENSELY by default** (2026-08-24). `rung0_retrieval` is
+  `dense | lexical`. Measured over the same 6,595 gold mentions, same k, same
+  answer key: lexical recall@20 61.8%, dense 86.1%. **The two also search
+  different corpora** — lexical over 1.8M description rows of every semantic
+  type, dense over 228k findings/disorders keywords — so the gain decomposes:
+  running Jaccard over keywords.csv gives 65.1%, making it **+3.3 corpus,
+  +21.0 scoring** at k=20. At k=1 it inverts (+29.1 corpus, +15.2 scoring):
+  filtering before ranking is what clears the top slot. Lexical is kept, not
+  deleted — a recall number under one retriever is only interpretable next to
+  the other, and `checks.rung0_retrieval` is on every record. Dense is not
+  magic: `"gas"` returns |gas gangrene|. **The 41.7% shortlist recall in the older notes
+  could not be reproduced under any denominator or k** — see docs/decisions.md;
+  do not requote it.
+- **Rung 0 resolves NAMES through `data/keywords.csv`, not through the
+  registry.** `KeywordTable.resolve` has the same return shape as
+  `Registry.resolve` over a findings-and-disorders-only table. There is NO
+  fallback to the registry — an unresolved name is unresolved, because falling
+  back reinstates the search the table replaces and hides which one answered.
+  The registry stays for rung 1 (`exists`/`is_active`/`finding_status`/`terms`
+  over the WHOLE release) and for S2's shortlist.
+- **Four outcomes, not two** (2026-08-24): `correct` / `outdated` / `abstained`
+  / `incorrect`. `outdated` is a RETIRED code whose SNOMED-recorded successor
+  is the gold answer, and it is **never** folded into `correct` — precision,
+  recall and F1 count `correct` only. Successors come from the association
+  refset via `Registry.replacements`, following SAME AS and REPLACED BY and
+  nothing else. Rung 1's `outdated_check` is a **flag**, like `meddra_check`.
+  With no vocabulary the outcome degrades to `incorrect`, never to `correct`.
 - **An earlier data-agnostic track was retired on 2026-08-22**, along with its
   results. The CADEC track imported none of it. Do not reintroduce its numbers:
   nothing in this repo is runnable that would reproduce them. Git history at
@@ -91,20 +198,57 @@
 - `ladder/vocab.py` wired in as a global resource, formalised as
   `schemas/vocabulary.py` (contract 2).
 - Variable-length mention arrays checked against the scorer: **they break it**,
-  and the fix is span-keying. Numbers under "Next" item 1.
+  and the fix is span-keying — now implemented in `ladder/score.py`.
+- `Record.sct_label` appended, and rung 1's `label_check` (default `"flag"`).
+  The model names the concept it thinks it coded; the vocabulary checks it for
+  free. Catches what `exists()` cannot — 82249009 is real, active, and means
+  |California chicken (organism)|.
 - `ladder/rungs/r0.py`, then `r2` / `r3` / `r4` — all written and running.
 - Rung IDs renumbered to match execution order (2026-08-23). Old→new is
   3→2, 5→3, 2→5. Anything in `docs/decisions.md` dated earlier uses the OLD ids.
 
+- `scripts/` import smoke test (2026-08-24), which immediately found two live
+  bugs in `ladder_run.py`: `say()` called above its own definition, and the
+  pre-renumber module pairing in the signature banner.
+- **Truncation and timeout are recorded separately from a JSON parse
+  failure** (2026-08-24). `timed_out` > `truncated` > `json_decode`.
+- **S0's list-of-codes defect** (2026-08-24). `str(code)` on a list made
+  "the model named three codes" identical to "the model emitted garbage";
+  the first is taken and the violation is counted.
+
+## Rung 0 measured — dev split, 40 docs, 226 gold mentions (2026-08-24)
+`ollama/gpt-oss:20b`, `reasoning_effort: low`, rung 1 observe.
+
+| | F1 exact | F1 overlap | calls | tokens | parse fails |
+|---|---|---|---|---|---|
+| S0 | **0.018** | 0.018 | 40 | 43,998 | 5 of 40 |
+| S1 | **0.171** | 0.305 | 57 | 36,079 | 0 |
+| S2 | **0.209** | 0.310 | 75 | 68,906 | 0 |
+
+- **S0 is broken, not weak.** Ten times worse than S1 for MORE tokens. The one
+  thing rung 0 cannot do — recall a nine-digit id — is also the most expensive.
+  It is the only step that fails to parse, and the failure is its schema.
+- **S1 and S2 are close and S2 costs 1.9x.** Half a point apart on overlap,
+  3.8 points on exact. **S2 IS FROZEN in `manifest.rungs.0.rung0_step`
+  (2026-08-24).** The 1.9x token cost is a declared trade, not a free win, and
+  the three cost measures carry it. Frozen because rungs 1-6 must all be
+  measured against ONE rung 0; `--rung0-step` still overrides for a single run.
+- **The exact/overlap gap is span boundaries, not coding.** The model quotes
+  "extreme rectal bleed" where gold says "rectal bleed" — same concept, scored
+  as both a false positive and a false negative. Report both numbers.
+- **An abstention hatch reduces fabrication but does not remove it.** S0 may
+  answer `null` for an id it does not know and does so 12.4% of the time — and
+  still emitted `2714004`, a nonexistent code, beside a correct label.
+
 ## Next, in order
-1. **`ladder/score.py` — the shared scorer.** The single biggest gap: without it
-   there is no accuracy axis, so no marginal-cost-per-prevented-error curve,
-   which the plan calls the headline number of the study. Everything else is
-   ready for it — `run.py` already injects a scorer via `load_scorer` and writes
-   the columns empty when absent.
-   **Key gold mentions by SPAN, not by position.** Measured: under index-based
-   array comparison a *perfect* extraction listed in another order scores 0.216
-   and dropping one mention scores 0.081; span-keyed scores 1.000 reordered.
+1. **Run the full ladder on the frozen S2.** The three dev runs are DONE and
+   S2 is frozen in the manifest (see above). Rungs 1-6 have never been
+   measured against it — every number above rung 0 predates the freeze.
+   `python -m ladder.run ladder --split dev` Everything measured so far is ONE
+   document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
+   winning step, freeze it in the manifest, and run the ladder from there —
+   otherwise rungs 1-6 are measured against three different rung 0s and nothing
+   above is comparable. `python -m ladder.run ladder --split dev --rung0-step S1`
 2. **A full dev-split run.** Everything measured so far is ONE document
    (ARTHROTEC.107). The rung 4 confabulation and rung 3's `not_resampled` are
    single observations, not rates. Dev is 40 documents at roughly 30s each.
@@ -114,11 +258,41 @@
 4. **Rung 3 cannot currently vote, and it is not a rung 3 bug.** It matches
    mentions by `(doc_id, spans)`, and samples at temperature 0.7 pick different
    phrases, so keys never align — every record comes back `not_resampled`.
-   Matching on overlap rather than exact span would let voting run at all.
-5. **`scripts/` has no test coverage.** That is how a `NameError` in
-   `full_run.py` survived the renumber. One import smoke test per script closes
-   it.
-6. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+5. **The lookup-vs-RAG 2x2 needs a model that names concepts.** Top row
+   measured: a perfect clinical term scores 99.3% by exact lookup AND 99.3% by
+   dense retrieval — they coincide by construction, so retrieval can only pay
+   on an IMPERFECT label. Bottom row unmeasurable at 2B: granite4:micro-h
+   proposed `AFTERPROMPT` for "rectal bleed", so there was no concept to
+   retrieve on. Needs claude-sonnet-5, which is a licence call
+   (`LADDER_ALLOW_REMOTE=1`, CADEC is non-transferable) as well as a cost one.
+   `checks["labels_proposed"]` now records what the model offered, which is
+   what makes the comparison possible at all.
+6. **Dense retrieval's 13.9% miss is mostly NOT fixable by a better
+   retriever, and a hybrid loses.** Measured at equal budget: dense@40 89.5%
+   beats dense@20+lexical@20 88.0% and dense@20+char-trigram@20 89.3%. The fix
+   for recall is `rung0_shortlist_k`, not a second index — but raising k costs
+   at the PICK step, where a long menu bought position bias (measured at the
+   retired S3). That trade-off is its own experiment. Miss profile: 8.6% are
+   SENTENCES retrieved against 4-word terms (the same defect query rewriting
+   would fix), 1.6% post-coordinated gold, 0.3% absent from the table, and the
+   rest are ranked-too-low — a large part of which is gold naming one concept
+   where the span literally names another ("little blurred vision" -> gold
+   |Hazy vision|, retrieved "blurred vision").
+7. **Schema enforcement is an A/B, not a switch.** It does not delete the
+   parse-failure metric — it MOVES the failure (truncation, empty mention
+   lists, plausible wrong values) and costs output quality, because
+   probability mass goes to satisfying the grammar. Run both arms and report
+   what it removed and what it cost. Not built.
+8. **Config measurements need more than three documents.** The
+   `reasoning_effort` choice was made on 3 documents and was right about
+   quality (`low` finds 1 gold mention of 17) and blind to the tail — three
+9. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+   answer.** All 407 wholly-retired gold mentions leave the denominator, on the
+   grounds that the keyword table is active-only. 111 of them (27.3%) have a
+   SNOMED-recorded successor, so a model naming that successor is right against
+   a stale answer key. Changing the answer key's inventory needs a measurement
+   and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
+10. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".

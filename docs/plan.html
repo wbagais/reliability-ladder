@@ -1022,7 +1022,8 @@ The open-source LLM tracing tools all model the same unit — the call: prompt, 
 <tr style="background:#fdecea"><td><b>NEVER</b></td><td><code>data/cadec/</code> and any derivative containing post text</td><td>Non-transferable licence. Includes notebook output cells — the trap nobody checks.</td></tr>
 <tr style="background:#fdecea"><td><b>NEVER</b></td><td><code>.llm_cache/</code> <code>cache/vocab/</code> <code>results/</code> <code>*.outputs.jsonl</code></td><td>Large, and the caches and per-field sidecars contain document text.</td></tr>
 <tr style="background:#fdecea"><td><b>NEVER</b></td><td>API keys, <code>.env</code>, <code>.streamlit/secrets.toml</code></td><td>A public app with a live key spends your money for strangers.</td></tr>
-<tr style="background:#fdf6e3"><td><b>CHECK</b></td><td>full <code>meddra_codes.csv</code></td><td>MedDRA is subscription-licensed. 666 code–term pairs is a substantial extract and may not be yours to redistribute. Ship a 10-row example and document where to get the rest.</td></tr>
+<tr style="background:#fdf6e3"><td><b>CHECK</b></td><td>full <code>meddra_codes.csv</code></td><td>MedDRA is subscription-licensed. 666 code–term pairs is a substantial extract and may not be yours to redistribute. Ship a 10-row example and document where to get the rest. <b>Measured 2026-08-24:</b> no rung reads it as a retrieval source any more — it was reachable only through step S3, which was dropped, and <code>meddra_mode</code> stays <code>reference</code>.</td></tr>
+<tr style="background:#fdecea"><td><b>NEVER</b></td><td><code>data/keywords.csv</code> · <code>data/exclusions.csv</code> · <code>ladder/cache/</code></td><td>Derived from the SNOMED release (affiliate-licensed) and from the CADEC annotations. A derived form is the same content in another shape. <code>.gitignore</code> covers <code>data/*</code> except <code>data/splits/</code>, and <code>ladder/cache/</code> outright.</td></tr>
 </table>
 
 <pre># .gitignore — the load-bearing lines
@@ -1034,7 +1035,10 @@ results/
 *.outputs.jsonl
 .env
 .streamlit/secrets.toml
-data/meddra_codes.csv</pre>
+data/meddra_codes.csv
+data/*                      # except data/splits/, re-included below
+!data/splits/
+ladder/cache/               # snomed.sqlite, keywords.*.npy</pre>
 
 <h2>3. Build and run</h2>
 <h3>3.1 Local — the only place the benchmark runs</h3>

@@ -7,6 +7,36 @@ providers:
     local: true
     input_per_mtok: 0.0
     output_per_mtok: 0.0
+    models:
+      # REASONING MODEL. Its chain of thought goes to a separate `reasoning`
+      # field and `content` stays EMPTY until it finishes, so completion
+      # tokens are mostly deliberation that is then thrown away. Measured
+      # 2026-08-24 at DEFAULT effort on a 166-character post: 1,754 reasoning
+      # tokens against 75 answer tokens. 96% of the call is discarded.
+      #
+      # reasoning_effort=low, measured over TEN dev documents, 30 gold
+      # reaction mentions, both arms, same prompts:
+      #
+      #             tokens    sec   gold found
+      #   S1 low     1,176     22   19/30  (63%)
+      #   S1 default 15,918   320   19/30  (63%)   <- IDENTICAL
+      #   S0 low      3,805     77   10/30  (33%)
+      #   S0 default 39,426   853   11/30  (37%)   <- one mention
+      #
+      # S1 loses NOTHING and runs 14x faster. S0 loses one mention of thirty
+      # and runs 11x faster. The dev split goes from ~4 hours to ~10 minutes,
+      # which is the difference between a measurement that gets rerun and one
+      # that does not.
+      #
+      # THIS REVERSES AN EARLIER DECISION, and the reason it was wrong is the
+      # standing rule it broke: `low` was rejected on THREE documents, where
+      # it appeared to find 1 gold mention of 17. Three documents cannot
+      # measure this. See CLAUDE.md, "config measurements need more than
+      # three documents" — written before this, and then not applied.
+      #
+      # 8000 covers every call that terminates at this effort with room to
+      # spare; timeout_s bounds the ones that do not.
+      gpt-oss:20b: { max_tokens: 8000, timeout_s: 300, reasoning_effort: low }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY
@@ -37,3 +67,9 @@ providers:
     output_per_mtok: 5.00
     models:
       claude-haiku-4-5-20251001: { input_per_mtok: 1.00, output_per_mtok: 5.00 }
+      # Intro pricing to 2026-08-31 ($3.00/$15.00 after). sampling: false —
+      # the Claude 5 family removed temperature/top_p/top_k and returns 400 if
+      # one is sent. Every rung here calls with temperature=0, so without this
+      # flag the first request fails. See tests/test_llm_registry.py.
+      claude-sonnet-5: { input_per_mtok: 2.00, output_per_mtok: 10.00, sampling: false }
+      claude-opus-5: { input_per_mtok: 5.00, output_per_mtok: 25.00, sampling: false }

@@ -31,13 +31,13 @@
     "snomed_backend_note": "local-rf2 | ols4. Not interchangeable: an OLS4-backed exists() reports 23.9% of CADEC gold as nonexistent codes (7.5% retired, 16.4% AU-extension = 100% of drug mentions). A rung 1 rejection rate is not comparable across backends. See schemas/vocabulary.py and `python -m ladder.vocab_crosscheck`.",
     "meddra_mode": "reference",
     "meddra_mode_note": "reference | answer_space. reference = the list only cross-checks a code produced by other means; retrieval from it is refused. answer_space = the task IS closed-set assignment over this list, which is a DIFFERENT and much easier task and must be declared in the method section.",
-    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent."
+    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active — one concept, release-dependent."
   },
   "model": {
-    "extractor": "ollama/granite4:micro-h",
-    "judge": "ollama/qwen2.5:7b",
+    "extractor": "ollama/gpt-oss:20b",
+    "judge": "ollama/ibm/granite4:micro-h",
     "temperature": 0,
-    "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung \u2014 rungs never pick a model."
+    "note": "THE ONE PLACE A MODEL IS NAMED. ladder/llm.py carries no default and resolve() raises on a missing entry — it used to fall back to ollama/gpt-oss:20b while this said granite4:micro-h, so 'which model produced this number' had two answers depending on whether a manifest reached the call. Resolution order is --extractor > LADDER_MODEL_SPEC > here, and nothing after. Judge must be a different model FAMILY from the extractor: a model judging its own output measures self-consistency, not correctness, and ladder/llm.py:for_rung refuses to let them be the same. Extractor moved to gpt-oss:20b 2026-08-24 on measurement — granite4 answered 'AFTERPROMPT' where gpt-oss named ['Rectal hemorrhage', 'Rectal bleeding', 'Severe rectal bleeding']. NOTE THE COST: the judge is now the WEAKER model (2B judging 20B), which is the wrong way round and is the only locally installed family that differs from the extractor. Rung 4's numbers must be read with that stated."
   },
   "rung_order": [
     0,
@@ -48,9 +48,9 @@
     5,
     6
   ],
-  "rung_order_note": "Rung ID equals execution position. Renumbered 2026-08-23 from [0,1,3,5,4,2,6]; old->new is 3->2, 5->3, 2->5, others unchanged. Every measurement in docs/decisions.md dated before then uses the OLD ids \u2014 the mapping table is in that file. Order is still read from here rather than assumed, so a different order stays testable.",
+  "rung_order_note": "Rung ID equals execution position. Renumbered 2026-08-23 from [0,1,3,5,4,2,6]; old->new is 3->2, 5->3, 2->5, others unchanged. Every measurement in docs/decisions.md dated before then uses the OLD ids — the mapping table is in that file. Order is still read from here rather than assumed, so a different order stays testable.",
   "rung0_mode": "recall",
-  "rung0_mode_note": "recall | search. Plan v16 \u00a72.1 recommends 'recall' for iteration 1 \u2014 the model emits a code from memory, no tools \u2014 because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
+  "rung0_mode_note": "recall | search. Plan v16 §2.1 recommends 'recall' for iteration 1 — the model emits a code from memory, no tools — because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
   "ablations": [
     {
       "name": "rung0 search vs recall",
@@ -81,7 +81,17 @@
   "rungs": {
     "0": {
       "rung0_offsets": "search",
-      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time."
+      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time.",
+      "rung0_step": "S2",
+      "rung0_step_note": "S0 | S1 | S2 — the rung 0 prompt-engineering study, added 2026-08-23, FROZEN TO S2 on 2026-08-24 after the dev-split measurement. Scope is identical in all three and only where the CODE comes from changes: S0 recalls label and code from the model's weights, S1 recalls the label and resolves the code through data/keywords.csv, S2 retrieves a shortlist per mention and picks from it. Measured over 40 dev documents and 226 scorable gold reaction mentions with ollama/gpt-oss:20b at reasoning_effort=low — F1 exact / F1 overlap / calls / tokens / parse failures: S0 0.018 / 0.018 / 40 / 43,998 / 5-of-40; S1 0.171 / 0.305 / 57 / 36,079 / 0; S2 0.209 / 0.310 / 75 / 68,906 / 0. S2 wins exact F1 by 3.8 points and ties S1 on overlap within half a point, AND COSTS 1.9x THE TOKENS — that is a declared trade, not a free win, and the three cost measures carry it. S0 is not a weaker step but a broken one: an order of magnitude below the others for MORE tokens, and the only step that fails to parse, because its schema demands a nine-digit identifier the model does not have. Frozen because rungs 1-6 must all be measured against ONE rung 0 — three different ones make nothing above comparable. --rung0-step still overrides for a single run and writes the choice into the manifest copy saved beside the results. `null` is the pre-study A/B mode path, NOT 'the default step'.",
+      "rung0_shortlist_k": 20,
+      "rung0_shortlist_note": "How many candidates S2 shows. Retrieval is token overlap over SNOMED descriptions, filtered to clinical findings. Measured 2026-08-23: exact matching the patient's own words returns nothing for 57.1% of gold reaction mentions, and where it returns something the gold code is absent 15% of the time — 'gas' returns |Gaseous substance|. Hence both the shortlist and the findings filter.",
+      "keyword_table": "data/keywords.csv",
+      "keyword_table_note": "Where rung 0 turns a NAME into a code. Built from the SNOMED release alone by `python -m ladder.keywords --build`; nothing in it reads CADEC or the gold annotations. Findings and disorders only — resolving through Registry.resolve searched every description in the release, which is what answered |California chicken (organism)| for a rectal bleed and let |Gaseous substance| outrank the right concept for 'gas'. There is NO fallback to the registry when a name is absent: an unresolved name is unresolved, and falling back would reinstate the search this replaces and hide which of the two answered. The registry is still loaded — rung 1 needs exists/is_active/finding_status/terms over the WHOLE release, and S2's shortlist is retrieved from it.",
+      "rung0_retrieval": "dense",
+      "rung0_retrieval_note": "dense | lexical — which retriever builds S2's candidate menu. NOTE THAT THE TWO ALSO SEARCH DIFFERENT CORPORA: 'lexical' is Registry.shortlist, Jaccard token overlap over the SQLite description table (1,822,645 rows, 721,187 concepts, every semantic type, filtered to findings AFTER ranking); 'dense' is cosine over the embedded keyword table (227,554 rows, 127,515 concepts, findings and disorders, active only, filtered BEFORE ranking; granite-embedding:30m, 384 dims, local). MEASURED 2026-08-24 over the same 6,595 scorable coded gold reaction mentions, with the corpus and the scoring varied SEPARATELY — recall@20: lexical over descriptions 61.8%, lexical over keywords.csv 65.1%, dense over keywords.csv 86.1%. So embeddings are worth +21.0 points and the cleaner corpus +3.3. At k=1 it inverts (19.5% / 48.6% / 63.8%): +29.1 of corpus against +15.2 of scoring, because filtering to findings before ranking is what clears the top slot. The default moved on that and on nothing else. Two lexical defects dense removes, neither tunable: Jaccard's denominator penalises long terms, so for 'extreme rectal bleed' |Rectal| scores 0.33 and |Rectal hemorrhage| 0.25 and the wrong shorter concept wins; and there is no stemming, so 'bleed' never reaches 'bleeding'. Dense has its own failure mode and it is not hidden: 'gas' returns |gas gangrene| and its variants. Lexical stays reachable because a number produced under one retriever is only interpretable next to the other. Both return the same hit shape (i, code, label, fsn, via) so rung 0's pick logic never branches on which one ran, and the choice is written onto every record as checks.rung0_retrieval.",
+      "embed_prefix": "ladder/cache/keywords",
+      "embed_prefix_note": "Where the dense index lives: <prefix>.vectors.npy (float16, L2-normalised, one row per keyword) and <prefix>.rows.json (keyword,code in MATRIX ORDER). A CACHE, unlike data/keywords.csv — derived from the table by a fixed function and rebuildable in minutes, so it sits beside snomed.sqlite. REBUILD IT WHENEVER THE KEYWORD TABLE CHANGES: the loader checks the row counts agree, which catches a truncated write but not a stale matrix built from a different table of the same size."
     },
     "1": {
       "mode": "observe",
@@ -93,7 +103,11 @@
       "finding_scope": "reaction",
       "lexical_mode": "exact",
       "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
-      "meddra_check": "flag"
+      "meddra_check": "flag",
+      "label_check": "flag",
+      "label_check_note": "off | flag | reject. Rung 0's sct_label against the vocabulary's own words for the code it chose. Catches what exists() cannot: 82249009 is real and active and means |California chicken (organism)|, which granite4:micro-h emitted for 'extreme rectal bleed'. FLAG, not reject — 'rectal bleeding' against |Rectal hemorrhage| is one concept in two wordings, and this check's false-rejection floor has not been measured. Same posture as meddra_check and negation_action, and for the same reason.",
+      "outdated_check": "flag",
+      "outdated_check_note": "off | flag. A retired code SNOMED has since replaced is out of date, not invented: the model named a real concept and lacked the newer release. Rung 1 records sct_outdated and sct_replacement and NEVER rejects on them — same posture as meddra_check, negation_action and label_check. The successor comes from the association refset (SAME AS / REPLACED BY only; POSSIBLY EQUIVALENT TO and WAS A are excluded on purpose) and is scored as its own outcome in ladder/score.py, never folded into 'correct'. Measured 2026-08-24: only 27.3% of CADEC's 407 retired gold reaction mentions have such a successor at all."
     },
     "3": {
       "k": 3,
@@ -115,5 +129,7 @@
   },
   "output": {
     "dir": "out"
-  }
+  },
+  "scorer": "ladder.score:reaction_sct_strict",
+  "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align."
 }

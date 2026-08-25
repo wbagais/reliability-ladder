@@ -1242,6 +1242,8 @@ Verified: 100 pass locally with everything present; 96 pass and 4 deselect under
 the CI invocation; 3 skip with a stated reason when the manifest points at an
 absent corpus and index.
 
+---
+
 ## 2026-08-23 — a second judge: same non-discrimination, opposite direction
 
 `qwen2.5:7b` through the identical 395-record gold control that `llama3.2:3b`
@@ -1282,6 +1284,8 @@ by the backend — see the CPU/GPU mention-count entry.
 
 Run: `LADDER_JUDGE=qwen2.5:7b LADDER_N=0 PYTHONPATH=. python3 scripts/r4_gold_control.py`
 
+---
+
 ## 2026-08-23 — the manifest's model config had never been reached
 
 `ladder/llm.py:for_rung` centralises model selection so rungs never pick a
@@ -1305,6 +1309,130 @@ skipped silently instead of failing.
 Fixed to `ollama/granite4:micro-h` and `ollama/qwen2.5:7b`. Judge remains a
 different family from the extractor, as required, and qwen is the judge with
 1/395 parse failures against llama3.2:3b's 204.
+
+---
+
+## 2026-08-23 — the scorer, and the rung 0 prompt-engineering study
+
+**TDD is now a hard rule** (CLAUDE.md, "How to work"). Every change below was
+written test-first. The reason is local, not doctrinal: every number here is
+evidence for an article, and a check nobody watched fail is a check nobody has
+shown to work.
+
+**`ladder/score.py` exists.** The accuracy axis was the single blocking gap —
+`load_scorer` returned `None` and every accuracy column was written empty.
+Gold is keyed by SPAN, never position, which is the whole design: index-keyed
+comparison scores a *perfect* extraction 0.216 when it is listed in another
+order. `span_match` is a declared choice — `exact` is the headline, `overlap`
+exists because rung 3 keys on exact spans and its temperature-0.7 resamples
+never align, which is why every rung 3 record comes back `not_resampled`.
+
+**A bug found by writing the tests, not by running the code.** `run.py:450`
+builds gold as `{record_id: GoldMention}` and hands that whole dict to the
+scorer. `record_id` is `f"{doc_id}#{index}"` — a POSITION. Rung 0 numbers its
+records by the order the model emitted them; the annotation file numbers gold
+by the order it was annotated. Looking a record up by its own id would have
+graded most mentions against somebody else's answer, silently. The scorer
+therefore accepts the collection and re-keys it by span itself.
+
+**Rung 0 gained four steps, S0–S3.** Scope is identical in all four — same
+mentions, same record keys, same scorer — and the ONLY thing that varies is
+where the code comes from: S0 recalls label and code; S1 recalls the label and
+resolves the code from the vocabulary; S2 picks the label from a shortlist
+retrieved for the mention; S3 picks it from one fixed keyword list. Run with
+`--rung0-step`, which writes the choice back into the manifest copy saved
+beside the results, so two runs can never look identical on disk.
+
+Two things collapsed into the baseline rather than becoming steps, because
+neither is prompt engineering: naming CONCEPT_LESS (it is task specification —
+4.1% of gold reaction mentions have no code, and a prompt that never says so
+asks the impossible on those) and locating spans deterministically (the model's
+character arithmetic is wrong at every model size).
+
+**`Record.sct_label`, appended.** What the model SAID its code means. A bare
+code is an unverifiable claim; a code plus a label is checkable against the
+vocabulary for free, with no extra model call. Rung 1 gained `label_check`,
+default `"flag"` — the same posture as `meddra_check` and the negation cue, and
+for the same reason: "rectal bleeding" against |Rectal hemorrhage| is one
+concept in two wordings and the false-rejection floor is unmeasured.
+
+### Measured 2026-08-23, over all 7,311 gold reaction mentions
+
+| | |
+|---|---|
+| exact search on the patient's own words returns nothing | **57.1%** |
+| ...returns something, gold code absent | 15% of hits |
+| gold code found by searching the raw quote | **36.5%** — the ceiling for "search the span" |
+| gold reaction mentions that are CONCEPT_LESS | 4.1% (302) |
+| quote occurs more than once in its document | 14.5% (906) |
+| ...of those, first occurrence is the right one | 33.9% — so dropping the offset anchor risks 9.6% of all mentions |
+| multi-candidate sets where two share an IDENTICAL label | **76.8%** |
+| MedDRA terms matching no SNOMED description | **36.2%** (241 of 666) |
+
+The label collision number is why a pick is an INDEX and never a label string.
+The 36.2% is why S3 is a *leaky* ceiling: a third of the answer-key-derived
+list cannot reach a SNOMED code at all, so S3 measures MedDRA↔SNOMED term
+overlap as much as it measures closed-set assignment.
+
+### Two prompt defects found by running it, and fixed
+
+**The pick menu numbered mentions and candidates alike.** With mentions as
+`0.` and candidates as `0)`, granite4:micro-h replied `{"i":17,"choice":17}`
+and `{"i":11,"choice":"Bleeding"}` — it conflated the two numbering systems and
+then answered with a name. Every record came back `no_pick`. Mentions are now
+`reaction N` and candidates `[N]`, and the reply key is `reaction`.
+
+**Telling the model not to code made it stop finding.** The first FIND prompt
+ended "Finding it is the whole task here", and the model returned whole
+SENTENCES as spans — `"Hospitalization due extreme rectal bleed that required
+blood transfusion."` where S0 and S1 both returned `"extreme rectal bleed"`.
+That is scope drift between steps, which would have made the study
+uninterpretable. There is now a test asserting all three prompts share the same
+span instruction verbatim.
+
+**S3's first failure was mine: the menu was printed once per mention.** 666
+keywords rendered per-mention put **1,998 candidate lines** and ~13.7k tokens
+into one prompt — the same list three times, each copy numbered identically.
+The model replied with 14 tokens of invalid JSON (a stray trailing quote) and
+answered 1 of 3 reactions, so every pick was discarded and S3 scored 0.0.
+
+NOT a context limit: granite4:micro-h's window is 1,048,576 tokens. Printing a
+shared list once fixed it outright, and `_blocks(pairs, shared=...)` now does
+that for S3 while S2's genuinely-different shortlists still repeat:
+
+    prompt tokens      16,899 -> 5,768
+    completion         14, invalid JSON -> 22, valid
+    reactions answered 1 of 3 (discarded) -> 2 of 3
+    coverage           0.0 -> 0.667
+    latency            16.1s -> 6.1s
+
+**S3's real failure, now visible.** The model picked `choice: 1` and
+`choice: 0` — the FIRST TWO ENTRIES of the 666-item list:
+
+    list position 0 = Pain     -> chosen for "might not survive"
+    list position 1 = Myalgia  -> chosen for "extreme rectal bleed"  (Muscle pain)
+
+It is not searching the menu, it is anchoring on the top of it. One of three
+mentions got no pick at all. A long menu buys position bias, not selection —
+which is a finding about closed-set assignment, and it only became visible once
+the rendering bug stopped masking it.
+
+**A limitation of `label_check` this exposed.** Both wrong answers above carry
+`label_verified: True`, because |Myalgia| really is a term for 68962001 and
+|Pain| really is one for 22253000. The check confirms label-to-CODE
+consistency and says nothing about label-to-SPAN correctness. It catches a
+model that names one concept and emits another's id; it cannot catch a model
+that is confidently, coherently wrong. Do not read it as an accuracy signal.
+
+A malformed reply is recorded as `pick_parse_failed`, distinct from `no_pick`:
+reporting one as the other would be a lie about what the model did.
+
+### Not done
+
+The four dev runs. Everything above except the corpus-wide measurements is
+still ONE document, ARTHROTEC.107.
+
+---
 
 ## 2026-08-24 — exact-term retrieval finds nothing for 59% of gold spans
 
@@ -1354,6 +1482,1183 @@ Open question for A, not a defect report: is exact-term retrieval the right
 choice for rung 6 candidates, where the OLS4 comparability argument does not
 apply? A reviewer needs recall, not comparability.
 
-Also fixed in scripts/r6_desk.py: results use the key `label`, not `term` or
-`fsn`, so candidates displayed as bare SCTIDs. The reviewer picked blind for
-all six records.
+Also fixed in scripts/r6_desk.py: search results use the key `label`, not
+`term` or `fsn`, so candidates were displayed as bare SCTIDs with no text. The
+reviewer picked blind for all six records.
+
+---
+
+## 2026-08-24 — the keyword table, and four corrupted codes in the answer key
+
+**`ladder/keywords.py` — a two-column `keyword,code` CSV built from the SNOMED
+release alone.** 299,523 keywords -> 172,206 codes, 14 MB, written to
+`data/keywords.csv`: cleaned DATA, not a cache. It is produced before any rung
+runs and a run whose keyword table changed is a different run, so it belongs
+with the corpus and the splits. `.gitignore` covers `data/*` except
+`data/splits/`, so it stays unpublished like `snomed.sqlite`. Rung 0 deals in
+WORDS: it names the concept, the table maps the name to a code, and the model
+never emits a nine-digit integer it could mistype. "Did it name the right
+concept" becomes separable from "did it recall the right id".
+
+Restricted to concepts whose FSN semantic tag is `(finding)` or `(disorder)`.
+Measured over CADEC's 923 distinct gold reaction codes:
+
+    every concept in the release   1,822,645 rows   99.95% of coded mentions
+    tag in {finding, disorder}       521,946 rows   99.90%   <- built
+
+The 0.05% difference is four mentions; the exclusion removes every organism,
+product, substance and qualifier — the class that produced |California chicken
+(organism)| for a rectal bleed and let |Gaseous substance| outrank the right
+answer for "gas". 55,501 keywords collide (two concepts, one label); the tie is
+broken by lowest concept id — arbitrary but STABLE, since a table that
+reshuffled between builds would move every number derived from it.
+
+**Rejected: a refset filter.** SNOMED's Clinical finding foundation reference
+set (126,101 members) looked like the principled way to exclude junk, but it
+covers only 94.1% of gold codes against 99.96% for the tag allowlist — 150x
+more lossy. Rejected on measurement. Also rejected: topping a list up with the
+gold codes it misses (that is answer-key derivation, the exact defect of the
+666-term MedDRA list), and a frequency list from the pool split (does not exist
+in deployment, so it cannot generalise).
+
+### 100% coverage is unreachable, and the answer key is why
+
+Four of CADEC's 1,047 distinct gold codes (0.38%) are absent from the release.
+None is a retired concept. **All four fail the Verhoeff check digit** that
+terminates every SNOMED identifier, so none was ever issued by SNOMED — they
+are corrupted strings, and each corruption is identifiable:
+
+    20070731            NOT A CODE — a date, 2007-07-31 in RF2's YYYYMMDD
+                        effectiveTime format. Sits in the post-coordinated pair
+                        ['67849003', '20070731'] where 67849003 is |Excruciating
+                        pain|, correct for "excruciating pain in my legs". A
+                        release date leaked into the code column.
+    21499005            transposition of 24199005 |Feeling agitated| — the 4 and
+                        the 1 are swapped. Gold text "Severe aggitation".
+    81680008            81680005 |Neck pain| with the check digit wrong. Single
+                        character. Gold text "pain neck".
+    21290011000036100   17 digits in the AU extension namespace shape, for
+                        "testosterone". A mistyped AMT identifier.
+
+Three affect reaction mentions (~4 of 7,273). **They are NOT corrected.**
+Editing gold so our numbers improve is how a benchmark stops being evidence.
+They are recorded here so the 99.95% ceiling is explained rather than
+mysterious, and `ladder/registry.py`'s older note ("three annotation typos, one
+code CADEC got wrong") is now precise: all four are Verhoeff-invalid.
+
+
+### Preprocessing is now four steps, in order
+
+    python -m ladder.registry --build     RF2 -> SQLite index      (existing)
+    python -m ladder.keywords --build     data/keywords.csv        (new)
+    python -m ladder.clean    --build     data/exclusions.csv      (new)
+    python -m ladder.run init             freeze the splits        (existing)
+
+**`ladder/clean.py` — exclusions, not corrections.** 7 of 7,311 gold reaction
+mentions (0.10%) cannot be answered and now leave the denominator with a stated
+reason: 3 carry only Verhoeff-invalid codes, 4 quote text that is not at their
+offsets (`'renal failure'` vs `'rena  failure'`, `'pain in stomach'` vs
+`'pain i stomach'` — off-by-one annotation slips). `score_run(exclude=...)`
+reports the count; `run.py` applies the list to the answer key once, at load.
+The temptation to repair rather than exclude is the thing being refused: 21499005
+is obviously 24199005 and 81680008 is obviously 81680005, and editing an answer
+key so the system under test scores better is how a benchmark stops being
+evidence.
+
+**A collision-ordering bug the real data exposed.** The tiebreak documented as
+"lowest concept id" compared ids as STRINGS, so `"224968006" < "24199005"` and
+|Feeling agitated| resolved to the wrong concept. Now numeric, which also
+prefers core international concepts over extensions. Collisions 55,501 ->
+51,082.
+
+**Audited and needing nothing:** duplicate gold spans (0), mentions with no
+spans (0), empty mention text (0), mentions with neither a code nor
+CONCEPT_LESS (0).
+
+**Audited and NOT a preprocessing problem: 850 overlapping gold pairs.** Gold
+reaction mentions nest and cross one another. That is legitimate annotation,
+not corruption, but it means `span_match="overlap"` is looser than it looks — a
+prediction can overlap two different gold mentions and the matcher takes the
+first in prediction order. Exact matching is unaffected. Stated here so the
+overlap column is read with the caveat attached.
+
+---
+
+## 2026-08-24 (later) — "keywords, not sentences", and the collision that cost 10%
+
+**The table was built from every description row.** FSN, preferred term and
+every synonym alike, which is how 42-word TNM staging text ended up in a column
+labelled `keyword`. SNOMED makes the distinction itself and the build now
+respects it — measured over finding/disorder concepts:
+
+    Synonym/preferred    197,537 rows   median 4 words
+    Synonym/acceptable   135,949 rows   median 4 words
+    FSN/preferred        188,459 rows   median 6 words   14.4% over 8 words
+
+The FSN exists to disambiguate, not to be said, and dropping it costs nothing
+because every concept has a preferred synonym. Also dropped: descriptions over
+10 words (10,715) and Read/CTV3 migration artifacts such as `#radius &/or ulna`
+and `([provider initiated encounter] or [patient asked to come in]) or` (7,582)
+— together 0 gold mentions. `keywords.py` now reads the RF2 description file
+directly, because the SQLite index carries no `typeId`.
+
+**A 10-point error in my own reporting, and the design change it forced.** The
+"99.90% coverage" logged earlier counted concepts that HAVE a qualifying
+synonym. It did not account for deduplication. Measured against the built file:
+
+    one row per keyword, numeric tiebreak       164,182 codes   89.85%
+    one row per keyword, preferred > acceptable 168,490 codes   93.50%
+    a keyword may repeat                        180,446 codes   99.90%
+
+A keyword is not a unique key. |coma| is both 371632003 and 50061006, |neuroma|
+both 443892003 and 154622009, and every tiebreak discards a concept CADEC
+actually uses — 111 gold codes, 10.05% of mentions. The table now allows a
+keyword on several rows: still two columns, 12% more rows, full coverage
+restored, and 27,307 keywords (9.8%) explicitly ambiguous. `lookup()` returns a
+LIST; one element is the common case at 90.2%.
+
+The ambiguity is not a defect to hide. It is the disambiguation rung 0 exists
+to perform, now visible and countable instead of resolved by a coin flip inside
+a build script.
+
+    279,059 keywords -> 180,446 codes, 313,780 rows, median 4 words
+
+---
+
+## 2026-08-24 (later still) — "outdated" is a fourth outcome, not a kind of wrong
+
+**The distinction the scorer could not make.** A model that emits `162076009`
+for a mention now coded `12063002` named a real SNOMED concept and lacked
+eleven years of releases. A model that emits `999999999` invented a number.
+Both scored `incorrect`, so the article could not say which one it was looking
+at — and "the local model hallucinates codes" and "the local model learned an
+older SNOMED" are different claims with different fixes.
+
+`score_run` now reports FOUR outcomes:
+
+    correct     the code is in the gold set for that mention
+    outdated    a RETIRED concept whose successor IS the gold code
+    abstained   no code — CONCEPT_LESS, or nothing at all
+    incorrect   everything else
+
+**`outdated` is never folded into `correct`.** Precision, recall and F1 count
+`correct` only. The answer is still stale, and a pharmacovigilance system that
+files a retired code has filed a retired code. What changes is that the error
+now has a name.
+
+**Two association types count, and the exclusions are the point.** SNOMED
+records succession in `der2_cRefset_AssociationSnapshot`, now loaded into the
+SQLite index as an `association` table. Active rows in the AU release, by type:
+
+    REPLACED BY             900000000000526001   147,402   <- followed
+    POSSIBLY EQUIVALENT TO  900000000000523009    48,891
+    SAME AS                 900000000000527005    43,654   <- followed
+    MOVED TO                900000000000524003    20,561
+    PARTIALLY EQUIVALENT TO 734138000             15,815
+    WAS A                   900000000000528000    12,919
+    (six more)                                     8,832
+
+Only SAME AS and REPLACED BY. POSSIBLY EQUIVALENT TO says *possibly* — 48,891
+rows of maybe, and crediting them turns `outdated` into a wastebasket for near
+misses. WAS A points at a PARENT, which is a broader concept and not the same
+one: |Pain| is not a stale spelling of a headache. MOVED TO points at a module,
+not a concept at all. The refsetId is STORED rather than filtered at build
+time, so revisiting this is a scoring change and not a rebuild.
+
+**Chains are followed to the end.** SNOMED retires successors too, so a
+one-hop lookup reports a code as unreplaced when a current equivalent exists
+one more release along. An ACTIVE concept never gets a successor even if a
+stray row names one — nothing replaced it, it is still here.
+
+**A missing index degrades toward `incorrect`, never toward `correct`.**
+`Registry.replacements` returns `[]` when the `association` table is absent,
+and `score_run` without a vocabulary reports `outdated: 0` with the error
+still counted. The 365 MB SQLite is built once and shared between checkouts,
+so a mid-upgrade index is a normal state, not an error — and a missing table
+must never be able to raise a score. `python -m ladder.registry --associations`
+adds the table to an existing index in seconds; the full rebuild reads 1.8 M
+concepts and walks the is-a graph twice, and where the index is reached through
+a symlink `build(force=True)` would replace the symlink with a private copy and
+silently fork the two checkouts.
+
+**Rung 1 flags, it does not reject.** `outdated_check: "flag"` — the same
+posture as `meddra_check`, `negation_action` and `label_check`, and for the
+same reason: rejecting would throw away a model that named a real concept.
+`R_CODE_OUTDATED` is appended to `REJECT_REASONS` so it is nameable and
+countable, not so it can fire. Rung 1 writes `sct_outdated` and
+`sct_replacement` into `checks` even when `reject_inactive` has already
+rejected the record, because the two settle different questions — "is it
+retired" and "is there a current equivalent" — and the second is the fact rung
+2 would state back.
+
+### Measured 2026-08-24, over all 7,311 gold reaction mentions
+
+| | |
+|---|---|
+| gold mentions whose every code is retired | 407 (5.6%) |
+| ...of which SNOMED records a SAME AS / REPLACED BY successor | **111 (27.3%)** |
+| distinct retired gold codes | 57 |
+| ...with a successor | 24 |
+| active association rows loaded into the index | 302,074 |
+
+**A finding this raises and does NOT act on.** `ladder/clean.py` excludes all
+407 retired-gold mentions from the denominator, on the stated grounds that the
+keyword table holds active concepts only, so they "cannot be answered through
+it". The `outdated` logic says the opposite for 111 of them: they have a
+current equivalent, so a model naming that equivalent is answering correctly
+against a stale answer key. Symmetry argues those 111 should re-enter the
+denominator and score `outdated` in the other direction. That is a change to
+the answer key's inventory, which is exactly the class of change this repo
+requires a measurement and a decision for, so it is recorded here rather than
+made quietly. The other 296 have no successor and the exclusion stands.
+
+### Two tests that were wrong, found by adding a correct one
+
+`test_appended_reasons_go_at_the_end` asserted `REJECT_REASONS[-1] ==
+R_LABEL_MISMATCH`. It was written to protect append-only ordering and it
+pinned the NEWEST reason instead, so it failed the moment a reason was
+appended correctly. It now asserts on the frozen PREFIX, which is the
+invariant it meant.
+
+`tests/test_ledger_coverage.py` guarded "no reachable model" with
+`(RuntimeError, SystemExit, OSError)`, which is not what an OpenAI-compatible
+endpoint raises when the manifest names a model tag the local ollama does not
+hold — that is `openai.NotFoundError`. Merging origin/main brought model
+strings resolving on another machine and three tests went red for an
+environmental difference. The guard now also skips on openai's
+NotFound/Connection/Auth/Permission errors, and deliberately NOT on
+`APIError`: a 400 means we sent a bad payload, which is our bug and stays a
+failure.
+
+`ladder/run.py`'s `snapshot_row` — the function that writes every number the
+article quotes — had no test coverage at all. It has some now
+(`tests/test_run_rows.py`), which is how the two new columns are known to
+reach the CSV: `write_results` uses a `DictWriter` over `CSV_COLUMNS`, so a
+key nobody declared is silently dropped.
+
+---
+
+## 2026-08-24 — S3 dropped, and rung 0 resolves through the keyword table
+
+**The study is three steps now: S0, S1, S2.** Scope is still identical in all
+three; the only thing that varies is where the CODE comes from.
+
+    S0  label and code recalled from the model's own weights
+    S1  label recalled, code resolved from the KEYWORD TABLE by that label
+    S2  label PICKED from a shortlist retrieved for the mention
+
+### Why S3 went, and why nothing replaces it
+
+S3 was closed-set assignment over one fixed list printed in the prompt. Every
+candidate list that could fill that slot fails its own measurement:
+
+| list | size | ceiling |
+|---|---|---|
+| the MedDRA list CADEC ships | 666 | it IS the answer key's inventory |
+| SNOMED Clinical manifestation refset | 743 | **48.7%** of gold |
+| the keyword table | 227,554 | cannot be printed at all |
+| a list retrieved per mention | 20 | that is S2 |
+
+The MedDRA list was never a method — all 666 of its codes appear in CADEC's
+gold annotations and none do not, so S3 measured a declared ceiling. The
+ontology-native replacement is the honest version of the same idea and it caps
+at under half the corpus, which is a worse ceiling than the one it was meant
+to remove. The real table is three orders of magnitude too large to render.
+And a list retrieved for the mention is S2 by another name, so a fourth step
+would be a duplicate rather than a contrast.
+
+S3's own last measurement is worth keeping: shown a 666-item menu, the model
+picked positions 1 and 0 — |Myalgia| for "extreme rectal bleed". A long menu
+buys **position bias, not selection**. That finding is about long printed
+menus in general, which is the thing being retired.
+
+**What went with it.** `keyword_list`, `keyword_meddra`, `KEYWORD_CSV`, and
+`_blocks(pairs, shared=...)` — the shared-menu renderer that printed one
+identical list once. None had another caller. Dead scaffolding in a
+measurement harness is scaffolding somebody later mistakes for a code path in
+use; the measurement it encoded (a 666-item list rendered per mention put
+1,998 candidate lines and ~13.7k tokens into one prompt) survives here, which
+is where a finding is supposed to outlive its mechanism.
+
+**Rung 0 no longer touches the MedDRA CSV at all.** It was reachable only
+through S3. `meddra_mode` stays `reference`: the list cross-checks a code
+produced by other means, and retrieval from it is refused. There is a test
+asserting the string `meddra_codes.csv` does not appear in `r0.py`.
+
+### Rung 0 resolves names through data/keywords.csv, not through the registry
+
+`Registry.resolve` searched every description in the release — organisms,
+products, substances and qualifiers included. That is the class that answered
+|California chicken (organism)| for a rectal bleed and let |Gaseous substance|
+outrank the right concept for "gas". `KeywordTable.resolve` has the same
+return shape (`code`, `rank`, `ambiguous`, `label`, `candidates`) over a table
+restricted to findings and disorders, so the swap is one line at the call site
+rather than a rewrite.
+
+**No fallback to the registry.** A name absent from the table is UNRESOLVED.
+Falling back would reinstate the search the table exists to replace and would
+make "which of the two answered" unrecoverable from the record. Rung 0 still
+does not retry: it walks its remaining names and stops, because a retry loop
+here IS rung 2.
+
+**A missing table raises.** `python -m ladder.keywords --build` is one of four
+preprocessing steps, and resolving nothing silently would report a build step
+nobody ran as a model that named no concepts.
+
+**THE REGISTRY DOES NOT GO AWAY, and this is the part to not get wrong.** Rung
+1 needs `exists` / `is_active` / `finding_status` / `terms` over the WHOLE
+release. The keyword table is deliberately filtered: 82249009 |California
+chicken (organism)| is real and active, rung 1 must be able to look it up in
+order to catch it, and rung 0 must never be able to reach it. S2's shortlist
+also still comes from the registry. `code_source` is now `"keyword_table"` for
+S1 and `"shortlist"` for S2, where both used to say `"tool"` — one label for
+two different sources is one label too few.
+
+### A documentation error found while wiring this
+
+`ladder/keywords.py`'s docstring described a table where "a keyword may
+repeat" — 279,059 keywords, 313,780 rows, 180,446 codes, 99.90% gold
+coverage. The code does not build that table. It drops retired concepts and
+writes ONE ROW PER KEYWORD. Both designs were built; the docstring was left
+describing the earlier one. Corrected in place, and re-measured rather than
+re-estimated:
+
+    keywords                       227,554
+    rows                           227,554   (one per keyword)
+    codes                          127,515
+    keywords naming two concepts       103
+    codes left with no keyword          32   (none used by CADEC)
+
+The apparent coverage regression — 99.90% to **94.11%** of coded gold reaction
+mentions — is entirely the 407 mentions whose every gold code is retired, which
+`ladder/clean.py` already excludes from the denominator for the same reason
+this build drops them. With the exclusions applied, which is how the ladder
+actually reads gold:
+
+    coded gold reaction mentions   6,595
+    reachable through the table    6,592   **99.95%**
+
+The three misses are 1806006, 183202003 and 251377007, one mention each. 99.95%
+is the ceiling for any release-derived table, and the cause is the answer key:
+three distinct gold codes are absent from this SNOMED release entirely.
+
+The `lookup()` contract is unchanged and still returns a LIST — this build
+never puts two codes under one keyword, but ambiguity is a property of
+vocabularies rather than of one filter setting, and a signature that changes
+when a filter changes is a signature that will be wrong again the next time
+one does.
+
+`manifest.rungs.0.keyword_table` records the path, so a run whose keyword
+table moved is visibly a different run.
+
+---
+
+## 2026-08-24 — `usd` was a column of zeroes, in four rungs
+
+`ladder/llm.py:Caller.__call__` has always computed the dollar cost of every
+call from `models.yaml`'s per-Mtok rates and returned it in `usage["usd"]`.
+Rungs 0, 2, 3 and 4 all dropped it, so `Ledger.totals()["usd"]` was 0.0 for
+every run — including the ones that cost money.
+
+**The bug hid because zero was RIGHT for the default configuration.** Local
+ollama is free, `local: true` is the default, and a number that is correct by
+accident for the configuration you run every day is the hardest kind to
+notice. It was wrong for exactly the configurations the study needs it in: the
+claude-sonnet-5 comparison these steps were measured against, and any hosted
+judge at rung 4.
+
+**Fixed in all four, not just rung 0.** Fixing one would have left
+`totals()["usd"]` reporting one rung's spend as the run's spend, which is
+worse than a zero — a zero is visibly absent, a partial total reads as a
+total. Rung 3 mattered most: it bills k sampling calls as a DOCUMENT row, paid
+whether or not a record is re-found, so a dropped price made the most
+expensive rung the cheapest on paper.
+
+A caller that reports no `usd` at all logs 0.0 rather than raising, and there
+is a test for that: a stub or an older caller is a normal state, and a cost
+column is not worth a crash.
+
+**Cost is still three separate measures** — tokens, latency p95, records
+routed to a person. `usd` is carried alongside them and never fused into them.
+That is unchanged; what changed is that it is now carried at all.
+
+---
+
+## 2026-08-24 — dense retrieval beats lexical by 24 points, and the 41.7% could not be reproduced
+
+**Measured before wiring, as required.** Same 6,595 scorable coded gold
+reaction mentions (exclusions applied), same k, same answer key. The only
+thing that changes between the rows is the retriever.
+
+|  | recall@1 | @5 | @10 | @20 | @50 |
+|---|---|---|---|---|---|
+| lexical (`Registry.shortlist`) | 19.5% | 52.4% | 57.6% | **61.8%** | 66.7% |
+| dense (`granite-embedding:30m`) | **63.8%** | 76.7% | 82.1% | **86.1%** | 90.3% |
+
+**Dense's single top hit (63.8%) beats the lexical top-20 (61.8%).** That is
+the headline, and it is why the default moved.
+
+### CORRECTED SAME DAY: that comparison changed TWO things, not one
+
+The table above is not a clean A/B and the first write-up of it was wrong. The
+two retrievers were searching DIFFERENT CORPORA as well as scoring
+differently:
+
+    lexical   1,822,645 description rows over 721,187 concepts, every
+              semantic type, filtered to findings only AFTER ranking
+    dense       227,554 keyword rows over 127,515 concepts, findings and
+              disorders, active only, filtered BEFORE ranking
+
+So "embeddings are worth 24 points" was attributing a corpus change to the
+scoring function. Re-measured with the SAME Jaccard scoring over the SAME
+keyword table, so exactly one thing varies per row:
+
+| | recall@1 | @5 | @10 | @20 | @50 | corpus scan |
+|---|---|---|---|---|---|---|
+| lexical over descriptions | 19.5% | 52.4% | 57.6% | 61.8% | 66.7% | 407.7s |
+| lexical over keywords.csv | 48.6% | 57.2% | 61.1% | 65.1% | 69.6% | 32.2s |
+| dense over keywords.csv | 63.8% | 76.7% | 82.1% | 86.1% | 90.3% | 21.8s |
+
+**At k=20 the split is +3.3 points of corpus and +21.0 points of scoring.** The
+conclusion holds and dense still wins on scoring alone, but the honest number
+for "what embeddings bought" is 21.0, not 24.3.
+
+**At k=1 it inverts: +29.1 of corpus against +15.2 of scoring.** Filtering to
+findings and disorders BEFORE ranking is what clears the top slot — the
+description table's organisms, products and substances were crowding it, which
+is the same defect that produced |California chicken (organism)| for a rectal
+bleed. Rank 1 is where corpus hygiene pays and rank 20 is where scoring does.
+
+**The 19x speed-up was also mostly corpus size**, not cosine: 408s to 32s is
+the smaller table, 32s to 22s is the matrix multiply.
+
+Found because the number was questioned, not because a test caught it. A
+retrieval comparison has THREE declared choices — corpus, scoring, k — and a
+row that varies two of them measures neither.
+
+**Both motivating defects are gone, and they were the stated reason:**
+
+    "extreme rectal bleed"  ->  0.902  12063002  rectal bleeding      (rank 0)
+    "bleed"                 ->  0.866  131148009 bleeding             (rank 0)
+    "cramping"              ->  0.884  279093005 cramping pain        (rank 0)
+
+The lexical path ranked |Rectal| above |Rectal hemorrhage| for the first,
+because Jaccard's denominator penalises every extra word in a correct term,
+and never reached "bleeding" from "bleed" for the second, because there is no
+stemming. Neither is a weighting choice.
+
+**Dense has its own failure mode and it is not being hidden.** `"gas"` returns
+|gas gangrene|, |gas gangrene smell|, |gas gangrene-back| — surface-similar
+clinical compounds, none of them right. The lexical path failed the same query
+differently (|Gaseous substance|). Embeddings move the errors; they do not
+remove them.
+
+`rung0_retrieval` is `dense | lexical` and the lexical path is KEPT, not
+deleted: a recall number produced under one retriever is only interpretable
+next to the other, and `checks.rung0_retrieval` is written onto every record
+so two runs differing only in retrieval cannot look identical on disk.
+
+### The 41.7% in the brief could not be reproduced, under any denominator
+
+The working note carried "S2 is 41.7% (shortlist recall@20)". Measuring
+`Registry.shortlist`'s own output across every denominator and k available:
+
+| denominator | n | @1 | @5 | @10 | @20 | @50 |
+|---|---|---|---|---|---|---|
+| coded reactions, exclusions applied | 6,595 | 19.5% | 52.4% | 57.6% | 61.8% | 66.7% |
+| coded reactions, no exclusions | 7,009 | 18.7% | 51.1% | 56.3% | 60.5% | 65.2% |
+| ALL reactions, CONCEPT_LESS a miss | 7,311 | 17.9% | 49.0% | 54.0% | 58.0% | 62.5% |
+| ALL gold mentions, drugs included | 9,111 | 14.4% | 39.3% | 43.3% | 46.5% | 50.2% |
+
+Nothing lands on 41.7%. The closest cell is 43.3% — recall@**10** over ALL
+gold mentions including drugs, a denominator a findings-only retriever cannot
+answer by construction.
+
+**The reimplementation was verified before the disagreement was reported.**
+`Registry.shortlist` rescans every description row per call, which is ~0.6s a
+mention and hours over the corpus, so the sweep uses an inverted index with
+the identical Jaccard, the identical tie-break and the identical
+`findings_only` filter. Checked against `reg.shortlist` itself on 40 sampled
+mentions: **40/40 identical candidate lists**. The disagreement is therefore in
+the corpus, the denominator or the k of the original figure — not in the
+rewrite. Recorded as unreproducible rather than quietly replaced, and 41.7%
+should not be requoted until whoever produced it can say which denominator it
+was over.
+
+### The build had to survive a bad minute
+
+The first full build reached 184,832 of 227,554 keywords — 24 minutes — and
+died on one 400 from the local ollama. Re-running the same batch afterwards
+succeeded, and bisecting the whole surrounding window found no offending row:
+the server was briefly unwell under memory pressure from a concurrent job, and
+the input was fine.
+
+A failing batch is now retried with backoff, then SPLIT recursively until a
+single row is isolated and zeroed — one unembeddable keyword costs one row,
+holding its position so the sidecar keeps indexing the matrix correctly. A
+batch where NOTHING embeds raises instead: that is the embedder, not 512
+simultaneously bad keywords, and it should fail at minute 24 rather than write
+175 MB of zeroes that answer every query with silence and look like a
+retrieval result. The rebuild: 227,554 vectors, dim 384, 433.6s, 0 retries, 0
+zeroed.
+
+### Verified end to end on ARTHROTEC.107
+
+S0, S1 and S2 all run through rungs 0-1 with `ollama/ibm/granite4:micro-h`.
+`checks.rung0_retrieval` reads `dense` on S2, `code_source` reads
+`keyword_table` on S1, `sct_outdated` and `sct_replacement` are written, and
+`sct_outdated` / `sct_abstained` reach the results CSV. This is WIRING
+verification on one document with a 2B model — it is not the study, and none
+of its numbers should be quoted as one.
+
+**One thing it exposed, recorded and NOT fixed.** S0 asks for a scalar
+`sct_code` and granite4:micro-h returned a LIST. `_step_s0` does
+`str(code) if code is not None else None`, so the record's `sct` became the
+literal string `"['21456007', '...']"` — which can never be a valid code, so
+those mentions score 0 by construction. That is a RECORDING defect rather than
+a model defect: it makes "the model named two codes" indistinguishable from
+"the model emitted garbage", and the first is a real thing a model does. What
+the right behaviour is — take the first, treat it as a parse failure, or count
+it as its own outcome — is a decision about what S0 measures, so it is logged
+here rather than chosen quietly. **It will bias S0 downward in the dev runs
+until it is settled.**
+
+---
+
+## 2026-08-24 — the lookup-vs-RAG 2x2, and why its bottom row is unmeasurable at 2B
+
+**The question.** Rung 0 currently retrieves on the patient's raw words. Would
+asking the model to name the concept first, and retrieving on THAT, match
+better? A 2x2 answers it: perfect label vs actual model label, crossed with
+exact keyword-table lookup vs dense retrieval.
+
+**The top row, over all 6,595 scorable coded gold reaction mentions:**
+
+| | lookup | RAG@20 |
+|---|---|---|
+| perfect label (gold's own preferred term) | 99.3% | **99.3%** |
+| actual model label | ? | ? |
+
+Retrieving on the correct clinical term scores 99.3% at k=20 and 96.5% at
+k=1, against 86.1% / 63.8% for the patient's raw words. Enormous headroom on
+paper — but note what the ceiling IS: **99.3% is the same number an exact
+lookup already gets**, because a perfect name needs no retrieval. The two
+columns of the top row coincide by construction. Retrieval can only be worth
+something on an IMPERFECT label, which is the bottom row.
+
+**The bottom row could not be measured, and the reason is the finding.** Run
+on ARTHROTEC.107 with `ollama/ibm/granite4:micro-h` at S1:
+
+    gold "rectal bleed"    12063002   model proposed: "AFTERPROMPT"
+    gold "extremely sick"  213257006  model proposed: CONCEPT_LESS
+    gold "felt I might not survive"   CONCEPT_LESS — no code to retrieve
+
+    perfect label   lookup 2/2   RAG 2/2
+    actual label    lookup 0/2   RAG 0/2
+
+`AFTERPROMPT` is a prompt artifact, not a clinical term. Dense retrieval
+cannot rescue it because there is no concept in it to be near. **At this model
+size the bottleneck is not lookup-vs-retrieval — it is that the model does not
+name concepts at all**, which is one step earlier than the thing the 2x2 was
+built to compare. Two coded mentions in one document: an OBSERVATION, not a
+rate, and emphatically not evidence that RAG fails to help.
+
+Answering the question properly needs a model that produces clinical labels.
+`claude-sonnet-5` is the one the earlier ARTHROTEC.107 comparison used, and it
+is a licence decision (CADEC is non-transferable; `LADDER_ALLOW_REMOTE=1`) as
+well as a cost one.
+
+### A recording gap the experiment exposed
+
+`_resolve_labels` wrote `label_unresolved: True` and discarded the names the
+model actually proposed — `sct_label` holds only the name that WON. So two
+completely different failures were identical on disk:
+
+    the model named nothing usable                    -> a MODEL failure
+    the model named a real concept the table lacks    -> a VOCABULARY failure
+
+The first needs a better model or a better prompt; the second needs a wider
+table. Rung 0 could not tell them apart, and neither could anyone reading the
+records afterwards. `checks["labels_proposed"]` now records every name the
+model offered, on success and on failure alike — which is also what makes the
+2x2's bottom row measurable at all, since an imperfect label that was thrown
+away cannot be retrieved on.
+
+Found by running the experiment, not by a test. The tests came after.
+
+### Schema enforcement — revisited, and the first framing was wrong
+
+Enforcing a JSON schema on rung 0 was raised as a way to guarantee one code
+per mention (see the `sct_code`-as-a-list defect). The objection recorded
+earlier — that it would delete rung 0's JSON-parse-failure counter-metric — is
+too strong, and the better reading is that enforcement MOVES the failure
+rather than removing it:
+
+  * a constrained model can still truncate mid-structure, answer
+    `{"mentions": []}` for a post with three reactions, or fill a required
+    field with a plausible wrong value. Those are the same reliability
+    failures without the JSON costume, and they stay countable.
+  * grammar constraints are known to cost output QUALITY — probability mass
+    goes to satisfying the schema instead of answering. So enforcement is an
+    INTERVENTION with a price, not a free repair.
+
+Which makes it an A/B like `rung0_mode`, not a switch: run both arms and
+report what enforcement removed and what it cost. That is strictly more
+evidence than either arm alone, and it keeps a non-zero failure rate that
+measures something more interesting than well-formedness. NOT BUILT — recorded
+so the decision is made deliberately.
+
+---
+
+## 2026-08-24 — why dense retrieval misses 13.9%, and why a hybrid does not fix it
+
+**The misses were categorised rather than guessed at.** 918 of 6,595 gold
+mentions have no gold code in the dense top-20:
+
+| | | |
+|---|---|---|
+| 821 | 89.4% | the gold code IS in the table; retrieval ranked it below 20 |
+| 79 | 8.6% | the query is a SENTENCE, not a term |
+| 15 | 1.6% | post-coordinated gold (A + B); retrieval returns one concept |
+| 3 | 0.3% | the gold code is not in the keyword table at all |
+
+**The largest category is not what it looks like.** Reading the examples, a
+substantial part of "genuine semantic miss" is retrieval finding the concept
+the SPAN literally names while gold names a different one:
+
+    "little blurred vision"   gold |Hazy vision|
+                              retrieved: blurred vision, blurry vision
+    "gastric problems"        gold |Excessive upper gastrointestinal gas|
+                              retrieved: stomach problem, gastrointestinal tract problem
+
+Those are not retrieval failures. They are the answer key selecting one
+concept where several fit, and no retriever can be graded on them fairly.
+Alongside them sit real misses ("extremely sick" -> |Generally unwell|) and
+one clearly fixable kind — **typos**: `"Insomina"` is |Insomnia| with two
+letters transposed, and the embedder put `inflared innominate` at rank 0. The
+category has not been split further because doing it properly means deciding
+which of those readings the answer key should have taken, which is not a
+retrieval question.
+
+**The second category is the actionable one, and it is the same defect as
+S0's span drift.** 79 misses are queries like `"I can't stand or walk for any
+lengths of time"` (gold |Reduced mobility|) — a sentence retrieved against a
+table of 4-word terms. Retrieval is being asked the wrong question. This is
+exactly what "have the model name the concept first" would fix, which is the
+independent case for query rewriting.
+
+### A hybrid was tested at equal budget, and lost
+
+Union of dense top-20 with a second retriever's top-20 is 40 candidates, so
+the honest comparison is dense top-40, not dense top-20:
+
+| | recall | candidates |
+|---|---|---|
+| dense@20 | 86.1% | 20 |
+| **dense@40** | **89.5%** | 40 |
+| hybrid dense@20 + lexical@20 | 88.0% | 40 |
+| hybrid dense@20 + char-trigram@20 | 89.3% | 40 |
+| hybrid dense@20 + lexical@10 + char@10 | 88.8% | 40 |
+
+**Every hybrid loses to simply asking dense for more.** Spending 20 extra
+slots on more dense results beats spending them on a second retriever, and the
+character-trigram variant — the one built specifically for the `Insomina`
+case — does not even break even. So the fix for "retrieval misses 14%" is
+`rung0_shortlist_k`, not a second index.
+
+NOT BUILT, deliberately: raising k has its own cost at the PICK step, where a
+long menu bought position bias rather than selection (measured at the retired
+S3, 666 items). The retrieval-vs-pick trade-off is a rung 0 experiment in its
+own right, and 89.5% recall the model cannot use is not 89.5%.
+
+### Multi-label: the feature is right, the stated reason is not
+
+Rung 0 asks for up to three concept names. The implied justification is that a
+mention has several plausible readings. Measured over the corpus:
+
+    distinct coded gold span texts                     3,272
+      ...coded MORE THAN ONE WAY anywhere in CADEC        24   (0.7%)
+    mentions whose exact wording is coded >1 way         256   (3.9%)
+
+So genuinely ambiguous wording is rare. The real work multi-label does is
+compensate for EXACT lookup being brittle: three shots at a string match,
+free, in one call. `"high blood pressure"` (|Venous pressure above reference
+range| / |Blood pressure above reference range| / |Hypertensive disorder|) is
+a real case, but it is 0.7% of the vocabulary problem, not the reason.
+
+**Which means the answer depends on the retriever, and that is testable.**
+With exact lookup, multi-label is the only retry there is — keep it. With
+dense retrieval, ONE label already returns k candidates, so the retries are
+largely redundant, and the hybrid result above is suggestive: splitting a
+candidate budget across sources lost to spending it all on one. Whether that
+carries over to splitting across three labels is a HYPOTHESIS, not a
+measurement — same method, three queries is not the same as two methods, one
+query. `checks["labels_proposed"]` and `label_rank` are what settle it, and
+they need a model that names concepts.
+
+---
+
+## 2026-08-24 — the DECIDE step, shared by S1 and S2
+
+**Multi-label was never doing what it was for.** The prompt asks for up to
+three concept names to raise the chance that SOMETHING maps. `resolve()` then
+walked the list and returned the FIRST that mapped, so the alternatives only
+ever fired on a total miss. Measured on the real keyword table:
+
+    span:      "extreme rectal bleed"
+    proposed:  ['rectal pain', 'rectal bleeding', 'rectal hemorrhage']
+
+    'rectal pain'        -> 77880009    <- WON, on list position alone
+    'rectal bleeding'    -> 12063002    <- right, mapped fine, discarded
+    'rectal hemorrhage'  -> 12063002    <- right, mapped fine, discarded
+
+All three mapped. The wrong one won because the model happened to write it
+first, and **the span text was never consulted at the decision point.** That
+is not three shots at a mapping; it is one shot with two spares.
+
+**The missing half is a DECIDE step**, and S2 already had it: show the
+candidates next to the original wording and let the model say which matches.
+`_decide()` is now factored out and **shared** — not a new rung 0 step. What
+distinguishes S0/S1/S2 is where the CODE comes from, and that is unchanged:
+S0 memory, S1 the keyword table, S2 retrieval. Adding a fourth step for a
+mechanism both already need would have split the study along the wrong axis.
+
+**What S1 does now:**
+
+    call 1   propose up to three names
+    lookup   map EVERY name, dedupe by code, keep proposal order
+    call 2   decide against the original span   <- only when >1 candidate
+
+**One candidate is not a choice**, so S1 pays for the second call only when
+there is something to decide. Its call count is therefore data about the
+corpus rather than a constant, and it is reported as cost like every other
+call-count difference in the study.
+
+**Ambiguous keywords now contribute all their concepts.** |coma| is both
+371632003 and 50061006; `resolve()` took `hits[0]`. Choosing between two
+concepts sharing a keyword is the same judgement as choosing between two
+names, not a coin for a build script to flip.
+
+**Menu position is not mention position.** Only mentions with something to
+decide go in the menu, so a mention resolved without a pick must not occupy a
+slot — padding it would assign one mention's answer to another, silently.
+There is a test for exactly that.
+
+### A vacuous check, caught by an old test failing
+
+The first implementation filled `sct_label` from the VOCABULARY's term for the
+chosen code. `schema.py` defines that field as "what the MODEL said that code
+means", and rung 1's `label_check` compares it against the vocabulary's own
+words for the code — so filling it from the vocabulary makes the check
+**incapable of failing**. It would have passed 100% forever and looked like a
+clean bill of health.
+
+The record now keeps the model's own proposing name; the MENU still shows the
+vocabulary's FSN, because showing the model its own wording back invites it to
+prefer whichever it wrote first, which is the bias being removed. Two
+different strings for two different jobs.
+
+**S2 still has this defect.** Its retrieved candidates carry no proposing
+name, so `sct_label` comes from the menu and `label_check` is vacuous for S2
+records. Not fixed here — S2 genuinely has no model-proposed label to record,
+so the honest options are to leave the field empty for S2 or to accept that
+the check only applies to S1. Recorded, not chosen.
+
+### What this changes about "is the lookup a tool?"
+
+It was not, and the distinction is already in the notes for mode B:
+`vocab.search()` ran AFTER the model replied and its results never reached the
+model, so it measured "would a search have found the code it invented?".
+
+With the decide step, the lookup result DOES reach the model — as a second
+PROMPT, not as a tool response. No function-calling protocol, no mid-
+generation call, no loop the model controls. That is two-turn retrieval
+augmentation, and it is worth naming precisely, because the tool ablation
+(`--compare`) is about real tool access and this still is not that. The model
+gets its guess checked and a chance to revise; it does not get to decide when
+to look something up.
+
+**Both calls are the SAME model.** `ROLE_BY_RUNG` binds rungs 0/2/3 to
+`extractor` and only rung 4 to `judge`, so the decide step is the model
+reconsidering its own proposals, not a second opinion. If the model cannot
+tell rectal bleeding from rectal pain, asking it twice will not help — what
+the step removes is the ARBITRARY loss of a right answer to list position.
+
+---
+
+## 2026-08-24 — the 2000-token cap was measuring the harness, not the model
+
+**Every rung 0 number produced with `gpt-oss:20b` was a harness artefact.**
+`LLMClient.chat` hard-coded `max_tokens=2000`. Measured on ARTHROTEC.107:
+
+    S0   389 in / 2000 out   parse_failed / json_decode
+    S1   341 in / 1830 out   extracted, 2 mentions
+    S2   308 in / 2000 out   parse_failed / json_decode
+
+Exactly 2000 on both failures is a cap, not a coincidence. `gpt-oss:20b` is a
+REASONING model — it emits a chain of thought before the answer, so a budget
+tuned for a 2B instruct model truncates it mid-JSON every time. The ledger
+recorded that as `parse_failed`, which is the specific number rung 0 exists to
+report: **the harness's own limit was being published as the model's
+reliability.**
+
+`max_tokens` is now REGISTRY DATA (`ModelInfo.max_tokens`, `models.yaml`),
+defaulting to `DEFAULT_MAX_TOKENS = 2000` and set to 16000 for `gpt-oss:20b`.
+A per-model property belongs in the registry for the same reason `sampling`
+does — a rung must not know which family it is calling.
+
+With the cap raised, on the same document:
+
+    S1   341 in / 1830 out   2 mentions
+    S2  1070 in / 5207 out   3 mentions   <- was parse_failed
+
+### S0 still fails, and it is not the cap
+
+S0 burns all 16,000 completion tokens and returns an EMPTY string. S0 is the
+step that asks the model to recall a nine-digit SNOMED identifier from memory,
+and the reasoning model appears to loop on it rather than commit. Recorded as
+an observation on one document, not a rate — but note the shape: the failure
+is specific to the step whose task is exact-id recall, which is the thing S1
+exists to remove.
+
+### What the models actually produced, and the span problem it exposes
+
+| step | span | code | outcome |
+|---|---|---|---|
+| S1 | `'extreme rectal bleed'` | **12063002** | scored **incorrect** |
+| S2 | `'extreme rectal bleed'` | **12063002** | scored **incorrect** |
+
+Gold is `12063002` |Rectal hemorrhage|. **Both steps got the code exactly
+right and were scored wrong**, because gold's span is `'rectal bleed'` (28,40)
+and the model's is `'extreme rectal bleed'` (20,40) — eight characters wider,
+so exact span matching finds no gold mention there and calls it a false
+positive.
+
+    span_match   S1                       S2
+    exact        P 0.00  R 0.00  F1 0.00  P 0.00  R 0.00  F1 0.00
+    overlap      P 0.50  R 0.33  F1 0.40  P 0.33  R 0.33  F1 0.33
+
+This is the intensifier-boundary problem from the other direction. 506 gold
+mentions (6.9%) START with an intensifier and KEEP it — "severe stomach pain",
+"extremely sick" — so a "drop the intensifier" instruction would break those.
+Here gold DROPPED it and the model kept it. The convention is not stateable as
+prose in either direction, which is why the note that it is a few-shot job
+stands, and why the exact/overlap gap has to be reported rather than one
+number chosen.
+
+S1's proposed labels also show the decide step is now reachable with a capable
+model: `['Rectal hemorrhage', 'Rectal bleeding', 'Severe rectal bleeding']` —
+three real clinical names where granite4:micro-h produced `AFTERPROMPT`.
+
+---
+
+## 2026-08-24 — a truncation is not a model failure
+
+Raising `max_tokens` for `gpt-oss:20b` fixed S2 and left the real defect in
+place: **the ledger could not tell a cut-off reply from a bad one.** S0 burns
+all 16,000 completion tokens and returns an EMPTY STRING, and that was logged
+`parse_failed / json_decode` — the same label as a model that emitted
+malformed JSON, which is the specific reliability number rung 0 exists to
+report.
+
+Raising the cap does not fix that. It moves where the confusion happens. The
+provider already says which occurred, so it is now recorded:
+
+    LLMResponse.truncated     finish_reason == "length"
+    usage["truncated"]        passed through to the rung
+    agg["truncated"]          counted per run
+    ledger reason             "truncated", not "json_decode"
+
+The two counts OVERLAP on purpose. A truncated reply IS unusable, so it stays
+a parse failure; what must not happen is the cause becoming unrecoverable. The
+flag is cached alongside the text, because a cached reply that was truncated
+is still truncated and losing it would make one run report two different
+failure counts.
+
+### Is 2000 too low as the default?
+
+Not for the models it was written for. Measured completion tokens on
+ARTHROTEC.107:
+
+    granite4:micro-h   S0 185   S1 164   S2 167      ~10x headroom at 2000
+    gpt-oss:20b        S0 16000 (truncated, empty)
+                       S1 1830
+                       S2 3303 + 1904 = 5207
+
+A reasoning model needs 10-30x what an instruct model does, and the spread is
+a property of the MODEL, not of the task — which is exactly why the budget is
+registry data now. The default stays 2000: raising it globally means a model
+stuck in a loop burns 16k tokens per document instead of 2k, on every document
+in the split, and tokens per record is one of the three cost measures. With
+truncation recorded, a too-low budget is now VISIBLE rather than silently
+recorded as unreliability, which is the property that makes a conservative
+default safe.
+
+### S0 with a reasoning model: 16,000 tokens, empty output
+
+Not the cap — it was 2000, then 16000, and both produced nothing. S0 is the
+step that asks for a nine-digit SNOMED identifier from memory. The model
+appears to loop rather than commit to an id it cannot recall. One observation
+on one document, but the shape is worth stating: the failure is specific to
+the step whose task is exact-id recall, which is the thing S1 exists to
+remove.
+
+### What the three steps actually produced
+
+    S0   1 call    389 in / 16000 out   truncated, empty, 0 records
+
+    S1   1 call    341 in / 1830 out    2 records
+         {"mentions":[
+           {"span_text":"extreme rectal bleed",
+            "sct_label":["Rectal hemorrhage","Rectal bleeding",
+                         "Severe rectal bleeding"],"confidence":0.95},
+           {"span_text":"extremely sick",
+            "sct_label":["Severe illness","Severe sickness",
+                         "Critical illness"],"confidence":0.8}]}
+         -> 12063002 (rank 0, 1 candidate, no decide call needed)
+         -> "extremely sick": all three names miss the keyword table entirely
+
+    S2   2 calls   1070 in / 5207 out   3 records
+         finds all three spans, picks 3 of 3
+         -> 12063002 | 162471005 |Symptom very severe| | 17029006 |Feeling despair|
+
+**S1 named the right concept first try.** `Rectal hemorrhage` is the gold
+label; it mapped, and because only one candidate survived, no decide call was
+needed. Against granite's `AFTERPROMPT` this is a different class of model.
+
+**S1's second mention shows the keyword table's edge.** `Severe illness`,
+`Severe sickness` and `Critical illness` are all reasonable English for
+"extremely sick" and NONE is a SNOMED synonym of |Generally unwell|. Three
+plausible names, zero candidates — the failure multi-label was supposed to
+prevent, and it is a VOCABULARY failure rather than a model one. `dense`
+retrieval over the same labels would have offered something; exact lookup
+offers nothing. That is the strongest argument yet for the lookup-vs-RAG
+question, and it is now visible only because `labels_proposed` is recorded.
+
+---
+
+## 2026-08-24 — S0 fixed, one source of truth for models, and a stale cache
+
+### S0's failure was a separate reasoning channel, not a loop
+
+`gpt-oss:20b` writes its chain of thought to a **separate `reasoning` field**
+and leaves `content` EMPTY until it finishes. S0 — the step that asks the
+model to recall a nine-digit SNOMED identifier from memory — spent its entire
+budget there and returned nothing. Measured on ARTHROTEC.107:
+
+    default effort, 16000 cap   16000 tokens   content EMPTY   truncated
+    default effort, 32000 cap    2306 tokens   content OK        34s
+    reasoning_effort=medium      8000 tokens   content EMPTY   truncated
+    reasoning_effort=low          104 tokens   content OK         2s
+
+`reasoning_effort` is registry data in `models.yaml`, like `max_tokens` and
+`sampling`, and is omitted for models that declare none — sending it to a
+model with no reasoning channel is at best ignored and at worst a 400.
+
+### But `low` is not a speed-up, it is a different experiment
+
+The 104-token result was tempting and wrong. Measured over 3 documents,
+17 gold reaction mentions:
+
+| setting | S0 | S1 | S2 | tok_out | sec |
+|---|---|---|---|---|---|
+| `reasoning_effort=low`, cap 8k | **1** | 10 | 9 | ~900 | ~1 |
+| default effort, cap 32k | **11** | 12 | 13 | 5.8–28.6k | 106–539 |
+
+**S0 finds ONE mention of seventeen at low effort.** It stops truncating and
+starts missing instead, which is the same failure wearing a cheaper coat. S1
+and S2 lose less (10 vs 12, 9 vs 13) but they lose.
+
+And the effort **cannot differ per step**: scope is identical across S0/S1/S2
+by design, and a step that thought harder than its neighbours would make the
+comparison meaningless. So `reasoning_effort` is left UNSET with a 32000 cap,
+and the cost is reported rather than avoided — the dev split takes hours, not
+minutes. The mechanism stays in the registry for when a model needs it.
+
+### `manifest.model` is now the ONLY place a model is named
+
+`ladder/llm.py` carried `DEFAULT_MODEL = "ollama/gpt-oss:20b"` while
+`manifest.model.extractor` said `granite4:micro-h`. "Which model produced this
+number" therefore had two answers depending on whether a manifest reached the
+call — the exact defect that centralising model selection was supposed to
+remove, because the run still produces numbers, just not the ones the manifest
+describes.
+
+`resolve()` now RAISES on a missing entry. Order is `--extractor` >
+`LADDER_MODEL_SPEC` > manifest, and nothing after.
+
+**Extractor moved to `ollama/gpt-oss:20b`** on measurement, and the cost is
+stated in the manifest rather than buried: **the judge is now the WEAKER
+model.** `granite4:micro-h` (2B) is the only locally installed family that
+differs from the extractor, and rung 4 refuses to self-judge, so rung 4 is a
+2B model grading a 20B one. That is the wrong way round and every rung 4
+number has to be read with it said. A third local family would fix it.
+
+### The cache key was incomplete, and it bit within minutes
+
+The key was `(model, messages, temperature, sample_index)`. `max_tokens` and
+`reasoning_effort` were absent, so rerunning S0 after lowering the effort
+served the **old entry** and reported 16,000 tokens and a truncation that no
+longer happened. A cache that survives a parameter change is not a cache, it
+is a stale result presented as a fresh one. Both are now in the key.
+
+Worth noting how it was found: a `rm -rf .llm_cache out/final_S*` was aborted
+by zsh's `nomatch` on the glob, so the delete never ran and the stale entry
+was served. The bug was real either way; the shell just made it visible on the
+first rerun instead of the tenth.
+
+---
+
+## 2026-08-24 — a reasoning runaway, and the timeout that bounds it
+
+**The dev-split run did not finish; it stopped.** S1 over `gpt-oss:20b`
+completed 30 of 40 documents and then made no progress for 25 minutes. Ollama
+was healthy and the model loaded — one call was generating toward the 32,000
+token cap on a **761-character forum post**.
+
+Measured over the 30 calls that DID complete (dev documents, median length
+309 characters):
+
+    completion tokens   median 1,029   p90 3,244   max 7,836
+    latency seconds     median    32   p90    98   max   694
+
+**Ninety percent finish under 3,244 tokens. The tail is what makes the run
+unbounded** — and 694 seconds for one call was already the warning that the
+3-document config measurement was too small a sample to see.
+
+That is the real lesson about the earlier `reasoning_effort` decision: the
+3-document comparison said "default effort, 32k cap" was the honest choice
+because `low` found 1 gold mention of 17. It was right about quality and blind
+to the tail, because three documents cannot show you a distribution's tail.
+
+### The fix is a timeout, not a smaller cap
+
+    max_tokens   8000    covers every call that terminated (max 7,836)
+    timeout_s     300    bounds the ones that do not
+
+`timeout_s` is registry data like `max_tokens`, `sampling` and
+`reasoning_effort`. A timeout **does not raise**: it returns an empty response
+flagged `timed_out`, so one runaway document costs ONE RECORD instead of the
+whole run. A run that dies on a tail document has measured nothing; a run that
+records the timeout has measured 39 documents and one timeout, which is a
+result.
+
+**A timeout is not cached.** It is a property of this run — of load, of this
+machine — not of the question. Caching it would make that document's answer
+permanently unavailable on every later run, which is the opposite of what the
+cache is for.
+
+**`timed_out` and `truncated` overlap on purpose** and are recorded
+separately, exactly like `truncated` and `parse_failed`. Nothing usable comes
+back either way; the causes differ — one is the model writing too much, the
+other is it writing too slowly — and only the second is a property of the
+machine rather than of the model. The ledger `reason` is now
+`timed_out` > `truncated` > `json_decode`, most specific first.
+
+Three layers of the same principle now: a cut-off reply must never be counted
+as a model that cannot produce JSON, and a hung machine must never be counted
+as either.
+
+---
+
+## 2026-08-24 — rung 0 measured on the dev split: S0, S1, S2
+
+First numbers over more than one document. 40 documents, 226 scorable gold
+reaction mentions, `ollama/gpt-oss:20b`, `reasoning_effort: low`, rung 1 in
+observe mode.
+
+| | records | P | R | F1 | correct | abstained | wrong | calls | tokens |
+|---|---|---|---|---|---|---|---|---|---|
+| S0 exact | 105 | 0.029 | 0.013 | **0.018** | 3 | 6 | 48 | 40 | 43,998 |
+| S1 exact | 161 | 0.205 | 0.146 | **0.171** | 33 | 15 | 29 | 57 | 36,079 |
+| S2 exact | 148 | 0.264 | 0.173 | **0.209** | 39 | 1 | 27 | 75 | 68,906 |
+| S0 overlap | 105 | 0.029 | 0.013 | 0.018 | 3 | 10 | 79 | | |
+| S1 overlap | 161 | 0.366 | 0.261 | 0.305 | 59 | 20 | 63 | | |
+| S2 overlap | 148 | 0.392 | 0.257 | 0.310 | 58 | 3 | 66 | | |
+
+**S0 is not a weaker step, it is a broken one.** F1 0.018 against S1's 0.171
+and S2's 0.209 — an order of magnitude, on identical scope, identical spans
+and the same model. It also costs MORE than S1 (43,998 tokens against 36,079)
+to be ten times worse, because recalling an identifier takes more deliberation
+than recalling a name. **The single most expensive thing rung 0 can be asked
+to do is the one thing it cannot do.**
+
+**S1 and S2 are close, and S2 costs nearly twice as much.** F1 0.171 vs 0.209
+exact, 0.305 vs 0.310 on overlap — where they are within half a point. S2 pays
+75 calls and 68,906 tokens for that; S1 pays 57 calls and 36,079. On the
+overlap reading, retrieval buys almost nothing over an exact keyword lookup at
+1.9x the cost. On the exact reading it buys 3.8 points of F1.
+
+**Every step's exact/overlap gap is large** — S1 0.171 -> 0.305, S2 0.209 ->
+0.310. That gap is span boundaries, not coding: the model quotes "extreme
+rectal bleed" where gold says "rectal bleed". Same concept, eight characters
+wider, scored as both a false positive and a false negative under exact
+matching. The gap is the intensifier problem measured end to end, and it is
+why both numbers are reported and neither is "the" result.
+
+**S0 is the only step that fails to parse: 5 of 40 documents (12.5%).** S1 and
+S2 parse 40 of 40. Same model, same effort, same documents — the difference is
+that S0's schema demands a nine-digit integer the model does not have.
+
+### The escape hatch did not stop the fabrication
+
+S0 was given a legal way to decline: name the concept, answer `null` for the
+id. It used it 13 times in 105 records (12.4%), which is a real and useful
+abstention rate.
+
+It also still invents. On ARTHROTEC.107 the model answered `sct_label:
+["Rectal hemorrhage"]` — correct — with `sct_code: "2714004"`, which is not a
+SNOMED concept, in the same reply that was told never to invent one and shown
+`null` as acceptable. **Offering an abstention reduces fabrication; it does not
+remove it.** That is the S0 finding, and it is the argument for rung 1
+existing at all.
+
+### Cost, per document
+
+    S0   1.00 calls   1,100 tokens
+    S1   1.43 calls     902 tokens     <- 0.43 = the decide step, when needed
+    S2   1.88 calls   1,723 tokens
+
+S1's second call fires only when more than one distinct concept survives the
+lookup. 43% of documents needed one; the rest were decided by the vocabulary
+alone and paid nothing.
+
+### Not measured
+
+The dev split is 40 documents and every figure above is a rate over 226
+mentions, not a confidence interval. S1 vs S2 differ by 3.8 points of exact F1
+and 0.5 on overlap — neither gap is large enough, at this n, to call a winner
+without the test split.
+
+---
+
+## 2026-08-24 — S2 frozen as rung 0
+
+The prompt-engineering study is closed. `manifest.rungs.0.rung0_step` is
+`"S2"`, chosen on the dev-split measurement in the entry above.
+
+**Why frozen rather than passed per run.** Rungs 1-6 all consume rung 0's
+output, so a ladder measured against three different rung 0s produces numbers
+that cannot be compared to each other or to anything published. One rung 0, in
+configuration, where the manifest copy saved beside the results records it.
+`--rung0-step` still overrides for a single run — that is how the study is
+reproduced — and it writes the choice into that copy, so two runs can never
+look identical on disk.
+
+**What the choice costs, stated rather than buried.** S2 wins exact F1 by 3.8
+points (0.209 vs 0.171) and ties S1 on overlap within half a point (0.310 vs
+0.305). It pays **1.9x the tokens** for that — 68,906 against 36,079 — and 75
+calls against 57. On the overlap reading, retrieval buys almost nothing over
+an exact keyword lookup at nearly twice the price. The exact reading is what
+carries the decision, and the cost is real: it is reported in the ledger's
+three measures and is not netted off against the accuracy gain.
+
+**`rung0_step: null` was never "the default step".** It is the pre-study A/B
+mode path. Leaving it null after the study would have run the whole ladder on
+a rung 0 that no measurement in this repo describes — which is the failure the
+freeze exists to prevent, and it would have been invisible.
+
+**Not settled by this.** 226 mentions over 40 documents is a rate, not a
+confidence interval, and S1 vs S2 is 3.8 points of exact F1. The test split is
+what would call it properly. S2 is frozen because the ladder needs A step to
+be frozen, not because the gap is large.

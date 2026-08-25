@@ -97,3 +97,71 @@ def test_roundtrip_through_jsonl():
     back = loads(dumps(rs))
     assert [r.to_dict() for r in back] == [r.to_dict() for r in rs]
     assert back[1].spans == [(9, 19), (20, 25)]
+
+
+# --- sct_label: the model's own claim about what its code means -------------
+#
+# A bare code is an unverifiable assertion. A code PLUS the label the model
+# believes it carries is checkable against the vocabulary for free, with no
+# extra model call — which is what turns confabulation into a deterministic
+# rung 1 check rather than something only a judge rung could catch.
+
+
+def test_record_has_an_sct_label_defaulting_to_none():
+    assert rec().sct_label is None
+
+
+def test_sct_label_survives_a_round_trip():
+    from ladder.schema import loads as _loads
+
+    r = rec(sct="12063002", sct_label="Rectal hemorrhage")
+    back = Record.from_dict(r.to_dict())
+    assert back.sct_label == "Rectal hemorrhage"
+
+
+def test_sct_label_is_absent_from_older_records():
+    """schemas are APPEND-ONLY: a record written before this field must load."""
+    d = rec().to_dict()
+    d.pop("sct_label")
+    assert Record.from_dict(d).sct_label is None
+
+
+def test_label_mismatch_is_a_known_reject_reason():
+    from ladder.schema import R_LABEL_MISMATCH, REJECT_REASONS
+
+    assert R_LABEL_MISMATCH in REJECT_REASONS
+
+
+def test_appended_reasons_go_at_the_end():
+    """Reasons are append-only — reordering renumbers every earlier report.
+
+    The tuple's PREFIX is what has to hold: a new reason may only extend it.
+    Asserting on [-1] pinned the newest reason instead, so this test failed
+    the moment one was appended correctly — which is the opposite of what it
+    was written to protect.
+    """
+    from ladder.schema import (
+        R_CODE_INACTIVE,
+        R_CODE_UNKNOWN,
+        R_LABEL_MISMATCH,
+        R_MEDDRA_UNKNOWN,
+        R_NEGATED,
+        R_SCHEMA_INVALID,
+        R_SPAN_OUT_OF_RANGE,
+        R_SPAN_UNGROUNDED,
+        R_WRONG_SEMANTIC_TYPE,
+        REJECT_REASONS,
+    )
+
+    frozen = (
+        R_SCHEMA_INVALID,
+        R_SPAN_UNGROUNDED,
+        R_SPAN_OUT_OF_RANGE,
+        R_NEGATED,
+        R_CODE_UNKNOWN,
+        R_CODE_INACTIVE,
+        R_WRONG_SEMANTIC_TYPE,
+        R_MEDDRA_UNKNOWN,
+        R_LABEL_MISMATCH,
+    )
+    assert REJECT_REASONS[: len(frozen)] == frozen

@@ -9,12 +9,14 @@ snapshot of a 700k-concept hierarchy.
 
 from ladder.ledger import Ledger
 from ladder.rungs import r1, r5
+from ladder.schema import R_LABEL_MISMATCH
 from ladder.schema import (
     CONCEPT_LESS,
     R_MEDDRA_UNKNOWN,
     ZONE_NEW,
     DRUG,
     R_CODE_INACTIVE,
+    R_CODE_OUTDATED,
     R_CODE_UNKNOWN,
     R_NEGATED,
     R_SPAN_UNGROUNDED,
@@ -58,6 +60,19 @@ class StubVocab:
     def terms(self, code):
         return self.CONCEPTS.get(code, (None, None, []))[2]
 
+    #: retired code -> the concept SNOMED says replaced it. 30989003 is
+    #: |Knee pain|, retired; 419723007 |Mentally dull| was retired with no
+    #: successor recorded, which is the majority case — measured 2026-08-24,
+    #: only 27.3% of CADEC's retired gold codes have a SAME AS / REPLACED BY.
+    REPLACED = {"30989003": ["271782001"]}
+
+    def replacements(self, code):
+        return list(self.REPLACED.get(code, []))
+
+    def replacement(self, code):
+        got = self.replacements(code)
+        return got[0] if got else None
+
     def lexical_match(self, text, code, mode="exact"):
         want = " ".join(text.lower().split())
         toks = set(want.split())
@@ -78,8 +93,8 @@ def rec(**kw):
     return Record(**base)
 
 
-def z(record, **cfg):
-    return r1.zone(record, SOURCE, StubVocab(), cfg)
+def z(record, vocab=None, **cfg):
+    return r1.zone(record, SOURCE, vocab or StubVocab(), cfg)
 
 
 # --- the five checks --------------------------------------------------------
@@ -377,3 +392,133 @@ def test_meddra_never_overrides_a_snomed_rejection():
     """Order matters: the SCT checks are the gate, MedDRA is a secondary note."""
     r = rec(sct="999999999", meddra="10013649")
     assert zm(r, meddra_check="reject")[:2] == (ZONE_REJECT, R_CODE_UNKNOWN)
+
+
+# --- rung 1: the model's own label, checked against its own code ------------
+#
+# Rung 0 now emits `sct_label` — what the model SAID its code means. If the
+# vocabulary uses none of those words for that code, the code and the label
+# cannot both be right. Measured on ARTHROTEC.107, granite4:micro-h emitted
+# 82249009 for "extreme rectal bleed"; that code is |California chicken
+# (organism)|, so the label check catches it where `exists()` cannot.
+#
+# It is a FLAG, not a rejection. "rectal bleeding" against "Rectal hemorrhage"
+# is the same concept in different words, and the false-rejection floor has not
+# been measured — the same posture as meddra_check and the negation cue.
+
+
+def test_label_matching_the_code_is_recorded_as_verified():
+    zone, reason, checks = z(rec(sct="271782001", sct_label="Drowsy"))
+    assert checks["label_verified"] is True
+
+
+def test_label_contradicting_the_code_is_flagged_not_rejected():
+    zone, reason, checks = z(rec(sct="271782001", sct_label="California chicken"))
+    assert checks["label_verified"] is False
+    assert zone != ZONE_REJECT
+    assert reason != R_LABEL_MISMATCH
+
+
+def test_label_mismatch_rejects_only_when_the_manifest_says_so():
+    zone, reason, checks = z(
+        rec(sct="271782001", sct_label="California chicken"), label_check="reject"
+    )
+    assert (zone, reason) == (ZONE_REJECT, R_LABEL_MISMATCH)
+
+
+def test_no_label_means_the_check_did_not_run():
+    zone, reason, checks = z(rec(sct="271782001", sct_label=None))
+    assert "label_verified" not in checks
+
+
+def test_label_check_can_be_switched_off():
+    zone, reason, checks = z(
+        rec(sct="271782001", sct_label="California chicken"), label_check="off"
+    )
+    assert "label_verified" not in checks
+
+
+def test_concept_less_has_no_label_to_check():
+    zone, reason, checks = z(rec(sct=CONCEPT_LESS, sct_label=CONCEPT_LESS))
+    assert "label_verified" not in checks
+
+
+def test_the_audit_pass_also_records_the_label_check():
+    """`zone()` short-circuits; the audit pass must not hide a later check."""
+    audit = r1.all_reasons(
+        rec(sct="271782001", sct_label="California chicken"), SOURCE, StubVocab(), {}
+    )
+    assert audit["checks"]["label_verified"] is False
+
+
+# --- rung 1: retired, and what replaced it ----------------------------------
+#
+# `sct_active` already told rung 1 that a code is retired. What it could not
+# say is whether the concept has a CURRENT equivalent — and that is the whole
+# difference between "the model used an old release" and "the model is wrong".
+# SNOMED records it in the association refset; ladder/registry.py reads it.
+#
+# A FLAG, exactly like meddra_check, negation_action and label_check. Rejecting
+# on it would reject a model that named a real concept, and the whole point of
+# the outcome is that this is not the same failure as inventing a number.
+
+
+def test_a_retired_code_with_a_successor_is_flagged_outdated():
+    zone, reason, checks = z(rec(sct="30989003"))
+    assert checks["sct_outdated"] is True
+    assert checks["sct_replacement"] == "271782001"
+
+
+def test_outdated_is_a_flag_and_never_a_rejection():
+    zone, reason, checks = z(rec(sct="30989003"))
+    assert zone != ZONE_REJECT
+    assert reason != R_CODE_OUTDATED
+
+
+def test_a_retired_code_with_no_successor_is_not_outdated():
+    """Retired and unreplaced is not "out of date" — there is nothing newer.
+    Measured: 72.7% of CADEC's retired gold codes are in this state."""
+    zone, reason, checks = z(rec(sct="419723007"))
+    assert checks["sct_outdated"] is False
+    assert checks["sct_replacement"] is None
+
+
+def test_an_active_code_is_never_outdated():
+    zone, reason, checks = z(rec(sct="271782001"))
+    assert checks["sct_outdated"] is False
+
+
+def test_outdated_is_recorded_even_when_reject_inactive_fires():
+    """The two settings answer different questions. Turning the rejection on
+    must not erase the fact that a current equivalent exists — that fact is
+    what rung 2 would state back."""
+    zone, reason, checks = z(rec(sct="30989003"), reject_inactive=True)
+    assert (zone, reason) == (ZONE_REJECT, R_CODE_INACTIVE)
+    assert checks["sct_replacement"] == "271782001"
+
+
+def test_a_vocabulary_without_history_does_not_break_rung_1():
+    """The shared 365 MB index is upgraded once, not everywhere at once."""
+
+    class NoHistory(StubVocab):
+        replacements = None
+
+        def __getattr__(self, name):
+            raise AttributeError(name)
+
+    zone, reason, checks = z(rec(sct="30989003"), vocab=NoHistory())
+    assert zone != ZONE_REJECT
+    assert checks["sct_outdated"] is False
+
+
+def test_the_audit_pass_also_records_the_replacement():
+    audit = r1.all_reasons(rec(sct="30989003"), SOURCE, StubVocab(), {})
+    assert audit["checks"]["sct_replacement"] == "271782001"
+
+
+def test_outdated_is_a_declared_reject_reason_even_though_it_never_fires():
+    """It has to be nameable for `reject_outdated` to be a settable choice
+    later, and for the audit to count it. Appended, never renumbered."""
+    from ladder.schema import REJECT_REASONS
+
+    assert R_CODE_OUTDATED in REJECT_REASONS

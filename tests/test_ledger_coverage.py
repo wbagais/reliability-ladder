@@ -29,6 +29,33 @@ from ladder.ledger import Ledger
 EVALUABLE = {"pass", "fail", "could_not_run"}
 
 
+def _unreachable() -> tuple[type[BaseException], ...]:
+    """Exception classes that mean "no model is reachable on this machine".
+
+    The guards below were written as (RuntimeError, SystemExit, OSError) and
+    that is not what an OpenAI-compatible endpoint raises when the model name in
+    the manifest is not the tag the local ollama actually holds: it raises
+    openai.NotFoundError, which is neither. The suite went red on a merge that
+    changed the manifest's model strings to the ones resolving on ANOTHER
+    machine — an environmental difference reported as a code failure.
+
+    Deliberately NOT openai.APIError: a 400 means we sent a bad payload, which
+    is our bug and must stay a failure. Only "cannot get there from here"
+    skips.
+    """
+    errs: list[type[BaseException]] = [RuntimeError, SystemExit, OSError]
+    try:
+        import openai
+    except ImportError:
+        return tuple(errs)
+    errs += [openai.APIConnectionError, openai.NotFoundError,
+             openai.AuthenticationError, openai.PermissionDeniedError]
+    return tuple(errs)
+
+
+UNREACHABLE = _unreachable()
+
+
 # --------------------------------------------------------------------------
 # helpers
 # --------------------------------------------------------------------------
@@ -167,7 +194,7 @@ def test_every_record_produces_a_ledger_row(rung_name, ledger, tmp_path):
         extractor = for_rung(0, man)
         recs, _ = run(items, "A", extractor, {"registry": reg,
                                               "rung0_offsets": "search"})
-    except (RuntimeError, SystemExit, OSError) as exc:
+    except UNREACHABLE as exc:
         pytest.skip(f"no reachable model for rung 0: {exc}")
     if not recs:
         pytest.skip("rung 0 produced no records")
@@ -186,12 +213,12 @@ def test_every_record_produces_a_ledger_row(rung_name, ledger, tmp_path):
                             "refuses to self-judge, which is the point")
             cfg.update(judge_llm=judge, extractor_model=extract.spec,
                        judge_model=judge.spec)
-    except (RuntimeError, SystemExit, OSError) as exc:
+    except UNREACHABLE as exc:
         pytest.skip(f"no reachable model for {rung_name}: {exc}")
 
     try:
         out = mod.apply(recs, src, cfg)
-    except (RuntimeError, OSError) as exc:
+    except UNREACHABLE as exc:
         pytest.skip(f"{rung_name} could not reach its model: {exc}")
     records = out[0] if isinstance(out, tuple) else out
 

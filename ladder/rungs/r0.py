@@ -48,6 +48,7 @@ from ladder import vocab
 from ladder.ledger import Ledger
 from ladder.rungs import r1
 from ladder.schema import (
+    CONCEPT_LESS,
     REACTION,
     REJECT_REASONS,
     Record,
@@ -63,6 +64,40 @@ DEFAULTS: dict[str, Any] = {
     #: locates span_text in the source. See the module docstring.
     "rung0_offsets": "model",
     "rung0_mode": "recall",
+    #: None keeps the original A/B mode path. "S0".."S2" select the
+    #: prompt-engineering study below, where scope is fixed and only the way
+    #: the CODE is obtained changes.
+    "rung0_step": None,
+    "rung0_shortlist_k": 20,
+    #: Which retriever builds S2's candidate menu. "lexical" is
+    #: Registry.shortlist — Jaccard token overlap over every SNOMED
+    #: description. "dense" is cosine over the embedded keyword table
+    #: (ladder/embed.py). Measured 2026-08-24 over the same 6,595 scorable
+    #: gold reaction mentions. THE TWO ALSO SEARCH DIFFERENT CORPORA —
+    #: lexical over 1,822,645 description rows of every semantic type, dense
+    #: over 227,554 findings/disorders keywords — so the corpus and the
+    #: scoring are varied SEPARATELY here, one per row:
+    #:
+    #:                                 recall@1  @5     @10    @20    @50
+    #:     lexical over descriptions   19.5%     52.4%  57.6%  61.8%  66.7%
+    #:     lexical over keywords.csv   48.6%     57.2%  61.1%  65.1%  69.6%
+    #:     dense   over keywords.csv   63.8%     76.7%  82.1%  86.1%  90.3%
+    #:
+    #: At k=20 that is +3.3 points of corpus and +21.0 of scoring. At k=1 it
+    #: inverts — +29.1 corpus, +15.2 scoring — because filtering to findings
+    #: BEFORE ranking is what clears the top slot, which is the same defect
+    #: that once answered |California chicken (organism)| for a rectal bleed.
+    #: The default moved on that and on nothing else; lexical stays reachable
+    #: because a number produced under one retriever is only interpretable
+    #: next to the other, which is why the choice is written onto every record.
+    "rung0_retrieval": "dense",  # "dense" | "lexical"
+    "embed_prefix": "ladder/cache/keywords",
+    #: Where S1's names are turned into codes. `data/keywords.csv` — findings
+    #: and disorders only, built from the SNOMED release by
+    #: `python -m ladder.keywords --build`. NOT the registry: resolving
+    #: against every description in the release is what returned
+    #: |California chicken (organism)| for a rectal bleed.
+    "keyword_table": "data/keywords.csv",
 }
 
 # ------------------------------------------------------------------ prompts
@@ -71,19 +106,36 @@ BASE = """Extract every adverse reaction the reporter describes in the post belo
 For each one return:
   span_text  - the reporter's exact words, copied character for character
   start,end  - character offsets of span_text in the post
-  code       - the SNOMED CT concept id for that reaction
+  code       - the SNOMED CT concept id for that reaction, or the literal
+               string CONCEPT_LESS if no SNOMED CT concept correctly describes it
   confidence - 0.0 to 1.0
 
 Report only reactions the writer actually experienced. Do not report anything
 they say they did NOT have.
 
+Do not invent a concept id. If you cannot name one you are confident is a real
+SNOMED CT concept for this reaction, answer CONCEPT_LESS. That is a correct
+answer in its own right, not a failure to answer — many reactions people
+describe have no SNOMED CT concept.
+
 Return JSON: {"mentions":[{"span_text":..,"start":..,"end":..,"code":..,"confidence":..}]}
 """
+
+# The literal above has to be the sentinel rung 1 branches on and the scorer
+# grades against, so a rename of the constant must not leave the prompt behind.
+# Checked rather than interpolated because BASE also contains JSON braces.
+if CONCEPT_LESS not in BASE:  # pragma: no cover
+    raise RuntimeError(
+        f"rung 0's prompt does not name {CONCEPT_LESS!r}. A model that is never "
+        "told the sentinel exists cannot answer it, and every abstention it "
+        "meant to make arrives as an invented code instead."
+    )
 
 TOOL_BLOCK = """
 You have a vocabulary search tool. Call it before choosing any code:
     SEARCH("term") -> [{code, label}, ...]
-Choose a code from the results. If nothing fits, set code to null.
+Choose a code from the results. If nothing in the results fits, answer
+CONCEPT_LESS — do not fall back to a code you did not look up.
 """
 
 
@@ -123,10 +175,13 @@ def recover_offsets(span_text: str, source: str, claimed: tuple[int, int]) -> tu
 
 def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record], dict]:
     """One document, one model call. Identical for A and B except the tool block."""
-    meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0}
+    meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0, "usd": 0.0}
     raw, usage = llm(build_prompt(mode), text, mode)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
 
     try:
         parsed = json.loads(raw)
@@ -164,6 +219,605 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
             meta["tool_calls"] += 1
         out.append(rec)
     return out, meta
+
+
+# ============================================================================
+# THE PROMPT-ENGINEERING STUDY — steps S0, S1, S2
+#
+# SCOPE IS IDENTICAL IN ALL THREE. Every step finds the same mentions, writes
+# the same record keys, and is scored the same way. The single thing that
+# varies is where the CODE comes from:
+#
+#   S0  label and code recalled from the model's own weights
+#   S1  label recalled, code resolved from the KEYWORD TABLE by that label
+#   S2  label PICKED from a shortlist retrieved for the mention
+#
+# Two facts decide the shape. Measured over CADEC gold: exact-matching the
+# patient's own words against SNOMED returns nothing 57.1% of the time, which
+# is why S2 exists; and 76.8% of multi-candidate sets contain two concepts with
+# an IDENTICAL label, which is why a pick is an INDEX and never a label string.
+#
+# Call counts differ — S0 and S1 are one call, S2 is two — so they are reported
+# as cost rather than pretended away.
+#
+# S3 WAS DROPPED 2026-08-24. It was a pick from one fixed list printed in the
+# prompt, and no printable list survives its own measurement: the MedDRA list
+# it used is the answer key's own inventory (all 666 of its codes appear in the
+# gold and none do not), the best ontology-native alternative — SNOMED's
+# Clinical manifestation refset, 743 codes — caps at 48.7% of gold, the real
+# keyword table is 227,554 rows and cannot be printed at all, and a list
+# retrieved per mention is S2 by another name. See docs/decisions.md.
+# ============================================================================
+
+STEPS = ("S0", "S1", "S2")
+
+_ASK = """  span_text  - the reporter's exact words, copied character for character
+  context    - the three or four words IMMEDIATELY BEFORE span_text, copied the
+               same way, so the quote can be located when it appears twice
+"""
+
+_RULES = """
+Report only reactions the writer actually experienced. Do not report anything
+they say they did NOT have.
+
+Report the reaction, not the treatment for it. A transfusion, an operation, a
+scan or a hospital admission is something done TO the writer, not something the
+drug did to them. Measured: 1 of 7,311 gold mentions names a procedure.
+"""
+
+S0_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
+
+For each one return:
+""" + _ASK + """  start,end  - character offsets of span_text in the post
+  sct_label  - up to three SNOMED CT concept names for the reaction, best first
+  sct_code   - the SNOMED CT concept id matching sct_label[0]
+  confidence - 0.0 to 1.0
+""" + _RULES + """
+Two different answers, and they are not the same:
+
+  If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS for both
+  sct_label and sct_code.
+
+  If you know which concept it is but do not recall its id, give sct_label and
+  answer null for sct_code. That is a complete and acceptable answer.
+
+Never invent a concept id, and do not spend effort trying to recall one — null
+is better than a guess.
+
+Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"confidence":..}]}
+"""
+
+S1_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
+
+For each one return:
+""" + _ASK + """  sct_label  - up to three SNOMED CT concept NAMES for the reaction, best
+               first. Names, not id numbers — the id is looked up for you.
+  confidence - 0.0 to 1.0
+""" + _RULES + """
+If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS.
+
+Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confidence":..}]}
+"""
+
+FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
+
+For each one return:
+""" + _ASK + """  confidence - 0.0 to 1.0
+""" + _RULES + """
+Quote the reaction itself, not the sentence around it. The concept name is
+chosen in a second step, so do not give one here.
+
+Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
+"""
+
+PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
+
+Each reaction has a number after the word "reaction". Each concept has a number
+in [square brackets]. Answer with the reaction's number and the number in
+brackets of the concept you choose — or null for choice if none of the concepts
+describes the reaction. Answer with numbers only, never with a concept name.
+
+{blocks}
+Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
+"""
+
+
+def locate(span_text: str, source: str, context: str = "", claimed=None):
+    """Find span_text in source. Returns (start, end, how).
+
+    Replaces the model's character arithmetic, which is wrong at every model
+    size, with a search anchored on something models are good at: quoting. When
+    the quote appears more than once — 14.5% of CADEC mentions — the preceding
+    words decide which one, and first-occurrence is only right 33.9% of the
+    time, so the anchor is doing real work rather than tidying.
+    """
+    if not span_text:
+        return -1, -1, "empty"
+    hits, i = [], source.find(span_text)
+    while i != -1:
+        hits.append(i)
+        i = source.find(span_text, i + 1)
+    if not hits:
+        low = source.lower().find(span_text.lower())
+        if low == -1:
+            return -1, -1, "not_in_source"
+        return low, low + len(span_text), "context_case_insensitive"
+    if len(hits) == 1:
+        return hits[0], hits[0] + len(span_text), "context_unique"
+
+    ctx = " ".join((context or "").split()).lower()
+    if ctx:
+        for h in hits:
+            before = " ".join(source[max(0, h - len(ctx) - 8):h].split()).lower()
+            if before.endswith(ctx):
+                return h, h + len(span_text), f"context_anchored_of_{len(hits)}"
+    if isinstance(claimed, int) and claimed >= 0:
+        h = min(hits, key=lambda x: abs(x - claimed))
+        return h, h + len(span_text), f"context_claimed_of_{len(hits)}"
+    return hits[0], hits[0] + len(span_text), f"context_first_of_{len(hits)}"
+
+
+def _menu(cands) -> list[str]:
+    if not cands:
+        return ["     (no candidates)"]
+    return [f'     [{c["i"]}] {c.get("fsn") or c.get("label")}' for c in cands]
+
+
+def _blocks(pairs) -> str:
+    """Render the numbered candidate menus the PICK call reads.
+
+    One menu per mention, because S2's shortlists are retrieved per mention
+    and genuinely differ. A `shared=` path printed one identical list once —
+    S3's, and S3 alone; it went with S3 rather than staying as scaffolding a
+    later reader would mistake for a code path in use. The measurement it
+    encoded (a 666-item list rendered per mention put 1,998 candidate lines
+    and ~13.7k tokens into one prompt) is in docs/decisions.md, which is where
+    a finding survives its mechanism.
+    """
+    out = []
+    for idx, (rec, cands) in enumerate(pairs):
+        out.append("\n".join([f'reaction {idx}: "{rec.text}"', *_menu(cands)]))
+    return "\n\n".join(out) + "\n"
+
+
+def _mention_record(doc_id: str, i: int, m: dict, source: str, step: str) -> Record:
+    """The one place a Record is built, so all four steps write the same keys."""
+    start, end, how = locate(
+        m.get("span_text", ""), source, m.get("context", ""), m.get("start")
+    )
+    rec = Record(
+        doc_id=doc_id,
+        entity_type=REACTION,
+        text=m.get("span_text", ""),
+        spans=[(start, end)],
+        confidence=float(m.get("confidence", 0) or 0),
+        record_id=f"{doc_id}#{i}",
+    )
+    rec.checks.update(rung0_step=step, offsets=how)
+    return rec
+
+
+def _keywords(cfg: dict):
+    """The keyword table, loaded once per run and cached on the cfg.
+
+    NOT the registry. `Registry.resolve` searched every description in the
+    release — organisms, products, substances and qualifiers included — which
+    is the class that answered |California chicken (organism)| for a rectal
+    bleed and let |Gaseous substance| outrank the right concept for "gas". The
+    keyword table is findings and disorders only.
+
+    The registry stays in cfg and is still S2's retrieval source; rung 1 needs
+    it over the WHOLE release, because 82249009 is real, active, and absent
+    from the keyword table on purpose.
+
+    A missing table RAISES. Resolving nothing silently would report a build
+    step nobody ran as a model that named no concepts.
+    """
+    table = cfg.get("keywords")
+    if table is None:
+        from ladder.keywords import DEFAULT_OUT, KeywordTable
+
+        path = cfg.get("keyword_table") or DEFAULT_OUT
+        try:
+            table = KeywordTable(path)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"rung 0 resolves names through {path}, which is missing. "
+                "Build it once with:\n    python -m ladder.keywords --build"
+            ) from exc
+        cfg["keywords"] = table
+    return table
+
+
+def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
+    """Turn the model's proposed NAMES into a code, and record how it went.
+
+    There is no fallback to the registry when the table has no row. An
+    unresolved name is UNRESOLVED — falling back would reinstate the search
+    the table exists to replace and hide which of the two answered. Rung 0
+    does not retry either: it walks its remaining names and stops, because a
+    retry loop here IS rung 2.
+    """
+    if isinstance(labels, str):
+        labels = [labels]
+    proposed = [str(x) for x in (labels or []) if x is not None and str(x).strip()]
+    got = _keywords(cfg).resolve(proposed)
+    rec.sct = got["code"]
+    rec.sct_label = got["label"]
+    rec.checks.update(
+        label_source=source_name,
+        code_source="keyword_table",
+        label_rank=got["rank"],
+        label_unresolved=got["code"] is None,
+        label_ambiguous=got["ambiguous"],
+        # WHAT the model said, not just whether it worked. `sct_label` holds
+        # only the name that WON, so a failed resolution used to record that
+        # it failed and not what was proposed — and two very different
+        # failures then looked identical on disk: the model naming nothing
+        # usable, and the model naming a real concept this table happens not
+        # to carry. The first is a model problem and the second is a
+        # vocabulary problem.
+        #
+        # Measured on ARTHROTEC.107 with granite4:micro-h at S1: the model
+        # answered sct_label: ["AFTERPROMPT"], a prompt artifact rather than a
+        # clinical term. Emphatically the first kind, and invisible until this
+        # was recorded. It is also what makes lookup-vs-retrieval measurable
+        # at all — you cannot test whether dense retrieval rescues an
+        # imperfect label if the imperfect label was discarded.
+        labels_proposed=proposed,
+    )
+    if got.get("candidates"):
+        rec.checks["candidates"] = got["candidates"]
+
+
+def _step_s0(doc_id, source, llm, cfg, meta):
+    raw, usage = llm(S0_PROMPT, source, "S0")
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
+    meta["api_calls"] += 1
+    parsed = _parse(raw, meta)
+    if parsed is None:
+        return []
+    out = []
+    for i, m in enumerate(parsed.get("mentions", [])):
+        rec = _mention_record(doc_id, i, m, source, "S0")
+        labels = m.get("sct_label") or []
+        if isinstance(labels, str):
+            labels = [labels]
+        # S0 asks for ONE code — "the id matching sct_label[0]". Models answer
+        # with a list anyway. `str(code)` turned that into
+        # "['21456007', '38485006']", a string no code can ever equal, so the
+        # mention scored 0 by construction even when the first id was right.
+        # It also made "the model named three codes" indistinguishable from
+        # "the model emitted garbage", and those are different failures.
+        #
+        # The first is taken, because that is the one the prompt asks for, and
+        # the schema violation is COUNTED rather than repaired away: how often
+        # a model ignores "one code" is a reliability fact about the model,
+        # which is exactly what S0 measures.
+        # A NULL code with a label present is the model saying "I know the
+        # concept, not its number" — an answer S0 had no way to express, so
+        # the model deliberated instead. Measured on the dev split before this
+        # existed: 10% of calls ran to the 8,000-token cap and returned
+        # nothing, on two-line posts, at a healthy 52 tok/s. It was not
+        # thinking hard; it had been given a question with no legal answer.
+        #
+        # Counted separately from CONCEPT_LESS, which is a claim about the
+        # VOCABULARY rather than about the model's memory. Without the split, a
+        # model with a bad memory looks like a gap in SNOMED.
+        code = m.get("sct_code")
+        if code is None and labels and str(labels[0]).strip().upper() != CONCEPT_LESS:
+            rec.checks["code_unknown"] = True
+            meta["code_unknown"] = meta.get("code_unknown", 0) + 1
+        if isinstance(code, (list, tuple)):
+            rec.checks["sct_code_multi"] = [str(c) for c in code]
+            meta["multi_code"] = meta.get("multi_code", 0) + 1
+            code = code[0] if code else None
+        rec.sct = str(code) if code is not None else None
+        rec.sct_label = str(labels[0]) if labels else None
+        rec.checks.update(label_source="memory", code_source="memory")
+        out.append(rec)
+    return out
+
+
+def _label_candidates(proposed, cfg) -> list[dict]:
+    """Every concept EVERY proposed name maps to, deduped, in proposal order.
+
+    This is what multi-label was always for and never did: raise the chance
+    that something maps, then hand the alternatives to the decide step. The
+    old path took the first name that mapped and threw the rest away.
+
+    Ambiguous keywords contribute ALL their concepts, not just the first —
+    |coma| is both 371632003 and 50061006, and choosing between them is the
+    same judgement as choosing between two names, not a coin for a build
+    script to flip.
+
+    Displayed by the VOCABULARY's own words where it has them, not by the
+    model's proposal: showing the model its own wording back invites it to
+    prefer whichever it wrote first, which is the bias being removed.
+    """
+    table = _keywords(cfg)
+    reg = cfg.get("registry")
+    out, seen = [], set()
+    for rank, label in enumerate(proposed):
+        if str(label).strip().upper() == CONCEPT_LESS:
+            continue
+        for code in table.lookup(label):
+            if code in seen:
+                continue
+            seen.add(code)
+            shown = None
+            if reg is not None:
+                shown = (getattr(reg, "fsn", lambda c: None)(code)
+                         or getattr(reg, "preferred", lambda c: None)(code))
+            out.append({
+                "i": len(out),
+                "code": code,
+                "label": shown or label,
+                "fsn": shown or label,
+                "via": "keyword_table",
+                "from_rank": rank,
+                "from_label": label,
+            })
+    return out
+
+
+def _step_s1(doc_id, source, llm, cfg, meta):
+    """Propose names, map ALL of them, then decide against the original text.
+
+    Two calls when there is something to decide, ONE when there is not — a
+    single candidate is not a choice, and paying for a pick over it is pure
+    cost. So S1's call count is data about the corpus, not a constant.
+    """
+    raw, usage = llm(S1_PROMPT, source, "S1")
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
+    meta["api_calls"] += 1
+    parsed = _parse(raw, meta)
+    if parsed is None:
+        return []
+
+    out, undecided = [], []
+    for i, m in enumerate(parsed.get("mentions", [])):
+        rec = _mention_record(doc_id, i, m, source, "S1")
+        labels = m.get("sct_label") or []
+        if isinstance(labels, str):
+            labels = [labels]
+        proposed = [str(x) for x in labels if x is not None and str(x).strip()]
+        cands = _label_candidates(proposed, cfg)
+        rec.checks.update(
+            label_source="memory",
+            code_source="keyword_table",
+            labels_proposed=proposed,
+            label_ambiguous=len(cands) > 1,
+            label_unresolved=not cands,
+        )
+        if cands:
+            rec.checks["candidates"] = cands
+        out.append(rec)
+
+        if len(cands) > 1:
+            undecided.append((rec, cands))
+            continue
+        if len(cands) == 1:
+            rec.sct = cands[0]["code"]
+            # The model's own name, not the vocabulary's — see _decide.
+            rec.sct_label = cands[0]["from_label"]
+            rec.checks["label_rank"] = cands[0]["from_rank"]
+            continue
+        # Nothing mapped. CONCEPT_LESS is an ASSERTION the model made, and a
+        # dead end is not one — the two must not collapse into each other.
+        if any(str(x).strip().upper() == CONCEPT_LESS for x in proposed):
+            rec.sct = CONCEPT_LESS
+            rec.sct_label = CONCEPT_LESS
+            rec.checks["label_unresolved"] = False
+            rec.checks["label_rank"] = next(
+                i for i, x in enumerate(proposed)
+                if str(x).strip().upper() == CONCEPT_LESS
+            )
+        else:
+            rec.sct = None
+            rec.sct_label = None
+            rec.checks["label_rank"] = None
+
+    # ONE decide call per document, over only the mentions that need one.
+    # Menu position is the answer key, so a mention that was never shown must
+    # not occupy a slot in it.
+    if undecided:
+        _decide(undecided, source, llm, cfg, meta, "S1")
+    return out
+
+
+RETRIEVERS = ("lexical", "dense")
+
+
+def _retriever(cfg: dict):
+    """(search_fn, name) for S2's candidate menu.
+
+    Both return the same hit shape — `i`, `code`, `label`, `fsn`, `via` — so
+    S2's pick logic does not branch on which one ran. A retriever with a
+    different shape would fail at the PICK rather than at the swap, which is
+    a long way from the cause.
+    """
+    which = cfg.get("rung0_retrieval", DEFAULTS["rung0_retrieval"])
+    if which not in RETRIEVERS:
+        raise ValueError(
+            f"rung0_retrieval={which!r} is not one of {RETRIEVERS}. A retriever "
+            "nobody defined would report a run under a label the article "
+            "cannot explain."
+        )
+    if which == "lexical":
+        reg = cfg["registry"]
+        return (lambda text, k: reg.shortlist(text, k=k)), which
+
+    index = cfg.get("dense")
+    if index is None:
+        from ladder.embed import DEFAULT_PREFIX, EmbeddingIndex
+
+        prefix = cfg.get("embed_prefix") or DEFAULT_PREFIX
+        try:
+            index = EmbeddingIndex(prefix)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                f"rung0_retrieval='dense' needs the embedding index at "
+                f"{prefix}, which is missing. Build it once (minutes) with:\n"
+                "    python -m ladder.embed --build"
+            ) from exc
+        cfg["dense"] = index
+    return (lambda text, k: index.search(text, k=k)), which
+
+
+def _step_pick(doc_id, source, llm, cfg, meta, step):
+    """S2: find the mentions, then choose from a shortlist retrieved for each."""
+    raw, usage = llm(FIND_PROMPT, source, step)
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
+    meta["api_calls"] += 1
+    parsed = _parse(raw, meta)
+    if parsed is None:
+        return []
+
+    search, retrieval = _retriever(cfg)
+    pairs = []
+    for i, m in enumerate(parsed.get("mentions", [])):
+        rec = _mention_record(doc_id, i, m, source, step)
+        cands = search(rec.text, cfg.get("rung0_shortlist_k", 20))
+        rec.checks["candidates"] = cands
+        rec.checks["label_source"] = "shortlist"
+        rec.checks["code_source"] = "shortlist"
+        # Two runs that differ only in their retriever must not look identical
+        # on disk. The manifest copy beside the results says it too.
+        rec.checks["rung0_retrieval"] = retrieval
+        pairs.append((rec, cands))
+
+    if not pairs:
+        return []
+    _decide(pairs, source, llm, cfg, meta, step)
+    return [rec for rec, _ in pairs]
+
+
+def _decide(pairs, source, llm, cfg, meta, step) -> None:
+    """THE DECIDE STEP. One call, one menu, the ORIGINAL text beside each menu.
+
+    Shared by S1 and S2, and that is the point rather than an economy. Getting
+    several candidate concepts is only half the job; the other half is saying
+    which of them matches what the reporter actually wrote, and it is the same
+    judgement whichever way the candidates were obtained.
+
+    S2 always had this. S1 did not — `resolve()` walked the proposed names and
+    returned the FIRST that mapped, so the span was never consulted. Measured
+    on the real keyword table for "extreme rectal bleed":
+
+        'rectal pain'       -> 77880009   WON, on list position alone
+        'rectal bleeding'   -> 12063002   right, mapped fine, discarded
+        'rectal hemorrhage' -> 12063002   right, mapped fine, discarded
+
+    `pairs` is (record, candidates) for the mentions that HAVE something to
+    decide. Callers must leave out mentions with none: menu position is the
+    answer key here, and padding it with entries the model was not shown would
+    assign one mention's pick to another.
+    """
+    raw, usage = llm(PICK_PROMPT.format(blocks=_blocks(pairs)), source, step)
+    meta["tokens_in"] += usage["in"]
+    meta["tokens_out"] += usage["out"]
+    meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
+    meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
+    meta["api_calls"] += 1
+    # A pick reply that will not parse is NOT the model declining. Measured on
+    # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
+    # 14 tokens of truncated JSON. Counting that as "saw the menu, chose
+    # nothing" would report a transport failure as an abstention.
+    picked = _parse(raw, {})
+    pick_failed = picked is None
+    if pick_failed:
+        meta["pick_parse_failed"] = True
+    choices = {}
+    if picked is not None:
+        for p in picked.get("picks", []):
+            # "reaction" is what the prompt asks for; "i" is accepted too,
+            # because an earlier prompt used it and its cached replies are
+            # still valid data.
+            ref = p.get("reaction", p.get("i"))
+            try:
+                choices[int(ref)] = p.get("choice")
+            except (TypeError, ValueError):
+                continue
+
+    for idx, (rec, cands) in enumerate(pairs):
+        if pick_failed:
+            rec.checks["pick_parse_failed"] = True
+            continue
+        if idx not in choices:
+            rec.checks["no_pick"] = True
+            continue
+        choice = choices[idx]
+        if choice is None:
+            # Shown every candidate the vocabulary offered and declining is an
+            # assertion that none fits — which is exactly CONCEPT_LESS.
+            rec.sct = CONCEPT_LESS
+            rec.sct_label = CONCEPT_LESS
+            continue
+        try:
+            n = int(choice)
+        except (TypeError, ValueError):
+            rec.checks["bad_pick"] = choice
+            continue
+        if not 0 <= n < len(cands):
+            # Never clamped: an out-of-range index is the model failing to use
+            # the menu, and clamping it would report that as a code choice.
+            rec.checks["bad_pick"] = n
+            continue
+        chosen = cands[n]
+        # `sct_label` is "what the MODEL said that code means", and rung 1's
+        # label_check compares it against the vocabulary's own words for the
+        # code. Filling it FROM the vocabulary makes that check vacuous — it
+        # could never fail. So when the candidate carries the model's own
+        # proposing name (S1 does; S2's retrieved candidates do not), that is
+        # what is recorded.
+        label = (chosen.get("from_label")
+                 or chosen.get("fsn") or chosen.get("label"))
+        if chosen.get("code"):
+            rec.sct = chosen["code"]
+            rec.sct_label = label
+            rec.checks["label_unresolved"] = False
+            # Which of the model's OWN names reached the chosen concept. That
+            # is the finding multi-label exists to produce, so it survives onto
+            # the record; S2's candidates carry no proposing name and get 0.
+            rec.checks["label_rank"] = chosen.get("from_rank", 0)
+            rec.checks["label_ambiguous"] = len(cands) > 1
+        else:
+            _resolve_labels(rec, [label], cfg, rec.checks["label_source"])
+            rec.checks["candidates"] = cands
+
+
+def _parse(raw: str, meta: dict):
+    """JSON or nothing. A parse failure is rung 0's counter-metric, not a bug
+    to repair — repairing it here would delete the measurement."""
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        meta["parse_failed"] = True
+        return None
+
+
+def run_step(doc_id: str, source: str, step: str, llm, cfg: dict) -> tuple[list[Record], dict]:
+    meta = {"tokens_in": 0, "tokens_out": 0, "api_calls": 0,
+            "tool_calls": 0, "usd": 0.0}
+    if step == "S0":
+        return _step_s0(doc_id, source, llm, cfg, meta), meta
+    if step == "S1":
+        return _step_s1(doc_id, source, llm, cfg, meta), meta
+    return _step_pick(doc_id, source, llm, cfg, meta, step), meta
 
 
 def honoured_tool(rec: Record) -> bool | None:
@@ -218,19 +872,49 @@ def apply(
         )
     ledger = cfg.get("ledger")
     mode = "B" if cfg.get("rung0_mode") == "search" else "A"
+    step = cfg.get("rung0_step")
+    if step is not None and step not in STEPS:
+        raise ValueError(
+            f"rung0_step={step!r} is not one of {STEPS}. A step nobody defined "
+            "would report a run under a label the article cannot explain."
+        )
+    if step is not None and cfg.get("registry") is None:
+        raise RuntimeError(
+            f"step {step} resolves codes through the vocabulary and has no "
+            "registry. Pass one in cfg."
+        )
 
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
-        "tool_calls": 0, "parse_failed": 0, "t0": time.time(),
+        "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
+        "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
+        "code_unknown": 0,
+        "t0": time.time(),
     }
     out: list[Record] = []
     for doc_id, text in sources.items():
         t0 = time.time()
-        got, meta = rung0(doc_id, text, mode, llm, cfg)
+        if step is None:
+            got, meta = rung0(doc_id, text, mode, llm, cfg)
+            meta.setdefault("api_calls", 1)
+        else:
+            got, meta = run_step(doc_id, text, step, llm, cfg)
         elapsed_ms = (time.time() - t0) * 1000
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
-        for k in ("tokens_in", "tokens_out", "tool_calls"):
+        agg["pick_parse_failed"] += int(meta.get("pick_parse_failed", False))
+        # Counted SEPARATELY, and it overlaps parse_failed on purpose: a
+        # truncated reply IS unusable, but "the harness cut it off" and "the
+        # model cannot emit JSON" are different findings and must not share a
+        # label. Raising max_tokens moves this, it does not remove it.
+        agg["truncated"] += int(meta.get("truncated", False))
+        agg["timed_out"] += int(meta.get("timed_out", False))
+        # S0 only: mentions where the model answered with several codes where
+        # the prompt asked for one.
+        agg["multi_code"] += meta.get("multi_code", 0)
+        # S0 only: the model named a concept but did not recall its id.
+        agg["code_unknown"] += meta.get("code_unknown", 0)
+        for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:
             rec.checks["honoured_tool"] = honoured_tool(rec)
@@ -243,14 +927,23 @@ def apply(
                 record_id=doc_id,
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
-                reason="json_decode" if meta.get("parse_failed") else None,
+                reason=(
+                    "timed_out" if meta.get("timed_out")
+                    else "truncated" if meta.get("truncated")
+                    else "json_decode" if meta.get("parse_failed")
+                    else None
+                ),
                 tokens_in=meta["tokens_in"],
                 tokens_out=meta["tokens_out"],
-                api_calls=1,
+                api_calls=meta.get("api_calls", 1),
                 latency_ms=elapsed_ms,
+                # The caller already priced the call from models.yaml. Not
+                # passing it logged 0.0 for every paid run, and the bug hid
+                # because zero is RIGHT for a local model.
+                usd=meta.get("usd", 0.0),
                 denominator="r0_documents",
                 evaluable="could_not_run" if meta.get("parse_failed") else "pass",
-                mode=mode,
+                mode=step or mode,
                 mentions=len(got),
             )
         out += got
@@ -310,11 +1003,17 @@ def run(items, mode, llm, cfg=None):
                 record_id=it["doc_id"],
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
-                reason="json_decode" if meta.get("parse_failed") else None,
+                reason=(
+                    "timed_out" if meta.get("timed_out")
+                    else "truncated" if meta.get("truncated")
+                    else "json_decode" if meta.get("parse_failed")
+                    else None
+                ),
                 tokens_in=meta.get("tokens_in", 0),
                 tokens_out=meta.get("tokens_out", 0),
                 api_calls=1,
                 latency_ms=elapsed_ms,
+                usd=meta.get("usd", 0.0),
                 mentions=len(got),
                 denominator="r0_documents",
                 evaluable="could_not_run" if meta.get("parse_failed") else "pass",

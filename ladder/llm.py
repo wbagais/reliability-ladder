@@ -17,9 +17,33 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import sys
+
 import yaml
+from typing import Any
+
+
+def _timeout_errors() -> tuple[type[BaseException], ...]:
+    """What the provider raises when a call outlives its budget."""
+    try:
+        import openai
+    except ImportError:  # pragma: no cover - openai is a local-only extra
+        return (TimeoutError,)
+    return (openai.APITimeoutError, TimeoutError)
 
 REGISTRY_PATH = Path(__file__).parent / "models.yaml"
+
+#: Completion tokens allowed when models.yaml names no budget. Enough for a
+#: document's worth of mentions from an instruct model; a reasoning model
+#: needs its own entry — see ModelInfo.max_tokens.
+DEFAULT_MAX_TOKENS = 2000
+
+#: Wall-clock seconds for one call. A reasoning model can run away on a short
+#: post — measured on a 761-character document, one call passed 25 minutes
+#: generating toward a 32,000-token cap — and a 40-document split then never
+#: finishes. A timeout turns "the run hangs" into "one record timed out",
+#: which is the difference between a measurement and nothing.
+DEFAULT_TIMEOUT_S = 120
 DEFAULT_CACHE_DIR = Path(__file__).parent.parent / ".llm_cache"
 
 
@@ -30,6 +54,19 @@ class LLMResponse:
     completion_tokens: int
     latency_s: float
     cached: bool = False
+    #: Did the provider stop because the token budget ran out?
+    #: A TRUNCATION IS NOT A MODEL FAILURE. Measured 2026-08-24: gpt-oss:20b
+    #: at rung 0's S0 burned all 16,000 completion tokens and returned an
+    #: empty string, and the ledger recorded parse_failed/json_decode —
+    #: identical to a model that emitted malformed JSON, which is the number
+    #: rung 0 exists to report. Raising the cap does not fix that, it moves
+    #: it; the provider already says which happened, so it is kept.
+    truncated: bool = False
+    #: Did the call exceed its wall-clock budget? A subset of `truncated` —
+    #: nothing usable came back either way — kept separate because the causes
+    #: differ: one is the model writing too much, the other is it writing too
+    #: slowly, and only the second is a property of this machine.
+    timed_out: bool = False
 
 
 class ModelInfo:
@@ -54,6 +91,38 @@ class ModelInfo:
         overrides = (p.get("models") or {}).get(self.model, {})
         self.input_per_mtok: float = overrides.get("input_per_mtok", p["input_per_mtok"])
         self.output_per_mtok: float = overrides.get("output_per_mtok", p["output_per_mtok"])
+        #: Does this model accept temperature/top_p/top_k? The Claude 5 family
+        #: removed them and 400s if one is sent. Registry data rather than a
+        #: branch in a rung: a rung must not know which family it is calling.
+        self.sampling: bool = bool(
+            overrides.get("sampling", p.get("sampling", True))
+        )
+        #: Completion-token budget. REGISTRY DATA, not a constant, because a
+        #: reasoning model spends the budget thinking before it emits an
+        #: answer. Measured 2026-08-24: gpt-oss:20b returned exactly 2000
+        #: completion tokens for rung 0's S0 and S2 and both were logged
+        #: parse_failed/json_decode — truncated mid-structure by a cap tuned
+        #: for a 2B instruct model. That is the harness failing, recorded as
+        #: the model failing, in the one number rung 0 exists to report.
+        self.max_tokens: int = int(
+            overrides.get("max_tokens", p.get("max_tokens", DEFAULT_MAX_TOKENS))
+        )
+        #: "low" | "medium" | "high", or None for a model with no reasoning
+        #: channel. gpt-oss:20b writes its chain of thought to a SEPARATE
+        #: `reasoning` field and leaves `content` empty until it finishes.
+        #: Measured 2026-08-24 on rung 0's S0, which asks it to recall a
+        #: nine-digit SNOMED id: default effort spent 16,000 tokens and
+        #: returned nothing, "medium" spent 8,000 and returned nothing, "low"
+        #: answered in 104 tokens and 2 seconds. Registry data like
+        #: max_tokens and sampling — a rung must not know which family it is
+        #: calling, and sending this to a model that has no such parameter is
+        #: at best ignored and at worst a 400.
+        self.reasoning_effort: str | None = overrides.get(
+            "reasoning_effort", p.get("reasoning_effort")
+        )
+        self.timeout_s: float = float(
+            overrides.get("timeout_s", p.get("timeout_s", DEFAULT_TIMEOUT_S))
+        )
 
     def dollars(self, prompt_tokens: int, completion_tokens: int) -> float:
         return (
@@ -94,17 +163,29 @@ class LLMClient:
         messages: list[dict],
         sample_index: int = 0,
         temperature: float = 0.0,
-        max_tokens: int = 2000,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
+        # EVERYTHING THAT CHANGES THE ANSWER GOES IN THE KEY. max_tokens and
+        # reasoning_effort were absent, so raising a budget or lowering an
+        # effort served the PREVIOUS answer from disk as though it were the
+        # new configuration's. Caught the worst way: S0 rerun with
+        # reasoning_effort=low reported 16,000 tokens and a truncation, which
+        # was the old entry. A cache that survives a parameter change is not a
+        # cache, it is a stale result.
         payload = {
             "model": self.info.spec,
             "messages": messages,
             "temperature": temperature,
             "sample_index": sample_index,
+            "max_tokens": max_tokens or self.info.max_tokens,
+            "reasoning_effort": self.info.reasoning_effort,
         }
         path = self._cache_path(payload)
         if path.exists():
             data = json.loads(path.read_text())
+            # Older cache entries predate the flag; absent means "not known to
+            # be truncated", never "known not to be".
+            data.setdefault("truncated", False)
             return LLMResponse(**data, cached=True)
 
         if self._client is None:
@@ -113,19 +194,46 @@ class LLMClient:
             self._client = OpenAI(base_url=self.info.base_url, api_key=self._api_key)
 
         t0 = time.monotonic()
-        resp = self._client.chat.completions.create(
-            model=self.info.model,
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-        )
+        # `temperature` stays in the CACHE KEY above even when it is not sent:
+        # two sampling requests must not collide just because the model has no
+        # dial for them, or rung 3's k votes would be one answer k times.
+        params: dict[str, Any] = {
+            "model": self.info.model,
+            "messages": messages,
+            # The model's own budget unless the caller overrides it.
+            "max_tokens": max_tokens or self.info.max_tokens,
+            "timeout": self.info.timeout_s,
+        }
+        if self.info.sampling:
+            params["temperature"] = temperature
+        if self.info.reasoning_effort:
+            params["reasoning_effort"] = self.info.reasoning_effort
+        try:
+            resp = self._client.chat.completions.create(**params)
+        except _timeout_errors() as exc:
+            # NOT raised onward, and NOT cached. A run that dies on one
+            # runaway document has measured nothing; a run that records the
+            # timeout has measured the other 39 and one timeout, which is a
+            # result. And a timeout is a property of this run — of load, of
+            # this machine — not of the question, so caching it would make the
+            # answer permanently unavailable on every later run.
+            print(f"[llm] timed out after {self.info.timeout_s}s: {exc}", file=sys.stderr)
+            return LLMResponse(
+                text="", prompt_tokens=0, completion_tokens=0,
+                latency_s=round(time.monotonic() - t0, 3),
+                truncated=True, timed_out=True,
+            )
         latency = time.monotonic() - t0
         usage = resp.usage
+        choice = resp.choices[0]
         data = {
-            "text": resp.choices[0].message.content or "",
+            "text": choice.message.content or "",
             "prompt_tokens": usage.prompt_tokens if usage else 0,
             "completion_tokens": usage.completion_tokens if usage else 0,
             "latency_s": round(latency, 3),
+            # Cached alongside the text: a cached reply that was truncated is
+            # still truncated, or one run reports two different failure counts.
+            "truncated": getattr(choice, "finish_reason", None) == "length",
         }
         path.write_text(json.dumps(data, ensure_ascii=False))
         return LLMResponse(**data, cached=False)
@@ -148,8 +256,15 @@ class LLMClient:
 
 ROLE_BY_RUNG = {0: "extractor", 2: "extractor", 3: "extractor", 4: "judge"}
 
-#: Local, free, and no corpus text leaves the machine. See LICENCE note below.
-DEFAULT_MODEL = "ollama/gpt-oss:20b"
+# NO DEFAULT MODEL HERE, DELIBERATELY.
+#
+# `llm.py` used to carry DEFAULT_MODEL = "ollama/gpt-oss:20b" while
+# `manifest.model.extractor` said granite4:micro-h, so "which model produced
+# this number" had two answers depending on whether a manifest reached the
+# call. A silent fallback is the exact defect centralising model selection was
+# meant to remove: the run still produces numbers, just not the ones the
+# manifest describes. The manifest is the one place a model is named, and a
+# missing entry raises.
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*\n(.*?)\n\s*```\s*$", re.S)
 
@@ -215,7 +330,11 @@ class Caller:
             "seconds": round(elapsed, 3),
             "model": self.spec,
             "cached": resp.cached,
+            "timed_out": resp.timed_out,
             "usd": self.client.info.dollars(resp.prompt_tokens, resp.completion_tokens),
+            # The rung logs this. Without it the flag stops at the client and
+            # nothing downstream can tell a cut-off reply from a bad one.
+            "truncated": resp.truncated,
         }
         return self._unfence(resp.text), usage
 
@@ -253,13 +372,25 @@ class Caller:
 
 
 def resolve(role: str, manifest: dict | None = None, override: str | None = None) -> str:
-    """Which model plays `role`. Explicit > env > manifest > default."""
-    return (
+    """Which model plays `role`. Explicit > env > manifest, and then it stops.
+
+    There is no fallback. A run whose manifest does not name a model is a run
+    nobody can attribute, and guessing one produces numbers that describe a
+    model the results file does not mention.
+    """
+    spec = (
         override
         or os.environ.get("LADDER_MODEL_SPEC")
         or ((manifest or {}).get("model") or {}).get(role)
-        or DEFAULT_MODEL
     )
+    if not spec:
+        raise SystemExit(
+            f"no model for role {role!r}. Set manifest.model.{role}, or pass "
+            f"--extractor / LADDER_MODEL_SPEC for a single run.\n"
+            "manifest.model is the ONE place a model is named — see "
+            "ladder/llm.py:for_rung."
+        )
+    return spec
 
 
 def for_rung(n: int, manifest: dict | None = None, override: str | None = None) -> Caller | None:

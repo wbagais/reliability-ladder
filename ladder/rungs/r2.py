@@ -176,6 +176,9 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
     raw, usage = llm(prompt, source, "correct")
     meta["tokens_in"] = usage.get("in", 0)
     meta["tokens_out"] = usage.get("out", 0)
+    # The caller already priced the call from models.yaml. Dropping it here
+    # logged 0.0 for every paid run — invisible locally, where zero is right.
+    meta["usd"] = usage.get("usd", 0.0)
     # Latency is one of the three cost measures and is never derived from a
     # total: it is recorded per call so p95 is a real percentile over calls.
     meta["latency_ms"] = usage.get("seconds", 0.0) * 1000
@@ -258,6 +261,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                            zone=rec.zone, reason=reason, outcome="parse_failed",
                            tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                           usd=meta.get("usd", 0.0),
                            api_calls=1,
                            denominator="r2_attempted", evaluable="could_not_run")
             continue
@@ -268,6 +272,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                            zone=rec.zone, reason=reason, outcome="skipped",
                            tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                           usd=meta.get("usd", 0.0),
                            api_calls=1,
                            denominator="r2_attempted", evaluable="could_not_run")
             continue
@@ -290,6 +295,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG,
                              zone=rec.zone, reason=reason, outcome="declined",
                              tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                             usd=meta.get("usd", 0.0),
                              api_calls=1, latency_ms=meta["latency_ms"],
                              denominator="r2_attempted", evaluable="fail")
             continue
@@ -301,6 +307,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
                              reason=reason, outcome="reasserted",
                              tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                             usd=meta.get("usd", 0.0),
                              api_calls=1, latency_ms=meta["latency_ms"],
                              denominator="r2_attempted", evaluable="fail")
             continue
@@ -333,6 +340,7 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                          reason=new_reason,
                          outcome=rec.checks["r2"]["outcome"],
                          tokens_in=meta["tokens_in"], tokens_out=meta["tokens_out"],
+                         usd=meta.get("usd", 0.0),
                          api_calls=1, latency_ms=meta["latency_ms"],
                          denominator="r2_attempted",
                          evaluable="pass" if rescued else "fail")
