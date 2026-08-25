@@ -69,6 +69,11 @@ DEFAULTS: dict[str, Any] = {
     #: the CODE is obtained changes.
     "rung0_step": None,
     "rung0_shortlist_k": 20,
+    #: The few-shot ARM. False keeps the frozen S2 prompt; True appends the
+    #: synthetic worked example (FEWSHOT below) to every extraction prompt.
+    #: An arm rather than a default so its effect is measured against the
+    #: freeze, not folded into it.
+    "rung0_fewshot": False,
     #: Which retriever builds S2's candidate menu. "lexical" is
     #: Registry.shortlist — Jaccard token overlap over every SNOMED
     #: description. "dense" is cosine over the embedded keyword table
@@ -260,10 +265,46 @@ _RULES = """
 Report only reactions the writer actually experienced. Do not report anything
 they say they did NOT have.
 
+Report a reaction EVERY TIME it is described. If the writer mentions the same
+reaction twice, report it twice, each one where it appears — never merge
+repeat mentions into one.
+
+Vague and general states count. Feeling sick, being unwell, exhaustion or
+feeling terrible are reactions too — report them even when the writer names no
+specific symptom.
+
 Report the reaction, not the treatment for it. A transfusion, an operation, a
 scan or a hospital admission is something done TO the writer, not something the
 drug did to them. Measured: 1 of 7,311 gold mentions names a procedure.
 """
+
+#: The few-shot ARM (rung0_fewshot, default False). CADEC's span conventions
+#: are not all stateable as prose — measured 2026-08-25, gold KEEPS a leading
+#: intensifier 3x more often than it drops one (6.8% vs 2.2%), so a "trim the
+#: intensifier" rule was rejected and the example models the dominant
+#: convention instead. The post is SYNTHETIC: CADEC is non-transferable and
+#: this file is tracked, so the example must never quote the corpus — there is
+#: a test asserting it does not.
+FEWSHOT = """
+Example. A post reading:
+  "Got terrible cramps in both legs. The cramps came back the next night.
+   Felt totally washed out all week. My doctor ordered an MRI."
+has exactly these mentions:
+  "terrible cramps in both legs"  - the writer's own words, intensifier included
+  "cramps"                        - the same reaction, reported again where it reappears
+  "washed out"                    - a vague general state is still a reaction
+and nothing for the MRI - a test done to the writer, not a reaction.
+"""
+
+
+def _extraction_prompt(base: str, cfg: dict | None) -> str:
+    """The step's extraction prompt, plus the worked example when the few-shot
+    arm is on. Appended to ALL of S0/S1/FIND identically — scope is identical
+    across steps by design, and an example only some steps saw would break
+    that."""
+    if (cfg or {}).get("rung0_fewshot"):
+        return base + FEWSHOT
+    return base
 
 S0_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
 
@@ -471,7 +512,7 @@ def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
 
 
 def _step_s0(doc_id, source, llm, cfg, meta):
-    raw, usage = llm(S0_PROMPT, source, "S0")
+    raw, usage = llm(_extraction_prompt(S0_PROMPT, cfg), source, "S0")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -572,7 +613,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     single candidate is not a choice, and paying for a pick over it is pure
     cost. So S1's call count is data about the corpus, not a constant.
     """
-    raw, usage = llm(S1_PROMPT, source, "S1")
+    raw, usage = llm(_extraction_prompt(S1_PROMPT, cfg), source, "S1")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -675,7 +716,7 @@ def _retriever(cfg: dict):
 
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
-    raw, usage = llm(FIND_PROMPT, source, step)
+    raw, usage = llm(_extraction_prompt(FIND_PROMPT, cfg), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -759,23 +800,34 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             continue
         if idx not in choices:
             rec.checks["no_pick"] = True
+            meta["no_pick"] = meta.get("no_pick", 0) + 1
             continue
         choice = choices[idx]
         if choice is None:
-            # Shown every candidate the vocabulary offered and declining is an
-            # assertion that none fits — which is exactly CONCEPT_LESS.
-            rec.sct = CONCEPT_LESS
-            rec.sct_label = CONCEPT_LESS
+            # REVISED 2026-08-25: this used to write CONCEPT_LESS, on the
+            # theory that declining the menu asserts no concept fits. But the
+            # menu is k of 227,554 — it misses the gold code for 13.0% of
+            # coded mentions even deduped — so the decline asserts "none of
+            # THESE" and nothing wider. The scorer credits CONCEPT_LESS as
+            # CORRECT against concept-less gold, so the old behaviour scored
+            # a vocabulary-wide claim the model never made. Degrades to None
+            # (abstained), never up to an assertion.
+            rec.sct = None
+            rec.sct_label = None
+            rec.checks["declined_shortlist"] = True
+            meta["declined_shortlist"] = meta.get("declined_shortlist", 0) + 1
             continue
         try:
             n = int(choice)
         except (TypeError, ValueError):
             rec.checks["bad_pick"] = choice
+            meta["bad_pick"] = meta.get("bad_pick", 0) + 1
             continue
         if not 0 <= n < len(cands):
             # Never clamped: an out-of-range index is the model failing to use
             # the menu, and clamping it would report that as a code choice.
             rec.checks["bad_pick"] = n
+            meta["bad_pick"] = meta.get("bad_pick", 0) + 1
             continue
         chosen = cands[n]
         # `sct_label` is "what the MODEL said that code means", and rung 1's
@@ -888,7 +940,7 @@ def apply(
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
-        "code_unknown": 0,
+        "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -914,6 +966,9 @@ def apply(
         agg["multi_code"] += meta.get("multi_code", 0)
         # S0 only: the model named a concept but did not recall its id.
         agg["code_unknown"] += meta.get("code_unknown", 0)
+        # S1/S2 pick outcomes that are failures or declines, not choices.
+        for k in ("no_pick", "bad_pick", "declined_shortlist"):
+            agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:

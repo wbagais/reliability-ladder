@@ -346,17 +346,33 @@ class EmbeddingIndex:
         got = self._embed([str(text)])
         if not got:
             return []
-        out = []
-        for row, score in cosine_top_k(got[0], self.matrix, k):
-            keyword, code = self.rows[row]
-            out.append({
-                "i": len(out),
-                "code": code,
-                "label": keyword,
-                "fsn": keyword,
-                "score": round(score, 4),
-                "via": "dense",
-            })
+        # k means k CONCEPTS. Synonyms of one concept cluster in embedding
+        # space, so an undeduped top-k spends several slots saying the same
+        # thing (46.8% of codes carry more than one keyword; a live top-5 held
+        # 12063002 twice). Registry.shortlist already dedupes by concept, and
+        # the two retrievers must agree on what a slot is. Each concept keeps
+        # its best-scoring keyword; over-fetch, then widen to the whole index
+        # only if synonyms crowded out the k-th concept.
+        out, seen = [], set()
+        for fetch in (min(4 * k, len(self.rows)), len(self.rows)):
+            out, seen = [], set()
+            for row, score in cosine_top_k(got[0], self.matrix, fetch):
+                keyword, code = self.rows[row]
+                if code in seen:
+                    continue
+                seen.add(code)
+                out.append({
+                    "i": len(out),
+                    "code": code,
+                    "label": keyword,
+                    "fsn": keyword,
+                    "score": round(score, 4),
+                    "via": "dense",
+                })
+                if len(out) >= k:
+                    return out
+            if fetch >= len(self.rows):
+                break
         return out
 
 

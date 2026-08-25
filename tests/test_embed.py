@@ -129,6 +129,36 @@ def test_k_is_respected(index):
     assert len(index.search("extreme rectal bleed", k=2)) == 2
 
 
+def test_one_concept_appears_once_however_many_synonyms_it_has(tmp_path):
+    """The menu is a menu of CONCEPTS. 46.8% of codes carry more than one
+    keyword and synonyms of one concept cluster in embedding space, so an
+    undeduped top-k spends several of its slots saying the same thing —
+    measured live: a top-5 for "extreme rectal bleed" held 12063002 twice and
+    414991007 twice. Registry.shortlist already dedupes by concept (`scored`
+    is keyed by cid); the dense path must match it, keeping each concept's
+    best-scoring keyword.
+    """
+
+    class SynonymEmbedder(FakeEmbedder):
+        VECTORS = {
+            **FakeEmbedder.VECTORS,
+            # same concept as |rectal hemorrhage|, slightly closer to the query
+            "rectal bleeding": [0.95, 0.05, 0.0],
+        }
+
+    rows = [("rectal bleeding", "12063002"), *ROWS]
+    build_index(rows, tmp_path / "kw", SynonymEmbedder(), batch=2)
+    idx = EmbeddingIndex(tmp_path / "kw", SynonymEmbedder())
+    got = idx.search("extreme rectal bleed", k=2)
+    codes = [h["code"] for h in got]
+    assert len(codes) == len(set(codes)) == 2
+    # the concept keeps its BEST synonym, and k still means k concepts
+    assert got[0]["code"] == "12063002"
+    assert got[0]["label"] == "rectal bleeding"
+    assert got[1]["code"] == "72002"
+    assert [h["i"] for h in got] == [0, 1]
+
+
 def test_an_empty_query_returns_nothing(index):
     assert index.search("", k=5) == []
     assert index.search(None, k=5) == []

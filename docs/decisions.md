@@ -2662,3 +2662,65 @@ freeze exists to prevent, and it would have been invisible.
 confidence interval, and S1 vs S2 is 3.8 points of exact F1. The test split is
 what would call it properly. S2 is frozen because the ladder needs A step to
 be frozen, not because the gap is large.
+
+---
+
+## 2026-08-25 — rung 0 review: four enhancements, one rejected on re-measurement
+
+A deep review of the frozen S2 ran it on 3 dev documents (F1 strict 0.33; the
+losses were recall — 3 of 7 gold mentions attempted — and one modifier-pulled
+wrong pick). Four changes came out of it, each TDD'd; one planned change died
+on its own measurement.
+
+**1. Dense shortlist now dedupes by CONCEPT** (`EmbeddingIndex.search`).
+Synonyms of one concept cluster in embedding space, and 46.8% of codes carry
+more than one keyword (mean 1.78, max 27) — a live top-5 for "extreme rectal
+bleed" held 12063002 twice and 414991007 twice. `Registry.shortlist` already
+dedupes by cid, so the two retrievers now agree on what a slot means. Measured
+over the same 6,595 gold mentions (the 86.1% baseline reproduced exactly
+first, validating the harness):
+
+    k          1      5      10     20     50
+    undeduped  63.7%  76.7%  82.1%  86.1%  90.3%
+    deduped    63.7%  77.7%  83.2%  87.0%  91.1%
+
++0.9pt recall@20 for zero extra cost, and menus with no duplicate lines.
+
+**2. Declining the pick menu is no longer CONCEPT_LESS.** The old reading —
+"shown every candidate the vocabulary has, declining is an assertion" — was
+false: the menu is k of 227,554, and it misses the gold code for 13.0% of
+coded mentions even deduped. The scorer credits CONCEPT_LESS as CORRECT
+against concept-less gold, so a decline was scored as a vocabulary-wide claim
+the model never made. A decline now degrades to `sct = None` (abstained),
+flagged `declined_shortlist` and counted. Same for S1's menu (its own names'
+codes). CONCEPT_LESS remains reachable where the model actually asserts it:
+the S0/S1 sentinel. Note the trade: S2 can no longer score CORRECT on
+concept-less gold — the credit it loses is credit it had not earned.
+
+**3. `no_pick` / `bad_pick` / `declined_shortlist` aggregate into `agg`** —
+they were per-record flags only, so a run where the model fumbled every menu
+printed a clean summary.
+
+**4. Two coverage rules added to the shared `_RULES` (all three steps, scope
+parity kept).** Measured first, per the rule about prompt rules: 385 gold
+mentions (5.6%, exclusions applied) are an exact repeat of an earlier span in
+the same document — CADEC annotates every occurrence, the model dedupes
+("spotting" reported once where gold has it twice). And gold codes general
+malaise ("extremely sick" is 213257006), which S2 skipped on the first dev
+document. Rules: report a reaction every time it is described; vague and
+general states count.
+
+**REJECTED: trimming intensifiers, again, now with the sign measured.** The
+plan proposed "quote the symptom without severity words" after watching gold
+say "rectal bleed" where the model said "extreme rectal bleed". Re-measured:
+gold KEEPS a leading intensifier 3x more often than it drops one — 469
+mentions (6.8%) start with one and keep it, 151 (2.2%) have one immediately
+before the span and excluded. The two dev misses are the minority convention.
+The rule stays out, the existing test guarding it stays, and the few-shot
+example below models the majority convention (intensifier kept).
+
+**NEW ARM, unmeasured: `rung0_fewshot`** (default False). A synthetic worked
+example — never CADEC text; a test asserts it — appended to every extraction
+prompt, teaching the three things prose could carry plus the one it could
+not: repeats reported again, vague states reported, treatments excluded,
+intensifier kept. Off until measured against the frozen S2 on dev.
