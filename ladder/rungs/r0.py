@@ -421,12 +421,15 @@ Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confide
 FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
 
 For each one return:
-""" + _ASK + """  confidence - 0.0 to 1.0
+""" + _ASK + """  sct_label  - up to three SNOMED CT concept NAMES that could describe the
+               reaction, best first. These are used to SEARCH the vocabulary;
+               the final concept is chosen for you in a second step, so name
+               freely rather than carefully.
+  confidence - 0.0 to 1.0
 """ + _RULES + """
-Quote the reaction itself, not the sentence around it. The concept name is
-chosen in a second step, so do not give one here.
+Quote the reaction itself, not the sentence around it.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confidence":..}]}
 """
 
 PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
@@ -442,6 +445,10 @@ brackets of the concept you choose. Answer with numbers only, never with a
 concept name. Two other answers exist for choice:
   null          - the reaction is real, but none of these concepts describes it
   "no_concept"  - this is not something any clinical concept could describe
+
+Example of no_concept: for reaction "felt like my old self was gone" with a
+list of mood and fatigue concepts, the writer is describing a personal state
+no clinical concept names — the answer is "no_concept", not the nearest mood.
 
 {blocks}
 Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
@@ -799,6 +806,36 @@ def _retriever(cfg: dict):
     return (lambda text, k: index.search(text, k=k)), which
 
 
+def _merged_candidates(search, span: str, labels: list[str], k: int) -> list[dict]:
+    """The menu: hits for the SPAN and for each proposed NAME, merged.
+
+    Measured on arm 3 (2026-08-25): 35 of 226 gold mentions never had their
+    code on a span-only menu, and the recurring case is a colloquial span
+    whose embedding cannot reach the clinical concept — "extremely sick"
+    never surfaces |Generally unwell|, but the model can PROPOSE that name.
+
+    Deduped by concept, capped at k, renumbered. Ordered by score when every
+    hit carries one (cosine scores are comparable across queries — same
+    embedder); span-hits-first otherwise, so the lexical path keeps a
+    deterministic order. Each hit records which query found it.
+    """
+    batches = [("span", search(span, k))]
+    for lb in labels:
+        batches.append(("label", search(lb, k)))
+    hits = [{**h, "query": q} for q, batch in batches for h in batch]
+    if hits and all(isinstance(h.get("score"), (int, float)) for h in hits):
+        hits.sort(key=lambda h: -h["score"])
+    seen, out = set(), []
+    for h in hits:
+        if h["code"] in seen:
+            continue
+        seen.add(h["code"])
+        out.append({**h, "i": len(out)})
+        if len(out) >= k:
+            break
+    return out
+
+
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
     raw, usage = llm(_extraction_prompt(FIND_PROMPT, cfg), source, step)
@@ -816,8 +853,19 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     pairs = []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, step)
-        cands = search(rec.text, cfg.get("rung0_shortlist_k", 20))
+        labels = m.get("sct_label") or []
+        if isinstance(labels, str):
+            labels = [labels]
+        proposed = [str(x) for x in labels
+                    if x is not None and str(x).strip()
+                    and str(x).strip().upper() != CONCEPT_LESS]
+        cands = _merged_candidates(
+            search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
+        )
         rec.checks["candidates"] = cands
+        # WHAT the model offered, same as S0/S1 — it is also what makes the
+        # lookup-vs-retrieval 2x2 measurable on S2 runs.
+        rec.checks["labels_proposed"] = proposed
         rec.checks["label_source"] = "shortlist"
         rec.checks["code_source"] = "shortlist"
         # Two runs that differ only in their retriever must not look identical

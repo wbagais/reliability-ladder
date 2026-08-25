@@ -646,6 +646,68 @@ def test_fewshot_docs_must_come_from_the_pool(tmp_path):
         r0.pool_fewshot_block(man, ["ARTHROTEC.107"], loader=lambda root: {})
 
 
+# --- name-augmented retrieval (S2) -------------------------------------------
+#
+# Measured on arm 3: 35 of 226 mentions never had the gold code on the menu,
+# and the recurring case is a colloquial span whose embedding cannot reach the
+# clinical concept — "extremely sick" never surfaces |Generally unwell|. The
+# model can PROPOSE clinical names (S1 proves it), so S2's FIND step now asks
+# for them and the retriever queries the span AND each proposed name.
+
+
+def test_find_asks_for_names_to_search_with():
+    assert "sct_label" in r0.FIND_PROMPT
+
+
+def test_s2_retrieves_on_span_and_proposed_names(reg):  # noqa: F811
+    dense = FakeDense()
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "sct_label": ["Generally unwell"], "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, dense=dense))
+    queried = [q for q, _ in dense.queries]
+    assert "extremely sick" in queried
+    assert "Generally unwell" in queried
+
+
+def test_s2_merged_menu_dedupes_by_code_and_caps_at_k(reg):  # noqa: F811
+    span_hits = [{"i": 0, "code": "39104002", "label": "sickness",
+                  "fsn": "sickness", "score": 0.9, "via": "dense"}]
+    label_hits = [{"i": 0, "code": "39104002", "label": "illness",
+                   "fsn": "illness", "score": 0.8, "via": "dense"},
+                  {"i": 1, "code": "213257006", "label": "generally unwell",
+                   "fsn": "generally unwell", "score": 0.7, "via": "dense"}]
+
+    class TwoQueryDense(FakeDense):
+        def search(self, text, k=20):
+            self.queries.append((text, k))
+            return list(span_hits) if text == "extremely sick" else list(label_hits)
+
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "sct_label": ["Generally unwell"], "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        dense=TwoQueryDense(),
+                                        rung0_shortlist_k=2))
+    cands = recs[0].checks["candidates"]
+    codes = [c["code"] for c in cands]
+    assert codes == ["39104002", "213257006"]      # deduped, capped at k=2
+    assert [c["i"] for c in cands] == [0, 1]       # renumbered for the menu
+    assert recs[0].checks["labels_proposed"] == ["Generally unwell"]
+    assert recs[0].sct == "213257006"              # the label-only hit is pickable
+
+
+def test_the_pick_prompt_shows_a_no_concept_example():
+    """Arm 3 offered no_concept and the model used it zero times in 77 calls.
+    A hatch nobody is shown being used is decoration; the prompt now carries
+    one worked line."""
+    assert r0.PICK_PROMPT.count("no_concept") >= 2
+
+
 # --- S3 is gone, and stays gone ---------------------------------------------
 #
 # Dropped 2026-08-24 on measurement. S3 was closed-set assignment over a
