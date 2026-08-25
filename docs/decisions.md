@@ -2629,3 +2629,36 @@ The dev split is 40 documents and every figure above is a rate over 226
 mentions, not a confidence interval. S1 vs S2 differ by 3.8 points of exact F1
 and 0.5 on overlap — neither gap is large enough, at this n, to call a winner
 without the test split.
+
+---
+
+## 2026-08-24 — S2 frozen as rung 0
+
+The prompt-engineering study is closed. `manifest.rungs.0.rung0_step` is
+`"S2"`, chosen on the dev-split measurement in the entry above.
+
+**Why frozen rather than passed per run.** Rungs 1-6 all consume rung 0's
+output, so a ladder measured against three different rung 0s produces numbers
+that cannot be compared to each other or to anything published. One rung 0, in
+configuration, where the manifest copy saved beside the results records it.
+`--rung0-step` still overrides for a single run — that is how the study is
+reproduced — and it writes the choice into that copy, so two runs can never
+look identical on disk.
+
+**What the choice costs, stated rather than buried.** S2 wins exact F1 by 3.8
+points (0.209 vs 0.171) and ties S1 on overlap within half a point (0.310 vs
+0.305). It pays **1.9x the tokens** for that — 68,906 against 36,079 — and 75
+calls against 57. On the overlap reading, retrieval buys almost nothing over
+an exact keyword lookup at nearly twice the price. The exact reading is what
+carries the decision, and the cost is real: it is reported in the ledger's
+three measures and is not netted off against the accuracy gain.
+
+**`rung0_step: null` was never "the default step".** It is the pre-study A/B
+mode path. Leaving it null after the study would have run the whole ladder on
+a rung 0 that no measurement in this repo describes — which is the failure the
+freeze exists to prevent, and it would have been invisible.
+
+**Not settled by this.** 226 mentions over 40 documents is a rate, not a
+confidence interval, and S1 vs S2 is 3.8 points of exact F1. The test split is
+what would call it properly. S2 is frozen because the ladder needs A step to
+be frozen, not because the gap is large.

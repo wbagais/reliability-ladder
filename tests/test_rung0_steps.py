@@ -1136,3 +1136,63 @@ def test_the_span_instruction_is_still_identical_across_steps():
     for a, b in ((r0.S0_PROMPT, r0.S1_PROMPT), (r0.S1_PROMPT, r0.FIND_PROMPT)):
         assert r0._ASK in a and r0._ASK in b
         assert r0._RULES in a and r0._RULES in b
+
+
+# --- the frozen step ---------------------------------------------------------
+#
+# The prompt-engineering study is finished and S2 is the answer. Measured on
+# the dev split, 40 documents, 226 scorable gold reaction mentions,
+# gpt-oss:20b at reasoning_effort=low:
+#
+#             F1 exact  F1 overlap  calls  tokens  parse fails
+#     S0        0.018      0.018      40   43,998    5 of 40
+#     S1        0.171      0.305      57   36,079    0
+#     S2        0.209      0.310      75   68,906    0
+#
+# S2 wins exact F1 by 3.8 points and ties S1 on overlap within half a point,
+# for 1.9x the tokens. That is a real cost and it is not hidden: rungs 1-6 are
+# now all measured against S2, so a later change of step invalidates every
+# number above it. Which is exactly why it is frozen here rather than passed
+# per run.
+
+
+def test_the_manifest_freezes_s2():
+    """`rung0_step: null` means the pre-study A/B path, not "the default step".
+    Leaving it null after the study would have run the ladder on a rung 0 that
+    no measurement describes."""
+    import json as _json
+
+    man = _json.loads(pathlib.Path("manifest.json").read_text())
+    assert man["rungs"]["0"]["rung0_step"] == "S2"
+
+
+def test_the_frozen_step_is_a_real_step():
+    import json as _json
+
+    man = _json.loads(pathlib.Path("manifest.json").read_text())
+    assert man["rungs"]["0"]["rung0_step"] in r0.STEPS
+
+
+def test_the_step_flag_still_overrides_the_frozen_choice():
+    """Freezing must not remove the ability to rerun one step. --rung0-step is
+    how the study is reproduced, and it writes the choice into the manifest
+    copy saved beside the results."""
+    from ladder.run import apply_rung0_step
+
+    man = _json_manifest()
+    assert man["rungs"]["0"]["rung0_step"] == "S2", "frozen"
+    out = apply_rung0_step(man, "S0")
+    assert out["rungs"]["0"]["rung0_step"] == "S0"
+
+
+def test_no_flag_leaves_the_frozen_step_alone():
+    from ladder.run import apply_rung0_step
+
+    out = apply_rung0_step(_json_manifest(), None)
+    assert out["rungs"]["0"]["rung0_step"] == "S2"
+
+
+def _json_manifest():
+    import json as _json
+
+    return _json.loads(pathlib.Path("manifest.json").read_text())

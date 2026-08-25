@@ -229,7 +229,10 @@
   thing rung 0 cannot do — recall a nine-digit id — is also the most expensive.
   It is the only step that fails to parse, and the failure is its schema.
 - **S1 and S2 are close and S2 costs 1.9x.** Half a point apart on overlap,
-  3.8 points on exact. At n=226 that is not a winner; the test split decides.
+  3.8 points on exact. **S2 IS FROZEN in `manifest.rungs.0.rung0_step`
+  (2026-08-24).** The 1.9x token cost is a declared trade, not a free win, and
+  the three cost measures carry it. Frozen because rungs 1-6 must all be
+  measured against ONE rung 0; `--rung0-step` still overrides for a single run.
 - **The exact/overlap gap is span boundaries, not coding.** The model quotes
   "extreme rectal bleed" where gold says "rectal bleed" — same concept, scored
   as both a false positive and a false negative. Report both numbers.
@@ -238,9 +241,10 @@
   still emitted `2714004`, a nonexistent code, beside a correct label.
 
 ## Next, in order
-1. **The three dev runs — S0, S1, S2.** DONE, see above. Still to do: pick the
-   winning step, freeze it in the manifest, and run the ladder from there —
-   otherwise rungs 1-6 are measured against three different rung 0s. Everything measured so far is ONE
+1. **Run the full ladder on the frozen S2.** The three dev runs are DONE and
+   S2 is frozen in the manifest (see above). Rungs 1-6 have never been
+   measured against it — every number above rung 0 predates the freeze.
+   `python -m ladder.run ladder --split dev` Everything measured so far is ONE
    document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
    winning step, freeze it in the manifest, and run the ladder from there —
    otherwise rungs 1-6 are measured against three different rung 0s and nothing
