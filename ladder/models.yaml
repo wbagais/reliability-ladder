@@ -8,42 +8,35 @@ providers:
     input_per_mtok: 0.0
     output_per_mtok: 0.0
     models:
-      # REASONING MODEL. It emits a chain of thought before the answer, so the
-      # 2000-token default truncates it mid-JSON every time. Measured
-      # 2026-08-24 on ARTHROTEC.107: S0 and S2 both returned exactly 2000
-      # completion tokens and both were logged parse_failed/json_decode, which
-      # is the harness's cap recorded as the model's reliability.
       # REASONING MODEL. Its chain of thought goes to a separate `reasoning`
-      # field and `content` stays EMPTY until it finishes, so the budget has
-      # to cover the thinking as well as the answer. Measured 2026-08-24 on
-      # rung 0's S0 (recall a nine-digit SNOMED id from memory):
+      # field and `content` stays EMPTY until it finishes, so completion
+      # tokens are mostly deliberation that is then thrown away. Measured
+      # 2026-08-24 at DEFAULT effort on a 166-character post: 1,754 reasoning
+      # tokens against 75 answer tokens. 96% of the call is discarded.
       #
-      #   default effort, 16000 cap   16000 tokens, content EMPTY, truncated
-      #   default effort, 32000 cap    2306 tokens, content OK,      34s
-      #   reasoning_effort=medium      8000 tokens, content EMPTY, truncated
-      #   reasoning_effort=low          104 tokens, content OK,       2s
+      # reasoning_effort=low, measured over TEN dev documents, 30 gold
+      # reaction mentions, both arms, same prompts:
       #
-      # reasoning_effort is DELIBERATELY UNSET. "low" fixed S0's truncation
-      # and cost the thing under measurement. Measured over 3 documents,
-      # 17 gold reaction mentions:
+      #             tokens    sec   gold found
+      #   S1 low     1,176     22   19/30  (63%)
+      #   S1 default 15,918   320   19/30  (63%)   <- IDENTICAL
+      #   S0 low      3,805     77   10/30  (33%)
+      #   S0 default 39,426   853   11/30  (37%)   <- one mention
       #
-      #                        S0    S1    S2   tok_out    sec
-      #   effort=low  cap 8k    1    10     9      ~900     ~1
-      #   default     cap 32k  11    12    13   5.8-28.6k  106-539
+      # S1 loses NOTHING and runs 14x faster. S0 loses one mention of thirty
+      # and runs 11x faster. The dev split goes from ~4 hours to ~10 minutes,
+      # which is the difference between a measurement that gets rerun and one
+      # that does not.
       #
-      # S0 finds ONE mention of seventeen at low effort — that is not a
-      # speed-up, it is a different experiment. And scope must be identical
-      # across S0/S1/S2 or their comparison means nothing, so the effort
-      # cannot differ per step either. The cost is real and is reported: the
-      # dev split takes hours, not minutes.
-      # Measured on the dev split, S1, over 30 documents (median 309 chars):
-      #   completion tokens   median 1,029   p90 3,244   max 7,836
-      #   latency seconds     median    32   p90    98   max   694
-      # Then one call on a 761-character post ran past 25 MINUTES toward the
-      # 32,000 cap — a reasoning runaway, not work. 8000 covers every call
-      # that terminated; timeout_s bounds the ones that do not, so a tail
-      # document costs one timed-out record instead of the whole run.
-      gpt-oss:20b: { max_tokens: 8000, timeout_s: 300 }
+      # THIS REVERSES AN EARLIER DECISION, and the reason it was wrong is the
+      # standing rule it broke: `low` was rejected on THREE documents, where
+      # it appeared to find 1 gold mention of 17. Three documents cannot
+      # measure this. See CLAUDE.md, "config measurements need more than
+      # three documents" — written before this, and then not applied.
+      #
+      # 8000 covers every call that terminates at this effort with room to
+      # spare; timeout_s bounds the ones that do not.
+      gpt-oss:20b: { max_tokens: 8000, timeout_s: 300, reasoning_effort: low }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY

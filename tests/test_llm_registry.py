@@ -338,12 +338,28 @@ def test_the_env_override_still_wins_over_the_manifest():
 # a rung must not know which family it is calling.
 
 
-def test_reasoning_effort_is_unset_for_the_extractor():
-    """Measured over 3 documents / 17 gold mentions: at effort=low S0 finds
-    ONE. That is not a speed-up, it is a different experiment — and scope must
-    be identical across S0/S1/S2, so the effort cannot differ per step either.
-    The mechanism stays; the value is deliberately absent."""
-    assert ModelInfo("ollama/gpt-oss:20b").reasoning_effort is None
+def test_the_extractor_runs_at_low_reasoning_effort():
+    """REVERSES the earlier "deliberately unset", and the reversal is the
+    lesson. That call was made over THREE documents, where effort=low appeared
+    to find 1 gold mention of 17.
+
+    Re-measured over TEN dev documents, 30 gold reaction mentions, both arms,
+    identical prompts:
+
+                    tokens    sec   gold found
+        S1 low       1,176     22   19/30  (63%)
+        S1 default  15,918    320   19/30  (63%)   <- IDENTICAL
+        S0 low       3,805     77   10/30  (33%)
+        S0 default  39,426    853   11/30  (37%)   <- one mention
+
+    S1 loses nothing and runs 14x faster; S0 loses one mention of thirty. The
+    dev split goes from ~4 hours to ~10 minutes, which is the difference
+    between a measurement that gets rerun and one that does not.
+
+    Three documents could not measure this. CLAUDE.md already said so — the
+    rule existed before the decision and was not applied to it.
+    """
+    assert ModelInfo("ollama/gpt-oss:20b").reasoning_effort == "low"
 
 
 def test_a_model_with_no_reasoning_channel_declares_none():

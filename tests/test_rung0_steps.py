@@ -1016,3 +1016,84 @@ def test_a_timed_out_call_is_labelled_timed_out_not_truncated(reg):  # noqa: F81
         assert rows[0]["reason"] == "timed_out"
         assert agg["timed_out"] == 1
         assert agg["truncated"] == 1
+
+
+# --- S0 needs a legal way to say "I do not recall the id" -------------------
+#
+# S0 asks the model to recall a nine-digit SNOMED identifier from its own
+# WEIGHTS — no lookup, no tool. That is the point of `rung0_mode: recall`.
+#
+# The prompt offered three options and none fits "I know the concept but not
+# its number":
+#
+#     CONCEPT_LESS        means NO SNOMED CONCEPT EXISTS for this reaction.
+#                         False for "rectal bleeding", which plainly has one.
+#     give a code         forbidden by "Do not invent a concept id".
+#     (nothing else)
+#
+# So the model deliberated. Measured on the dev split: 10% of calls ran to the
+# 8,000-token cap and returned NOTHING, on two-line forum posts, at a healthy
+# 52 tok/s. It was not thinking hard; it had been given a question with no
+# legal answer.
+#
+# A null code is that answer. It also separates two facts S0 exists to
+# measure and could not previously tell apart: how often the model NAMES the
+# right concept, and how often it RECALLS the right id.
+
+
+def test_s0_offers_a_null_code_as_a_legal_answer():
+    assert "null" in r0.S0_PROMPT.lower()
+    assert "sct_code" in r0.S0_PROMPT
+
+
+def test_s0_still_forbids_inventing_an_id():
+    """The exit must not become permission to guess — an invented id is the
+    failure rung 1 exists to catch, and it must stay countable."""
+    assert "invent" in r0.S0_PROMPT.lower()
+
+
+def test_concept_less_still_means_no_concept_exists():
+    """The two abstentions are different claims and the prompt must keep them
+    apart, or a model with a bad memory looks like a gap in the vocabulary."""
+    low = r0.S0_PROMPT.lower()
+    assert "no snomed ct concept describes" in low
+
+
+def test_s0_records_a_named_concept_whose_id_is_unknown(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["Rectal hemorrhage"], "sct_code": None, "confidence": 0.9}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].sct_label == "Rectal hemorrhage", "the NAME survives"
+    assert recs[0].checks["code_unknown"] is True
+    assert agg["code_unknown"] == 1
+
+
+def test_s0_distinguishes_that_from_concept_less(reg):  # noqa: F811
+    """CONCEPT_LESS is a claim about the VOCABULARY; a null code is a claim
+    about the model's own memory."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extremely sick", "context": "I was", "start": 80, "end": 94,
+        "sct_label": [CONCEPT_LESS], "sct_code": CONCEPT_LESS, "confidence": 0.5}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct == CONCEPT_LESS
+    assert "code_unknown" not in recs[0].checks
+    assert agg["code_unknown"] == 0
+
+
+def test_a_recalled_code_is_not_flagged_unknown(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["Rectal hemorrhage"], "sct_code": "12063002", "confidence": 0.9}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert agg["code_unknown"] == 0
+
+
+def test_the_span_instruction_is_still_identical_across_steps():
+    """Scope parity is the whole study design. A change to S0's code section
+    must not touch how any step is told to quote a span."""
+    for a, b in ((r0.S0_PROMPT, r0.S1_PROMPT), (r0.S1_PROMPT, r0.FIND_PROMPT)):
+        assert r0._ASK in a and r0._ASK in b
+        assert r0._RULES in a and r0._RULES in b

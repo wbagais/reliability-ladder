@@ -273,8 +273,16 @@ For each one return:
   sct_code   - the SNOMED CT concept id matching sct_label[0]
   confidence - 0.0 to 1.0
 """ + _RULES + """
-If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS for both
-sct_label and sct_code. Do not invent a concept id.
+Two different answers, and they are not the same:
+
+  If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS for both
+  sct_label and sct_code.
+
+  If you know which concept it is but do not recall its id, give sct_label and
+  answer null for sct_code. That is a complete and acceptable answer.
+
+Never invent a concept id, and do not spend effort trying to recall one — null
+is better than a guess.
 
 Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"confidence":..}]}
 """
@@ -490,7 +498,20 @@ def _step_s0(doc_id, source, llm, cfg, meta):
         # the schema violation is COUNTED rather than repaired away: how often
         # a model ignores "one code" is a reliability fact about the model,
         # which is exactly what S0 measures.
+        # A NULL code with a label present is the model saying "I know the
+        # concept, not its number" — an answer S0 had no way to express, so
+        # the model deliberated instead. Measured on the dev split before this
+        # existed: 10% of calls ran to the 8,000-token cap and returned
+        # nothing, on two-line posts, at a healthy 52 tok/s. It was not
+        # thinking hard; it had been given a question with no legal answer.
+        #
+        # Counted separately from CONCEPT_LESS, which is a claim about the
+        # VOCABULARY rather than about the model's memory. Without the split, a
+        # model with a bad memory looks like a gap in SNOMED.
         code = m.get("sct_code")
+        if code is None and labels and str(labels[0]).strip().upper() != CONCEPT_LESS:
+            rec.checks["code_unknown"] = True
+            meta["code_unknown"] = meta.get("code_unknown", 0) + 1
         if isinstance(code, (list, tuple)):
             rec.checks["sct_code_multi"] = [str(c) for c in code]
             meta["multi_code"] = meta.get("multi_code", 0) + 1
@@ -867,6 +888,7 @@ def apply(
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
+        "code_unknown": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -890,6 +912,8 @@ def apply(
         # S0 only: mentions where the model answered with several codes where
         # the prompt asked for one.
         agg["multi_code"] += meta.get("multi_code", 0)
+        # S0 only: the model named a concept but did not recall its id.
+        agg["code_unknown"] += meta.get("code_unknown", 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:
