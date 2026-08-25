@@ -36,7 +36,14 @@ providers:
       # across S0/S1/S2 or their comparison means nothing, so the effort
       # cannot differ per step either. The cost is real and is reported: the
       # dev split takes hours, not minutes.
-      gpt-oss:20b: { max_tokens: 32000 }
+      # Measured on the dev split, S1, over 30 documents (median 309 chars):
+      #   completion tokens   median 1,029   p90 3,244   max 7,836
+      #   latency seconds     median    32   p90    98   max   694
+      # Then one call on a 761-character post ran past 25 MINUTES toward the
+      # 32,000 cap — a reasoning runaway, not work. 8000 covers every call
+      # that terminated; timeout_s bounds the ones that do not, so a tail
+      # document costs one timed-out record instead of the whole run.
+      gpt-oss:20b: { max_tokens: 8000, timeout_s: 300 }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY

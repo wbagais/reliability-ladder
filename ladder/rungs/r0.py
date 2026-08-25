@@ -181,6 +181,7 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
 
     try:
         parsed = json.loads(raw)
@@ -467,6 +468,7 @@ def _step_s0(doc_id, source, llm, cfg, meta):
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -554,6 +556,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -656,6 +659,7 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
     meta["api_calls"] += 1
     parsed = _parse(raw, meta)
     if parsed is None:
@@ -706,6 +710,7 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
+    meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
     meta["api_calls"] += 1
     # A pick reply that will not parse is NOT the model declining. Measured on
     # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
@@ -861,7 +866,7 @@ def apply(
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
-        "pick_parse_failed": 0, "truncated": 0, "multi_code": 0,
+        "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -881,6 +886,7 @@ def apply(
         # model cannot emit JSON" are different findings and must not share a
         # label. Raising max_tokens moves this, it does not remove it.
         agg["truncated"] += int(meta.get("truncated", False))
+        agg["timed_out"] += int(meta.get("timed_out", False))
         # S0 only: mentions where the model answered with several codes where
         # the prompt asked for one.
         agg["multi_code"] += meta.get("multi_code", 0)
@@ -898,7 +904,8 @@ def apply(
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
                 reason=(
-                    "truncated" if meta.get("truncated")
+                    "timed_out" if meta.get("timed_out")
+                    else "truncated" if meta.get("truncated")
                     else "json_decode" if meta.get("parse_failed")
                     else None
                 ),
@@ -973,7 +980,8 @@ def run(items, mode, llm, cfg=None):
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
                 reason=(
-                    "truncated" if meta.get("truncated")
+                    "timed_out" if meta.get("timed_out")
+                    else "truncated" if meta.get("truncated")
                     else "json_decode" if meta.get("parse_failed")
                     else None
                 ),

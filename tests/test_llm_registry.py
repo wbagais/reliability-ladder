@@ -448,3 +448,92 @@ def test_changing_reasoning_effort_does_not_reuse_the_old_answer(tmp_path):
     b.info.reasoning_effort = "high"
     b.chat(msgs)
     assert len(calls_b) == 1, "a different reasoning effort is a different run"
+
+
+# --- one runaway must not hang a whole split --------------------------------
+#
+# Measured 2026-08-24 on the dev split, S1, gpt-oss:20b over 30 documents
+# (median length 309 characters):
+#
+#     completion tokens   median 1,029   p90 3,244   max 7,836
+#     latency seconds     median    32   p90    98   max   694
+#
+# Then it stopped. One call ran past 25 minutes generating toward the 32,000
+# cap on a 761-character forum post — a reasoning runaway, not work. Ninety
+# percent of calls finish under 3,244 tokens; the tail is what makes a
+# 40-document run unbounded.
+#
+# A timeout turns "the run never finishes" into "one record is recorded as
+# timed out". That is the difference between a measurement and a hang.
+
+
+def test_timeout_comes_from_the_registry():
+    assert ModelInfo("ollama/gpt-oss:20b").timeout_s == 300
+
+
+def test_a_model_with_no_entry_gets_the_default():
+    from ladder.llm import DEFAULT_TIMEOUT_S
+
+    assert ModelInfo("ollama/ibm/granite4:micro-h").timeout_s == DEFAULT_TIMEOUT_S
+
+
+def test_the_timeout_reaches_the_request(tmp_path):
+    from ladder.llm import LLMClient
+
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            sent.update(kw)
+            raise RuntimeError("payload captured")
+
+    client = LLMClient("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    try:
+        client.chat([{"role": "user", "content": "hi"}])
+    except RuntimeError:
+        pass
+    assert sent["timeout"] == 300
+
+
+def test_a_timeout_is_reported_as_an_empty_timed_out_response(tmp_path):
+    """It must NOT raise. A run that dies on one runaway document has measured
+    nothing; a run that records the timeout has measured 39 documents and one
+    timeout, which is a result."""
+    import openai
+    from ladder.llm import LLMClient
+
+    class FakeCompletions:
+        def create(self, **kw):
+            raise openai.APITimeoutError(request=None)
+
+    client = LLMClient("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    resp = client.chat([{"role": "user", "content": "hi"}])
+    assert resp.text == ""
+    assert resp.timed_out is True
+    assert resp.truncated is True, "nothing usable came back, like any cut-off"
+
+
+def test_a_timeout_is_not_cached(tmp_path):
+    """A timeout is a property of the run, not of the question. Caching it
+    would make the answer permanently unavailable on every later run."""
+    import openai
+    from ladder.llm import LLMClient
+
+    calls = []
+
+    class FakeCompletions:
+        def create(self, **kw):
+            calls.append(kw)
+            raise openai.APITimeoutError(request=None)
+
+    client = LLMClient("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    msgs = [{"role": "user", "content": "hi"}]
+    client.chat(msgs)
+    client.chat(msgs)
+    assert len(calls) == 2

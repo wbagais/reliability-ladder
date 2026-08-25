@@ -993,3 +993,26 @@ def test_s0_an_empty_code_list_is_no_answer(reg):  # noqa: F811
         "sct_label": ["x"], "sct_code": [], "confidence": 0.9}]})
     recs, _ = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
     assert recs[0].sct is None
+
+
+def test_a_timed_out_call_is_labelled_timed_out_not_truncated(reg):  # noqa: F811
+    """One runaway document costs one record, not the run. `truncated` and
+    `timed_out` overlap — nothing usable came back either way — but the causes
+    differ and only one is a property of this machine."""
+    from ladder.ledger import Ledger
+    import json as _json, pathlib, tempfile
+
+    class TimedOut(FakeLLM):
+        def __call__(self, prompt, text, mode, **kw):
+            self.prompts.append(prompt)
+            return "", {"in": 0, "out": 0, "usd": 0.0,
+                        "truncated": True, "timed_out": True}
+
+    with tempfile.TemporaryDirectory() as d:
+        led = Ledger(pathlib.Path(d) / "l.jsonl", run_id="t")
+        _, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=TimedOut(), ledger=led))
+        led.flush()
+        rows = [_json.loads(x) for x in (pathlib.Path(d) / "l.jsonl").read_text().splitlines() if x.strip()]
+        assert rows[0]["reason"] == "timed_out"
+        assert agg["timed_out"] == 1
+        assert agg["truncated"] == 1

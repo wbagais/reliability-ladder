@@ -17,8 +17,19 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import sys
+
 import yaml
 from typing import Any
+
+
+def _timeout_errors() -> tuple[type[BaseException], ...]:
+    """What the provider raises when a call outlives its budget."""
+    try:
+        import openai
+    except ImportError:  # pragma: no cover - openai is a local-only extra
+        return (TimeoutError,)
+    return (openai.APITimeoutError, TimeoutError)
 
 REGISTRY_PATH = Path(__file__).parent / "models.yaml"
 
@@ -26,6 +37,13 @@ REGISTRY_PATH = Path(__file__).parent / "models.yaml"
 #: document's worth of mentions from an instruct model; a reasoning model
 #: needs its own entry — see ModelInfo.max_tokens.
 DEFAULT_MAX_TOKENS = 2000
+
+#: Wall-clock seconds for one call. A reasoning model can run away on a short
+#: post — measured on a 761-character document, one call passed 25 minutes
+#: generating toward a 32,000-token cap — and a 40-document split then never
+#: finishes. A timeout turns "the run hangs" into "one record timed out",
+#: which is the difference between a measurement and nothing.
+DEFAULT_TIMEOUT_S = 120
 DEFAULT_CACHE_DIR = Path(__file__).parent.parent / ".llm_cache"
 
 
@@ -44,6 +62,11 @@ class LLMResponse:
     #: rung 0 exists to report. Raising the cap does not fix that, it moves
     #: it; the provider already says which happened, so it is kept.
     truncated: bool = False
+    #: Did the call exceed its wall-clock budget? A subset of `truncated` —
+    #: nothing usable came back either way — kept separate because the causes
+    #: differ: one is the model writing too much, the other is it writing too
+    #: slowly, and only the second is a property of this machine.
+    timed_out: bool = False
 
 
 class ModelInfo:
@@ -96,6 +119,9 @@ class ModelInfo:
         #: at best ignored and at worst a 400.
         self.reasoning_effort: str | None = overrides.get(
             "reasoning_effort", p.get("reasoning_effort")
+        )
+        self.timeout_s: float = float(
+            overrides.get("timeout_s", p.get("timeout_s", DEFAULT_TIMEOUT_S))
         )
 
     def dollars(self, prompt_tokens: int, completion_tokens: int) -> float:
@@ -176,12 +202,27 @@ class LLMClient:
             "messages": messages,
             # The model's own budget unless the caller overrides it.
             "max_tokens": max_tokens or self.info.max_tokens,
+            "timeout": self.info.timeout_s,
         }
         if self.info.sampling:
             params["temperature"] = temperature
         if self.info.reasoning_effort:
             params["reasoning_effort"] = self.info.reasoning_effort
-        resp = self._client.chat.completions.create(**params)
+        try:
+            resp = self._client.chat.completions.create(**params)
+        except _timeout_errors() as exc:
+            # NOT raised onward, and NOT cached. A run that dies on one
+            # runaway document has measured nothing; a run that records the
+            # timeout has measured the other 39 and one timeout, which is a
+            # result. And a timeout is a property of this run — of load, of
+            # this machine — not of the question, so caching it would make the
+            # answer permanently unavailable on every later run.
+            print(f"[llm] timed out after {self.info.timeout_s}s: {exc}", file=sys.stderr)
+            return LLMResponse(
+                text="", prompt_tokens=0, completion_tokens=0,
+                latency_s=round(time.monotonic() - t0, 3),
+                truncated=True, timed_out=True,
+            )
         latency = time.monotonic() - t0
         usage = resp.usage
         choice = resp.choices[0]
@@ -289,6 +330,7 @@ class Caller:
             "seconds": round(elapsed, 3),
             "model": self.spec,
             "cached": resp.cached,
+            "timed_out": resp.timed_out,
             "usd": self.client.info.dollars(resp.prompt_tokens, resp.completion_tokens),
             # The rung logs this. Without it the flag stops at the client and
             # nothing downstream can tell a cut-off reply from a bad one.

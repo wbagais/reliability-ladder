@@ -2498,3 +2498,55 @@ Worth noting how it was found: a `rm -rf .llm_cache out/final_S*` was aborted
 by zsh's `nomatch` on the glob, so the delete never ran and the stale entry
 was served. The bug was real either way; the shell just made it visible on the
 first rerun instead of the tenth.
+
+---
+
+## 2026-08-24 — a reasoning runaway, and the timeout that bounds it
+
+**The dev-split run did not finish; it stopped.** S1 over `gpt-oss:20b`
+completed 30 of 40 documents and then made no progress for 25 minutes. Ollama
+was healthy and the model loaded — one call was generating toward the 32,000
+token cap on a **761-character forum post**.
+
+Measured over the 30 calls that DID complete (dev documents, median length
+309 characters):
+
+    completion tokens   median 1,029   p90 3,244   max 7,836
+    latency seconds     median    32   p90    98   max   694
+
+**Ninety percent finish under 3,244 tokens. The tail is what makes the run
+unbounded** — and 694 seconds for one call was already the warning that the
+3-document config measurement was too small a sample to see.
+
+That is the real lesson about the earlier `reasoning_effort` decision: the
+3-document comparison said "default effort, 32k cap" was the honest choice
+because `low` found 1 gold mention of 17. It was right about quality and blind
+to the tail, because three documents cannot show you a distribution's tail.
+
+### The fix is a timeout, not a smaller cap
+
+    max_tokens   8000    covers every call that terminated (max 7,836)
+    timeout_s     300    bounds the ones that do not
+
+`timeout_s` is registry data like `max_tokens`, `sampling` and
+`reasoning_effort`. A timeout **does not raise**: it returns an empty response
+flagged `timed_out`, so one runaway document costs ONE RECORD instead of the
+whole run. A run that dies on a tail document has measured nothing; a run that
+records the timeout has measured 39 documents and one timeout, which is a
+result.
+
+**A timeout is not cached.** It is a property of this run — of load, of this
+machine — not of the question. Caching it would make that document's answer
+permanently unavailable on every later run, which is the opposite of what the
+cache is for.
+
+**`timed_out` and `truncated` overlap on purpose** and are recorded
+separately, exactly like `truncated` and `parse_failed`. Nothing usable comes
+back either way; the causes differ — one is the model writing too much, the
+other is it writing too slowly — and only the second is a property of the
+machine rather than of the model. The ledger `reason` is now
+`timed_out` > `truncated` > `json_decode`, most specific first.
+
+Three layers of the same principle now: a cut-off reply must never be counted
+as a model that cannot produce JSON, and a hung machine must never be counted
+as either.
