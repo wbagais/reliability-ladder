@@ -2752,3 +2752,51 @@ conservative.
 frozen rung 0 that rungs 1-6 are measured against — the same freeze argument
 as 2026-08-24 — so turning it on is a joint manifest edit, proposed but not
 taken unilaterally. Until then the arm is reproducible with the flag.
+
+---
+
+## 2026-08-25 — dev failure analysis turned into five changes; F1 overlap 0.310 -> 0.430
+
+The arm-2 dev run was decomposed instead of admired: of 226 gold, 68 FN
+(concentrated in symptom-dense posts; 20 of them CADEC Symptom/Disease/
+Finding mentions the "adverse reaction" wording told the model to skip),
+45 paired mentions where the GOLD CODE WAS ON THE MENU and the model picked a
+qualified sibling, 32 retrieval misses, 20 boundary-only, 10 concept-less
+gold that S2 could no longer answer after the decline revision.
+
+Five changes followed, all committed together and measured as one arm
+(attribution inside the bundle is not claimed):
+
+1. PICK prompt states the base-concept rule — gold is |Abdominal pain| for
+   "Very very severe abdonimal pain"; plain beats qualified.
+2. Scope widened to the answer key's: every condition experienced, including
+   what the drug was taken for (CADEC_TYPE_MAP folds Symptom/Disease/Finding
+   into REACTION).
+3. Whole-post exhaustiveness stated.
+4. "choice": "no_concept" — the explicit CONCEPT_LESS assertion; null stays
+   "none of these".
+5. Pool-derived few-shot: rung0_fewshot_docs = ARTHROTEC.22 + ARTHROTEC.110,
+   rendered at runtime from data/, POOL ONLY (dev/test refused — an example
+   from a scored split carries its own gold in-prompt). Few-shot examples
+   come from pool, never dev: dev is the measurement.
+
+Dev, 40 docs, 226 gold, gpt-oss:20b effort low:
+
+    |                   | F1 exact | F1 overlap | mentions | tokens  |
+    | frozen S2         | 0.209    | 0.310      | ~92      | 68,906  |
+    | arm 2 (synthetic) | 0.266    | 0.363      | 196      | 106,627 |
+    | arm 3 (all five)  | 0.289    | 0.430      | 240      | 126,871 |
+
+Decomposition moved the right way: FN 68 -> 53, pick-past-gold 45 -> 34,
+retrieval misses 32 -> 35 (more mentions found, more retrievals attempted).
+The model never answered no_concept (0 uses) — the hatch exists, unused so
+far. Overlap gained 3x what exact did: the new mentions are FOUND but their
+boundaries still disagree with gold, so span conventions are now the
+largest remaining gap, followed by the 34 residual picks and the retrieval
+misses (dense on "extremely sick" cannot surface |Generally unwell|).
+
+Cost, stated: 1.84x the frozen baseline's tokens. Same 77 calls.
+
+Risk, stated: three prompt iterations have now been tuned against the same
+40 dev documents. The test split has never been touched and remains the
+only number that can go in the article.
