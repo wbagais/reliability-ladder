@@ -19,6 +19,8 @@ vocabulary is the nine-concept index from test_registry_lookup.
 
 import json
 
+import pathlib
+
 import pytest
 
 from ladder.rungs import r0
@@ -63,17 +65,55 @@ KW = keyword_table(**{
 })
 
 
+class FakeDense:
+    """An embedding index, without ollama, numpy or a 350 MB matrix.
+
+    S2's default retriever is `dense`, which loads ladder/cache/keywords.*
+    through ladder.embed and therefore needs numpy. Both are local-only
+    extras: CI installs requirements.txt, which pins pyyaml and nothing else,
+    and a fresh clone has no index. Sixteen tests that are about the PICK
+    logic — menu indices, bad picks, declining, parse failures — were failing
+    on a retriever they do not test.
+
+    So the pick tests are handed a retriever. It returns the same shape the
+    real one does (`i`, `code`, `label`, `fsn`, `via`), which is the contract
+    _step_pick actually reads.
+    """
+
+    def __init__(self, hits=None):
+        self.queries = []
+        self._hits = hits
+
+    def search(self, text, k=20):
+        self.queries.append((text, k))
+        if self._hits is not None:
+            return self._hits
+        return [{"i": 0, "code": "12063002", "label": "Rectal hemorrhage",
+                 "fsn": "Rectal hemorrhage", "score": 0.91, "via": "dense"}]
+
+
 def cfg(reg, step, **kw):  # noqa: F811
-    """A rung 0 config. The keyword table is injected by default because
-    every step that resolves a NAME needs one; pass keywords=None to run
-    without it."""
-    return {
+    """A rung 0 config.
+
+    The keyword table is injected by default because every step that resolves
+    a NAME needs one; pass keywords=None to run without it. A FakeDense is
+    injected for the same reason — S2 defaults to dense retrieval, which needs
+    numpy and a built index, and neither exists in CI. Pass dense=None to
+    exercise the real loader.
+    """
+    dense = kw.pop("dense", "default")
+    out = {
         "rung0_step": step,
         "registry": reg,
         "llm": kw.pop("llm", None),
         "keywords": kw.pop("keywords", KW),
         **kw,
     }
+    if dense == "default":
+        out.setdefault("dense", FakeDense())
+    elif dense is not None:
+        out["dense"] = dense
+    return out
 
 
 FIND = {"mentions": [
@@ -285,6 +325,13 @@ def test_the_cli_no_longer_accepts_s3():
 
 
 def test_the_step_flag_reaches_the_rung_config(monkeypatch):
+    """main() loads the corpus before it reaches run_ladder and returns 2
+    rather than raising when it is absent, so CI never reaches the flag."""
+    import json as _json
+
+    man = _json.loads(pathlib.Path("manifest.json").read_text())
+    if not (pathlib.Path(man["corpus"]["cadec_root"]) / "text").is_dir():
+        pytest.skip("no corpus — this test drives run.main()")
     from ladder import run as run_mod
 
     seen = {}
@@ -516,18 +563,6 @@ def test_a_missing_keyword_table_is_refused_loudly(reg):  # noqa: F811
 # choice has to be recorded beside the results rather than remembered.
 
 
-class FakeDense:
-    """An embedding index, without ollama or a 350 MB matrix."""
-
-    def __init__(self):
-        self.queries = []
-
-    def search(self, text, k=20):
-        self.queries.append((text, k))
-        return [{"i": 0, "code": "12063002", "label": "Rectal hemorrhage",
-                 "fsn": "Rectal hemorrhage", "score": 0.91, "via": "dense"}]
-
-
 def test_dense_is_the_default_after_the_measurement(reg):  # noqa: F811
     """Measured 2026-08-24 over the same 6,595 gold mentions, same k, same
     answer key: lexical recall@20 = 61.8%, dense = 86.1%. Dense's TOP HIT
@@ -572,9 +607,13 @@ def test_an_unknown_retriever_is_refused(reg):  # noqa: F811
 
 
 def test_dense_without_an_index_says_how_to_build_it(reg):  # noqa: F811
+    """Exercises the REAL loader, so it needs numpy — a local-only extra.
+    Without it ladder.embed raises about numpy first and the message under
+    test never runs."""
+    pytest.importorskip("numpy")
     llm = FakeLLM(FIND, {"picks": []})
     with pytest.raises(RuntimeError, match="ladder.embed --build"):
-        r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_retrieval="dense",
+        r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, dense=None, rung0_retrieval="dense",
                                   embed_prefix="ladder/cache/no-such-index"))
 
 

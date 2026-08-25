@@ -120,6 +120,23 @@ def test_the_cache_key_still_records_the_requested_temperature(tmp_path):
 # --- selecting the extractor for one run ------------------------------------
 
 
+def _needs_corpus():
+    """Skip when the licensed CADEC download is absent.
+
+    These tests drive ladder.run.main, which loads the corpus before it
+    reaches the code under test and returns 2 instead of raising. CI has no
+    corpus, so without this they fail on a missing prerequisite rather than
+    on the flag they are about.
+    """
+    import json as _json
+    import pathlib as _pathlib
+
+    man = _json.loads(_pathlib.Path("manifest.json").read_text())
+    root = _pathlib.Path(man["corpus"]["cadec_root"])
+    if not (root / "text").is_dir():
+        pytest.skip(f"no corpus at {root} — these tests drive run.main()")
+
+
 def test_run_py_exposes_an_extractor_flag(monkeypatch):
     """Comparing models must not require editing the append-only manifest."""
     from ladder import run as run_mod
@@ -131,6 +148,10 @@ def test_run_py_exposes_an_extractor_flag(monkeypatch):
         raise SystemExit(0)
 
     monkeypatch.setattr(run_mod, "run_ladder", fake)
+    # main() loads the corpus BEFORE it reaches run_ladder, and returns 2
+    # rather than raising when the corpus is absent. CI has no corpus, so the
+    # flag under test is never reached there.
+    _needs_corpus()
     with pytest.raises(SystemExit):
         run_mod.main(["ladder", "--extractor", "anthropic/claude-sonnet-5",
                       "--split", "dev", "--limit", "1"])
@@ -517,7 +538,8 @@ def test_a_timeout_is_reported_as_an_empty_timed_out_response(tmp_path):
     """It must NOT raise. A run that dies on one runaway document has measured
     nothing; a run that records the timeout has measured 39 documents and one
     timeout, which is a result."""
-    import openai
+    openai = pytest.importorskip(
+        "openai", reason="local-only extra; requirements.txt pins pyyaml only")
     from ladder.llm import LLMClient
 
     class FakeCompletions:
@@ -536,7 +558,8 @@ def test_a_timeout_is_reported_as_an_empty_timed_out_response(tmp_path):
 def test_a_timeout_is_not_cached(tmp_path):
     """A timeout is a property of the run, not of the question. Caching it
     would make the answer permanently unavailable on every later run."""
-    import openai
+    openai = pytest.importorskip(
+        "openai", reason="local-only extra; requirements.txt pins pyyaml only")
     from ladder.llm import LLMClient
 
     calls = []
