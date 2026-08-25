@@ -34,10 +34,10 @@
     "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active — one concept, release-dependent."
   },
   "model": {
-    "extractor": "ollama/granite4:micro-h",
-    "judge": "ollama/qwen2.5:7b",
+    "extractor": "ollama/gpt-oss:20b",
+    "judge": "ollama/ibm/granite4:micro-h",
     "temperature": 0,
-    "note": "Judge must be a different model family from the extractor. Resolved in ladder/llm.py:for_rung — rungs never pick a model."
+    "note": "THE ONE PLACE A MODEL IS NAMED. ladder/llm.py carries no default and resolve() raises on a missing entry — it used to fall back to ollama/gpt-oss:20b while this said granite4:micro-h, so 'which model produced this number' had two answers depending on whether a manifest reached the call. Resolution order is --extractor > LADDER_MODEL_SPEC > here, and nothing after. Judge must be a different model FAMILY from the extractor: a model judging its own output measures self-consistency, not correctness, and ladder/llm.py:for_rung refuses to let them be the same. Extractor moved to gpt-oss:20b 2026-08-24 on measurement — granite4 answered 'AFTERPROMPT' where gpt-oss named ['Rectal hemorrhage', 'Rectal bleeding', 'Severe rectal bleeding']. NOTE THE COST: the judge is now the WEAKER model (2B judging 20B), which is the wrong way round and is the only locally installed family that differs from the extractor. Rung 4's numbers must be read with that stated."
   },
   "rung_order": [
     0,

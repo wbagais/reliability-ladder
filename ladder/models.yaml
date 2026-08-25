@@ -13,7 +13,19 @@ providers:
       # 2026-08-24 on ARTHROTEC.107: S0 and S2 both returned exactly 2000
       # completion tokens and both were logged parse_failed/json_decode, which
       # is the harness's cap recorded as the model's reliability.
-      gpt-oss:20b: { max_tokens: 16000 }
+      # REASONING MODEL. Its chain of thought goes to a separate `reasoning`
+      # field and `content` stays EMPTY until it finishes, so the budget has
+      # to cover the thinking as well as the answer. Measured 2026-08-24 on
+      # rung 0's S0 (recall a nine-digit SNOMED id from memory):
+      #
+      #   default effort, 16000 cap   16000 tokens, content EMPTY, truncated
+      #   default effort, 32000 cap    2306 tokens, content OK,      34s
+      #   reasoning_effort=medium      8000 tokens, content EMPTY, truncated
+      #   reasoning_effort=low          104 tokens, content OK,       2s
+      #
+      # "low" is 150x cheaper and 17x faster on the step that needed it most.
+      # 8000 keeps headroom for S2's longer pick prompts at that effort.
+      gpt-oss:20b: { max_tokens: 8000, reasoning_effort: low }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY

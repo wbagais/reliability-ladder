@@ -11,6 +11,8 @@ registry data, not a special case in a rung: a rung must not know which family
 it is talking to.
 """
 
+import os
+
 import pytest
 
 from ladder.llm import ModelInfo
@@ -265,3 +267,180 @@ def test_the_caller_passes_truncation_through_to_the_rung(tmp_path):
     caller.client = _client_returning(_Resp("", "length"), tmp_path)
     _, usage = caller("prompt", "text", "S0")
     assert usage["truncated"] is True
+
+
+# --- ONE place names a model -------------------------------------------------
+#
+# `manifest.model` said granite4:micro-h while `llm.py` said gpt-oss:20b, so
+# "which model produced this number" had two answers depending on whether a
+# manifest reached the call. A silent fallback is exactly the defect that
+# centralising model selection was supposed to remove: the run still produces
+# numbers, just not the ones the manifest describes.
+#
+# The manifest is the single source. A missing entry RAISES.
+
+
+def test_llm_py_names_no_model_of_its_own():
+    """A constant here is a second manifest that nobody edits."""
+    import ladder.llm as m
+
+    assert not hasattr(m, "DEFAULT_MODEL"), (
+        "ladder/llm.py must not carry a model name — manifest.model is the "
+        "one place a model is chosen."
+    )
+
+
+def test_a_missing_manifest_entry_raises_rather_than_guessing():
+    from ladder.llm import resolve
+
+    with pytest.raises(SystemExit, match="manifest.model"):
+        resolve("extractor", {"model": {}})
+
+
+def test_the_manifest_supplies_the_model():
+    from ladder.llm import resolve
+
+    assert resolve("extractor", {"model": {"extractor": "ollama/x:1"}}) == "ollama/x:1"
+
+
+def test_an_explicit_override_still_wins():
+    """--extractor on the command line, for one run, without editing shared
+    config. It is recorded in the manifest copy saved beside the results."""
+    from ladder.llm import resolve
+
+    got = resolve("extractor", {"model": {"extractor": "ollama/x:1"}}, "ollama/y:2")
+    assert got == "ollama/y:2"
+
+
+def test_the_env_override_still_wins_over_the_manifest():
+    from ladder.llm import resolve
+
+    os.environ["LADDER_MODEL_SPEC"] = "ollama/z:3"
+    try:
+        assert resolve("extractor", {"model": {"extractor": "ollama/x:1"}}) == "ollama/z:3"
+    finally:
+        del os.environ["LADDER_MODEL_SPEC"]
+
+
+# --- reasoning_effort: the fix for S0 ---------------------------------------
+#
+# gpt-oss:20b writes its chain of thought to a SEPARATE `reasoning` field and
+# leaves `content` empty until it finishes. Measured 2026-08-24 on rung 0's S0
+# (ARTHROTEC.107), which asks the model to recall a nine-digit SNOMED id:
+#
+#     default effort, 16000 cap   16000 tokens   content EMPTY   truncated
+#     default effort, 32000 cap    2306 tokens   content OK        34s
+#     reasoning_effort=medium      8000 tokens   content EMPTY   truncated
+#     reasoning_effort=low          104 tokens   content OK         2s
+#
+# 104 tokens against 16,000, and two seconds against a truncation. Registry
+# data like max_tokens and sampling, because it is a property of the MODEL —
+# a rung must not know which family it is calling.
+
+
+def test_reasoning_effort_comes_from_the_registry():
+    info = ModelInfo("ollama/gpt-oss:20b")
+    assert info.reasoning_effort == "low"
+
+
+def test_a_model_with_no_reasoning_channel_declares_none():
+    """Sending reasoning_effort to a model that has no such parameter is at
+    best ignored and at worst a 400."""
+    assert ModelInfo("ollama/ibm/granite4:micro-h").reasoning_effort is None
+
+
+def test_reasoning_effort_reaches_the_request(tmp_path):
+    from ladder.llm import LLMClient
+
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            sent.update(kw)
+            raise RuntimeError("payload captured")
+
+    client = LLMClient("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    try:
+        client.chat([{"role": "user", "content": "hi"}])
+    except RuntimeError:
+        pass
+    assert sent["reasoning_effort"] == "low"
+
+
+def test_it_is_omitted_for_models_that_do_not_declare_it(tmp_path):
+    from ladder.llm import LLMClient
+
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            sent.update(kw)
+            raise RuntimeError("payload captured")
+
+    client = LLMClient("ollama/ibm/granite4:micro-h", cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    try:
+        client.chat([{"role": "user", "content": "hi"}])
+    except RuntimeError:
+        pass
+    assert "reasoning_effort" not in sent
+
+
+# --- the cache key must cover everything that changes the answer ------------
+#
+# The key was (model, messages, temperature, sample_index). max_tokens and
+# reasoning_effort were absent, so raising a budget or lowering an effort
+# returned the PREVIOUS answer from disk — a cached reply produced under
+# different parameters, served as though it were the new configuration's.
+#
+# Caught in the worst possible way: S0 was rerun with reasoning_effort=low and
+# reported 16,000 tokens and a truncation, which was the old entry. A cache
+# that survives a parameter change is not a cache, it is a stale result.
+
+
+def _spy_client(spec, tmp_path, text='{"ok":1}'):
+    from ladder.llm import LLMClient
+
+    calls = []
+
+    class FakeCompletions:
+        def create(self, **kw):
+            calls.append(kw)
+            return _Resp(text, "stop")
+
+    client = LLMClient(spec, cache_dir=tmp_path)
+    client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    return client, calls
+
+
+def test_a_repeat_call_is_served_from_cache(tmp_path):
+    """The property being protected: reruns are free and resumable."""
+    client, calls = _spy_client("ollama/gpt-oss:20b", tmp_path)
+    msgs = [{"role": "user", "content": "hi"}]
+    client.chat(msgs)
+    assert client.chat(msgs).cached is True
+    assert len(calls) == 1
+
+
+def test_changing_max_tokens_does_not_reuse_the_old_answer(tmp_path):
+    client, calls = _spy_client("ollama/gpt-oss:20b", tmp_path)
+    msgs = [{"role": "user", "content": "hi"}]
+    client.chat(msgs, max_tokens=2000)
+    client.chat(msgs, max_tokens=16000)
+    assert len(calls) == 2, "a different budget is a different experiment"
+
+
+def test_changing_reasoning_effort_does_not_reuse_the_old_answer(tmp_path):
+    from ladder.llm import LLMClient
+
+    a, calls_a = _spy_client("ollama/gpt-oss:20b", tmp_path)
+    msgs = [{"role": "user", "content": "hi"}]
+    a.chat(msgs)
+    b, calls_b = _spy_client("ollama/gpt-oss:20b", tmp_path)
+    b.info.reasoning_effort = "high"
+    b.chat(msgs)
+    assert len(calls_b) == 1, "a different reasoning effort is a different run"

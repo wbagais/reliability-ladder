@@ -84,6 +84,19 @@ class ModelInfo:
         self.max_tokens: int = int(
             overrides.get("max_tokens", p.get("max_tokens", DEFAULT_MAX_TOKENS))
         )
+        #: "low" | "medium" | "high", or None for a model with no reasoning
+        #: channel. gpt-oss:20b writes its chain of thought to a SEPARATE
+        #: `reasoning` field and leaves `content` empty until it finishes.
+        #: Measured 2026-08-24 on rung 0's S0, which asks it to recall a
+        #: nine-digit SNOMED id: default effort spent 16,000 tokens and
+        #: returned nothing, "medium" spent 8,000 and returned nothing, "low"
+        #: answered in 104 tokens and 2 seconds. Registry data like
+        #: max_tokens and sampling — a rung must not know which family it is
+        #: calling, and sending this to a model that has no such parameter is
+        #: at best ignored and at worst a 400.
+        self.reasoning_effort: str | None = overrides.get(
+            "reasoning_effort", p.get("reasoning_effort")
+        )
 
     def dollars(self, prompt_tokens: int, completion_tokens: int) -> float:
         return (
@@ -126,11 +139,20 @@ class LLMClient:
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> LLMResponse:
+        # EVERYTHING THAT CHANGES THE ANSWER GOES IN THE KEY. max_tokens and
+        # reasoning_effort were absent, so raising a budget or lowering an
+        # effort served the PREVIOUS answer from disk as though it were the
+        # new configuration's. Caught the worst way: S0 rerun with
+        # reasoning_effort=low reported 16,000 tokens and a truncation, which
+        # was the old entry. A cache that survives a parameter change is not a
+        # cache, it is a stale result.
         payload = {
             "model": self.info.spec,
             "messages": messages,
             "temperature": temperature,
             "sample_index": sample_index,
+            "max_tokens": max_tokens or self.info.max_tokens,
+            "reasoning_effort": self.info.reasoning_effort,
         }
         path = self._cache_path(payload)
         if path.exists():
@@ -157,6 +179,8 @@ class LLMClient:
         }
         if self.info.sampling:
             params["temperature"] = temperature
+        if self.info.reasoning_effort:
+            params["reasoning_effort"] = self.info.reasoning_effort
         resp = self._client.chat.completions.create(**params)
         latency = time.monotonic() - t0
         usage = resp.usage
@@ -191,8 +215,15 @@ class LLMClient:
 
 ROLE_BY_RUNG = {0: "extractor", 2: "extractor", 3: "extractor", 4: "judge"}
 
-#: Local, free, and no corpus text leaves the machine. See LICENCE note below.
-DEFAULT_MODEL = "ollama/gpt-oss:20b"
+# NO DEFAULT MODEL HERE, DELIBERATELY.
+#
+# `llm.py` used to carry DEFAULT_MODEL = "ollama/gpt-oss:20b" while
+# `manifest.model.extractor` said granite4:micro-h, so "which model produced
+# this number" had two answers depending on whether a manifest reached the
+# call. A silent fallback is the exact defect centralising model selection was
+# meant to remove: the run still produces numbers, just not the ones the
+# manifest describes. The manifest is the one place a model is named, and a
+# missing entry raises.
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*\n(.*?)\n\s*```\s*$", re.S)
 
@@ -299,13 +330,25 @@ class Caller:
 
 
 def resolve(role: str, manifest: dict | None = None, override: str | None = None) -> str:
-    """Which model plays `role`. Explicit > env > manifest > default."""
-    return (
+    """Which model plays `role`. Explicit > env > manifest, and then it stops.
+
+    There is no fallback. A run whose manifest does not name a model is a run
+    nobody can attribute, and guessing one produces numbers that describe a
+    model the results file does not mention.
+    """
+    spec = (
         override
         or os.environ.get("LADDER_MODEL_SPEC")
         or ((manifest or {}).get("model") or {}).get(role)
-        or DEFAULT_MODEL
     )
+    if not spec:
+        raise SystemExit(
+            f"no model for role {role!r}. Set manifest.model.{role}, or pass "
+            f"--extractor / LADDER_MODEL_SPEC for a single run.\n"
+            "manifest.model is the ONE place a model is named — see "
+            "ladder/llm.py:for_rung."
+        )
+    return spec
 
 
 def for_rung(n: int, manifest: dict | None = None, override: str | None = None) -> Caller | None:
