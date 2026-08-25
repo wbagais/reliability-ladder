@@ -927,3 +927,69 @@ def test_an_ordinary_bad_reply_is_still_json_decode(reg):  # noqa: F811
         rows = [_json.loads(x) for x in (pathlib.Path(d) / "l.jsonl").read_text().splitlines() if x.strip()]
         assert rows[0]["reason"] == "json_decode"
         assert agg["truncated"] == 0
+
+
+# --- S0 asked for ONE code and models answer with several --------------------
+#
+# `_step_s0` did `str(code) if code is not None else None`. A model answering
+#
+#     "sct_code": ["21456007", "38485006", "42481009"]
+#
+# got `sct = "['21456007', '38485006', '42481009']"` — a string that can never
+# be a valid code, so the mention scored 0 by construction even when the first
+# id was right. Measured on ARTHROTEC.107 with granite4:micro-h.
+#
+# A RECORDING defect, not a model one: it made "the model named three codes"
+# indistinguishable from "the model emitted garbage", and the first is a real
+# thing a model does. The prompt asks for "the id matching sct_label[0]", so
+# the FIRST is taken and the schema violation is COUNTED rather than thrown
+# away — it is a reliability fact about the model, which is what S0 measures.
+
+
+def test_s0_takes_the_first_code_when_the_model_returns_several(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["Rectal hemorrhage", "Gastrointestinal hemorrhage"],
+        "sct_code": ["12063002", "38485006"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct == "12063002", "the id matching sct_label[0], as asked"
+
+
+def test_s0_counts_the_schema_violation(reg):  # noqa: F811
+    """Never silently repaired. How often a model ignores 'one code' is a
+    reliability fact about the model, which is what S0 exists to measure."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["Rectal hemorrhage"], "sct_code": ["12063002", "38485006"],
+        "confidence": 0.9}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].checks["sct_code_multi"] == ["12063002", "38485006"]
+    assert agg["multi_code"] == 1
+
+
+def test_s0_never_stringifies_a_list_into_the_code(reg):  # noqa: F811
+    """The regression itself. `sct` must always be a code, CONCEPT_LESS or
+    None — never a repr of a container."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["x"], "sct_code": ["12063002", "38485006"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert "[" not in str(recs[0].sct)
+
+
+def test_s0_is_unchanged_for_a_single_code(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["Rectal hemorrhage"], "sct_code": "12063002", "confidence": 0.9}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct == "12063002"
+    assert "sct_code_multi" not in recs[0].checks
+    assert agg["multi_code"] == 0
+
+
+def test_s0_an_empty_code_list_is_no_answer(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": [{
+        "span_text": "extreme rectal bleed", "context": "due", "start": 20, "end": 40,
+        "sct_label": ["x"], "sct_code": [], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S0", llm=llm))
+    assert recs[0].sct is None

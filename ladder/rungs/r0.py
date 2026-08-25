@@ -477,7 +477,22 @@ def _step_s0(doc_id, source, llm, cfg, meta):
         labels = m.get("sct_label") or []
         if isinstance(labels, str):
             labels = [labels]
+        # S0 asks for ONE code — "the id matching sct_label[0]". Models answer
+        # with a list anyway. `str(code)` turned that into
+        # "['21456007', '38485006']", a string no code can ever equal, so the
+        # mention scored 0 by construction even when the first id was right.
+        # It also made "the model named three codes" indistinguishable from
+        # "the model emitted garbage", and those are different failures.
+        #
+        # The first is taken, because that is the one the prompt asks for, and
+        # the schema violation is COUNTED rather than repaired away: how often
+        # a model ignores "one code" is a reliability fact about the model,
+        # which is exactly what S0 measures.
         code = m.get("sct_code")
+        if isinstance(code, (list, tuple)):
+            rec.checks["sct_code_multi"] = [str(c) for c in code]
+            meta["multi_code"] = meta.get("multi_code", 0) + 1
+            code = code[0] if code else None
         rec.sct = str(code) if code is not None else None
         rec.sct_label = str(labels[0]) if labels else None
         rec.checks.update(label_source="memory", code_source="memory")
@@ -846,7 +861,8 @@ def apply(
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
-        "pick_parse_failed": 0, "truncated": 0, "t0": time.time(),
+        "pick_parse_failed": 0, "truncated": 0, "multi_code": 0,
+        "t0": time.time(),
     }
     out: list[Record] = []
     for doc_id, text in sources.items():
@@ -865,6 +881,9 @@ def apply(
         # model cannot emit JSON" are different findings and must not share a
         # label. Raising max_tokens moves this, it does not remove it.
         agg["truncated"] += int(meta.get("truncated", False))
+        # S0 only: mentions where the model answered with several codes where
+        # the prompt asked for one.
+        agg["multi_code"] += meta.get("multi_code", 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:
