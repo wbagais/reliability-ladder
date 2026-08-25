@@ -117,7 +117,19 @@
   stated, or install a third family.
 - **The LLM cache key covers max_tokens and reasoning_effort.** It did not,
   and rerunning S0 with a new effort served the old truncated entry. A cache
-  that survives a parameter change is a stale result.
+  that survives a parameter change is a stale result. A TIMEOUT is never
+  cached — it is a property of the run, not of the question.
+- **Every call has a wall-clock budget** (`timeout_s`, registry data,
+  300s for gpt-oss). Measured: a dev-split run stopped dead when one call
+  generated for 25 minutes on a 761-character post. 90% of calls finish under
+  3,244 completion tokens; the tail is what makes a run unbounded. The timeout
+  does NOT raise — it returns an empty response flagged `timed_out`, so one
+  runaway document costs ONE RECORD, not the run.
+- **Three failure labels, most specific first: `timed_out` > `truncated` >
+  `json_decode`.** They overlap on purpose. A cut-off reply must never be
+  counted as a model that cannot produce JSON, and a hung machine must never
+  be counted as either. **Timeouts belong in the cost column, not the accuracy
+  one** — they measure this machine's throughput on a 20B model.
 - **Model selection is centralised.** `ladder/llm.py:for_rung` is the ONLY place
   a model is resolved. `run.py` injects `cfg["llm"]`; a rung never names a
   model. Bound by ROLE from `manifest.model` — `extractor` for rungs 0/2/3,
@@ -195,6 +207,15 @@
 - Rung IDs renumbered to match execution order (2026-08-23). Old→new is
   3→2, 5→3, 2→5. Anything in `docs/decisions.md` dated earlier uses the OLD ids.
 
+- `scripts/` import smoke test (2026-08-24), which immediately found two live
+  bugs in `ladder_run.py`: `say()` called above its own definition, and the
+  pre-renumber module pairing in the signature banner.
+- **Truncation and timeout are recorded separately from a JSON parse
+  failure** (2026-08-24). `timed_out` > `truncated` > `json_decode`.
+- **S0's list-of-codes defect** (2026-08-24). `str(code)` on a list made
+  "the model named three codes" identical to "the model emitted garbage";
+  the first is taken and the violation is counted.
+
 ## Next, in order
 1. **The three dev runs — S0, S1, S2.** Everything measured so far is ONE
    document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
@@ -210,12 +231,7 @@
 4. **Rung 3 cannot currently vote, and it is not a rung 3 bug.** It matches
    mentions by `(doc_id, spans)`, and samples at temperature 0.7 pick different
    phrases, so keys never align — every record comes back `not_resampled`.
-   Matching on overlap rather than exact span would let voting run at all.
-5. **`scripts/` has no test coverage.** That is how a `NameError` in
-   `full_run.py` survived the renumber. One import smoke test per script closes
-   it. `ladder/run.py:snapshot_row` was in the same state until 2026-08-24 and
-   now has `tests/test_run_rows.py`.
-6. **The lookup-vs-RAG 2x2 needs a model that names concepts.** Top row
+5. **The lookup-vs-RAG 2x2 needs a model that names concepts.** Top row
    measured: a perfect clinical term scores 99.3% by exact lookup AND 99.3% by
    dense retrieval — they coincide by construction, so retrieval can only pay
    on an IMPERFECT label. Bottom row unmeasurable at 2B: granite4:micro-h
@@ -224,7 +240,7 @@
    (`LADDER_ALLOW_REMOTE=1`, CADEC is non-transferable) as well as a cost one.
    `checks["labels_proposed"]` now records what the model offered, which is
    what makes the comparison possible at all.
-7. **Dense retrieval's 13.9% miss is mostly NOT fixable by a better
+6. **Dense retrieval's 13.9% miss is mostly NOT fixable by a better
    retriever, and a hybrid loses.** Measured at equal budget: dense@40 89.5%
    beats dense@20+lexical@20 88.0% and dense@20+char-trigram@20 89.3%. The fix
    for recall is `rung0_shortlist_k`, not a second index — but raising k costs
@@ -235,30 +251,21 @@
    rest are ranked-too-low — a large part of which is gold naming one concept
    where the span literally names another ("little blurred vision" -> gold
    |Hazy vision|, retrieved "blurred vision").
-8. **Schema enforcement is an A/B, not a switch.** It does not delete the
+7. **Schema enforcement is an A/B, not a switch.** It does not delete the
    parse-failure metric — it MOVES the failure (truncation, empty mention
    lists, plausible wrong values) and costs output quality, because
    probability mass goes to satisfying the grammar. Run both arms and report
    what it removed and what it cost. Not built.
-9. **A truncation is not a model failure.** `finish_reason == "length"` is
-   carried to `agg["truncated"]` and the ledger `reason`, because a cut-off
-   reply logged as `json_decode` publishes the harness's own cap as the
-   model's JSON reliability. The counts overlap on purpose; the CAUSE must
-   stay recoverable.
-10. **S0 records a LIST of codes as a string, and it will bias S0 downward.**
-   `_step_s0` does `str(code)`, so a model answering `sct_code: ["21456007",
-   ...]` gets `sct = "['21456007', ...]"` — never a valid code, so those
-   mentions score 0 by construction. A RECORDING defect, not a model one: it
-   makes "the model named two codes" indistinguishable from "the model emitted
-   garbage". Decide what S0 should measure (first code / parse failure / its
-   own outcome) BEFORE the dev runs, or S0's number is not the model's.
-11. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
+8. **Config measurements need more than three documents.** The
+   `reasoning_effort` choice was made on 3 documents and was right about
+   quality (`low` finds 1 gold mention of 17) and blind to the tail — three
+9. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
    answer.** All 407 wholly-retired gold mentions leave the denominator, on the
    grounds that the keyword table is active-only. 111 of them (27.3%) have a
    SNOMED-recorded successor, so a model naming that successor is right against
    a stale answer key. Changing the answer key's inventory needs a measurement
    and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
-12. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
+10. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
    no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
    measures "would a search have found the code it invented?", not "does search
    help?".
