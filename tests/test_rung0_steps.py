@@ -1655,3 +1655,42 @@ def test_wellness_statements_are_ruled_out_of_scope():
     negated mentions. A statement of wellness is not a denied reaction."""
     for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
         assert "no side effects" in prompt.lower()
+
+
+# --- menu presentation: order is a declared choice (Phase B(e)) --------------
+#
+# The dense menu is ranked best-first, so the gold code usually sits high on
+# the list — and a model that anchors on early items would look better than
+# it reads. The alpha arm re-sorts the SAME candidates alphabetically before
+# numbering: if F1 holds, the pick reads content; if it drops, position was
+# doing work. An arm, not a default.
+
+
+def test_menu_order_defaults_to_score():
+    assert r0.DEFAULTS["rung0_menu_order"] == "score"
+
+
+def test_alpha_menu_reorders_and_renumbers(reg):  # noqa: F811
+    hits = [{"i": 0, "code": "2", "label": "zoster", "fsn": "zoster",
+             "score": 0.9, "via": "dense"},
+            {"i": 1, "code": "1", "label": "ache", "fsn": "ache",
+             "score": 0.8, "via": "dense"}]
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        dense=FakeDense(hits),
+                                        rung0_menu_order="alpha"))
+    cands = recs[0].checks["candidates"]
+    assert [c["label"] for c in cands] == ["ache", "zoster"]
+    assert [c["i"] for c in cands] == [0, 1]
+    assert recs[0].sct == "1", "choice 0 must mean the REORDERED slot 0"
+    assert recs[0].checks["rung0_menu_order"] == "alpha"
+
+
+def test_an_unknown_menu_order_is_refused(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": []})
+    with pytest.raises(ValueError, match="rung0_menu_order"):
+        r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_menu_order="magic"))

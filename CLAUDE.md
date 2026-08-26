@@ -260,7 +260,9 @@ Run each remaining phase in its own session; this section is the handoff.
    0.501/0.783, coding 0.704/0.611), 137,828 tokens / 77 calls (+5.8%).
    Runs: `out/phaseB-1.*` (confounded by one `{"picks":[]}` reply — the
    diagnosis is the decisions entry), `out/phaseB-2.*` (the result).
-   (e) menu presentation arms were not run.
+   (e) One menu arm run: alphabetising the pick menu costs 10-12pt
+   of coding accuracy at identical detection - the pick anchors on
+   early slots, so retrieval's best-first order is load-bearing.
 2. **Phase C — models.** Import BioMistral-7B (GGUF → ollama Modelfile),
    register in models.yaml, swap in as rung-4 JUDGE (fixes the 2B-judging-
    20B inversion; different family; local so no licence issue). Re-judge

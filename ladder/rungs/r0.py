@@ -102,6 +102,12 @@ DEFAULTS: dict[str, Any] = {
     #: trim happens afterwards, so the menu is built on more context, not
     #: less. cfg["trimmer"] injects rules directly (tests; measurement runs).
     "rung0_trim": False,
+    #: How S2's menu is ORDERED before numbering. "score" is retrieval order,
+    #: best first — which means the gold code usually sits high, and a model
+    #: that anchors on early items looks better than it reads. "alpha"
+    #: re-sorts the same candidates alphabetically: if F1 holds, the pick
+    #: reads content; if it drops, position was doing work. An arm.
+    "rung0_menu_order": "score",  # "score" | "alpha"
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
@@ -861,6 +867,26 @@ def _merged_candidates(search, span: str, labels: list[str], k: int) -> list[dic
     return out
 
 
+MENU_ORDERS = ("score", "alpha")
+
+
+def _order_menu(cands: list[dict], which: str) -> list[dict]:
+    """The menu in its declared order, renumbered. S2 only — S1's menus are
+    the model's own names' codes, typically two or three lines."""
+    if which not in MENU_ORDERS:
+        raise ValueError(
+            f"rung0_menu_order={which!r} is not one of {MENU_ORDERS}. An order "
+            "nobody defined would report a run under a label the article "
+            "cannot explain."
+        )
+    if which == "alpha":
+        cands = sorted(
+            cands, key=lambda c: str(c.get("fsn") or c.get("label") or "").lower()
+        )
+        cands = [{**c, "i": n} for n, c in enumerate(cands)]
+    return cands
+
+
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
     raw, usage = llm(_extraction_prompt(FIND_PROMPT, cfg), source, step)
@@ -884,10 +910,15 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
         proposed = [str(x) for x in labels
                     if x is not None and str(x).strip()
                     and str(x).strip().upper() != CONCEPT_LESS]
-        cands = _merged_candidates(
-            search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
+        menu_order = cfg.get("rung0_menu_order", DEFAULTS["rung0_menu_order"])
+        cands = _order_menu(
+            _merged_candidates(
+                search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
+            ),
+            menu_order,
         )
         rec.checks["candidates"] = cands
+        rec.checks["rung0_menu_order"] = menu_order
         # WHAT the model offered, same as S0/S1 — it is also what makes the
         # lookup-vs-retrieval 2x2 measurable on S2 runs.
         rec.checks["labels_proposed"] = proposed
