@@ -444,3 +444,92 @@ def test_score_run_buckets_carry_outdated_too():
     r = score_run(records, golds, vocab=VOCAB)
     assert r["single_code"]["outdated"] == 1
     assert r["single_code"]["correct"] == 0
+
+
+# --- the two evaluation layers (2026-08-25) ----------------------------------
+#
+# One F1 conflates two different questions: did the system FIND the mention
+# (detection), and given a found mention, is the CODE right (coding)? S0, S1
+# and S2 share detection scope by design and differ only in coding — a claim
+# the combined number assumes and these layers test.
+
+
+def test_detection_counts_a_found_mention_with_a_wrong_code():
+    records = [rec(sct="404684003")]  # right span, wrong code
+    r = score_run(records, [gold()])
+    assert r["detection"]["n_matched"] == 1
+    assert r["detection"]["recall"] == 1.0
+    assert r["detection"]["precision"] == 1.0
+    assert r["f1"] == 0.0  # headline still strict
+
+
+def test_detection_misses_cost_detection_recall():
+    r = score_run([], [gold()])
+    assert r["detection"]["recall"] == 0.0
+
+
+def test_coding_accuracy_is_conditional_on_detection():
+    records = [rec(), rec(doc_id="D2", sct="404684003")]
+    golds = [gold(), gold(doc_id="D2")]
+    r = score_run(records, golds)
+    assert r["coding"]["n"] == 2
+    assert r["coding"]["accuracy"] == 0.5
+    assert r["coding"]["correct"] == 1
+    assert r["coding"]["incorrect"] == 1
+
+
+def test_layers_decompose_the_headline():
+    """recall = detection.recall x coding.accuracy, by construction."""
+    records = [rec(), rec(doc_id="D2", sct="404684003")]
+    golds = [gold(), gold(doc_id="D2"), gold(doc_id="D3")]
+    r = score_run(records, golds)
+    assert r["recall"] == pytest.approx(
+        r["detection"]["recall"] * r["coding"]["accuracy"]
+    )
+
+
+# --- predictions on excluded gold (2026-08-25) --------------------------------
+
+
+def test_a_prediction_overlapping_an_excluded_mention_is_not_a_false_positive():
+    """Exclusion drops the mention from the denominator because it is
+    unanswerable — so a prediction TOUCHING it carries no information either.
+    Only the exact span-key was dropped before; measured on the arm-2 dev run,
+    10 of 38 false positives sat on excluded gold."""
+    g = gold()  # the excluded mention
+    pred = rec(spans=[(5, 19)], sct="999999")  # overlaps, not equal
+    r = score_run([pred], [g], span_match="overlap", exclude={g.record_id})
+    assert r["n_pred"] == 0
+    assert r["n_gold"] == 0
+
+
+def test_a_prediction_on_a_scorable_mention_still_counts():
+    g1, g2 = gold(), gold(doc_id="D2")
+    pred = rec(doc_id="D2")
+    r = score_run([pred], [g1, g2], span_match="overlap", exclude={g1.record_id})
+    assert r["n_pred"] == 1
+    assert r["correct"] == 1
+
+
+# --- bootstrap confidence intervals (2026-08-25) ------------------------------
+
+
+def test_bootstrap_ci_brackets_the_point_estimate():
+    from ladder.score import bootstrap_ci
+    records = [rec(doc_id=f"D{i}", sct="271782001" if i % 2 else "404684003")
+               for i in range(10)]
+    golds = [gold(doc_id=f"D{i}") for i in range(10)]
+    point = score_run(records, golds)["f1"]
+    ci = bootstrap_ci(records, golds, n_boot=200, seed=7)
+    assert ci["f1"]["lo"] <= point <= ci["f1"]["hi"]
+    assert ci["f1"]["lo"] < ci["f1"]["hi"]
+    assert ci["n_boot"] == 200
+
+
+def test_bootstrap_is_deterministic_under_a_seed():
+    from ladder.score import bootstrap_ci
+    records = [rec(doc_id=f"D{i}") for i in range(6)]
+    golds = [gold(doc_id=f"D{i}") for i in range(6)]
+    a = bootstrap_ci(records, golds, n_boot=50, seed=3)
+    b = bootstrap_ci(records, golds, n_boot=50, seed=3)
+    assert a == b

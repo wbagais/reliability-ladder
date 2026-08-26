@@ -60,6 +60,7 @@ over-abstention from wrong-code is what makes rung 5's cost readable.
 
 from __future__ import annotations
 
+import random
 from typing import Any, Iterable
 
 from ladder.corpus import GOLD_NONE, GoldMention
@@ -247,10 +248,22 @@ def score_run(
         g for g in golds if g.entity_type == REACTION and g.record_id not in exclude
     ]
     dropped = [g for g in golds if g.entity_type == REACTION and g.record_id in exclude]
-    dropped_keys = {_span_key(g.doc_id, g.spans) for g in dropped}
+    # A prediction TOUCHING an excluded mention leaves with it, not only one
+    # whose span-key equals it. Exclusion says the mention is unanswerable, so
+    # any answer over those characters carries no information — but only where
+    # it does not also touch a scorable mention, which must still be graded.
+    # Measured before this widened (arm-2 dev run): 10 of 38 false positives
+    # sat overlapping excluded gold, blamed for answering retired questions.
+    def _on_excluded(r: Record) -> bool:
+        return any(
+            g.doc_id == r.doc_id and _overlaps(r.spans, g.spans) for g in dropped
+        ) and not any(
+            g.doc_id == r.doc_id and _overlaps(r.spans, g.spans)
+            for g in gold_mentions
+        )
+
     preds = [
-        r for r in records
-        if r.entity_type == REACTION and _span_key(r.doc_id, r.spans) not in dropped_keys
+        r for r in records if r.entity_type == REACTION and not _on_excluded(r)
     ]
 
     buckets = {"single_code": _bucket(), "multi_code": _bucket(), "concept_less": _bucket()}
@@ -264,6 +277,7 @@ def score_run(
         buckets[which(g)]["n_gold"] += 1
 
     tally = {o: 0 for o in OUTCOMES}
+    n_matched = 0
     for record, gold in _pair(preds, gold_mentions, span_match):
         if gold is None:
             # A prediction on no gold mention is a false positive. It is
@@ -274,6 +288,7 @@ def score_run(
             continue
         b = buckets[which(gold)]
         b["n_pred"] += 1
+        n_matched += 1
         got = outcome(record, gold, vocab)
         tally[got] += 1
         b[got] += 1
@@ -284,6 +299,15 @@ def score_run(
     recall = correct / n_gold if n_gold else 0.0
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
 
+    # THE TWO LAYERS (2026-08-25). The headline conflates two questions —
+    # did the system FIND the mention, and given a found mention is the CODE
+    # right — and S0/S1/S2 differ by design only on the second. detection
+    # ignores codes entirely; coding is conditional on a match, so
+    # recall == detection.recall x coding.accuracy by construction.
+    det_p = n_matched / n_pred if n_pred else 0.0
+    det_r = n_matched / n_gold if n_gold else 0.0
+    det_f1 = 2 * det_p * det_r / (det_p + det_r) if (det_p + det_r) else 0.0
+
     return {
         "span_match": span_match,
         "excluded": len(dropped),
@@ -292,6 +316,85 @@ def score_run(
         "precision": precision,
         "recall": recall,
         "f1": f1,
+        "detection": {
+            "n_matched": n_matched,
+            "precision": det_p,
+            "recall": det_r,
+            "f1": det_f1,
+        },
+        "coding": {
+            "n": n_matched,
+            "accuracy": correct / n_matched if n_matched else 0.0,
+            **tally,
+        },
         **tally,
         **buckets,
     }
+
+
+# --- uncertainty -------------------------------------------------------------
+
+
+def bootstrap_ci(
+    records: list[Record],
+    golds: list["GoldMention"],
+    span_match: str = "exact",
+    exclude: set[str] | None = None,
+    vocab: Any = None,
+    n_boot: int = 1000,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> dict[str, Any]:
+    """Percentile bootstrap over DOCUMENTS for the headline and layer numbers.
+
+    Exists because "S2 beat S1 by half a point" is not a finding on 226
+    mentions unless half a point clears the noise, and until now the noise
+    band was a hand-wave. Documents are the resampling unit — mentions within
+    a post share a model call, a topic and an author, so resampling mentions
+    would pretend 226 independent draws and report a band too tight.
+
+    Pairing is within-document by construction (span keys carry doc_id), so
+    each document's counts are computed ONCE and the resamples sum them —
+    1000 draws cost arithmetic, not 1000 scoring passes.
+
+    Returns {"f1": {lo, hi}, "detection_f1": {...}, "coding_accuracy": {...},
+    "n_boot": ..., "seed": ...}. Deterministic under a seed.
+    """
+    doc_ids = sorted({r.doc_id for r in records} | {g.doc_id for g in golds})
+    per_doc = {}
+    for d in doc_ids:
+        s = score_run(
+            [r for r in records if r.doc_id == d],
+            [g for g in golds if g.doc_id == d],
+            span_match=span_match,
+            exclude=exclude,
+            vocab=vocab,
+        )
+        per_doc[d] = (
+            s["n_pred"], s["n_gold"], s["correct"], s["detection"]["n_matched"]
+        )
+
+    rng = random.Random(seed)
+    draws: dict[str, list[float]] = {"f1": [], "detection_f1": [], "coding_accuracy": []}
+    for _ in range(n_boot):
+        n_pred = n_gold = correct = matched = 0
+        for d in rng.choices(doc_ids, k=len(doc_ids)):
+            p, g, c, m = per_doc[d]
+            n_pred += p; n_gold += g; correct += c; matched += m
+        prec = correct / n_pred if n_pred else 0.0
+        rec_ = correct / n_gold if n_gold else 0.0
+        draws["f1"].append(2 * prec * rec_ / (prec + rec_) if prec + rec_ else 0.0)
+        dp = matched / n_pred if n_pred else 0.0
+        dr = matched / n_gold if n_gold else 0.0
+        draws["detection_f1"].append(2 * dp * dr / (dp + dr) if dp + dr else 0.0)
+        draws["coding_accuracy"].append(correct / matched if matched else 0.0)
+
+    def pct(xs: list[float], q: float) -> float:
+        xs = sorted(xs)
+        i = min(int(q * len(xs)), len(xs) - 1)
+        return xs[i]
+
+    out: dict[str, Any] = {"n_boot": n_boot, "seed": seed, "span_match": span_match}
+    for k, xs in draws.items():
+        out[k] = {"lo": pct(xs, alpha / 2), "hi": pct(xs, 1 - alpha / 2)}
+    return out
