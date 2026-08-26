@@ -1606,3 +1606,52 @@ def test_an_ungrounded_span_is_never_trimmed(reg):  # noqa: F811
                                         trimmer=_fake_trimmer()))
     assert recs[0].spans == [(-1, -1)]
     assert "span_trimmed" not in recs[0].checks
+
+
+# --- negation at the PICK step (Phase B, measured on phaseB-1) ---------------
+#
+# The first negation run found 4 denied gold mentions the old prompt skipped
+# (DICLOFENAC-SODIUM.6's "drowsiness"/"grogginess"/"memory loss" are gold,
+# denied) — and then the PICK step declined every one of them: the model
+# reasoned "they did not have it, so no concept applies" and answered null.
+# Gold codes a denied reaction with the concept being denied, so the menu
+# has to SAY the mention is a denial and that denial is not a reason to
+# decline. Also measured on that run: the model answers the STRING "null"
+# (9 times) where the prompt says null — a transport convention, like
+# fences and the old "i" key, not a failure to use the menu.
+
+
+def test_the_menu_marks_denied_reactions():
+    from ladder.schema import Record
+
+    r1_ = Record(doc_id="D1", entity_type=REACTION, text="no cramping", spans=[(0, 11)])
+    r1_.checks["r0_negated"] = True
+    r2_ = Record(doc_id="D1", entity_type=REACTION, text="drowsy", spans=[(0, 6)])
+    r2_.checks["r0_negated"] = False
+    blocks = r0._blocks([(r1_, [{"i": 0, "fsn": "Cramp"}]),
+                         (r2_, [{"i": 0, "fsn": "Drowsy"}])])
+    line1, line2 = [l for l in blocks.splitlines() if l.startswith("reaction")]
+    assert "[denied]" in line1
+    assert "[denied]" not in line2
+
+
+def test_the_pick_prompt_says_denial_is_not_a_decline():
+    assert "[denied]" in r0.PICK_PROMPT
+
+
+def test_a_string_null_choice_is_a_decline_not_a_bad_pick(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": "null"},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["declined_shortlist"] is True
+    assert "bad_pick" not in recs[0].checks
+    assert agg["declined_shortlist"] == 1
+    assert agg["bad_pick"] == 0
+
+
+def test_wellness_statements_are_ruled_out_of_scope():
+    """The other measured leak: "No side effect" and "I was well" arrived as
+    negated mentions. A statement of wellness is not a denied reaction."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "no side effects" in prompt.lower()

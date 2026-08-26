@@ -271,6 +271,8 @@ _RULES = """
 Report a reaction the writer explicitly says they did NOT have as well, and
 mark it "negated": true — a denied reaction is still recorded. Every other
 mention is "negated": false. Only the writer's own reactions count either way.
+A blanket statement of wellness — "no side effects", "I feel fine" — is not a
+reaction and is not reported; report only a SPECIFIC denied reaction.
 
 Report EVERY symptom, condition or health problem the writer says they
 experienced — including the condition the drug was taken for, and conditions
@@ -454,6 +456,11 @@ Example of no_concept: for reaction "felt like my old self was gone" with a
 list of mood and fatigue concepts, the writer is describing a personal state
 no clinical concept names — the answer is "no_concept", not the nearest mood.
 
+A reaction marked [denied] is one the writer says they did NOT have. It is
+still coded: choose the concept for the reaction being denied, exactly as if
+it were experienced — the denial is recorded separately. That the writer did
+not have it is never a reason to answer null or "no_concept".
+
 {blocks}
 Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
 """
@@ -513,7 +520,12 @@ def _blocks(pairs) -> str:
     """
     out = []
     for idx, (rec, cands) in enumerate(pairs):
-        out.append("\n".join([f'reaction {idx}: "{rec.text}"', *_menu(cands)]))
+        # The pick must know a mention is a denial, or it reasons "they did
+        # not have it, no concept applies" and declines — measured on the
+        # first negation run: every denied gold mention it found, it then
+        # refused to code. Gold codes the concept being denied.
+        denied = " [denied]" if rec.checks.get("r0_negated") else ""
+        out.append("\n".join([f'reaction {idx}:{denied} "{rec.text}"', *_menu(cands)]))
     return "\n\n".join(out) + "\n"
 
 
@@ -949,6 +961,12 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             meta["no_pick"] = meta.get("no_pick", 0) + 1
             continue
         choice = choices[idx]
+        # The string "null" is the model SAYING null, not failing to use the
+        # menu — measured 9 times in one dev run, always from a reply that
+        # used real numbers elsewhere. Same posture as the fence stripping
+        # and the old "i" key: a transport convention, normalised and gone.
+        if isinstance(choice, str) and choice.strip().lower() in ("null", "none"):
+            choice = None
         if isinstance(choice, str) and choice.strip().lower() == "no_concept":
             # The explicit assertion the decline is not: "this is not a
             # codable reaction". This is what CONCEPT_LESS means, and the one
