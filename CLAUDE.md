@@ -245,17 +245,22 @@ Phase A is DONE (two-layer scorer, bootstrap CIs, excluded-overlap fix,
 S0/S1/S2 confirmed under the enhanced config — see docs/decisions.md).
 Run each remaining phase in its own session; this section is the handoff.
 
-1. **Phase B — rung 0 accuracy.** (a) NEGATION: extract denied reactions
-   with `negated: true` in all three step schemas — gold annotates them
-   (427 mentions, 4.7%; "no stomach pains" in DICLOFENAC-SODIUM.5 is gold),
-   the current prompt rule fights the answer key. Keep rung 1's cue as the
-   cross-check. (b) QUERY REWRITING for S2 retrieval (strip qualifiers
-   before embedding) — measure OFFLINE over the 6,595 coded gold mentions
-   first, wire only if it wins. (c) One dev run for a+b against
-   F1 0.296/0.451 with bootstrap CIs. (d) SPAN TRIMMER post-processor —
-   exact-mode detection is 0.429 vs 0.765 overlap: 34 points of pure
-   boundary convention; learn trims from POOL gold only. (e) menu
-   presentation arms (cached FIND ≈ 5 min each).
+1. **Phase B — rung 0 accuracy. DONE 2026-08-25** (see docs/decisions.md,
+   four entries same date). (a) Negation SHIPPED: all three schemas ask for
+   `negated`, denied mentions are extracted, flagged on
+   `checks.negated`/`checks.r0_negated` (the copy rung 1's cue overwrite
+   cannot clobber), marked `[denied]` in the pick menu — without that
+   marker the pick declined every denied mention it was given. (b) Query
+   rewriting REJECTED on the offline measurement: raw reproduced the 87.0%
+   deduped recall@20 baseline, both rewrite variants lost (rescued 26,
+   broke 62–71). Not wired. (d) SPAN TRIMMER shipped (`ladder/trim.py`,
+   `rung0_trim: true`): pool-learned edge trims + interior clause cut;
+   exact +0.4pt, overlap untouched. (c) Result on dev, 40 docs:
+   **F1 exact 0.296 → 0.362, overlap 0.451 → 0.479** (detection
+   0.501/0.783, coding 0.704/0.611), 137,828 tokens / 77 calls (+5.8%).
+   Runs: `out/phaseB-1.*` (confounded by one `{"picks":[]}` reply — the
+   diagnosis is the decisions entry), `out/phaseB-2.*` (the result).
+   (e) menu presentation arms were not run.
 2. **Phase C — models.** Import BioMistral-7B (GGUF → ollama Modelfile),
    register in models.yaml, swap in as rung-4 JUDGE (fixes the 2B-judging-
    20B inversion; different family; local so no licence issue). Re-judge
