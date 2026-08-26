@@ -262,8 +262,9 @@ _ASK = """  span_text  - the reporter's exact words, copied character for charac
 """
 
 _RULES = """
-Report only reactions the writer actually experienced. Do not report anything
-they say they did NOT have.
+Report a reaction the writer explicitly says they did NOT have as well, and
+mark it "negated": true — a denied reaction is still recorded. Every other
+mention is "negated": false. Only the writer's own reactions count either way.
 
 Report EVERY symptom, condition or health problem the writer says they
 experienced — including the condition the drug was taken for, and conditions
@@ -403,7 +404,7 @@ Two different answers, and they are not the same:
 Never invent a concept id, and do not spend effort trying to recall one — null
 is better than a guess.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"negated":..,"confidence":..}]}
 """
 
 S1_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
@@ -415,7 +416,7 @@ For each one return:
 """ + _RULES + """
 If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"negated":..,"confidence":..}]}
 """
 
 FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
@@ -426,7 +427,7 @@ For each one return:
 Quote the reaction itself, not the sentence around it. The concept name is
 chosen in a second step, so do not give one here.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"negated":..,"confidence":..}]}
 """
 
 PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
@@ -523,7 +524,16 @@ def _mention_record(doc_id: str, i: int, m: dict, source: str, step: str) -> Rec
         confidence=float(m.get("confidence", 0) or 0),
         record_id=f"{doc_id}#{i}",
     )
-    rec.checks.update(rung0_step=step, offsets=how)
+    # The model's OWN polarity claim (2026-08-25) — CADEC annotates denied
+    # reactions, 427 gold mentions (4.7%), so they are extracted and flagged
+    # rather than skipped. Written twice on purpose: rung 1's cue check does
+    # rec.checks.update(...) with its own "negated", so in a full-ladder run
+    # that key ends up holding the CUE verdict — r0_negated is the copy that
+    # survives, keeping the model-vs-cue cross-check readable from disk.
+    negated = bool(m.get("negated", False))
+    rec.checks.update(
+        rung0_step=step, offsets=how, negated=negated, r0_negated=negated
+    )
     return rec
 
 

@@ -1451,3 +1451,88 @@ def _json_manifest():
     import json as _json
 
     return _json.loads(pathlib.Path("manifest.json").read_text())
+
+
+# --- negation: denied reactions are EXTRACTED, flagged, and kept (Phase B) ---
+#
+# The old rule — "Do not report anything they say they did NOT have" — fought
+# the answer key. Measured (2026-08-22 negation note): CADEC annotates a
+# mention regardless of polarity, 427 gold mentions (4.7%) are denied
+# reactions, and DICLOFENAC-SODIUM.5's "no stomach pains" is gold. So the
+# model now reports denied reactions WITH a "negated": true flag, in all
+# three steps (scope parity), and rung 1's cue-based check stays untouched
+# as the deterministic cross-check.
+
+
+def test_no_step_tells_the_model_to_skip_denied_reactions():
+    """The rule that contradicted the answer key must be gone from every
+    extraction prompt. The new rule mentions denial too — what must not
+    survive is the instruction NOT TO REPORT it."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "Do not report anything" not in prompt
+        assert "Report only reactions the writer actually experienced" not in prompt
+
+
+def test_every_step_asks_for_the_negated_flag():
+    """Scope is identical across steps by design — the flag has to be in all
+    three prompts and all three JSON templates."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert '"negated"' in prompt, "the JSON template must carry the field"
+        assert "negated" in prompt.lower()
+
+
+def test_a_denied_mention_carries_the_models_flag(reg):  # noqa: F811
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "negated": True, "confidence": 0.8}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["negated"] is True
+    assert recs[0].checks["r0_negated"] is True
+
+
+def test_negated_defaults_to_false_when_the_model_omits_it(reg):  # noqa: F811
+    """An absent flag is 'not denied', never a missing column: every record
+    must be readable on the same key."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["negated"] is False
+    assert recs[0].checks["r0_negated"] is False
+
+
+@pytest.mark.parametrize("step,reply", [
+    ("S0", {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                          "start": 80, "end": 94, "sct_label": ["Generally unwell"],
+                          "sct_code": "213257006", "negated": True,
+                          "confidence": 0.8}]}),
+    ("S1", {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                          "sct_label": ["Generally unwell"], "negated": True,
+                          "confidence": 0.8}]}),
+])
+def test_the_flag_lands_in_every_step_not_only_s2(reg, step, reply):  # noqa: F811
+    llm = FakeLLM(reply)
+    recs, _ = r0.apply([], SOURCES, cfg(reg, step, llm=llm))
+    assert recs[0].checks["negated"] is True
+
+
+def test_the_models_negation_claim_survives_rung_1(reg):  # noqa: F811
+    """Rung 1's cue check writes checks["negated"] too (r1.apply does
+    rec.checks.update), so in a full-ladder run the cue OVERWRITES the model's
+    claim on that key. The claim is duplicated to r0_negated at creation so
+    the cross-check — model says denied vs cue fired — stays readable from
+    disk after every rung has run. Rung 1 itself is untouched."""
+    from ladder.rungs import r1
+
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "negated": True, "confidence": 0.8}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    r1.apply(recs, SOURCES, {"registry": reg})
+    # no denial cue precedes "extremely sick" in SOURCE, so the cue disagrees
+    assert recs[0].checks["negated"] is False        # rung 1's cue verdict
+    assert recs[0].checks["r0_negated"] is True      # the model's claim, kept
+    assert recs[0].checks["negation_cue"] is None
