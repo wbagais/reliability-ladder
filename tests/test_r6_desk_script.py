@@ -127,3 +127,55 @@ def test_oracle_writes_labeled_rows_the_rung_can_apply(desk, tmp_path, monkeypat
     # D.2's span was never annotated: upheld, not invented
     assert by["D.2#0"]["decision"] == "uphold"
     assert all(r["reviewer"].startswith("oracle") for r in rows)
+
+
+def test_a_dead_stdin_quits_cleanly_instead_of_crashing(desk, monkeypatch):
+    """The first real session produced a 0-row file: run in a non-interactive
+    panel, input() raised EOFError at the first prompt — after the output file
+    was created, before any decision. A dead terminal must read as 'quit', so
+    the session resumes later, not as a traceback."""
+    from ladder.schema import Record
+
+    rec = Record(doc_id="D.1", entity_type="reaction", text="x", spans=[(0, 1)],
+                 zone="ABSTAIN", record_id="D.1#0",
+                 checks={"withheld": {"sct": "1"}})
+
+    def dead_stdin(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", dead_stdin)
+    decision, sct, label, searches = desk.decide(rec, [], lambda t, k: [], None)
+    assert decision == "quit"
+
+
+def test_show_never_prints_the_word_None_to_a_reviewer(desk, capsys):
+    """Seen in the first live session: 'abstained unresolved (r1: BAND — None)'
+    — r1_reason is legitimately absent on a BAND verdict, and the display must
+    omit it, not print Python's None at a person."""
+    from ladder.schema import Record
+
+    rec = Record(doc_id="D.1", entity_type="reaction", text="x", spans=[(5, 6)],
+                 zone="ABSTAIN", reason="unresolved", record_id="D.1#0",
+                 checks={"withheld": {"sct": "12063002"}, "r1_verdict": "BAND",
+                         "r1_reason": None})
+    desk.show(1, 1, rec, "y" * 20, "Rectal hemorrhage", [])
+    assert "None" not in capsys.readouterr().out
+
+
+def test_menu_columns_survive_a_long_concept_id(desk, capsys):
+    """Slot 6 of the first live record carried 1085271000119102 — 16 digits —
+    and the fixed 12-wide column jammed the code into its label."""
+    cands = [
+        {"code": "12063002", "label": "rectal bleeding"},
+        {"code": "1085271000119102", "label": "rectal hemorrhage due to x"},
+    ]
+    desk.print_menu(cands, "t")
+    out = capsys.readouterr().out
+    for line in out.splitlines():
+        if "1085271000119102" in line:
+            assert "1085271000119102 " in line, "code and label must be separated"
+        if "12063002" in line:
+            # both labels start in the same column
+            col_a = line.index("rectal bleeding")
+    cols = [l.index("rectal") for l in out.splitlines() if "rectal" in l]
+    assert len(set(cols)) == 1, f"label column drifts: {cols}"

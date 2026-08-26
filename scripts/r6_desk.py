@@ -101,8 +101,11 @@ def show(i, total, rec, source, withheld_label, cands):
     print(f"\n{ctx}\n")
     denied = "  [denied]" if rec.checks.get("r0_negated") else ""
     print(f"  quoted    {rec.text!r}{denied}")
-    print(f"  abstained {rec.reason}  (r1: {rec.checks.get('r1_verdict')}"
-          f" — {rec.checks.get('r1_reason')})")
+    # r1_reason is legitimately absent on a BAND verdict — omit it rather
+    # than print a Python None at a person (seen in the first live session).
+    r1 = rec.checks.get("r1_verdict") or "?"
+    why = rec.checks.get("r1_reason")
+    print(f"  abstained {rec.reason}  (r1: {r1}{f' — {why}' if why else ''})")
     if code:
         label = withheld_label or f"{WARN}<no label in the vocabulary>{END}"
         print(f"  withheld  {code}  {label}")
@@ -114,8 +117,12 @@ def print_menu(cands, title):
         print(f"\n  {WARN}nothing on the menu for this record{END}")
         return
     print(f"\n  {DIM}{title}{END}")
+    # Width follows the longest code shown: SCTIDs run 6-18 digits, and a
+    # fixed column jammed 1085271000119102 into its label in the first
+    # live session.
+    width = max(len(str(c["code"])) for c in cands[:MENU_ROWS])
     for n, c in enumerate(cands[:MENU_ROWS], 1):
-        print(f"   {n}  {c['code']:<12} {c.get('label') or c.get('fsn') or ''}")
+        print(f"   {n}  {str(c['code']):<{width}} {c.get('label') or c.get('fsn') or ''}")
 
 
 # --- oracle ------------------------------------------------------------------
@@ -158,7 +165,16 @@ def decide(rec, shown, search, reg) -> tuple[str, str | None, str | None, int]:
     """One record's decision loop: (decision, sct, label, searches)."""
     searches = 0
     while True:
-        ans = input(f"\n  {BOLD}>{END} ").strip()
+        # A dead or closed stdin (non-interactive panel, Ctrl+D) reads as a
+        # clean quit — the appended file resumes — never as a traceback. The
+        # first real session hit exactly this: EOFError at the first prompt,
+        # a created-but-empty resolutions file, and no saved work to resume.
+        try:
+            ans = input(f"\n  {BOLD}>{END} ").strip()
+        except EOFError:
+            print(f"\n  {WARN}stdin closed — this desk needs an interactive "
+                  f"terminal. Quitting cleanly; the file resumes.{END}")
+            return "quit", None, None, searches
         if ans.startswith("/"):
             term = ans[1:].strip()
             if not term:
@@ -194,7 +210,11 @@ def decide(rec, shown, search, reg) -> tuple[str, str | None, str | None, int]:
             if label is None:
                 print(f"  {WARN}{ans} is not in the vocabulary — 'y' to file it "
                       f"anyway, anything else to go back{END}")
-                if input(f"  {BOLD}>{END} ").strip().lower() != "y":
+                try:
+                    confirm = input(f"  {BOLD}>{END} ").strip().lower()
+                except EOFError:
+                    return "quit", None, None, searches
+                if confirm != "y":
                     continue
             else:
                 print(f"  {ans} = {label}")

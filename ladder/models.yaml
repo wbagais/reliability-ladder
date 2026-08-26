@@ -78,5 +78,16 @@ providers:
       # the Claude 5 family removed temperature/top_p/top_k and returns 400 if
       # one is sent. Every rung here calls with temperature=0, so without this
       # flag the first request fails. See tests/test_llm_registry.py.
-      claude-sonnet-5: { input_per_mtok: 2.00, output_per_mtok: 10.00, sampling: false }
+      # DECIDED 2026-08-26: the remote extractor arm is an OPTION, never the
+      # default. Exercised per run with --extractor anthropic/claude-sonnet-5
+      # and LADDER_ALLOW_REMOTE=1 (rung prompts carry CADEC text verbatim, so
+      # the remote guard makes that a deliberate act each time). manifest.model
+      # stays local. Budget matches the extractor shape (gpt-oss:20b): without
+      # it the entry inherits DEFAULT_MAX_TOKENS=2000, the cap that truncated
+      # S0/S2 mid-JSON — and Sonnet 5's adaptive thinking bills against the
+      # same completion budget. CAVEAT if this arm is ever run: sampling: false
+      # means rung 3's sampler has no temperature dial, so its k votes would be
+      # near-identical draws — disable rung 3 for the arm or read its numbers
+      # as degenerate.
+      claude-sonnet-5: { input_per_mtok: 2.00, output_per_mtok: 10.00, sampling: false, max_tokens: 8000, timeout_s: 300 }
       claude-opus-5: { input_per_mtok: 5.00, output_per_mtok: 25.00, sampling: false }

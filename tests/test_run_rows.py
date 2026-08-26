@@ -123,3 +123,18 @@ def test_no_scorer_leaves_every_accuracy_column_empty():
     assert errors is None
     assert row["sct_outdated"] == ""
     assert row["f1_sct_strict"] == ""
+
+
+# --- the fifth outcome's column ----------------------------------------------
+
+
+def test_modernised_is_a_declared_column():
+    assert "sct_modernised" in CSV_COLUMNS
+
+
+def test_a_gold_successor_prediction_is_counted_modernised_not_correct():
+    # gold recorded the retired 162076009; the model answered its successor
+    r = row_for([rec(sct="271782001")], [gold(sct=["162076009"])], vocab=FakeVocab())
+    assert r["sct_modernised"] == 1
+    assert r["f1_sct_strict"] == 0.0, "modernised is an error, not a hit"
+    assert r["corrupted"] == 1
