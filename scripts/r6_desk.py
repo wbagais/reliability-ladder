@@ -158,7 +158,16 @@ def decide(rec, shown, search, reg) -> tuple[str, str | None, str | None, int]:
     """One record's decision loop: (decision, sct, label, searches)."""
     searches = 0
     while True:
-        ans = input(f"\n  {BOLD}>{END} ").strip()
+        # A dead or closed stdin (non-interactive panel, Ctrl+D) reads as a
+        # clean quit — the appended file resumes — never as a traceback. The
+        # first real session hit exactly this: EOFError at the first prompt,
+        # a created-but-empty resolutions file, and no saved work to resume.
+        try:
+            ans = input(f"\n  {BOLD}>{END} ").strip()
+        except EOFError:
+            print(f"\n  {WARN}stdin closed — this desk needs an interactive "
+                  f"terminal. Quitting cleanly; the file resumes.{END}")
+            return "quit", None, None, searches
         if ans.startswith("/"):
             term = ans[1:].strip()
             if not term:
@@ -194,7 +203,11 @@ def decide(rec, shown, search, reg) -> tuple[str, str | None, str | None, int]:
             if label is None:
                 print(f"  {WARN}{ans} is not in the vocabulary — 'y' to file it "
                       f"anyway, anything else to go back{END}")
-                if input(f"  {BOLD}>{END} ").strip().lower() != "y":
+                try:
+                    confirm = input(f"  {BOLD}>{END} ").strip().lower()
+                except EOFError:
+                    return "quit", None, None, searches
+                if confirm != "y":
                     continue
             else:
                 print(f"  {ans} = {label}")

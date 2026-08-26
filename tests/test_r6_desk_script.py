@@ -127,3 +127,22 @@ def test_oracle_writes_labeled_rows_the_rung_can_apply(desk, tmp_path, monkeypat
     # D.2's span was never annotated: upheld, not invented
     assert by["D.2#0"]["decision"] == "uphold"
     assert all(r["reviewer"].startswith("oracle") for r in rows)
+
+
+def test_a_dead_stdin_quits_cleanly_instead_of_crashing(desk, monkeypatch):
+    """The first real session produced a 0-row file: run in a non-interactive
+    panel, input() raised EOFError at the first prompt — after the output file
+    was created, before any decision. A dead terminal must read as 'quit', so
+    the session resumes later, not as a traceback."""
+    from ladder.schema import Record
+
+    rec = Record(doc_id="D.1", entity_type="reaction", text="x", spans=[(0, 1)],
+                 zone="ABSTAIN", record_id="D.1#0",
+                 checks={"withheld": {"sct": "1"}})
+
+    def dead_stdin(prompt=""):
+        raise EOFError
+
+    monkeypatch.setattr("builtins.input", dead_stdin)
+    decision, sct, label, searches = desk.decide(rec, [], lambda t, k: [], None)
+    assert decision == "quit"
