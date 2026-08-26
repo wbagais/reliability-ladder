@@ -1451,3 +1451,246 @@ def _json_manifest():
     import json as _json
 
     return _json.loads(pathlib.Path("manifest.json").read_text())
+
+
+# --- negation: denied reactions are EXTRACTED, flagged, and kept (Phase B) ---
+#
+# The old rule — "Do not report anything they say they did NOT have" — fought
+# the answer key. Measured (2026-08-22 negation note): CADEC annotates a
+# mention regardless of polarity, 427 gold mentions (4.7%) are denied
+# reactions, and DICLOFENAC-SODIUM.5's "no stomach pains" is gold. So the
+# model now reports denied reactions WITH a "negated": true flag, in all
+# three steps (scope parity), and rung 1's cue-based check stays untouched
+# as the deterministic cross-check.
+
+
+def test_no_step_tells_the_model_to_skip_denied_reactions():
+    """The rule that contradicted the answer key must be gone from every
+    extraction prompt. The new rule mentions denial too — what must not
+    survive is the instruction NOT TO REPORT it."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "Do not report anything" not in prompt
+        assert "Report only reactions the writer actually experienced" not in prompt
+
+
+def test_every_step_asks_for_the_negated_flag():
+    """Scope is identical across steps by design — the flag has to be in all
+    three prompts and all three JSON templates."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert '"negated"' in prompt, "the JSON template must carry the field"
+        assert "negated" in prompt.lower()
+
+
+def test_a_denied_mention_carries_the_models_flag(reg):  # noqa: F811
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "negated": True, "confidence": 0.8}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["negated"] is True
+    assert recs[0].checks["r0_negated"] is True
+
+
+def test_negated_defaults_to_false_when_the_model_omits_it(reg):  # noqa: F811
+    """An absent flag is 'not denied', never a missing column: every record
+    must be readable on the same key."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].checks["negated"] is False
+    assert recs[0].checks["r0_negated"] is False
+
+
+@pytest.mark.parametrize("step,reply", [
+    ("S0", {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                          "start": 80, "end": 94, "sct_label": ["Generally unwell"],
+                          "sct_code": "213257006", "negated": True,
+                          "confidence": 0.8}]}),
+    ("S1", {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                          "sct_label": ["Generally unwell"], "negated": True,
+                          "confidence": 0.8}]}),
+])
+def test_the_flag_lands_in_every_step_not_only_s2(reg, step, reply):  # noqa: F811
+    llm = FakeLLM(reply)
+    recs, _ = r0.apply([], SOURCES, cfg(reg, step, llm=llm))
+    assert recs[0].checks["negated"] is True
+
+
+def test_the_models_negation_claim_survives_rung_1(reg):  # noqa: F811
+    """Rung 1's cue check writes checks["negated"] too (r1.apply does
+    rec.checks.update), so in a full-ladder run the cue OVERWRITES the model's
+    claim on that key. The claim is duplicated to r0_negated at creation so
+    the cross-check — model says denied vs cue fired — stays readable from
+    disk after every rung has run. Rung 1 itself is untouched."""
+    from ladder.rungs import r1
+
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "negated": True, "confidence": 0.8}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    r1.apply(recs, SOURCES, {"registry": reg})
+    # no denial cue precedes "extremely sick" in SOURCE, so the cue disagrees
+    assert recs[0].checks["negated"] is False        # rung 1's cue verdict
+    assert recs[0].checks["r0_negated"] is True      # the model's claim, kept
+    assert recs[0].checks["negation_cue"] is None
+
+
+# --- the span trimmer (Phase B(d)) -------------------------------------------
+#
+# Exact-mode detection is 0.429 against 0.765 overlap — 34 points of pure
+# boundary convention. The trimmer (ladder/trim.py) learns from POOL gold
+# which tokens the annotation convention leaves outside span boundaries and
+# strips them from rung 0's records AFTER locate(), keeping the original
+# text on the record. Behind `rung0_trim`; rules are injectable as
+# cfg["trimmer"] so these tests need no corpus.
+
+
+def _fake_trimmer():
+    from ladder.trim import SpanTrimmer
+
+    return SpanTrimmer(lead_drop=frozenset({"due"}), trail_drop=frozenset({"."}))
+
+
+def test_the_trimmer_is_off_by_default(reg):  # noqa: F811
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "due extreme rectal bleed",
+                       "context": "Hospitalization", "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        trimmer=_fake_trimmer()))
+    assert recs[0].text == "due extreme rectal bleed"
+    assert "span_trimmed" not in recs[0].checks
+
+
+def test_trimming_moves_text_and_offsets_together(reg):  # noqa: F811
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "due extreme rectal bleed",
+                       "context": "Hospitalization", "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_trim=True,
+                                          trimmer=_fake_trimmer()))
+    start = SOURCE.index("extreme rectal bleed")
+    assert recs[0].text == "extreme rectal bleed"
+    assert recs[0].spans == [(start, start + len("extreme rectal bleed"))]
+    assert recs[0].checks["span_untrimmed"] == "due extreme rectal bleed"
+    assert recs[0].checks["span_trimmed"] is True
+    assert agg["trimmed"] == 1
+    # the trimmed span still quotes the source — the record stays grounded
+    a, b = recs[0].spans[0]
+    assert SOURCE[a:b] == recs[0].text
+
+
+def test_an_untouched_span_carries_no_trim_keys(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_trim=True,
+                                          trimmer=_fake_trimmer()))
+    assert recs[0].text == "extreme rectal bleed"
+    assert "span_trimmed" not in recs[0].checks
+    assert "span_untrimmed" not in recs[0].checks
+    assert agg["trimmed"] == 0
+
+
+def test_an_ungrounded_span_is_never_trimmed(reg):  # noqa: F811
+    """(-1, -1) offsets mean the quote is not in the source. Arithmetic on
+    them would fabricate a grounding the record does not have."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "due purple monkey dishwasher", "context": "",
+        "sct_label": ["Generally unwell"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, rung0_trim=True,
+                                        trimmer=_fake_trimmer()))
+    assert recs[0].spans == [(-1, -1)]
+    assert "span_trimmed" not in recs[0].checks
+
+
+# --- negation at the PICK step (Phase B, measured on phaseB-1) ---------------
+#
+# The first negation run found 4 denied gold mentions the old prompt skipped
+# (DICLOFENAC-SODIUM.6's "drowsiness"/"grogginess"/"memory loss" are gold,
+# denied) — and then the PICK step declined every one of them: the model
+# reasoned "they did not have it, so no concept applies" and answered null.
+# Gold codes a denied reaction with the concept being denied, so the menu
+# has to SAY the mention is a denial and that denial is not a reason to
+# decline. Also measured on that run: the model answers the STRING "null"
+# (9 times) where the prompt says null — a transport convention, like
+# fences and the old "i" key, not a failure to use the menu.
+
+
+def test_the_menu_marks_denied_reactions():
+    from ladder.schema import Record
+
+    r1_ = Record(doc_id="D1", entity_type=REACTION, text="no cramping", spans=[(0, 11)])
+    r1_.checks["r0_negated"] = True
+    r2_ = Record(doc_id="D1", entity_type=REACTION, text="drowsy", spans=[(0, 6)])
+    r2_.checks["r0_negated"] = False
+    blocks = r0._blocks([(r1_, [{"i": 0, "fsn": "Cramp"}]),
+                         (r2_, [{"i": 0, "fsn": "Drowsy"}])])
+    line1, line2 = [l for l in blocks.splitlines() if l.startswith("reaction")]
+    assert "[denied]" in line1
+    assert "[denied]" not in line2
+
+
+def test_the_pick_prompt_says_denial_is_not_a_decline():
+    assert "[denied]" in r0.PICK_PROMPT
+
+
+def test_a_string_null_choice_is_a_decline_not_a_bad_pick(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": "null"},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["declined_shortlist"] is True
+    assert "bad_pick" not in recs[0].checks
+    assert agg["declined_shortlist"] == 1
+    assert agg["bad_pick"] == 0
+
+
+def test_wellness_statements_are_ruled_out_of_scope():
+    """The other measured leak: "No side effect" and "I was well" arrived as
+    negated mentions. A statement of wellness is not a denied reaction."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "no side effects" in prompt.lower()
+
+
+# --- menu presentation: order is a declared choice (Phase B(e)) --------------
+#
+# The dense menu is ranked best-first, so the gold code usually sits high on
+# the list — and a model that anchors on early items would look better than
+# it reads. The alpha arm re-sorts the SAME candidates alphabetically before
+# numbering: if F1 holds, the pick reads content; if it drops, position was
+# doing work. An arm, not a default.
+
+
+def test_menu_order_defaults_to_score():
+    assert r0.DEFAULTS["rung0_menu_order"] == "score"
+
+
+def test_alpha_menu_reorders_and_renumbers(reg):  # noqa: F811
+    hits = [{"i": 0, "code": "2", "label": "zoster", "fsn": "zoster",
+             "score": 0.9, "via": "dense"},
+            {"i": 1, "code": "1", "label": "ache", "fsn": "ache",
+             "score": 0.8, "via": "dense"}]
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        dense=FakeDense(hits),
+                                        rung0_menu_order="alpha"))
+    cands = recs[0].checks["candidates"]
+    assert [c["label"] for c in cands] == ["ache", "zoster"]
+    assert [c["i"] for c in cands] == [0, 1]
+    assert recs[0].sct == "1", "choice 0 must mean the REORDERED slot 0"
+    assert recs[0].checks["rung0_menu_order"] == "alpha"
+
+
+def test_an_unknown_menu_order_is_refused(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": []})
+    with pytest.raises(ValueError, match="rung0_menu_order"):
+        r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_menu_order="magic"))
