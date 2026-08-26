@@ -2662,3 +2662,187 @@ freeze exists to prevent, and it would have been invisible.
 confidence interval, and S1 vs S2 is 3.8 points of exact F1. The test split is
 what would call it properly. S2 is frozen because the ladder needs A step to
 be frozen, not because the gap is large.
+
+---
+
+## 2026-08-25 — rung 0 review: four enhancements, one rejected on re-measurement
+
+A deep review of the frozen S2 ran it on 3 dev documents (F1 strict 0.33; the
+losses were recall — 3 of 7 gold mentions attempted — and one modifier-pulled
+wrong pick). Four changes came out of it, each TDD'd; one planned change died
+on its own measurement.
+
+**1. Dense shortlist now dedupes by CONCEPT** (`EmbeddingIndex.search`).
+Synonyms of one concept cluster in embedding space, and 46.8% of codes carry
+more than one keyword (mean 1.78, max 27) — a live top-5 for "extreme rectal
+bleed" held 12063002 twice and 414991007 twice. `Registry.shortlist` already
+dedupes by cid, so the two retrievers now agree on what a slot means. Measured
+over the same 6,595 gold mentions (the 86.1% baseline reproduced exactly
+first, validating the harness):
+
+    k          1      5      10     20     50
+    undeduped  63.7%  76.7%  82.1%  86.1%  90.3%
+    deduped    63.7%  77.7%  83.2%  87.0%  91.1%
+
++0.9pt recall@20 for zero extra cost, and menus with no duplicate lines.
+
+**2. Declining the pick menu is no longer CONCEPT_LESS.** The old reading —
+"shown every candidate the vocabulary has, declining is an assertion" — was
+false: the menu is k of 227,554, and it misses the gold code for 13.0% of
+coded mentions even deduped. The scorer credits CONCEPT_LESS as CORRECT
+against concept-less gold, so a decline was scored as a vocabulary-wide claim
+the model never made. A decline now degrades to `sct = None` (abstained),
+flagged `declined_shortlist` and counted. Same for S1's menu (its own names'
+codes). CONCEPT_LESS remains reachable where the model actually asserts it:
+the S0/S1 sentinel. Note the trade: S2 can no longer score CORRECT on
+concept-less gold — the credit it loses is credit it had not earned.
+
+**3. `no_pick` / `bad_pick` / `declined_shortlist` aggregate into `agg`** —
+they were per-record flags only, so a run where the model fumbled every menu
+printed a clean summary.
+
+**4. Two coverage rules added to the shared `_RULES` (all three steps, scope
+parity kept).** Measured first, per the rule about prompt rules: 385 gold
+mentions (5.6%, exclusions applied) are an exact repeat of an earlier span in
+the same document — CADEC annotates every occurrence, the model dedupes
+("spotting" reported once where gold has it twice). And gold codes general
+malaise ("extremely sick" is 213257006), which S2 skipped on the first dev
+document. Rules: report a reaction every time it is described; vague and
+general states count.
+
+**REJECTED: trimming intensifiers, again, now with the sign measured.** The
+plan proposed "quote the symptom without severity words" after watching gold
+say "rectal bleed" where the model said "extreme rectal bleed". Re-measured:
+gold KEEPS a leading intensifier 3x more often than it drops one — 469
+mentions (6.8%) start with one and keep it, 151 (2.2%) have one immediately
+before the span and excluded. The two dev misses are the minority convention.
+The rule stays out, the existing test guarding it stays, and the few-shot
+example below models the majority convention (intensifier kept).
+
+**NEW ARM, unmeasured: `rung0_fewshot`** (default False). A synthetic worked
+example — never CADEC text; a test asserts it — appended to every extraction
+prompt, teaching the three things prose could carry plus the one it could
+not: repeats reported again, vague states reported, treatments excluded,
+intensifier kept. Off until measured against the frozen S2 on dev.
+
+**MEASURED SAME DAY — the arms, dev split, 40 docs, 226 gold mentions,
+gpt-oss:20b, effort low, rung 0 only.** Baseline is the frozen S2 row from
+2026-08-24. Arm 1 is the committed changes with the example OFF; arm 2 turns
+`rung0_fewshot` on. Both arms carry the dedupe and the decline change, so the
+few-shot delta is arm2 - arm1, not arm2 - baseline.
+
+    |                     | F1 exact | F1 overlap | mentions | calls | tokens  |
+    | frozen S2           | 0.209    | 0.310      | ~92      | 75    | 68,906  |
+    | arm 1 (rules only)  | 0.204    | 0.308      | 184      | 77    | 97,878  |
+    | arm 2 (+ few-shot)  | 0.266    | 0.363      | 196      | 77    | 106,627 |
+
+**The rules alone are a wash; the example is what cashes them in.** The
+coverage rules doubled emitted mentions (recall exact 0.181 vs an estimated
+~0.15 baseline) and paid for it in precision — F1 flat. With the worked
+example added, precision comes back (0.294 exact) while the recall holds:
++5.7pt exact and +5.3pt overlap over the frozen S2, which is a bigger step
+than S1->S2 was (+3.8 exact). Zero parse failures in either arm; the decline
+change (which can only remove credit) is included in both, so the gains are
+conservative.
+
+**Cost, stated:** arm 2 is 1.55x the frozen baseline's tokens (106,627 vs
+68,906). Same call count (77 vs 75).
+
+**Not flipped in the manifest.** `rung0_fewshot: true` would change the
+frozen rung 0 that rungs 1-6 are measured against — the same freeze argument
+as 2026-08-24 — so turning it on is a joint manifest edit, proposed but not
+taken unilaterally. Until then the arm is reproducible with the flag.
+
+---
+
+## 2026-08-25 — dev failure analysis turned into five changes; F1 overlap 0.310 -> 0.430
+
+The arm-2 dev run was decomposed instead of admired: of 226 gold, 68 FN
+(concentrated in symptom-dense posts; 20 of them CADEC Symptom/Disease/
+Finding mentions the "adverse reaction" wording told the model to skip),
+45 paired mentions where the GOLD CODE WAS ON THE MENU and the model picked a
+qualified sibling, 32 retrieval misses, 20 boundary-only, 10 concept-less
+gold that S2 could no longer answer after the decline revision.
+
+Five changes followed, all committed together and measured as one arm
+(attribution inside the bundle is not claimed):
+
+1. PICK prompt states the base-concept rule — gold is |Abdominal pain| for
+   "Very very severe abdonimal pain"; plain beats qualified.
+2. Scope widened to the answer key's: every condition experienced, including
+   what the drug was taken for (CADEC_TYPE_MAP folds Symptom/Disease/Finding
+   into REACTION).
+3. Whole-post exhaustiveness stated.
+4. "choice": "no_concept" — the explicit CONCEPT_LESS assertion; null stays
+   "none of these".
+5. Pool-derived few-shot: rung0_fewshot_docs = ARTHROTEC.22 + ARTHROTEC.110,
+   rendered at runtime from data/, POOL ONLY (dev/test refused — an example
+   from a scored split carries its own gold in-prompt). Few-shot examples
+   come from pool, never dev: dev is the measurement.
+
+Dev, 40 docs, 226 gold, gpt-oss:20b effort low:
+
+    |                   | F1 exact | F1 overlap | mentions | tokens  |
+    | frozen S2         | 0.209    | 0.310      | ~92      | 68,906  |
+    | arm 2 (synthetic) | 0.266    | 0.363      | 196      | 106,627 |
+    | arm 3 (all five)  | 0.289    | 0.430      | 240      | 126,871 |
+
+Decomposition moved the right way: FN 68 -> 53, pick-past-gold 45 -> 34,
+retrieval misses 32 -> 35 (more mentions found, more retrievals attempted).
+The model never answered no_concept (0 uses) — the hatch exists, unused so
+far. Overlap gained 3x what exact did: the new mentions are FOUND but their
+boundaries still disagree with gold, so span conventions are now the
+largest remaining gap, followed by the 34 residual picks and the retrieval
+misses (dense on "extremely sick" cannot surface |Generally unwell|).
+
+Cost, stated: 1.84x the frozen baseline's tokens. Same 77 calls.
+
+Risk, stated: three prompt iterations have now been tuned against the same
+40 dev documents. The test split has never been touched and remains the
+only number that can go in the article.
+
+---
+
+## 2026-08-25 — arm 4 lost to arm 3, and the retreat is the finding
+
+Three approved enhancements were bundled as arm 4: FIND asks for up to three
+concept NAMES and retrieval queries span + names merged (targeting arm 3's
+35 menu misses), k 20 -> 40 deduped (offline recall@40 90.2% vs 87.0%), and
+a third pool example (LIPITOR.968, span conventions) plus a worked
+no_concept line in the PICK prompt.
+
+    | arm   | names | k  | examples | F1 exact | F1 overlap | FN | pick-past-gold | retr-miss |
+    | 3     | no    | 20 | 2        | 0.289    | 0.430      | 53 | 34             | 35        |
+    | 4     | yes   | 40 | 3        | 0.236    | 0.411      | 63 | 47             | 23        |
+    | 4b    | yes   | 20 | 3        | 0.232    | 0.421      | 63 | 40             | 27        |
+    | FINAL | no    | 20 | 2        | 0.294    | 0.447      |    |                |           |
+
+**Name-augmented retrieval did exactly what it promised and still lost.**
+Menu misses fell 35 -> 23, and the cost surfaced two steps away: the find
+step emitted fewer and worse-bounded mentions (asking for names competes
+with finding spans at low effort), and the pick step erred more. k=40 made
+picks worse again (34 -> 47 at k=40): MENU RECALL IS NOT MENU ACCURACY, and
+the k=20 + dedupe setting stands on that measurement, not on the recall
+table. The merge machinery stays (inert without labels, exercised by tests);
+the sct_label field is out of the FIND prompt and a test keeps it out.
+
+**An isolation run was voided and rerun honestly.** Arm 4d meant to isolate
+the third example but left `"sct_label"` in FIND's JSON template while the
+prose said not to give one — a self-contradictory prompt measures nothing.
+The third example therefore has NO clean solo measurement; it went out with
+the bundle, recorded as unproven rather than harmful.
+
+**FINAL is arm 3 plus only the no_concept worked line** (used twice on dev,
+first uses ever) and it edges arm 3: exact 0.294, overlap 0.447, 240
+mentions, 129,792 tokens. Against the 2026-08-24 freeze: F1 exact 0.209 ->
+0.294, overlap 0.310 -> 0.447, at 1.88x tokens. Five dev-tuned prompt
+iterations now: the test split remains untouched and is the only number
+that can go in the article.
+
+**Also surfaced, not acted on:** the extraction rule "do not report anything
+they say they did NOT have" contradicts the answer key — CADEC annotates
+mentions regardless of polarity (the 2026-08-22 negation note measured 427
+gold mentions, 4.7%), e.g. DICLOFENAC-SODIUM.5's "no stomach pains" is
+annotated. Changing scope again is a decision, not an edit; it would also
+collide with rung 1's negation flag. Parked.
+- 2026-08-25 — **Arm 5: `reasoning_effort` default vs `low`, re-measured on the final config — `low` stays.** Same 40 dev docs, same prompts, only the effort changed (models.yaml edit for the run, reverted after). Default effort: F1 exact 0.309 / overlap 0.448 vs low's 0.294 / 0.447 — +1.5pt exact, +0.1pt overlap, inside the ±3pt noise band. The costs are not inside any noise band: 340,787 tokens vs 130,246 (2.6x), ~2.2 h wall vs ~12 min (~10x, p95 doc latency 626 s), and 2 parse failures + 2 truncations where low had zero — the extra thinking pushes replies into the token cap. Pick-past-gold improved (33 -> 29), FN worsened (56 -> 59); the residue composition barely moves. The 2026-08-24 quality concern ("low finds 1 of 17") was an S0 artifact — under S2's find-then-pick shape, effort adds nothing the retrieval step hasn't already supplied. Full run: out/r0-enh-arm5-effort.*.

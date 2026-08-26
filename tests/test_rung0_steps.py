@@ -256,11 +256,31 @@ def test_s2_candidates_are_recorded_for_audit(reg):  # noqa: F811
     assert "fsn" in recs[0].checks["candidates"][0]
 
 
-def test_s2_null_choice_is_concept_less(reg):  # noqa: F811
-    """Shown every candidate the vocabulary has and declining is an assertion."""
+def test_a_menu_decline_is_not_concept_less(reg):  # noqa: F811
+    """REVISED 2026-08-25. Declining the menu used to write CONCEPT_LESS on
+    the theory that the model was "shown every candidate the vocabulary has".
+    It was shown k of 227,554 — the menu misses the gold code for 13.0% of
+    coded mentions even deduped — so a decline asserts "none of THESE", not
+    "no concept exists". The scorer credits CONCEPT_LESS as CORRECT against
+    concept-less gold, so the old behaviour scored a claim the model never
+    made. The decline now degrades to None (abstained), flagged and counted.
+    """
     llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": None}, {"i": 1, "choice": None}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
-    assert recs[0].sct == CONCEPT_LESS
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].sct_label is None
+    assert recs[0].checks["declined_shortlist"] is True
+    assert agg["declined_shortlist"] == 2
+
+
+def test_pick_failures_reach_the_run_summary(reg):  # noqa: F811
+    """no_pick and bad_pick were per-record flags only, so a run where the
+    model fumbled every menu still printed a clean summary. They aggregate
+    like every other failure counter now."""
+    llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 99}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert agg["bad_pick"] == 1
+    assert agg["no_pick"] == 1
 
 
 def test_s2_out_of_range_index_is_refused_not_clamped(reg):  # noqa: F811
@@ -454,6 +474,56 @@ def test_every_step_excludes_treatments_and_procedures():
         assert "treatment" in prompt.lower()
 
 
+def test_every_step_asks_for_every_occurrence():
+    """Measured 2026-08-25: 385 gold mentions (5.6%, exclusions applied) are
+    an exact repeat of an earlier span in the same document — CADEC annotates
+    every occurrence. The model dedupes unless told otherwise: on the frozen
+    S2 it reported "spotting" once where gold has "spotting" and "spotting
+    problems". Safe to state as prose because the convention is unanimous:
+    a repeat is never left unannotated.
+    """
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "every time" in prompt.lower() or "each time" in prompt.lower()
+
+
+def test_every_step_says_vague_states_count():
+    """Gold codes general malaise — "extremely sick" is 213257006 — and the
+    frozen S2 skipped it on the very first dev document. Stated as prose
+    because it widens recall without touching span boundaries."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "vague" in prompt.lower() or "general" in prompt.lower()
+
+
+def test_every_step_scopes_to_all_conditions_not_only_adrs():
+    """The answer key is WIDER than "adverse reaction": CADEC's Symptom,
+    Disease and Finding annotations all map to REACTION (schema.py
+    CADEC_TYPE_MAP), so gold includes the condition the drug was taken for —
+    "Lower back pain" in dev doc ARTHROTEC.139. Measured on the 2026-08-25
+    arm-2 dev run: 20 of 68 false negatives were these non-ADR mentions. A
+    prompt that says only "adverse reaction" tells the model to skip a fifth
+    of its misses."""
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "taken for" in prompt.lower()
+
+
+def test_every_step_demands_the_whole_list():
+    """Measured on the arm-2 dev run: false negatives concentrate in
+    symptom-dense posts — docs with 12-14 gold mentions got 5-8 from the
+    model, which stops partway through comma-lists like "drowsiness,
+    grogginess, memory loss, loss of stamina". """
+    for prompt in (r0.S0_PROMPT, r0.S1_PROMPT, r0.FIND_PROMPT):
+        assert "whole post" in prompt.lower()
+
+
+def test_the_pick_prompt_states_the_base_concept_rule():
+    """The single biggest dev failure: 45 of 226 mentions (20%) had the gold
+    code ON the menu and the model picked a more specific sibling — gold is
+    |Abdominal pain| for "Very very severe abdonimal pain", |Neck pain| for
+    "neck pain while turning head". CADEC codes the plain base concept."""
+    low = r0.PICK_PROMPT.lower()
+    assert "plain" in low
+
+
 def test_no_step_tells_the_model_to_drop_intensifiers():
     """Measured: 506 gold mentions (6.9%) START with an intensifier and KEEP
     it — "severe stomach pain", "extreme stomach pain", "extremely sick". An
@@ -465,6 +535,186 @@ def test_no_step_tells_the_model_to_drop_intensifiers():
         low = prompt.lower()
         assert "intensifier" not in low
         assert "not the words around it" not in low
+
+
+# --- the few-shot arm --------------------------------------------------------
+#
+# CADEC's span conventions are not all stateable as prose (the intensifier
+# test above is the proof), so a worked example is the remaining lever. It is
+# an ARM, not the default: rung0_fewshot defaults to False and the example
+# block reaches the prompt only when a run turns it on, so its effect is
+# measurable against the frozen S2 rather than folded into it.
+
+
+def test_fewshot_is_off_by_default(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0}]})
+    r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert r0.FEWSHOT not in llm.prompts[0]
+
+
+@pytest.mark.parametrize("step,replies", [
+    ("S0", [{"mentions": []}]),
+    ("S1", [{"mentions": []}]),
+    ("S2", [{"mentions": []}]),
+])
+def test_fewshot_reaches_every_extraction_prompt(reg, step, replies):  # noqa: F811
+    llm = FakeLLM(*replies)
+    r0.apply([], SOURCES, cfg(reg, step, llm=llm, rung0_fewshot=True))
+    assert r0.FEWSHOT in llm.prompts[0]
+
+
+def test_the_fewshot_example_is_synthetic():
+    """CADEC is non-transferable and prompts are tracked files, so the worked
+    example must never quote the corpus. Spot-checked against the corpus text
+    this suite already carries plus the drug names of every CADEC forum."""
+    low = r0.FEWSHOT.lower()
+    for leaked in ("rectal bleed", "spotting", "arthrotec", "lipitor",
+                   "voltaren", "extremely sick", "not survive"):
+        assert leaked not in low
+
+
+def test_the_fewshot_example_keeps_its_intensifier():
+    """The dominant gold convention (6.8% keep vs 2.2% drop) — the example
+    must model it, not fight it."""
+    assert "terrible cramps" in r0.FEWSHOT.lower()
+
+
+# --- the no_concept pick ------------------------------------------------------
+
+
+def test_no_concept_pick_is_concept_less(reg):  # noqa: F811
+    """`"choice": "no_concept"` is the explicit assertion the decline change
+    removed: not "none of these candidates" but "this is not a codable
+    reaction". 10 of 226 dev gold mentions (4%) are concept-less, and after
+    the decline fix S2 had no way to ever answer them."""
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": "no_concept"},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct == CONCEPT_LESS
+    assert recs[0].sct_label == CONCEPT_LESS
+    assert agg["declined_shortlist"] == 0
+    assert recs[1].sct is not None
+
+
+def test_a_null_choice_still_declines_not_asserts(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": None},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    assert recs[0].sct is None
+    assert recs[0].checks["declined_shortlist"] is True
+
+
+def test_the_pick_prompt_offers_no_concept():
+    assert "no_concept" in r0.PICK_PROMPT
+
+
+# --- pool-derived few-shot ----------------------------------------------------
+#
+# The synthetic example teaches span mechanics; only real CADEC examples can
+# teach CADEC's own conventions (base-concept coding, exhaustive lists, the
+# treated condition counting). They are rendered AT RUNTIME from data/ — the
+# corpus is non-transferable and never committed; only doc IDs are. Examples
+# must come from the POOL split: a dev example would put its own gold answers
+# in the prompt while that document is being scored.
+
+
+def test_render_fewshot_shows_post_and_every_mention():
+    block = r0.render_fewshot([
+        ("Got cramps. Then cramps again.", ["cramps", "cramps"]),
+    ])
+    assert "Got cramps. Then cramps again." in block
+    assert block.count('"cramps"') == 2
+    assert "again" in block.lower()  # the repeat is annotated as a repeat
+
+
+def test_pool_fewshot_docs_reach_the_prompt(reg):  # noqa: F811
+    llm = FakeLLM({"mentions": []})
+    r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_fewshot=True,
+                              rung0_fewshot_block="POOLBLOCK-SENTINEL"))
+    assert "POOLBLOCK-SENTINEL" in llm.prompts[0]
+    assert r0.FEWSHOT not in llm.prompts[0]
+
+
+def test_fewshot_docs_must_come_from_the_pool(tmp_path):
+    """A dev or test example doc would leak its gold into the prompt of a
+    scored run. Refused, not warned."""
+    import json as _json
+    (tmp_path / "pool.json").write_text(
+        _json.dumps({"split": "pool", "doc_ids": ["ARTHROTEC.1"]}))
+    man = {"corpus": {"splits_dir": str(tmp_path), "cadec_root": "unused"}}
+    with pytest.raises(ValueError, match="pool"):
+        r0.pool_fewshot_block(man, ["ARTHROTEC.107"], loader=lambda root: {})
+
+
+# --- name-augmented retrieval (S2) -------------------------------------------
+#
+# The MACHINERY: when a FIND reply carries sct_label names, the retriever
+# queries the span AND each name and merges the menus. Built for arm 4
+# (2026-08-25) because 35 of 226 arm-3 mentions never had the gold code on a
+# span-only menu ("extremely sick" cannot surface |Generally unwell|).
+#
+# THE PROMPT NO LONGER ASKS FOR NAMES — a measured retreat, not an oversight.
+# Arm 4 (k=40) and 4b (k=20) both asked, and both LOST to arm 3 (F1 exact
+# 0.236 / 0.232 vs 0.289): retrieval misses fell 35 -> 23 but the find step
+# emitted fewer, worse-bounded mentions and the pick step erred more. The
+# merge stays because it is exercised by any reply that carries labels and
+# is inert otherwise.
+
+
+def test_find_does_not_ask_for_names():
+    """Asking FIND for concept names cost more at extraction than the better
+    menus bought back — see the section comment. The field must not creep
+    back into the prompt without a new measurement."""
+    assert "sct_label" not in r0.FIND_PROMPT
+
+
+def test_s2_retrieves_on_span_and_proposed_names(reg):  # noqa: F811
+    dense = FakeDense()
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "sct_label": ["Generally unwell"], "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, dense=dense))
+    queried = [q for q, _ in dense.queries]
+    assert "extremely sick" in queried
+    assert "Generally unwell" in queried
+
+
+def test_s2_merged_menu_dedupes_by_code_and_caps_at_k(reg):  # noqa: F811
+    span_hits = [{"i": 0, "code": "39104002", "label": "sickness",
+                  "fsn": "sickness", "score": 0.9, "via": "dense"}]
+    label_hits = [{"i": 0, "code": "39104002", "label": "illness",
+                   "fsn": "illness", "score": 0.8, "via": "dense"},
+                  {"i": 1, "code": "213257006", "label": "generally unwell",
+                   "fsn": "generally unwell", "score": 0.7, "via": "dense"}]
+
+    class TwoQueryDense(FakeDense):
+        def search(self, text, k=20):
+            self.queries.append((text, k))
+            return list(span_hits) if text == "extremely sick" else list(label_hits)
+
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "extremely sick", "context": "I was",
+                       "sct_label": ["Generally unwell"], "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 1}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        dense=TwoQueryDense(),
+                                        rung0_shortlist_k=2))
+    cands = recs[0].checks["candidates"]
+    codes = [c["code"] for c in cands]
+    assert codes == ["39104002", "213257006"]      # deduped, capped at k=2
+    assert [c["i"] for c in cands] == [0, 1]       # renumbered for the menu
+    assert recs[0].checks["labels_proposed"] == ["Generally unwell"]
+    assert recs[0].sct == "213257006"              # the label-only hit is pickable
+
+
+def test_the_pick_prompt_shows_a_no_concept_example():
+    """Arm 3 offered no_concept and the model used it zero times in 77 calls.
+    A hatch nobody is shown being used is decoration; the prompt now carries
+    one worked line."""
+    assert r0.PICK_PROMPT.count("no_concept") >= 2
 
 
 # --- S3 is gone, and stays gone ---------------------------------------------
@@ -787,9 +1037,12 @@ def test_s1_concept_less_needs_no_pick(reg):  # noqa: F811
     assert agg["api_calls"] == 1
 
 
-def test_s1_declining_the_menu_is_concept_less(reg):  # noqa: F811
-    """Shown every concept its own names reached and declining is an assertion
-    that none fits — the same reading S2 already gives choice: null."""
+def test_s1_declining_the_menu_is_not_concept_less(reg):  # noqa: F811
+    """REVISED 2026-08-25 with S2's decline. The menu is only the codes the
+    model's OWN names reached — declining it says "none of my names' codes
+    fits the span", which may just mean the names were bad. CONCEPT_LESS in
+    S1 stays what it always was: the model asserting the sentinel in
+    sct_label, which still passes through untouched."""
     kw = keyword_table(**{"rectal pain": ["77880009"], "rectal bleeding": ["12063002"]})
     llm = FakeLLM(
         {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
@@ -797,8 +1050,10 @@ def test_s1_declining_the_menu_is_concept_less(reg):  # noqa: F811
                        "confidence": 0.9}]},
         {"picks": [{"reaction": 0, "choice": None}]},
     )
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
-    assert recs[0].sct == CONCEPT_LESS
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    assert recs[0].sct is None
+    assert recs[0].checks["declined_shortlist"] is True
+    assert agg["declined_shortlist"] == 1
 
 
 def test_s1_records_which_label_reached_the_chosen_code(reg):  # noqa: F811

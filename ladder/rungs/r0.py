@@ -69,6 +69,11 @@ DEFAULTS: dict[str, Any] = {
     #: the CODE is obtained changes.
     "rung0_step": None,
     "rung0_shortlist_k": 20,
+    #: The few-shot ARM. False keeps the frozen S2 prompt; True appends the
+    #: synthetic worked example (FEWSHOT below) to every extraction prompt.
+    #: An arm rather than a default so its effect is measured against the
+    #: freeze, not folded into it.
+    "rung0_fewshot": False,
     #: Which retriever builds S2's candidate menu. "lexical" is
     #: Registry.shortlist — Jaccard token overlap over every SNOMED
     #: description. "dense" is cosine over the embedded keyword table
@@ -260,10 +265,124 @@ _RULES = """
 Report only reactions the writer actually experienced. Do not report anything
 they say they did NOT have.
 
+Report EVERY symptom, condition or health problem the writer says they
+experienced — including the condition the drug was taken for, and conditions
+they merely compare themselves to. Work through the WHOLE POST: posts often
+list many reactions in one sentence, and every item in the list is reported
+separately.
+
+Report a reaction EVERY TIME it is described. If the writer mentions the same
+reaction twice, report it twice, each one where it appears — never merge
+repeat mentions into one.
+
+Vague and general states count. Feeling sick, being unwell, exhaustion or
+feeling terrible are reactions too — report them even when the writer names no
+specific symptom.
+
 Report the reaction, not the treatment for it. A transfusion, an operation, a
 scan or a hospital admission is something done TO the writer, not something the
 drug did to them. Measured: 1 of 7,311 gold mentions names a procedure.
 """
+
+#: The few-shot ARM (rung0_fewshot, default False). CADEC's span conventions
+#: are not all stateable as prose — measured 2026-08-25, gold KEEPS a leading
+#: intensifier 3x more often than it drops one (6.8% vs 2.2%), so a "trim the
+#: intensifier" rule was rejected and the example models the dominant
+#: convention instead. The post is SYNTHETIC: CADEC is non-transferable and
+#: this file is tracked, so the example must never quote the corpus — there is
+#: a test asserting it does not.
+FEWSHOT = """
+Example. A post reading:
+  "Got terrible cramps in both legs. The cramps came back the next night.
+   Felt totally washed out all week. My doctor ordered an MRI."
+has exactly these mentions:
+  "terrible cramps in both legs"  - the writer's own words, intensifier included
+  "cramps"                        - the same reaction, reported again where it reappears
+  "washed out"                    - a vague general state is still a reaction
+and nothing for the MRI - a test done to the writer, not a reaction.
+"""
+
+
+def _extraction_prompt(base: str, cfg: dict | None) -> str:
+    """The step's extraction prompt, plus the worked example when the few-shot
+    arm is on. Appended to ALL of S0/S1/FIND identically — scope is identical
+    across steps by design, and an example only some steps saw would break
+    that.
+
+    Pool-derived examples (rung0_fewshot_block, rendered by apply() from
+    rung0_fewshot_docs) replace the synthetic FEWSHOT when present: real
+    CADEC examples carry the corpus's own conventions, which the synthetic
+    one cannot. The synthetic block stays as the no-configuration fallback.
+    """
+    cfg = cfg or {}
+    if not cfg.get("rung0_fewshot"):
+        return base
+    return base + (cfg.get("rung0_fewshot_block") or FEWSHOT)
+
+
+def render_fewshot(examples: list[tuple[str, list[str]]]) -> str:
+    """Worked examples as the prompt shows them: the post, then its mentions.
+
+    `examples` is (post_text, [mention texts in document order]). A repeated
+    mention text is annotated as a repeat — the convention it exists to
+    teach. Pure so it is testable without the corpus; the corpus-reading
+    wrapper is pool_fewshot_block below.
+    """
+    out = []
+    for text, mentions in examples:
+        seen: set[str] = set()
+        lines = []
+        for m in mentions:
+            key = " ".join(m.lower().split())
+            note = "  - the same reaction, reported again where it reappears" \
+                if key in seen else ""
+            seen.add(key)
+            lines.append(f'  "{m}"{note}')
+        body = "\n   ".join(text.strip().splitlines())
+        out.append(
+            f'Example. A post reading:\n  "{body}"\n'
+            "has exactly these mentions, each one reported separately:\n"
+            + "\n".join(lines)
+        )
+    return "\n\n" + "\n\n".join(out) + "\n"
+
+
+def pool_fewshot_block(man: dict, doc_ids: list[str], loader=None) -> str:
+    """Render rung0_fewshot_docs into a prompt block, from data/ at runtime.
+
+    The corpus is non-transferable, so the examples can never live in a
+    tracked file — only the doc IDs are configuration, and the text is read
+    from the licensed local copy each run.
+
+    POOL ONLY, refused otherwise: a dev or test example would put that
+    document's own gold answers in the prompt while the document is being
+    scored. Pool is disjoint from both by construction and is never scored.
+    """
+    from ladder import clean
+    from ladder import corpus as corpus_mod
+
+    pool = set(corpus_mod.read_split(man["corpus"]["splits_dir"], "pool"))
+    outside = [d for d in doc_ids if d not in pool]
+    if outside:
+        raise ValueError(
+            f"rung0_fewshot_docs {outside} are not in the pool split. An "
+            "example from dev or test puts its own gold answers in the "
+            "prompt of a scored run."
+        )
+    docs = (loader or corpus_mod.load_corpus)(man["corpus"]["cadec_root"])
+    excluded = clean.load_exclusions()
+    examples = []
+    for d in doc_ids:
+        doc = docs[d]
+        # Document order, not annotation-file order — the example reads as a
+        # walk through the post, which is the behaviour it teaches.
+        kept = sorted(
+            (m for m in doc.mentions
+             if m.entity_type == REACTION and m.record_id not in excluded),
+            key=lambda m: m.spans[0][0] if m.spans else 0,
+        )
+        examples.append((doc.text, [m.text for m in kept]))
+    return render_fewshot(examples)
 
 S0_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
 
@@ -312,10 +431,21 @@ Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
 
 PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
 
+Choose the PLAIN concept that names the reaction itself. When the list has
+both a plain concept and a more specific variant of it, the plain one is
+correct — severity, timing and circumstances the writer added do not belong
+in the concept.
+
 Each reaction has a number after the word "reaction". Each concept has a number
 in [square brackets]. Answer with the reaction's number and the number in
-brackets of the concept you choose — or null for choice if none of the concepts
-describes the reaction. Answer with numbers only, never with a concept name.
+brackets of the concept you choose. Answer with numbers only, never with a
+concept name. Two other answers exist for choice:
+  null          - the reaction is real, but none of these concepts describes it
+  "no_concept"  - this is not something any clinical concept could describe
+
+Example of no_concept: for reaction "felt like my old self was gone" with a
+list of mood and fatigue concepts, the writer is describing a personal state
+no clinical concept names — the answer is "no_concept", not the nearest mood.
 
 {blocks}
 Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
@@ -471,7 +601,7 @@ def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
 
 
 def _step_s0(doc_id, source, llm, cfg, meta):
-    raw, usage = llm(S0_PROMPT, source, "S0")
+    raw, usage = llm(_extraction_prompt(S0_PROMPT, cfg), source, "S0")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -572,7 +702,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     single candidate is not a choice, and paying for a pick over it is pure
     cost. So S1's call count is data about the corpus, not a constant.
     """
-    raw, usage = llm(S1_PROMPT, source, "S1")
+    raw, usage = llm(_extraction_prompt(S1_PROMPT, cfg), source, "S1")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -673,9 +803,39 @@ def _retriever(cfg: dict):
     return (lambda text, k: index.search(text, k=k)), which
 
 
+def _merged_candidates(search, span: str, labels: list[str], k: int) -> list[dict]:
+    """The menu: hits for the SPAN and for each proposed NAME, merged.
+
+    Measured on arm 3 (2026-08-25): 35 of 226 gold mentions never had their
+    code on a span-only menu, and the recurring case is a colloquial span
+    whose embedding cannot reach the clinical concept — "extremely sick"
+    never surfaces |Generally unwell|, but the model can PROPOSE that name.
+
+    Deduped by concept, capped at k, renumbered. Ordered by score when every
+    hit carries one (cosine scores are comparable across queries — same
+    embedder); span-hits-first otherwise, so the lexical path keeps a
+    deterministic order. Each hit records which query found it.
+    """
+    batches = [("span", search(span, k))]
+    for lb in labels:
+        batches.append(("label", search(lb, k)))
+    hits = [{**h, "query": q} for q, batch in batches for h in batch]
+    if hits and all(isinstance(h.get("score"), (int, float)) for h in hits):
+        hits.sort(key=lambda h: -h["score"])
+    seen, out = set(), []
+    for h in hits:
+        if h["code"] in seen:
+            continue
+        seen.add(h["code"])
+        out.append({**h, "i": len(out)})
+        if len(out) >= k:
+            break
+    return out
+
+
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
-    raw, usage = llm(FIND_PROMPT, source, step)
+    raw, usage = llm(_extraction_prompt(FIND_PROMPT, cfg), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -690,8 +850,19 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     pairs = []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, step)
-        cands = search(rec.text, cfg.get("rung0_shortlist_k", 20))
+        labels = m.get("sct_label") or []
+        if isinstance(labels, str):
+            labels = [labels]
+        proposed = [str(x) for x in labels
+                    if x is not None and str(x).strip()
+                    and str(x).strip().upper() != CONCEPT_LESS]
+        cands = _merged_candidates(
+            search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
+        )
         rec.checks["candidates"] = cands
+        # WHAT the model offered, same as S0/S1 — it is also what makes the
+        # lookup-vs-retrieval 2x2 measurable on S2 runs.
+        rec.checks["labels_proposed"] = proposed
         rec.checks["label_source"] = "shortlist"
         rec.checks["code_source"] = "shortlist"
         # Two runs that differ only in their retriever must not look identical
@@ -759,23 +930,43 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             continue
         if idx not in choices:
             rec.checks["no_pick"] = True
+            meta["no_pick"] = meta.get("no_pick", 0) + 1
             continue
         choice = choices[idx]
-        if choice is None:
-            # Shown every candidate the vocabulary offered and declining is an
-            # assertion that none fits — which is exactly CONCEPT_LESS.
+        if isinstance(choice, str) and choice.strip().lower() == "no_concept":
+            # The explicit assertion the decline is not: "this is not a
+            # codable reaction". This is what CONCEPT_LESS means, and the one
+            # way S2 can say it — 10 of 226 dev gold mentions (4%) are
+            # concept-less, and after the decline revision below a null could
+            # no longer reach them.
             rec.sct = CONCEPT_LESS
             rec.sct_label = CONCEPT_LESS
+            continue
+        if choice is None:
+            # REVISED 2026-08-25: this used to write CONCEPT_LESS, on the
+            # theory that declining the menu asserts no concept fits. But the
+            # menu is k of 227,554 — it misses the gold code for 13.0% of
+            # coded mentions even deduped — so the decline asserts "none of
+            # THESE" and nothing wider. The scorer credits CONCEPT_LESS as
+            # CORRECT against concept-less gold, so the old behaviour scored
+            # a vocabulary-wide claim the model never made. Degrades to None
+            # (abstained), never up to an assertion.
+            rec.sct = None
+            rec.sct_label = None
+            rec.checks["declined_shortlist"] = True
+            meta["declined_shortlist"] = meta.get("declined_shortlist", 0) + 1
             continue
         try:
             n = int(choice)
         except (TypeError, ValueError):
             rec.checks["bad_pick"] = choice
+            meta["bad_pick"] = meta.get("bad_pick", 0) + 1
             continue
         if not 0 <= n < len(cands):
             # Never clamped: an out-of-range index is the model failing to use
             # the menu, and clamping it would report that as a code choice.
             rec.checks["bad_pick"] = n
+            meta["bad_pick"] = meta.get("bad_pick", 0) + 1
             continue
         chosen = cands[n]
         # `sct_label` is "what the MODEL said that code means", and rung 1's
@@ -883,12 +1074,17 @@ def apply(
             f"step {step} resolves codes through the vocabulary and has no "
             "registry. Pass one in cfg."
         )
+    if (cfg.get("rung0_fewshot") and cfg.get("rung0_fewshot_docs")
+            and not cfg.get("rung0_fewshot_block")):
+        cfg["rung0_fewshot_block"] = pool_fewshot_block(
+            cfg["manifest"], cfg["rung0_fewshot_docs"]
+        )
 
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
-        "code_unknown": 0,
+        "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -914,6 +1110,9 @@ def apply(
         agg["multi_code"] += meta.get("multi_code", 0)
         # S0 only: the model named a concept but did not recall its id.
         agg["code_unknown"] += meta.get("code_unknown", 0)
+        # S1/S2 pick outcomes that are failures or declines, not choices.
+        for k in ("no_pick", "bad_pick", "declined_shortlist"):
+            agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
         for rec in got:
