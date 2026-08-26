@@ -10,15 +10,21 @@ beats — what we tried, what the data contradicted, what we changed — made
 explicit, because those are the parts that cannot be reconstructed later.
 
 Everything here is measured on **CADEC** — patient-reported adverse-event posts,
-normalised to SNOMED CT. The deterministic half of the ladder is built and
-measured; the model-facing rungs (0, 3, 4, 5) now run but are not yet
-characterised at scale, so every number
-below is a property of the *deterministic* layer, measured against the gold
-standard and against planted errors. That is a narrower claim than a full ladder
-curve, and a stronger one for being checkable.
+normalised to SNOMED CT. **The ladder is now measured end to end** (2026-08-26):
+all seven rungs ran cold, in order, on the 60 held-out test documents, under a
+frozen configuration, exactly once — run id `phaseF-test-1` — and nothing was
+re-run after the numbers were seen. §2A below is the deterministic gate,
+characterised before a model call existed; §2B is the model-facing ladder,
+measured through five phases on dev and settled on test. The cost curve §5 once
+listed as "still to come" is now the headline.
 
 An earlier data-agnostic track was retired on 2026-08-22 along with its results;
 nothing here is derived from it.
+
+**Rung numbering.** Sections written before 2026-08-23 use the old rung ids in
+their prose; the mapping is old 3→2, 5→3, 2→5 (0, 1, 4, 6 unmoved). Everything
+dated after uses the final numbering: 0 bare LLM, 1 deterministic, 2
+self-correction, 3 voting, 4 LLM judge, 5 abstention, 6 human loop.
 
 ---
 
@@ -115,33 +121,180 @@ and it is the size of the pool the paid rungs have to work through — known bef
 a single token is spent. Worth stating as a planning tool: **run your
 deterministic layer over your answer key first; the BAND fraction is your bill.**
 
+*Findings 2.1–2.3 are the gate, measured before any model call. Findings
+2.4–2.9 are the model-facing ladder, measured through Phases A–F
+(2026-08-24 → 26). Final rung numbering throughout.*
+
+### 2.4 The ladder, run once on held-out data — what each rung actually bought
+
+**The number: F1 0.204 shipped, 77% of records routed to a person.**
+
+The whole point of the project, in one table. 60 held-out test documents,
+frozen configuration, one run (`phaseF-test-1`), nothing re-run after the
+numbers were seen. Extractor `gpt-oss:20b` local, judge `granite4:micro-h`
+(2B — the caveat is §2.7). Shipped result, exact span / strict code:
+**F1 0.204 [0.150–0.260]**, overlap 0.215; detection F1 0.521 exact / 0.808
+overlap; coding accuracy on matched spans 0.392 / 0.266. Five outcomes
+(exact): 60 correct, 0 outdated, 91 abstained, 2 incorrect, 0 modernised.
+
+Per rung, what the money bought:
+
+| rung | what happened | cost |
+|---|---|---|
+| 0 bare LLM | 314 records, answered-accuracy 0.370 | 194.5k tokens, p95 57 s/call |
+| 1 deterministic | ACCEPT 72 / BAND 226 / REJECT 16 (5.1%, local-rf2) | free, 0.15 s total |
+| 2 self-correct | **fired zero times** — every REJECT was `schema_invalid`, which is not a statable fact | 0 |
+| 3 voting | re-found 8 unanswered records; **all 8 wrong**; correct count unchanged | 536.5k tokens — 2.8× rung 0 |
+| 4 LLM judge | pass 202 / fail 110 | 113.6k tokens |
+| 5 abstention | ships 72 records at 0.833 accuracy; errors/100 fall 59.6 → 3.8 | withdraws 242 answers, 45 of them already exactly correct |
+| 6 human loop | routes the residue | **242 of 314 records to a person** (77.1/100) |
+
+The curve is not a staircase of improvements. On this run, one paid rung was
+net negative (§2.6), one never fired, and the two that clearly work — the free
+gate and abstention — work by *refusing*, which is exactly the cost the third
+measure exists to count. Test came out above the re-derived dev baseline on
+all three layers (dev shipped F1 0.131), with no tuning ever touching test:
+generalisation plus split luck, in that order.
+
+### 2.5 Asking a model to recall a nine-digit code is broken, not weak
+
+**The number: F1 0.018 vs 0.171, and the broken step costs MORE tokens.**
+
+Rung 0 is a three-step prompt study with identical scope: S0 asks the model to
+state the SNOMED code from memory, S1 asks for names that are resolved against
+the vocabulary, S2 retrieves a candidate menu and asks for a pick. On dev
+(gpt-oss:20b): S0 scored **0.018**, S1 0.171, S2 0.209 exact — S0 is ten times
+worse than S1 for more tokens (44.0k vs 36.1k), and it is the only step that
+fails to parse (5 of 40 documents). The one thing a language model cannot do —
+recall a nine-digit identifier — is also the most expensive way to ask.
+
+An abstention hatch reduces fabrication but does not remove it: S0 was allowed
+to answer null for unknown ids, did so 12.4% of the time, and still emitted a
+nonexistent code beside a correct label. And the retrieval that fixes this is
+not presentation-neutral: alphabetising S2's candidate menu — changing
+*nothing* but the order — cost 10–12 points of coding accuracy at byte-identical
+detection. Small models anchor on early slots; the retriever's best-first
+ranking is doing real work.
+
+### 2.6 Voting can only shuffle what is below it — and its numbers are samples
+
+**The number: +5 net correct on dev, −0 (8 found, 8 wrong) on test.**
+
+Rung 3 resamples each document k times at temperature and takes majorities.
+As first built, it destroyed verified answers: votes matched by exact span key
+never aligned across temperature resamples (206 of 240 records got no vote),
+and a "majority" of one — the only sample that re-found a mention — overwrote
+a vocabulary-verified code with its opposite (|Analgesia| over |Pain|). Three
+repairs, each TDD'd: match votes by span overlap one-to-one, draw every sample
+through rung 0's own configured path so the votes come from the distribution
+being voted on, and require at least two sightings before a change.
+
+After repair, on dev: hallucinated overwrites gone, zero correct codes
+destroyed, +5 net correct — for 2.6× rung 0's tokens. On the one test draw:
+coverage rose (8 records re-found), correct count did not move, answered
+accuracy fell 0.370 → 0.360. **A voting rung's contribution is a sample, not
+a property** — cite the run id with every number, and price the draw honestly:
+it is the most expensive rung on the ladder.
+
+### 2.7 The judge measured, the better judge rejected, and the signal that lived in an accident
+
+**The number: 167 of 240 records unjudged — by the domain-adapted model.**
+
+The judge must be a different family from the extractor, and the only local
+option is 2B judging 20B — the wrong way round, stated with every rung 4
+number. The obvious fix, a domain-adapted 7B (BioMistral), was installed,
+harness-repaired twice, and rejected on measurement: it answers EOS after `{`
+on prompts past ~430 tokens (167/240 unjudged), every verdict it did parse
+was "fail" with no correctness separation, and its confidence was a flat 0.0.
+**Domain adaptation does not buy instruction-following.**
+
+The sharper finding came from re-judging the incumbent through a repaired
+prompt path: an accidental duplication (the post pasted twice) turned out to
+be load-bearing — with it, granite's pass/fail correctness split was
+28.0%/15.6%; without it, 25.4%/23.6% — no separation. Same lesson as the menu
+order in §2.5: **for small models, prompt form is part of the measurement**,
+and a signal that lives in an accident is not a signal an article can stand
+on. The duplication stayed fixed; rung 4's test-split verdicts carry the
+caveat.
+
+### 2.8 Abstention's bill is countable, and a person could pay it down to 0.99
+
+**The number: 242 of 314 routed; the ceiling above them is 0.444, all spans.**
+
+Rung 5 withdraws every answer the stack could not corroborate; rung 6 is what
+happens to the queue. Its headline cost is deliberately a COUNT — records
+routed to a person — because minutes here are declarable, not measurable
+(77.1 per 100 on test; the manifest's 2.0 min/record makes that 484 minutes
+*at the declared rate*, a phrase that never becomes "measured").
+
+Two measurements make the queue legible. First, its composition: rung 5
+withheld 45 exactly-correct answers on test (86 by overlap) — the price of
+taking errors/100 from 59.6 to 3.8. Second, its ceiling, measured on dev with
+an oracle desk (gold-derived resolutions, refused on the test split by
+design): a perfect reviewer takes shipped F1 from 0.131 to **0.444** and
+coding accuracy on matched spans from 0.291 to **0.990** — with detection
+unchanged. Read that pair carefully: after a perfect code-picking human, the
+entire remaining gap is **span boundaries**, which neither the desk nor any
+code-level rung can fix. The next rung worth building is boundary repair, and
+this number is how we know.
+
+### 2.9 Retrieval's gain decomposes — and the decomposition inverts with k
+
+**The number: 61.8% → 86.1% recall@20, split +3.3 corpus / +21.0 scoring.**
+
+S2's dense retriever beats the lexical one by 24 points of recall@20 — but
+the two also search different corpora (1.8M description rows of every semantic
+type vs 228k findings-and-disorders keywords), so the headline confounds two
+changes. Running the lexical scorer over the dense corpus separates them: at
+k=20 the gain is +3.3 from the corpus and +21.0 from dense scoring. At k=1 it
+*inverts* — +29.1 corpus, +15.2 scoring: filtering to the right semantic types
+is what clears the top slot, and better scoring is what fills the rest of the
+menu. Two retrievers, kept side by side, because a recall number under one is
+only interpretable next to the other.
+
 ---
 
 ## 3. Suggested structure
 
-Five beats, practitioner voice. The ladder is not fully measured yet, so the
-piece leads with what *is*: a validation gate characterised end to end before a
-single model call.
+Seven beats, practitioner voice. The ladder is measured end to end now, so the
+piece leads with the curve and spends its middle on why each number can be
+trusted — the measurement discipline IS the story.
 
 1. **Every agent is 90% harness, built by vibes.** The hook. Name the seven
    layers in a paragraph each and move on — they are not the contribution.
-2. **You can measure a layer before you build the layer above it.** §4.4's
+2. **The curve, once, on held-out data.** §2.4's table. One run, frozen
+   config, three cost currencies never fused. One paid rung net negative, one
+   never fired, the two that work refuse rather than answer. This is the
+   figure the reader came for; everything after it explains why it can be
+   believed.
+3. **You can measure a layer before you build the layer above it.** §4.4's
    method: replay your deterministic gate over the answer key, where every
-   rejection is false by construction. It costs nothing and it caught three
-   faults that would otherwise have shipped as a plausible 9.3% rejection rate.
-3. **What a free layer actually buys.** §2.2 and §2.3. Rung 1 is exact on its own
-   error classes, blind on the interesting one, and leaves 57% of even a perfect
-   answer set unverifiable. Reframe: a free, exact filter plus paid resolvers —
-   not a stack of improvements.
-4. **The gate that vouches for the error.** §2.1. The strongest single number,
-   and a process story: the obvious setting, the measurement, the reversal.
-5. **Decision rules.** Measure the permissive setting's false-vouch rate before
-   shipping it. Pin your vocabulary release — §4.7 shows the same check giving
-   23.9% different answers across two sources. Don't let a validation layer
-   filter the input to the layers you are trying to measure (§4.5). And check
-   whether your reference list came from your answer key (§4.6).
+   rejection is false by construction. It caught three faults that would
+   otherwise have shipped as a plausible 9.3% rejection rate — errors every
+   paid rung above would have inherited.
+4. **What a free layer actually buys.** §2.2 and §2.3. Rung 1 is exact on its
+   own error classes, blind on the interesting one, and leaves 57% of even a
+   perfect answer set unverifiable. The ladder reframed: a free, exact filter
+   plus paid resolvers for the residue.
+5. **The paid rungs, honestly.** §2.5–§2.7. Never ask a model to recall an
+   identifier (0.018 vs 0.171 for MORE tokens); a voting rung's number is a
+   sample, and its first build destroyed verified answers on 1-0 "majorities";
+   the judge's separation partly lived in an accidental prompt duplication.
+   Running thread: for small models, presentation IS measurement — menu
+   order, prompt form, all load-bearing.
+6. **Abstention and the person.** §2.8. The bill is a count, not a currency
+   conversion; the queue holds 45 answers that were already right; and the
+   oracle ceiling proves the residual gap is span boundaries — which tells
+   you the next rung to build, which is the real use of a ceiling.
+7. **Decision rules.** Measure the permissive setting's false-vouch rate
+   before shipping it (§2.1). Pin your vocabulary release — §4.7's 23.9%.
+   Don't let a validation layer filter the input to the layers you are
+   measuring (§4.5). Check whether your reference list came from your answer
+   key (§4.6). Hold presentation fixed or you are measuring two things
+   (§2.5, §2.7). Cite the run id on any sampled rung (§2.6). And spend your
+   test split once.
 
-Beats 2–4 are the article. Beat 5 is what a reader takes to work on Monday.
+Beats 2–6 are the article. Beat 7 is what a reader takes to work on Monday.
 
 ## 4. Implementation iterations — what we changed, and why
 
@@ -433,7 +586,44 @@ need to exist.
 - **The call cache is architecture, not convenience.** Every model call is keyed
   and written to disk, so a re-run costs nothing, an interrupted run resumes, and
   results files become disposable derivatives rather than the only copy of an
-  experiment.
+  experiment. Two rules learned the hard way: **the cache key must cover every
+  generation parameter** (a cache that survives a `max_tokens` change serves a
+  stale result and calls it reproducibility), and **a timeout is never cached**
+  — it is a property of the run's machine, not of the question.
+
+### 4.12 One runaway document must cost one record, and a cut-off reply is not a parse failure
+
+A dev run once stopped dead for 25 minutes on a 761-character forum post — a
+reasoning model generating unboundedly. The fix is a wall-clock budget on
+every call, as per-model registry data, that does not raise: it returns an
+empty response flagged `timed_out`, so the run loses one record instead of
+its afternoon. 90% of calls finish under 3.3k completion tokens; the tail is
+what makes a run unbounded, and the budget is what makes "hours, not days" a
+property rather than a hope.
+
+Downstream of that, failures carry **three labels, most specific first:
+`timed_out` > `truncated` > `json_decode`**. They overlap on purpose. A reply
+cut off by the token cap must never be counted as "the model cannot produce
+JSON", and a hung machine must never be counted as either — the first is a
+budget you set, the second is a capability claim about the model, and the
+third is your hardware. Timeouts are filed in the cost column, not the
+accuracy one. On the final test run all three counters were zero, which is
+itself only a checkable claim because the labels exist.
+
+### 4.13 "Which model produced this number" must have exactly one answer
+
+Midway through the project, the answer had quietly become "two": the manifest
+named one extractor while a code-level default silently substituted another
+whenever a manifest didn't reach the call site. Every number produced in that
+window had an ambiguous provenance. The repair is structural, not procedural:
+`manifest.model` is the ONE place a model is named, the resolver RAISES on a
+missing entry instead of defaulting, and rungs never name models — they are
+bound by role (extractor/judge) through a single resolution function, which is
+also where "the judge must be a different family from the extractor" is
+enforced rather than remembered.
+
+Same shape as §4.5 and §4.6: the constraints that hold are the ones with no
+way to express the forbidden thing. A default argument is a way to express it.
 
 ---
 
@@ -462,20 +652,45 @@ result is not clear yet.
    *"An OLS4-backed existence check calls 23.9% of the answer key hallucinated;
    a local release calls 5 of 8,666. Neither implementation is wrong — the source
    decides the answer."*
-
-Still to come: the marginal cost curve (tokens and
-human reviews per prevented error, per rung) — the headline the whole ladder
-exists to produce.
+6. **The ladder curve — accuracy and three costs per rung, test split (§2.4).**
+   *"Seven rungs, one cold run on 60 held-out documents. Errors per 100 fall
+   59.6 → 3.8; the price is 845k tokens, minute-scale p95 latencies on a local
+   20B, and 77 of every 100 records routed to a person. One paid rung was net
+   negative on this draw; one never fired. The three costs are three axes —
+   never one currency."*
+7. **The prompt-shape cliff (§2.5).**
+   *"Same model, same scope, same documents. Asking for the code from memory:
+   F1 0.018, and the most tokens. Asking for names: 0.171. Retrieve-and-pick:
+   0.209. The step that cannot work is also the most expensive way to ask."*
+8. **What abstention withholds, and what a perfect reviewer would recover (§2.8).**
+   *"Rung 5's queue on test holds 242 records, 45 of them already exactly
+   correct. On dev, an oracle desk lifts shipped F1 0.131 → 0.444 with
+   detection unchanged: after a perfect code-picker, the whole remaining gap
+   is span boundaries."*
 
 ## 6. Limitations to state plainly
 
 - **The MedDRA check cannot be trusted as configured.** Its reference table is
   derived from the answer key. It is reported, not scored, and any number from
   it carries the caveat.
-- **This is half a ladder.** Rungs 0, 3, 4 and 5 run, but are not yet characterised at scale.
-  Everything in §2 is a property of the *gate*, measured against the gold
-  standard and against planted errors — not a model result, and not yet a
-  cost curve. Say so; it is a stronger claim for being narrower.
+- **The test split was spent exactly once, so its CIs are the claim.** 60
+  documents, 290 scorable mentions: F1 0.204 lives in [0.150–0.260]. Nothing
+  was tuned on test and nothing re-run — which also means no second draw
+  exists to average with. Report the interval, not the point.
+- **Test above dev is partly split luck.** Shipped F1 0.131 (dev) vs 0.204
+  (test), CIs barely overlapping, with no test tuning anywhere in the
+  pipeline. Generalisation is the honest first-order read; the second-order
+  read is that 40-document dev was the harder draw. Say both.
+- **Rung 3's numbers are samples.** Temperature resamples differ run to run —
+  dev gained +5 net correct, the one test draw gained zero — so every voting
+  number carries its run id, and the rung's value claim is bounded by the
+  spread between draws, which two draws cannot estimate.
+- **The judge is 2B judging 20B** — the wrong way round, kept as the measured
+  lesser evil after the domain-adapted 7B alternative failed to return
+  parseable verdicts at all (§2.7). Every rung 4 number carries this.
+- **The oracle desk is a dev-only ceiling.** It is derived from gold, labeled
+  on every row, and refused on the test split by construction. No real human
+  desk session exists; human minutes appear only "at the declared rate".
 - **Determinism was 1.000 at every rung on the local model** — greedy decoding at
   temperature 0 is exactly reproducible, so that axis is free locally and only
   becomes interesting on hosted APIs with batching nondeterminism. The
@@ -487,10 +702,13 @@ exists to produce.
 - **Human ceiling.** Strict span agreement between CADEC's own annotators was
   about 68.7 on the diclofenac posts. A system near 0.69 strict span F1 is at the
   noise floor of the answer key, not underperforming.
-- **The abstention target is thin** at 60 test documents: 7 `CONCEPT_LESS`
-  mentions in 393. Abstention accuracy cannot be separated from noise there.
-- **`tau` is 0.0** — the confidence gate is off until a real rung-0 confidence
-  distribution exists to calibrate against.
+- **The abstention target is thin** on the test split: 3 `CONCEPT_LESS`
+  mentions in 290 scorable. Abstention accuracy against concept-less gold
+  cannot be separated from noise there.
+- **The confidence gate never earned a threshold.** `tau` stayed 0.0: the 2B
+  judge's confidence field is nearly two-valued (a τ=0.95 shelf keeps 5.4%
+  coverage at n too thin to gate on), so rung 5 gates on verdicts, not
+  confidence. A calibrated confidence distribution remains unbuilt.
 - **Near-miss corruption is synthetic.** The near-miss pool is built from
   concepts sharing a head word, which is a proxy for the confusions a
   normalisation model makes, not a sample of them. The 19% is a property of the
@@ -511,6 +729,17 @@ python -m ladder.probe --split all --meddra-check reject --json out/rung1_detect
 python -m ladder.run ladder --split test --source gold --run-id gold_control
 python -m ladder.vocab_crosscheck --live 40
 python scripts/preflight.py --history
+
+# The model-facing ladder (preprocessing per CLAUDE.md first; Ollama with
+# gpt-oss:20b and granite4:micro-h). Dev runs replay from the call cache;
+# the test run below is THE run — it was executed once and is archived,
+# with every baseline, in the main checkout's out/archive/.
+python -m ladder.keywords --build && python -m ladder.clean --build && python -m ladder.embed --build
+python -m ladder.run ladder --split dev  --run-id <your-dev-run>
+python -m ladder.run ladder --split test --run-id phaseF-test-1   # the one test run
+# Re-score any run's records (exact + overlap, layers, CIs, five outcomes):
+#   ladder.score.score_run / bootstrap_ci over <run>.records.jsonl — see
+#   docs/decisions.md 2026-08-26 (Phase F) for the protocol and denominators.
 ```
 
 The corpus is not redistributable and the SNOMED release needs an affiliate
