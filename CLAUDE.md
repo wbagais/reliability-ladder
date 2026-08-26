@@ -321,8 +321,21 @@ Run each remaining phase in its own session; this section is the handoff.
    routed to a person (208/245, reviews_per_100 84.9) — minutes are not
    measurable here; the timed session is descoped, minutes_per_record
    stays a declared illustration only.
-5. **Phase F — test split, ONCE.** Freeze manifest+prompts+models, run the
-   60 held-out test docs, report as-is. Nothing is re-run after it.
+5. **Phase F — test split, ONCE. DONE 2026-08-26 — THE LADDER IS COMPLETE**
+   (one decisions entry same date; run `phaseF-test-1`, artifacts in the
+   phase-f worktree's `out/`). Frozen config, 60 test docs, cold cache,
+   ~78 min, one run id, zero edits. Shipped: **F1 exact 0.204
+   [0.150–0.260] / overlap 0.215**, detection 0.521/0.808, coding accuracy
+   0.392/0.266; outcomes exact 60/0/91/2/0 — `modernised` did not fire.
+   Above the re-derived dev baseline (0.131) on all three layers. Rung 1
+   (local-rf2): 5.1% reject, all `schema_invalid`, so rung 2 attempted 0.
+   Rung 3 (samples, this run id): re-found 8, all wrong — the dev gain did
+   not transfer. Rung 6: **242/314 routed to a person, reviews_per_100
+   77.1**; 484.0 min at the declared rate only. 844,657 tokens / 758
+   calls; p95 57.2 s (r0) / 126.1 s (r3) / 1.5 s (r4); usd 0.00; zero
+   timeouts/truncations/parse-fails at the transport level. Oracle desk
+   refused on test, as designed. **These numbers are final as reported;
+   nothing is re-run after Phase F, and there are no further phases.**
 
 Both parked questions were DECIDED 2026-08-26 (two decisions entries):
 the remote claude-sonnet-5 extractor is an OPTION, never the default —
