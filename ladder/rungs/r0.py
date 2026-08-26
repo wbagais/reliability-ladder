@@ -96,6 +96,18 @@ DEFAULTS: dict[str, Any] = {
     #: because a number produced under one retriever is only interpretable
     #: next to the other, which is why the choice is written onto every record.
     "rung0_retrieval": "dense",  # "dense" | "lexical"
+    #: Trim rung 0's spans to the answer key's boundary convention, AFTER
+    #: locate() — rules learned from POOL gold at runtime (ladder/trim.py).
+    #: Note the order: S2's retrieval queries the model's FULL quote and the
+    #: trim happens afterwards, so the menu is built on more context, not
+    #: less. cfg["trimmer"] injects rules directly (tests; measurement runs).
+    "rung0_trim": False,
+    #: How S2's menu is ORDERED before numbering. "score" is retrieval order,
+    #: best first — which means the gold code usually sits high, and a model
+    #: that anchors on early items looks better than it reads. "alpha"
+    #: re-sorts the same candidates alphabetically: if F1 holds, the pick
+    #: reads content; if it drops, position was doing work. An arm.
+    "rung0_menu_order": "score",  # "score" | "alpha"
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
@@ -262,8 +274,11 @@ _ASK = """  span_text  - the reporter's exact words, copied character for charac
 """
 
 _RULES = """
-Report only reactions the writer actually experienced. Do not report anything
-they say they did NOT have.
+Report a reaction the writer explicitly says they did NOT have as well, and
+mark it "negated": true — a denied reaction is still recorded. Every other
+mention is "negated": false. Only the writer's own reactions count either way.
+A blanket statement of wellness — "no side effects", "I feel fine" — is not a
+reaction and is not reported; report only a SPECIFIC denied reaction.
 
 Report EVERY symptom, condition or health problem the writer says they
 experienced — including the condition the drug was taken for, and conditions
@@ -403,7 +418,7 @@ Two different answers, and they are not the same:
 Never invent a concept id, and do not spend effort trying to recall one — null
 is better than a guess.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"negated":..,"confidence":..}]}
 """
 
 S1_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
@@ -415,7 +430,7 @@ For each one return:
 """ + _RULES + """
 If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"negated":..,"confidence":..}]}
 """
 
 FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
@@ -426,7 +441,7 @@ For each one return:
 Quote the reaction itself, not the sentence around it. The concept name is
 chosen in a second step, so do not give one here.
 
-Return JSON: {"mentions":[{"span_text":..,"context":..,"confidence":..}]}
+Return JSON: {"mentions":[{"span_text":..,"context":..,"negated":..,"confidence":..}]}
 """
 
 PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
@@ -446,6 +461,11 @@ concept name. Two other answers exist for choice:
 Example of no_concept: for reaction "felt like my old self was gone" with a
 list of mood and fatigue concepts, the writer is describing a personal state
 no clinical concept names — the answer is "no_concept", not the nearest mood.
+
+A reaction marked [denied] is one the writer says they did NOT have. It is
+still coded: choose the concept for the reaction being denied, exactly as if
+it were experienced — the denial is recorded separately. That the writer did
+not have it is never a reason to answer null or "no_concept".
 
 {blocks}
 Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
@@ -506,7 +526,12 @@ def _blocks(pairs) -> str:
     """
     out = []
     for idx, (rec, cands) in enumerate(pairs):
-        out.append("\n".join([f'reaction {idx}: "{rec.text}"', *_menu(cands)]))
+        # The pick must know a mention is a denial, or it reasons "they did
+        # not have it, no concept applies" and declines — measured on the
+        # first negation run: every denied gold mention it found, it then
+        # refused to code. Gold codes the concept being denied.
+        denied = " [denied]" if rec.checks.get("r0_negated") else ""
+        out.append("\n".join([f'reaction {idx}:{denied} "{rec.text}"', *_menu(cands)]))
     return "\n\n".join(out) + "\n"
 
 
@@ -523,7 +548,16 @@ def _mention_record(doc_id: str, i: int, m: dict, source: str, step: str) -> Rec
         confidence=float(m.get("confidence", 0) or 0),
         record_id=f"{doc_id}#{i}",
     )
-    rec.checks.update(rung0_step=step, offsets=how)
+    # The model's OWN polarity claim (2026-08-25) — CADEC annotates denied
+    # reactions, 427 gold mentions (4.7%), so they are extracted and flagged
+    # rather than skipped. Written twice on purpose: rung 1's cue check does
+    # rec.checks.update(...) with its own "negated", so in a full-ladder run
+    # that key ends up holding the CUE verdict — r0_negated is the copy that
+    # survives, keeping the model-vs-cue cross-check readable from disk.
+    negated = bool(m.get("negated", False))
+    rec.checks.update(
+        rung0_step=step, offsets=how, negated=negated, r0_negated=negated
+    )
     return rec
 
 
@@ -833,6 +867,26 @@ def _merged_candidates(search, span: str, labels: list[str], k: int) -> list[dic
     return out
 
 
+MENU_ORDERS = ("score", "alpha")
+
+
+def _order_menu(cands: list[dict], which: str) -> list[dict]:
+    """The menu in its declared order, renumbered. S2 only — S1's menus are
+    the model's own names' codes, typically two or three lines."""
+    if which not in MENU_ORDERS:
+        raise ValueError(
+            f"rung0_menu_order={which!r} is not one of {MENU_ORDERS}. An order "
+            "nobody defined would report a run under a label the article "
+            "cannot explain."
+        )
+    if which == "alpha":
+        cands = sorted(
+            cands, key=lambda c: str(c.get("fsn") or c.get("label") or "").lower()
+        )
+        cands = [{**c, "i": n} for n, c in enumerate(cands)]
+    return cands
+
+
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
     raw, usage = llm(_extraction_prompt(FIND_PROMPT, cfg), source, step)
@@ -856,10 +910,15 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
         proposed = [str(x) for x in labels
                     if x is not None and str(x).strip()
                     and str(x).strip().upper() != CONCEPT_LESS]
-        cands = _merged_candidates(
-            search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
+        menu_order = cfg.get("rung0_menu_order", DEFAULTS["rung0_menu_order"])
+        cands = _order_menu(
+            _merged_candidates(
+                search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
+            ),
+            menu_order,
         )
         rec.checks["candidates"] = cands
+        rec.checks["rung0_menu_order"] = menu_order
         # WHAT the model offered, same as S0/S1 — it is also what makes the
         # lookup-vs-retrieval 2x2 measurable on S2 runs.
         rec.checks["labels_proposed"] = proposed
@@ -933,6 +992,12 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             meta["no_pick"] = meta.get("no_pick", 0) + 1
             continue
         choice = choices[idx]
+        # The string "null" is the model SAYING null, not failing to use the
+        # menu — measured 9 times in one dev run, always from a reply that
+        # used real numbers elsewhere. Same posture as the fence stripping
+        # and the old "i" key: a transport convention, normalised and gone.
+        if isinstance(choice, str) and choice.strip().lower() in ("null", "none"):
+            choice = None
         if isinstance(choice, str) and choice.strip().lower() == "no_concept":
             # The explicit assertion the decline is not: "this is not a
             # codable reaction". This is what CONCEPT_LESS means, and the one
@@ -989,6 +1054,30 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
         else:
             _resolve_labels(rec, [label], cfg, rec.checks["label_source"])
             rec.checks["candidates"] = cands
+
+
+def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
+    """Boundary-convention trim, in place, after locate().
+
+    Only grounded spans are touched — (-1, -1) means the quote is not in the
+    source, and moving those offsets would fabricate a grounding. The
+    original quote survives on the record (`span_untrimmed`), so the trim is
+    auditable and the untrimmed number recomputable from disk.
+    """
+    for rec in records:
+        if not rec.text or not rec.spans:
+            continue
+        start, end = rec.spans[0]
+        if not (isinstance(start, int) and start >= 0):
+            continue
+        text, span = trimmer.trim(rec.text, (start, end))
+        if text == rec.text:
+            continue
+        rec.checks["span_untrimmed"] = rec.text
+        rec.checks["span_trimmed"] = True
+        rec.text = text
+        rec.spans = [span]
+        agg["trimmed"] += 1
 
 
 def _parse(raw: str, meta: dict):
@@ -1080,11 +1169,20 @@ def apply(
             cfg["manifest"], cfg["rung0_fewshot_docs"]
         )
 
+    trimmer = None
+    if cfg.get("rung0_trim"):
+        trimmer = cfg.get("trimmer")
+        if trimmer is None:
+            from ladder.trim import pool_trimmer
+
+            trimmer = cfg["trimmer"] = pool_trimmer(cfg["manifest"])
+
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
         "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
+        "trimmed": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -1115,6 +1213,8 @@ def apply(
             agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
+        if trimmer is not None:
+            _trim_records(got, trimmer, agg)
         for rec in got:
             rec.checks["honoured_tool"] = honoured_tool(rec)
         # One ledger row per DOCUMENT, not per record: rung 0's unit of cost is
