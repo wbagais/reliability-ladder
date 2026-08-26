@@ -280,6 +280,10 @@ CSV_COLUMNS = [
     "sct_outdated",
     "sct_abstained",
     "err_per_100",
+    # Appended 2026-08-26 with the fifth outcome (the mirror of sct_outdated:
+    # the model answered the successor of a RETIRED GOLD code). Appended at
+    # the end because CSV_COLUMNS is append-only, not beside its siblings.
+    "sct_modernised",
     "tokens_per_record",
     "p95_s",
     "reviews_per_100",
@@ -346,6 +350,7 @@ def snapshot_row(
             got = [outcome_fn(r, gold, vocab) for r in answered]
             row["sct_outdated"] = got.count("outdated")
             row["sct_abstained"] = got.count("abstained")
+            row["sct_modernised"] = got.count("modernised")
     return row, errors
 
 

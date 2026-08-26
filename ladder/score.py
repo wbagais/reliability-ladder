@@ -72,10 +72,21 @@ CORRECT = "correct"
 OUTDATED = "outdated"
 ABSTAINED = "abstained"
 INCORRECT = "incorrect"
+#: Appended 2026-08-26 — the MIRROR of `outdated`. The prediction is the
+#: SNOMED-recorded successor of a RETIRED GOLD code: the model answered the
+#: current concept for a mention the 2015 annotations filed under an id the
+#: release has since replaced. 407 of CADEC's retired gold reaction mentions
+#: exist; 111 (27.3%) have such a successor, so this outcome is bounded to
+#: them. Same treatment as `outdated`, for the same reason: NEVER folded into
+#: `correct` — the gold rule and every headline denominator stay exactly
+#: where they were, so no earlier number moves — and with no vocabulary it
+#: degrades to `incorrect`, never to `correct`. Decided 2026-08-26 (the
+#: parked "111 retired-gold successors" question).
+MODERNISED = "modernised"
 
 #: Report order, not alphabetical: best answer first, so a table of them reads
 #: as a decline. Append new outcomes at the end.
-OUTCOMES = (CORRECT, OUTDATED, ABSTAINED, INCORRECT)
+OUTCOMES = (CORRECT, OUTDATED, ABSTAINED, INCORRECT, MODERNISED)
 
 
 # --- one record against one gold mention ------------------------------------
@@ -136,6 +147,13 @@ def outcome(record: Record, gold: Any, vocab: Any = None) -> str:
         return CORRECT
     if vocab is not None and gold_codes & set(vocab.replacements(predicted)):
         return OUTDATED
+    # The mirror direction: the GOLD code is the retired one and the model
+    # answered its recorded successor. `Registry.replacements` returns [] for
+    # an active code, so this can only fire on retired gold.
+    if vocab is not None and any(
+        str(predicted) in set(vocab.replacements(g)) for g in gold_codes
+    ):
+        return MODERNISED
     return INCORRECT
 
 

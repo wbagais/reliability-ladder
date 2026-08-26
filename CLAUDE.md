@@ -322,9 +322,14 @@ Run each remaining phase in its own session; this section is the handoff.
 5. **Phase F — test split, ONCE.** Freeze manifest+prompts+models, run the
    60 held-out test docs, report as-is. Nothing is re-run after it.
 
-Parked with the user: remote claude-sonnet-5 extractor (licence call,
-LADDER_ALLOW_REMOTE=1); the 111 retired-gold successors denominator
-decision.
+Both parked questions were DECIDED 2026-08-26 (two decisions entries):
+the remote claude-sonnet-5 extractor is an OPTION, never the default —
+`--extractor anthropic/claude-sonnet-5` + `LADDER_ALLOW_REMOTE=1` per run,
+manifest stays local, budget registered in models.yaml (rung 3 caveat: no
+temperature dial, votes degenerate). The 111 retired-gold successors get
+the fifth outcome `modernised` (mirror of `outdated`, own `sct_modernised`
+column, never folded into correct — headline denominators unchanged;
+0 fired on dev, 6 possible there).
 
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.

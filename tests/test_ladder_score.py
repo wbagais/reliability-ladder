@@ -533,3 +533,56 @@ def test_bootstrap_is_deterministic_under_a_seed():
     a = bootstrap_ci(records, golds, n_boot=50, seed=3)
     b = bootstrap_ci(records, golds, n_boot=50, seed=3)
     assert a == b
+
+
+# --- the fifth outcome: modernised — the mirror of outdated ------------------
+#
+# CADEC was coded in 2015; 407 of its retired gold reaction mentions are codes
+# SNOMED has since retired, and 111 of them (27.3%) have a recorded successor.
+# A model that answers the CURRENT code for such a mention named the right
+# concept under today's release — the answer key is what aged. That is the
+# mirror of `outdated` (prediction retired, gold current) and gets the same
+# treatment: its own outcome, counted and reported apart, NEVER folded into
+# `correct` — the headline gold rule does not move, so every earlier number
+# stays comparable. Decided 2026-08-26 (the parked "111 successors" question).
+
+
+def test_the_successor_of_a_retired_gold_code_is_modernised():
+    from ladder.score import outcome
+
+    # gold recorded the retired 162076009; the model answered its successor
+    assert outcome(rec(sct="271782001"), gold(sct=["162076009"]), VOCAB) == "modernised"
+
+
+def test_modernised_degrades_to_incorrect_without_a_vocabulary():
+    from ladder.score import outcome
+
+    assert outcome(rec(sct="271782001"), gold(sct=["162076009"]), None) == "incorrect"
+
+
+def test_a_code_in_the_gold_set_is_correct_before_it_is_modernised():
+    from ladder.score import outcome
+
+    # post-coordinated gold carrying both the retired code and its successor:
+    # membership in the gold set wins — the gold rule is checked first
+    g = gold(sct=["162076009", "271782001"])
+    assert outcome(rec(sct="271782001"), g, VOCAB) == "correct"
+
+
+def test_strict_scorer_does_not_credit_modernised():
+    assert reaction_sct_strict(rec(sct="271782001"), gold(sct=["162076009"])) is False
+
+
+def test_score_run_counts_modernised_apart_from_correct():
+    golds = [
+        gold(index=0, spans=[(9, 19)], sct=["271782001"]),
+        gold(index=1, spans=[(30, 44)], sct=["162076009"]),
+    ]
+    records = [
+        rec(spans=[(9, 19)], sct="271782001"),   # correct
+        rec(spans=[(30, 44)], sct="271782001"),  # successor of retired gold
+    ]
+    r = score_run(records, golds, vocab=VOCAB)
+    assert r["correct"] == 1
+    assert r["modernised"] == 1
+    assert r["precision"] == 0.5, "modernised must not be credited as correct"

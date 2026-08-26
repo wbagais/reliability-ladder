@@ -729,3 +729,15 @@ def test_a_timeout_is_not_cached(tmp_path):
     client.chat(msgs)
     client.chat(msgs)
     assert len(calls) == 2
+
+
+def test_claude_sonnet_5_carries_an_extraction_budget():
+    """Decided 2026-08-26: the remote extractor arm stays an OPTION, never the
+    default — and an option must be runnable as registered. Without its own
+    budget the entry inherits DEFAULT_MAX_TOKENS=2000, which truncated the
+    LOCAL extractor mid-JSON (the measured S0/S2 defect); Sonnet 5's adaptive
+    thinking bills against the same completion budget, so the extractor-sized
+    budget and timeout are registry data here, matching gpt-oss:20b's shape."""
+    info = ModelInfo("anthropic/claude-sonnet-5")
+    assert info.max_tokens == 8000
+    assert info.timeout_s == 300
