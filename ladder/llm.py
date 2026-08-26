@@ -293,12 +293,37 @@ class Caller:
         self.client = LLMClient(spec, cache_dir=cache_dir)
         self.latencies: list[float] = []
         self.fenced = 0
+        self.unclosed = 0
         if not self.client.info.local and os.environ.get("LADDER_ALLOW_REMOTE") != "1":
             raise SystemExit(
                 f"{spec} is a hosted provider, and rung prompts contain CADEC post\n"
                 "text, which is non-transferable. Set LADDER_ALLOW_REMOTE=1 if you\n"
                 "have decided that is acceptable for this run."
             )
+
+    def _reclose(self, raw: str) -> str:
+        """Append the one closing brace a stopped-short reply is missing.
+
+        Measured 2026-08-25 (BioMistral-7B on the 240-record re-judge): 91
+        replies were a complete judgement that hit EOS immediately before the
+        final "}" — finish_reason stop, valid JSON plus one brace. Same class
+        as a markdown fence: repaired centrally, counted in `unclosed`, never
+        silent. Fires only when the text does not parse, text+"}" does, and
+        the result is non-empty — " {" must NOT become a fabricated {}.
+        """
+        try:
+            json.loads(raw)
+            return raw
+        except json.JSONDecodeError:
+            pass
+        try:
+            repaired = json.loads(raw + "}")
+        except json.JSONDecodeError:
+            return raw
+        if not repaired:
+            return raw
+        self.unclosed += 1
+        return raw + "}"
 
     def _unfence(self, raw: str) -> str:
         m = _FENCE.match(raw)
@@ -316,8 +341,12 @@ class Caller:
         sample_index: int = 0,
     ) -> tuple[str, dict]:
         t0 = time.time()
+        # A rung whose template embeds the post passes text="" — appending a
+        # POST section anyway would send the post twice (rung 4 did, measured
+        # 2026-08-25: doubled judge prompts) or dangle an empty header.
+        content = f"{prompt}\n\nPOST:\n{text}" if text else prompt
         resp = self.client.chat(
-            [{"role": "user", "content": f"{prompt}\n\nPOST:\n{text}"}],
+            [{"role": "user", "content": content}],
             temperature=temperature,
             sample_index=sample_index,
         )
@@ -336,7 +365,7 @@ class Caller:
             # nothing downstream can tell a cut-off reply from a bad one.
             "truncated": resp.truncated,
         }
-        return self._unfence(resp.text), usage
+        return self._reclose(self._unfence(resp.text)), usage
 
     def sampler(self, temperature: float):
         """A callable that draws a DIFFERENT sample each time it is called.

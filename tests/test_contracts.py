@@ -261,3 +261,30 @@ def test_rung0_entry_points_agree():
     )
     assert {r.extra.get("denominator") for r in rows_a} == \
            {r.extra.get("denominator") for r in rows_b}
+
+
+def test_the_judge_is_sent_the_post_exactly_once():
+    """Rung 4's template embeds the post, and Caller appends `text` as a POST
+    section — so passing the source through both sent every post TWICE.
+    Measured 2026-08-25 on the 240-record re-judge: doubled judge prompts
+    (median 582 tokens) are past where BioMistral-7B stops answering (it EOSes
+    after "{" above ~430 tokens, answers at ~312). The post goes in the
+    template, and nothing else carries it."""
+    from ladder.rungs import r4
+    from ladder.schema import Record
+
+    seen = {}
+
+    def spy_llm(prompt, text, mode, **kw):
+        seen["prompt"], seen["text"] = prompt, text
+        return '{"span_ok":true,"code_ok":true,"confidence":0.5,"why":"x"}', {}
+
+    rec = Record(doc_id="D.1", entity_type="reaction", text="rash",
+                 spans=[(22, 26)], sct="271807003", record_id="D.1#0")
+    source = "the whole forum post — rash and all — appears here once"
+    r4.apply([rec], {"D.1": source}, {
+        "judge_llm": spy_llm,
+        "extractor_model": "family/a", "judge_model": "family/b"})
+    combined = seen["prompt"] + seen["text"]
+    assert combined.count(source) == 1, "the post must reach the judge once"
+    assert seen["text"] == "", "r4 embeds the post itself; text adds a second copy"

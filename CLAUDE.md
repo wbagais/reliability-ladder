@@ -112,9 +112,11 @@
   differ per step, since scope is identical across S0/S1/S2 by design. The
   cost is reported, not avoided: **a dev-split run takes hours, not minutes.**
 - **The judge is now the WEAKER model** (granite4:micro-h, 2B, judging a 20B
-  extractor). It is the only locally installed family that differs from the
-  extractor, and rung 4 refuses to self-judge. Read rung 4's numbers with that
-  stated, or install a third family.
+  extractor), and as of Phase C that is a MEASURED choice, not a shortage: the
+  third family that was installed to fix it (BioMistral-7B, domain-adapted)
+  was rejected on the 240-record re-judge — it cannot reliably return the
+  judge JSON and its verdicts carry no signal. Read rung 4's numbers with the
+  2B caveat stated; it is the lesser evil until a better third family exists.
 - **The LLM cache key covers max_tokens and reasoning_effort.** It did not,
   and rerunning S0 with a new effort served the old truncated entry. A cache
   that survives a parameter change is a stale result. A TIMEOUT is never
@@ -263,12 +265,22 @@ Run each remaining phase in its own session; this section is the handoff.
    (e) One menu arm run: alphabetising the pick menu costs 10-12pt
    of coding accuracy at identical detection - the pick anchors on
    early slots, so retrieval's best-first order is load-bearing.
-2. **Phase C — models.** Import BioMistral-7B (GGUF → ollama Modelfile),
-   register in models.yaml, swap in as rung-4 JUDGE (fixes the 2B-judging-
-   20B inversion; different family; local so no licence issue). Re-judge
-   the full-ladder run's 240 records, compare against granite's 33%-vs-17%
-   signal, then re-run the rung 5 gate analysis + tau sweep on the new
-   judge's risk-coverage curve. Optional: one S2 extractor arm.
+2. **Phase C — models. DONE 2026-08-25, negative result** (three decisions
+   entries same date). BioMistral-7B imported, registered, swapped in,
+   measured on the 240-record re-judge — and REJECTED: 167/240 unjudged
+   even after two harness repairs (instant-EOS above ~430 prompt tokens),
+   all 73 parsed verdicts "fail" (fail rows 23.3% correct vs 24.6%
+   unjudged — no separation), confidence flat 0.0 so the tau sweep had
+   nothing to sweep (skipped, contingency not met; S2 extractor arm
+   declined on the same evidence). Judge REVERTED to granite4:micro-h —
+   the 2B-judging-20B caveat stands as the measured lesser evil. Kept from
+   the phase: the re-judge harness (`scripts/rejudge_r4.py`), the
+   post-sent-TWICE fix in rung 4 (r2 has the same defect, flagged for its
+   own session), and `Caller._reclose` (counted single-brace repair, like
+   fence stripping). Also found: granite re-judged through the fixed path
+   loses its pass/fail separation (28.0/15.6 → 25.4/23.6) — rung 4's
+   signal was partly the prompt duplication, i.e. prompt form is
+   load-bearing for small judges, same lesson as B(e)'s menu order.
 3. **Phase D — rung 3 repair.** FIRST disable rung 3 in ladder runs (it
    overwrote 9 of 32 verified-ACCEPT codes with memory-recalled
    hallucinations — see decisions 2026-08-25). Then: (a) match votes by

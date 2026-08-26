@@ -93,7 +93,11 @@ def judge(rec: Record, source: str, llm, cfg: dict) -> tuple[dict | None, dict]:
     _guard(rec)          # the boundary is applied before the prompt is built
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
     prompt = PROMPT.format(source=source, text=rec.text, start=s, end=e, sct=rec.sct)
-    raw, usage = llm(prompt, source, "judge")
+    # text="" — the template above already carries the post. Passing `source`
+    # here sent every post TWICE (fixed 2026-08-25; Caller appends non-empty
+    # text as a POST section). The doubled prompt was invisible with granite
+    # and is where BioMistral-7B stops answering.
+    raw, usage = llm(prompt, "", "judge")
     try:
         m = json.loads(raw)
     except json.JSONDecodeError:
