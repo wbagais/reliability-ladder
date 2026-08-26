@@ -173,7 +173,10 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
     prompt = PROMPT.format(fact=fact, source=source, text=rec.text,
                            start=s, end=e, sct=rec.sct)
-    raw, usage = llm(prompt, source, "correct")
+    # The template above embeds the post; passing it as `text` too made Caller
+    # append it again as a POST section, doubling every correction prompt
+    # (same defect rung 4 had, fixed 2026-08-25).
+    raw, usage = llm(prompt, "", "correct")
     meta["tokens_in"] = usage.get("in", 0)
     meta["tokens_out"] = usage.get("out", 0)
     # The caller already priced the call from models.yaml. Dropping it here

@@ -288,3 +288,31 @@ def test_the_judge_is_sent_the_post_exactly_once():
     combined = seen["prompt"] + seen["text"]
     assert combined.count(source) == 1, "the post must reach the judge once"
     assert seen["text"] == "", "r4 embeds the post itself; text adds a second copy"
+
+
+def test_rung_2_is_sent_the_post_exactly_once():
+    """Same defect as rung 4's, same fix: r2's PROMPT embeds the post, and
+    Caller appends `text` as a POST section — so passing the source through
+    both doubled every correction prompt. Caller sends the bare prompt when
+    text is empty (test_an_empty_text_sends_the_bare_prompt); the post goes
+    in the template, and nothing else carries it."""
+    from ladder.rungs import r2
+    from ladder.schema import R_CODE_UNKNOWN, Record, ZONE_REJECT
+
+    seen = {}
+
+    def spy_llm(prompt, text, mode, **kw):
+        seen["prompt"], seen["text"] = prompt, text
+        # Same code and spans back -> "reasserted", so no registry is needed.
+        return ('{"span_text":"rash","start":22,"end":26,'
+                '"code":"999999","confidence":0.5}'), {}
+
+    rec = Record(doc_id="D.1", entity_type="reaction", text="rash",
+                 spans=[(22, 26)], sct="999999", record_id="D.1#0")
+    rec.checks["r1_verdict"] = ZONE_REJECT
+    rec.checks["r1_reason"] = R_CODE_UNKNOWN
+    source = "the whole forum post — rash and all — appears here once"
+    r2.apply([rec], {"D.1": source}, {"llm": spy_llm})
+    combined = seen["prompt"] + seen["text"]
+    assert combined.count(source) == 1, "the post must reach rung 2 once"
+    assert seen["text"] == "", "r2 embeds the post itself; text adds a second copy"
