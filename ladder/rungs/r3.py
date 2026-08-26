@@ -205,13 +205,18 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
     agg = {"records": 0, "calls": 0, "documents": 0,
            "tokens_in": 0, "tokens_out": 0,
            "unanimous": 0, "split": 0, "tie": 0, "changed": 0,
+           "single_sample": 0,
            "unanimous_none": 0, "not_resampled": 0, "parse_failed": 0,
            "spread": Counter(), "t0": time.time()}
 
     # k samples of each DOCUMENT, each through rung 0's configured path, then
     # each sample's mentions assigned to the run's records by span overlap.
+    # SORTED, deliberately: the sampler's draw sequence — and with it every
+    # cache key and every vote — must not depend on the hash seed a set
+    # iteration would tie it to. A rung 3 result is a sample from a
+    # distribution; the run id can only reproduce it if the order is fixed.
     by_doc: dict[str, list[dict[str, Any]]] = {}
-    for doc_id in {r.doc_id for r in records}:
+    for doc_id in sorted({r.doc_id for r in records}):
         text = sources.get(doc_id, "")
         recs_here = [r for r in records if r.doc_id == doc_id]
         agg["documents"] += 1
@@ -305,10 +310,20 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             agg["unanimous_none"] += 1
             rec.checks["r3_unanimous_none"] = True
         elif win is not None and str(win) != str(rec.sct or ""):
-            agg["changed"] += 1
-            rec.checks["r3"]["changed"] = True
-            rec.sct = win
-            rec.mark(RUNG, rec.zone, None)
+            if seen < 2:
+                # One counted vote is not a vote, by the same argument that
+                # refuses k<2 above. Measured (phaseD-r3-1): the only
+                # verified-ACCEPT overwrite left after the sampler repair was
+                # a 1-0 "majority" replacing |Pain| with |Analgesia| — the
+                # absence of pain — from the single sample that re-found the
+                # mention. The verdict stays recorded; the action is withheld.
+                agg["single_sample"] += 1
+                rec.checks["r3"]["single_sample"] = True
+            else:
+                agg["changed"] += 1
+                rec.checks["r3"]["changed"] = True
+                rec.sct = win
+                rec.mark(RUNG, rec.zone, None)
 
         if ledger:
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
@@ -330,8 +345,8 @@ def report(agg: dict) -> None:
     if not n:
         print("  nothing to vote on"); return
     print(f"  documents sampled  {agg['documents']} x k = {agg['calls']} calls")
-    for key in ("unanimous", "split", "tie", "changed", "unanimous_none",
-                "not_resampled"):
+    for key in ("unanimous", "split", "tie", "changed", "single_sample",
+                "unanimous_none", "not_resampled"):
         print(f"     {key:12s} {agg[key]:5d}  ({agg[key] / n * 100:.0f}%)")
     print(f"  vote spread: {agg['spread']}")
     print(f"  tokens {agg['tokens_in'] + agg['tokens_out']:6d}   "

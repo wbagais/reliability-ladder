@@ -218,3 +218,65 @@ def test_sampler_votes_come_from_the_configured_retrieve_and_pick_path(tmp_path)
     doc_rows = [e for e in ledger.rows if e.rung == 3 and e.outcome == "sampled"]
     assert len(doc_rows) == 1 and doc_rows[0].api_calls == 6
     assert agg["calls"] == 6
+
+
+# --------------------------------------------------------------------------
+# 4. one re-finding is not a majority, and document order is deterministic
+# --------------------------------------------------------------------------
+
+
+def test_a_single_refound_sample_cannot_overwrite_the_record():
+    """Measured on the phaseD-r3-1 run: 'pain', vocabulary-verified as
+    22253000 |Pain|, was overwritten by 38433004 |Analgesia| — the ABSENCE
+    of pain — on a 1-0 'majority' from the only sample that re-found the
+    mention. The rung refuses k<2 because one draw cannot vote; the same
+    argument applies to one COUNTED vote. The verdict is still recorded —
+    withholding the action, not the evidence."""
+    from ladder.rungs import r3
+
+    calls = {"n": 0}
+
+    def llm(prompt, text, mode):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return json.dumps({"mentions": [{
+                "span_text": "rectal bleed", "start": 17, "end": 29,
+                "code": "38433004", "confidence": 0.9,
+            }]}), {"in": 10, "out": 10}
+        return json.dumps({"mentions": []}), {"in": 10, "out": 10}
+
+    r = rec()
+    out, agg = r3.apply([r], SOURCES, {"llm": llm, "k": 3})
+
+    assert r.checks["r3"]["seen"] == 1
+    assert r.checks["r3"]["winner"] == "38433004", "the verdict must still be recorded"
+    assert r.sct == "271782001", (
+        "a 1-0 'majority' from a single re-finding overwrote the record — "
+        "one counted vote is not a vote, by the same argument that refuses k<2"
+    )
+    assert not r.checks["r3"].get("changed")
+
+
+def test_documents_are_sampled_in_deterministic_order():
+    """Sampling iterated a SET of doc_ids, so the sampler's draw sequence —
+    and with it every cache key and every vote — depended on Python's hash
+    seed. A rung 3 result must be reproducible from the run id; that needs a
+    deterministic document order."""
+    from ladder.rungs import r3
+
+    seen_docs = []
+
+    def llm(prompt, text, mode):
+        seen_docs.append(text)
+        return json.dumps({"mentions": []}), {"in": 10, "out": 10}
+
+    ids = ["Z9", "M4", "A1", "Q7", "B2", "X5"]
+    recs = [rec(doc_id=d, record_id=f"{d}#0") for d in ids]
+    sources = {d: f"source-{d}" for d in ids}
+    r3.apply(recs, sources, {"llm": llm, "k": 2})
+
+    expected = [f"source-{d}" for d in sorted(ids) for _ in range(2)]
+    assert seen_docs == expected, (
+        f"documents were sampled in {seen_docs!r} — order must be sorted, "
+        "not whatever the set iteration happened to produce"
+    )
