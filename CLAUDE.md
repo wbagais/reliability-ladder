@@ -281,12 +281,20 @@ Run each remaining phase in its own session; this section is the handoff.
    loses its pass/fail separation (28.0/15.6 → 25.4/23.6) — rung 4's
    signal was partly the prompt duplication, i.e. prompt form is
    load-bearing for small judges, same lesson as B(e)'s menu order.
-3. **Phase D — rung 3 repair.** FIRST disable rung 3 in ladder runs (it
-   overwrote 9 of 32 verified-ACCEPT codes with memory-recalled
-   hallucinations — see decisions 2026-08-25). Then: (a) match votes by
-   record identity, not (doc_id, spans) key; (b) sampler must go through
-   the FULL S2 retrieve-and-pick path per sample so votes come from the
-   distribution being verified. Re-enable only with both fixed and measured.
+3. **Phase D — rung 3 repair. DONE 2026-08-26** (four decisions entries
+   same date). Disabled first — `enabled: false` is now a RECORDED run
+   state (ledger row + aggregate), never a silent skip. Four fixes, all
+   TDD'd (`tests/test_r3_repair.py`): (a) votes matched by span overlap,
+   one-to-one per record identity; (b) every sample drawn through rung 0's
+   configured path — `r0.prepare` + `r0.extract_document`, shared with
+   `r0.apply` so the two cannot drift; (c) a change requires seen >= 2 —
+   one counted vote is not a vote (found by measurement 1: |Analgesia|
+   overwrote verified |Pain| on a 1-0 "majority"); (d) documents sampled
+   in sorted order so the draw sequence reproduces from the run id.
+   Re-enabled on `out/phaseD-r3-2` (dev): not_resampled 206/240 -> 38/245,
+   hallucinated overwrites GONE, 0 correct codes destroyed, stack F1
+   exact 0.335 -> 0.347, cost 383k tokens (2.6x rung 0). Rung 3 numbers
+   are SAMPLES — always cite the run id.
 4. **Phase E — rung 6.** Human-loop desk over `checks.withheld` of
    abstained records; resolution format feeds the scorer. Build AFTER C/D
    so the inbox is the real residue.
