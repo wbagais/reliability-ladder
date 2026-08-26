@@ -1536,3 +1536,73 @@ def test_the_models_negation_claim_survives_rung_1(reg):  # noqa: F811
     assert recs[0].checks["negated"] is False        # rung 1's cue verdict
     assert recs[0].checks["r0_negated"] is True      # the model's claim, kept
     assert recs[0].checks["negation_cue"] is None
+
+
+# --- the span trimmer (Phase B(d)) -------------------------------------------
+#
+# Exact-mode detection is 0.429 against 0.765 overlap — 34 points of pure
+# boundary convention. The trimmer (ladder/trim.py) learns from POOL gold
+# which tokens the annotation convention leaves outside span boundaries and
+# strips them from rung 0's records AFTER locate(), keeping the original
+# text on the record. Behind `rung0_trim`; rules are injectable as
+# cfg["trimmer"] so these tests need no corpus.
+
+
+def _fake_trimmer():
+    from ladder.trim import SpanTrimmer
+
+    return SpanTrimmer(lead_drop=frozenset({"due"}), trail_drop=frozenset({"."}))
+
+
+def test_the_trimmer_is_off_by_default(reg):  # noqa: F811
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "due extreme rectal bleed",
+                       "context": "Hospitalization", "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm,
+                                        trimmer=_fake_trimmer()))
+    assert recs[0].text == "due extreme rectal bleed"
+    assert "span_trimmed" not in recs[0].checks
+
+
+def test_trimming_moves_text_and_offsets_together(reg):  # noqa: F811
+    llm = FakeLLM(
+        {"mentions": [{"span_text": "due extreme rectal bleed",
+                       "context": "Hospitalization", "confidence": 0.9}]},
+        {"picks": [{"reaction": 0, "choice": 0}]},
+    )
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_trim=True,
+                                          trimmer=_fake_trimmer()))
+    start = SOURCE.index("extreme rectal bleed")
+    assert recs[0].text == "extreme rectal bleed"
+    assert recs[0].spans == [(start, start + len("extreme rectal bleed"))]
+    assert recs[0].checks["span_untrimmed"] == "due extreme rectal bleed"
+    assert recs[0].checks["span_trimmed"] is True
+    assert agg["trimmed"] == 1
+    # the trimmed span still quotes the source — the record stays grounded
+    a, b = recs[0].spans[0]
+    assert SOURCE[a:b] == recs[0].text
+
+
+def test_an_untouched_span_carries_no_trim_keys(reg):  # noqa: F811
+    llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": 0},
+                                   {"reaction": 1, "choice": 0}]})
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_trim=True,
+                                          trimmer=_fake_trimmer()))
+    assert recs[0].text == "extreme rectal bleed"
+    assert "span_trimmed" not in recs[0].checks
+    assert "span_untrimmed" not in recs[0].checks
+    assert agg["trimmed"] == 0
+
+
+def test_an_ungrounded_span_is_never_trimmed(reg):  # noqa: F811
+    """(-1, -1) offsets mean the quote is not in the source. Arithmetic on
+    them would fabricate a grounding the record does not have."""
+    llm = FakeLLM({"mentions": [{
+        "span_text": "due purple monkey dishwasher", "context": "",
+        "sct_label": ["Generally unwell"], "confidence": 0.9}]})
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, rung0_trim=True,
+                                        trimmer=_fake_trimmer()))
+    assert recs[0].spans == [(-1, -1)]
+    assert "span_trimmed" not in recs[0].checks

@@ -96,6 +96,12 @@ DEFAULTS: dict[str, Any] = {
     #: because a number produced under one retriever is only interpretable
     #: next to the other, which is why the choice is written onto every record.
     "rung0_retrieval": "dense",  # "dense" | "lexical"
+    #: Trim rung 0's spans to the answer key's boundary convention, AFTER
+    #: locate() — rules learned from POOL gold at runtime (ladder/trim.py).
+    #: Note the order: S2's retrieval queries the model's FULL quote and the
+    #: trim happens afterwards, so the menu is built on more context, not
+    #: less. cfg["trimmer"] injects rules directly (tests; measurement runs).
+    "rung0_trim": False,
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
@@ -1001,6 +1007,30 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             rec.checks["candidates"] = cands
 
 
+def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
+    """Boundary-convention trim, in place, after locate().
+
+    Only grounded spans are touched — (-1, -1) means the quote is not in the
+    source, and moving those offsets would fabricate a grounding. The
+    original quote survives on the record (`span_untrimmed`), so the trim is
+    auditable and the untrimmed number recomputable from disk.
+    """
+    for rec in records:
+        if not rec.text or not rec.spans:
+            continue
+        start, end = rec.spans[0]
+        if not (isinstance(start, int) and start >= 0):
+            continue
+        text, span = trimmer.trim(rec.text, (start, end))
+        if text == rec.text:
+            continue
+        rec.checks["span_untrimmed"] = rec.text
+        rec.checks["span_trimmed"] = True
+        rec.text = text
+        rec.spans = [span]
+        agg["trimmed"] += 1
+
+
 def _parse(raw: str, meta: dict):
     """JSON or nothing. A parse failure is rung 0's counter-metric, not a bug
     to repair — repairing it here would delete the measurement."""
@@ -1090,11 +1120,20 @@ def apply(
             cfg["manifest"], cfg["rung0_fewshot_docs"]
         )
 
+    trimmer = None
+    if cfg.get("rung0_trim"):
+        trimmer = cfg.get("trimmer")
+        if trimmer is None:
+            from ladder.trim import pool_trimmer
+
+            trimmer = cfg["trimmer"] = pool_trimmer(cfg["manifest"])
+
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
         "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
+        "trimmed": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -1125,6 +1164,8 @@ def apply(
             agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
+        if trimmer is not None:
+            _trim_records(got, trimmer, agg)
         for rec in got:
             rec.checks["honoured_tool"] = honoured_tool(rec)
         # One ledger row per DOCUMENT, not per record: rung 0's unit of cost is
