@@ -1,327 +1,284 @@
 #!/usr/bin/env python3
-"""r6_desk.py — rung 6, as a timing study rather than a product.
+"""r6_desk.py — the rung 6 desk: a person works a run's abstained queue.
 
-WHY THIS EXISTS
+WHAT THIS IS
 
-The plan's thesis is "stop at the rung your economics justify". Cost is three
-measures — tokens, latency, records routed to a person — and the third has been
-zero everywhere, not because review is free but because nobody has timed it.
-The ladder's full cost cannot be stated without it.
+Rung 5 abstains and withholds; this is where the withheld records meet a
+person. The desk loads a finished run's `records.jsonl`, queues every record
+rung 5 left in ABSTAIN, and shows each one with its source context, the answer
+the system withdrew (`checks.withheld` — WITH its vocabulary label, never a
+bare SCTID), and the candidate menu the run itself retrieved. The reviewer
+decides; the decision, the seconds it took and the number of searches are
+appended to a resolutions file that `ladder/rungs/r6.py` (mode "desk") applies
+back onto the records in the shape the scorer grades.
 
-Rung 6 is not falsifiable the way rungs 0-5 were. Each of those could have
-worked and did not. Nobody doubts a person can code an adverse reaction. What
-is genuinely unknown is what it COSTS.
+The searching is part of the job, so the timer covers it: `/term` searches
+through the SAME retriever the run's rung 0 used, and the search count is
+recorded — a record settled on sight and one that took five queries share a
+median and are not the same work.
 
-WHAT v2 ADDS: SEARCH
+Resolution rows carry record ids, offsets, codes and vocabulary labels ONLY —
+no corpus text — so the file is shareable where the corpus is not.
 
-v1 gave the reviewer no way to look anything up, so a record with no candidates
-measured the time to DECLINE, not to CODE. That is a floor, not an estimate.
-This version puts the vocabulary in the reviewer's hands: /term searches,
-results are numbered, the loop runs until a decision. The searching IS the
-cost, so the timer covers all of it, and the number of searches is recorded —
-a record settled on the first query and one that took five share a median and
-are not the same work.
+--oracle writes the resolutions deterministically from the gold annotations
+instead of asking anyone. That is an ORACLE CEILING — the best a perfect
+reviewer could do with this queue — and never a measurement of human work; the
+rows are stamped `oracle:gold`, rung 6 labels every number they produce, and
+the flag refuses to touch test-split documents at all.
 
-DESIGN
-
-  Blind        gold and model records shuffled together, shown identically.
-               Without it you time your recall of a corpus you have been
-               reading all day.
-  Stratified   on what the vocabulary actually returns, which is what decides
-               the reviewer's job. Never pooled.
-  Timed,       decision and seconds recorded; accuracy NOT computed. The moment
-  not scored   it is an accuracy test it measures the reviewer.
-  Cached       rung 0 runs once. The pool does not change between sessions.
-
-WHAT IT CANNOT TELL YOU — in the write-up, not a footnote:
-  - whether a trained safety officer is faster. Probably much.
-  - whether fatigue changes it over 155 records rather than 6.
-  - anything about review ACCURACY.
-
-    LADDER_N=8 PYTHONPATH=. python3 scripts/r6_desk.py
-    LADDER_N=8 PYTHONPATH=. python3 scripts/r6_desk.py --n 3 --seed 7 --rebuild
+    PYTHONPATH=. python3 scripts/r6_desk.py out/RUN.records.jsonl
+    PYTHONPATH=. python3 scripts/r6_desk.py out/RUN.records.jsonl --oracle
 """
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import pathlib
-import random
 import statistics
 import time
 
-try:
-    from rich.console import Console
-    from rich.table import Table
-    from rich.text import Text
-    from rich.panel import Panel
-    from rich.rule import Rule
-except ImportError:
-    raise SystemExit("needs rich:  pip install rich --break-system-packages")
-
+from ladder import corpus as corpus_mod
+from ladder.manifest import load_manifest
 from ladder.registry import Registry
-from ladder.rungs.r0 import run, Record
-from ladder.rungs import r1
-from ladder.ledger import Ledger
-from ladder import stub_llm as S, corpus as C
+from ladder.rungs import r0, r6
+from ladder.schema import loads
 
-RUNG = 6
-OUT = "runs/r6-timing.jsonl"
-CACHE = "runs/.r6-pool.json"
+# Plain ANSI, on purpose: no dependency, and the import smoke test can reach
+# every line of this file on any machine.
+DIM, BOLD, MARK, WARN, OK, END = (
+    "\033[2m", "\033[1m", "\033[30;43m", "\033[33m", "\033[32m", "\033[0m"
+)
 
-con = Console()
+MENU_ROWS = 9
+CONTEXT = 130
 
-
-def build_pool(man, use_cache: bool = True):
-    """Model records plus gold records, rung 1 verdicts attached.
-
-    Cached: rung 0 is N sequential model calls and the pool does not change
-    between review sessions. --rebuild forces it.
-    """
-    cache = pathlib.Path(CACHE)
-    reg = Registry(man["vocabulary"]["snomed_db"])
-    items = S.load_items(man["corpus"]["splits_dir"])
-    src = {i["doc_id"]: i["text"] for i in items}
-
-    if use_cache and cache.exists():
-        con.print("[grey50]pool from cache · --rebuild to refresh[/]")
-        raw = json.loads(cache.read_text())
-        pool = []
-        for r in raw["records"]:
-            r = dict(r)
-            r["spans"] = [tuple(s) for s in r["spans"]]
-            pool.append(Record(**r))
-        return reg, src, pool
-
-    con.print("[grey50]building pool — rung 0 runs once, then it is cached[/]")
-    docs = C.load_corpus(man["corpus"]["cadec_root"])
-    recs, _ = run(items, "A", S.stub, {"registry": reg, "rung0_offsets": "search"})
-    for r in recs:
-        r.checks["_source"] = "model"
-
-    for it in items:
-        for g in docs[it["doc_id"]].mentions:
-            d = g.to_dict()
-            if d.get("entity_type") != "reaction" or d.get("gold_kind") != "single":
-                continue
-            sp, cd = d.get("spans") or [], [str(c) for c in (d.get("sct") or [])]
-            if not sp or len(cd) != 1:
-                continue
-            recs.append(Record(
-                doc_id=it["doc_id"], entity_type="reaction", text=d.get("text", ""),
-                spans=[tuple(x) for x in sp], sct=cd[0], meddra=None,
-                confidence=1.0, zone="NEW", reason=None,
-                record_id=f"{it['doc_id']}#g{d.get('index')}",
-                provenance=["gold"], checks={"_source": "gold"}))
-
-    for r in recs:
-        v, why, _ = r1.zone(r, src.get(r.doc_id, ""), reg, {"registry": reg})
-        r.checks["r1_verdict"], r.checks["r1_reason"] = v, why
-
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    cache.write_text(json.dumps({"records": [
-        {"doc_id": r.doc_id, "entity_type": r.entity_type, "text": r.text,
-         "spans": [list(s) for s in r.spans], "sct": r.sct, "meddra": r.meddra,
-         "confidence": r.confidence, "zone": r.zone, "reason": r.reason,
-         "record_id": r.record_id, "provenance": list(r.provenance or []),
-         "checks": r.checks} for r in recs]}))
-    return reg, src, recs
+HELP = "/term search · 1-9 pick · w withheld · SCTID · c no-code · u uphold · s skip · q quit"
 
 
-def search(reg, term: str, k: int = 6):
-    try:
-        found = reg.search(term, k) or []
-    except Exception as e:
-        con.print(f"[red]  search failed: {e}[/]")
-        return []
-    out = []
-    for c in found:
-        if isinstance(c, dict):
-            out.append((str(c.get("code") or c.get("sct") or "?"),
-                        c.get("term") or c.get("fsn") or ""))
-        else:
-            out.append((str(c), ""))
-    return out[:k]
+# --- queue and resume --------------------------------------------------------
 
 
-def print_candidates(cands, title):
-    t = Table(box=None, pad_edge=False, show_header=False)
-    t.add_column(width=4, style="cyan")
-    t.add_column(width=16, style="grey70")
-    t.add_column(style="white")
-    for n, (code, term) in enumerate(cands, 1):
-        t.add_row(str(n), code, term)
-    con.print(Text(f"  {title}", style="grey50"))
-    con.print(t)
+def load_queue(records_path: str | pathlib.Path):
+    """The abstained residue, in a stable order a session can resume into."""
+    recs = loads(pathlib.Path(records_path).read_text(encoding="utf-8"))
+    return sorted(r6.queue(recs), key=lambda r: (r.doc_id, r.record_id))
 
 
-def show_record(i, total, rec, cands, src):
-    text = src.get(rec.doc_id, "")
-    s, e = rec.spans[0] if rec.spans else (0, 0)
-    body = Text()
-    body.append("…" + text[max(0, s - 130):s], style="grey58")
-    body.append(text[s:e], style="bold black on yellow")
-    body.append(text[e:e + 130] + "…", style="grey58")
+def resume_keys(out_path: pathlib.Path) -> set[tuple]:
+    """Span keys already resolved in the output file — a session resumes."""
+    if not out_path.exists():
+        return set()
+    return {
+        r6._span_key(row["doc_id"], row["spans"])
+        for row in r6.load_resolutions(out_path)
+    }
 
-    con.print()
-    con.print(Rule(f"record {i} of {total}", style="grey30", align="left"))
-    con.print()
-    con.print(Panel(body, border_style="grey30", padding=(1, 2)))
-    con.print(Text(f"  quoted   {rec.text!r}", style="grey62"))
-    con.print()
-    if cands:
-        print_candidates(cands, "candidates for this text")
+
+def default_out(records_path: str, oracle: bool) -> pathlib.Path:
+    stem = str(records_path)
+    if stem.endswith(".records.jsonl"):
+        stem = stem[: -len(".records.jsonl")]
     else:
-        con.print(Text("  the vocabulary returned nothing for this text",
-                       style="dark_orange3"))
-    con.print()
-    con.print(Text("  /term  search     1-6  pick     c  no valid code     "
-                   "x  not a reaction     s  skip", style="grey42"))
+        stem = stem.rsplit(".jsonl", 1)[0]
+    suffix = ".oracle-resolutions.jsonl" if oracle else ".resolutions.jsonl"
+    return pathlib.Path(stem + suffix)
 
 
-def report(results):
-    con.print()
-    con.print(Rule("rung 6 — measured review time", style="grey30", align="left"))
-    t = Table(box=None, pad_edge=False)
-    t.add_column("stratum", width=18)
-    t.add_column("n", width=4, justify="right")
-    t.add_column("median", width=9, justify="right")
-    t.add_column("range", width=14, justify="right")
-    t.add_column("searches", width=10, justify="right")
-    for stratum in ("with_candidates", "no_candidates"):
-        v = [r[1] for r in results if r[0] == stratum]
-        sr = [r[4] for r in results if r[0] == stratum]
-        if not v:
+# --- display -----------------------------------------------------------------
+
+
+def show(i, total, rec, source, withheld_label, cands):
+    s, e = rec.spans[0] if rec.spans else (0, 0)
+    ctx = (
+        f"{DIM}…{source[max(0, s - CONTEXT):s]}{END}"
+        f"{MARK}{source[s:e]}{END}"
+        f"{DIM}{source[e:e + CONTEXT]}…{END}"
+    )
+    wh = (rec.checks.get("withheld") or {})
+    code = wh.get("sct")
+    print(f"\n{DIM}── record {i} of {total} — {rec.record_id} " + "─" * 20 + END)
+    print(f"\n{ctx}\n")
+    denied = "  [denied]" if rec.checks.get("r0_negated") else ""
+    print(f"  quoted    {rec.text!r}{denied}")
+    print(f"  abstained {rec.reason}  (r1: {rec.checks.get('r1_verdict')}"
+          f" — {rec.checks.get('r1_reason')})")
+    if code:
+        label = withheld_label or f"{WARN}<no label in the vocabulary>{END}"
+        print(f"  withheld  {code}  {label}")
+    print_menu(cands, "candidates from the run's own menu")
+
+
+def print_menu(cands, title):
+    if not cands:
+        print(f"\n  {WARN}nothing on the menu for this record{END}")
+        return
+    print(f"\n  {DIM}{title}{END}")
+    for n, c in enumerate(cands[:MENU_ROWS], 1):
+        print(f"   {n}  {c['code']:<12} {c.get('label') or c.get('fsn') or ''}")
+
+
+# --- oracle ------------------------------------------------------------------
+
+
+def oracle_main(a, man, queue, out_path) -> int:
+    test_ids = set(
+        corpus_mod.read_split(man["corpus"]["splits_dir"], "test")
+    )
+    touched = sorted({r.doc_id for r in queue} & test_ids)
+    if touched:
+        raise SystemExit(
+            f"--oracle refuses test-split documents ({touched[:3]}…): Phase F "
+            "runs test ONCE, and a gold-derived desk would put the answer key "
+            "inside that run."
+        )
+    docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
+    golds = [m for d in sorted({r.doc_id for r in queue}) for m in docs[d].mentions]
+    rows = r6.oracle_resolutions(queue, golds)
+    with out_path.open("a", encoding="utf-8") as fh:
+        for row in rows:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    by = {}
+    for row in rows:
+        by[row["decision"]] = by.get(row["decision"], 0) + 1
+    print(f"{WARN}{BOLD}ORACLE CEILING{END}{WARN} — these resolutions come from "
+          f"the gold annotations, not a person. They bound what a perfect "
+          f"reviewer could recover from this queue and measure NOTHING about "
+          f"human work. Label every number derived from them.{END}")
+    print(f"\n  {len(rows)} resolutions  " +
+          "  ".join(f"{k}={v}" for k, v in sorted(by.items())))
+    print(f"  written to {out_path}")
+    return 0
+
+
+# --- the desk ----------------------------------------------------------------
+
+
+def decide(rec, shown, search, reg) -> tuple[str, str | None, str | None, int]:
+    """One record's decision loop: (decision, sct, label, searches)."""
+    searches = 0
+    while True:
+        ans = input(f"\n  {BOLD}>{END} ").strip()
+        if ans.startswith("/"):
+            term = ans[1:].strip()
+            if not term:
+                continue
+            searches += 1
+            found = search(term, MENU_ROWS)
+            if found:
+                shown = found
+                print_menu(found, f"'{term}' — pick a number, or search again")
+            else:
+                print(f"  {WARN}nothing for '{term}'{END}")
             continue
-        t.add_row(stratum, str(len(v)), f"{statistics.median(v):.1f}s",
-                  f"{min(v):.0f}–{max(v):.0f}s",
-                  f"{statistics.median(sr):.0f}" if sr else "—")
-    con.print(t)
-    con.print(Text("\n  Not pooled. Picking from a list and searching a "
-                   "129,675-concept terminology are different jobs.",
-                   style="grey50"))
-
-    no_c = [r[1] for r in results if r[0] == "no_candidates"]
-    if no_c:
-        m = statistics.median(no_c)
-        con.print(Text.assemble(
-            ("\n  EXTRAPOLATION", "yellow"),
-            (f", from n={len(no_c)}: the withheld queue holds 155 records with\n"
-             f"  no valid code. At {m:.0f}s each that is "
-             f"{155 * m / 3600:.1f} reviewer-hours, against 234,727 tokens\n"
-             "  that produced 0 correct codes. Quote it as an extrapolation "
-             "from a handful\n  of records, never as a measured total — and "
-             "note the reviewer was not a\n  trained coder.", "grey62")))
-
-    by_src = {}
-    for _, secs, _, source, _ in results:
-        by_src.setdefault(source, []).append(secs)
-    if len(by_src) > 1:
-        con.print(Text("\n  unblinded, after the fact — at this n treat any "
-                       "difference as noise:", style="grey42"))
-        for k, v in by_src.items():
-            con.print(Text(f"    {k:6} n={len(v)}  median "
-                           f"{statistics.median(v):.1f}s", style="grey50"))
-
-
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--n", type=int, default=3, help="records per stratum")
-    ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--rebuild", action="store_true", help="ignore the cached pool")
-    a = ap.parse_args()
-
-    man = json.loads(pathlib.Path("manifest.json").read_text())
-    reg, src, pool = build_pool(man, use_cache=not a.rebuild)
-
-    rng = random.Random(a.seed)
-    rng.shuffle(pool)
-    with_c, without_c = [], []
-    for r in pool:
-        if len(with_c) >= a.n and len(without_c) >= a.n:
-            break
-        c = search(reg, r.text)
-        (with_c if c else without_c).append((r, c))
-    q = with_c[:a.n] + without_c[:a.n]
-    rng.shuffle(q)
-
-    con.print()
-    con.print(Panel(Text.assemble(
-        ("rung 6 — timing study\n\n", "bold"),
-        (f"{len(q)} records · {len(with_c[:a.n])} with candidates, "
-         f"{len(without_c[:a.n])} without\n", "white"),
-        ("Provenance is hidden and the order shuffled. Decisions are recorded; "
-         "accuracy is not scored.\n", "grey62"),
-        ("Search with /term as often as you need — the searching is the cost, "
-         "and the timer covers it.", "grey62")),
-        border_style="grey30", padding=(1, 2)))
-    input("\n  enter to start… ")
-
-    led = Ledger(OUT, run_id=f"r6-{int(time.time())}")
-    results = []
-    try:
-        for i, (rec, cands) in enumerate(q, 1):
-            stratum = "with_candidates" if cands else "no_candidates"
-            shown = list(cands)
-            show_record(i, len(q), rec, shown, src)
-            t0 = time.perf_counter()
-            searches = 0
-            decision = code = None
-
-            while decision is None:
-                ans = con.input("\n  [bold]>[/] ").strip()
-                if ans.startswith("/"):
-                    term = ans[1:].strip()
-                    if not term:
-                        continue
-                    searches += 1
-                    found = search(reg, term)
-                    con.print()
-                    if found:
-                        shown = found
-                        print_candidates(found,
-                                         f"'{term}' — pick a number, or search again")
-                    else:
-                        con.print(Text(f"  nothing for '{term}'",
-                                       style="dark_orange3"))
+        low = ans.lower()
+        if low == "w":
+            code = (rec.checks.get("withheld") or {}).get("sct")
+            if not code:
+                print(f"  {WARN}this record has no withheld answer{END}")
+                continue
+            return "code", str(code), reg.preferred(str(code)), searches
+        if low == "c":
+            return "concept_less", None, None, searches
+        if low == "u":
+            return "uphold", None, None, searches
+        if low == "s":
+            return "skip", None, None, searches
+        if low == "q":
+            return "quit", None, None, searches
+        if ans.isdigit() and shown and 1 <= int(ans) <= len(shown[:MENU_ROWS]):
+            c = shown[int(ans) - 1]
+            return "code", str(c["code"]), c.get("label") or c.get("fsn"), searches
+        if ans.isdigit() and len(ans) >= 6:
+            label = reg.preferred(ans)
+            if label is None:
+                print(f"  {WARN}{ans} is not in the vocabulary — 'y' to file it "
+                      f"anyway, anything else to go back{END}")
+                if input(f"  {BOLD}>{END} ").strip().lower() != "y":
                     continue
-                low = ans.lower()
-                if low == "c":
-                    decision = "declined"
-                elif low == "x":
-                    decision = "not_a_reaction"
-                elif low == "s":
-                    decision = "skipped"
-                elif ans.isdigit() and shown and 1 <= int(ans) <= len(shown):
-                    decision, code = "coded", shown[int(ans) - 1][0]
-                elif ans.isdigit() and len(ans) >= 6:
-                    decision, code = "coded", ans     # SCTID typed directly
-                else:
-                    con.print(Text("  /term to search · 1-6 · c · x · s",
-                                   style="grey42"))
+            else:
+                print(f"  {ans} = {label}")
+            return "code", ans, label, searches
+        print(f"  {DIM}{HELP}{END}")
 
-            secs = time.perf_counter() - t0
-            results.append((stratum, secs, decision,
-                            rec.checks.get("_source"), searches))
-            led.log(rung=RUNG, doc_id=rec.doc_id, record_id=rec.record_id,
-                    zone="REVIEWED", outcome=decision,
-                    reason=rec.checks.get("r1_reason"),
-                    human_minutes=secs / 60.0, api_calls=0,
-                    denominator=f"r6_{stratum}", evaluable="pass",
-                    seconds=round(secs, 1), searches=searches,
-                    chose=code, source=rec.checks.get("_source"))
-            con.print(Text(f"  {decision}" + (f" {code}" if code else "")
-                           + f" · {secs:.0f}s · {searches} search"
-                           + ("" if searches == 1 else "es"), style="green"))
-    except KeyboardInterrupt:
-        con.print("\n[grey50]stopped early[/]")
-    finally:
-        led.close()
+
+def desk_main(a, man, queue, out_path) -> int:
+    reg = Registry(man["vocabulary"]["snomed_db"])
+    docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
+    sources = {d: docs[d].text for d in {r.doc_id for r in queue}}
+    search, retriever = r0._retriever({**man["rungs"]["0"], "registry": reg})
+    reviewer = a.reviewer or getpass.getuser()
+
+    done = resume_keys(out_path)
+    todo = [r for r in queue if r6._span_key(r.doc_id, r.spans) not in done]
+    if a.limit:
+        todo = todo[: a.limit]
+    print(f"\n{BOLD}rung 6 desk{END} — {len(todo)} of {len(queue)} queued records"
+          f" ({len(done)} already resolved in {out_path.name})")
+    print(f"{DIM}search runs through the run's retriever ({retriever}); the "
+          f"timer covers the searching. {HELP}{END}")
+
+    results = []
+    with out_path.open("a", encoding="utf-8") as fh:
+        for i, rec in enumerate(todo, 1):
+            source = sources.get(rec.doc_id, "")
+            code = (rec.checks.get("withheld") or {}).get("sct")
+            wh_label = reg.preferred(str(code)) if code else None
+            cands = rec.checks.get("candidates") or []
+            show(i, len(todo), rec, source, wh_label, cands)
+            t0 = time.perf_counter()
+            decision, sct, label, searches = decide(rec, cands, search, reg)
+            if decision == "quit":
+                print(f"{DIM}stopped — the file resumes where you left off{END}")
+                break
+            secs = round(time.perf_counter() - t0, 1)
+            row = r6.resolution_row(
+                rec, decision, sct=sct, label=label, seconds=secs,
+                searches=searches, reviewer=reviewer,
+            )
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+            fh.flush()
+            results.append((decision, secs, searches))
+            shown = f" {sct}  {label or ''}" if sct else ""
+            print(f"  {OK}{decision}{shown} · {secs:.0f}s · {searches} "
+                  f"search{'' if searches == 1 else 'es'}{END}")
 
     if results:
-        report(results)
-        con.print(f"\n[grey50]written to {OUT}[/]")
+        secs = [s for _, s, _ in results]
+        by = {}
+        for d, _, _ in results:
+            by[d] = by.get(d, 0) + 1
+        print(f"\n  {len(results)} reviewed  "
+              + "  ".join(f"{k}={v}" for k, v in sorted(by.items())))
+        print(f"  median {statistics.median(secs):.0f}s · total "
+              f"{sum(secs) / 60:.1f} min · written to {out_path}")
+        print(f"{DIM}apply with rungs.6 mode='desk', resolutions="
+              f"'{out_path}'{END}")
     return 0
+
+
+def main(argv=None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("records", help="a run's records.jsonl (the desk queues its ABSTAIN residue)")
+    ap.add_argument("--manifest", default="manifest.json")
+    ap.add_argument("--out", help="resolutions file (default: beside the records)")
+    ap.add_argument("--oracle", action="store_true",
+                    help="write gold-derived resolutions — AN ORACLE CEILING, "
+                         "labeled as such; refused on test-split documents")
+    ap.add_argument("--limit", type=int, default=0, help="review at most N records")
+    ap.add_argument("--reviewer", help="name recorded on each row (default: $USER)")
+    a = ap.parse_args(argv)
+
+    man = load_manifest(a.manifest)
+    queue = load_queue(a.records)
+    if not queue:
+        print("no abstained records in this file — the queue is empty.")
+        return 0
+    out_path = pathlib.Path(a.out) if a.out else default_out(a.records, a.oracle)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    if a.oracle:
+        return oracle_main(a, man, queue, out_path)
+    return desk_main(a, man, queue, out_path)
 
 
 if __name__ == "__main__":

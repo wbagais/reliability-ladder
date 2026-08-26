@@ -135,7 +135,8 @@
     },
     "6": {
       "mode": "simulated",
-      "minutes_per_record": 2.0
+      "minutes_per_record": 2.0,
+      "mode_note": "simulated | desk. Implemented 2026-08-26 (Phase E, ladder/rungs/r6.py). The queue is rung 5's abstained residue, each record still carrying checks.withheld. 'simulated' routes the queue to ESCALATE and PRICES it at minutes_per_record — no answer is invented, coverage cannot move, and every ledger row carries human_minutes with minutes_source='simulated'; it measures the bill of stopping at rung 5, not the person. 'desk' applies a resolutions file (cfg key 'resolutions') written by a review session at scripts/r6_desk.py — decisions code|concept_less|uphold|skip, matched to records BY SPAN KEY one-to-one (never by record_id, which is a position), minutes MEASURED from seconds at the desk. Rows carry ids, offsets, codes and vocabulary labels only — never corpus text. scripts/r6_desk.py --oracle writes the file deterministically from gold: an ORACLE CEILING, labeled resolved_oracle in every ledger row and oracle:true in the aggregate, priced at the simulated rate, and REFUSED on the test split. Rung 6 takes no model — ROLE_BY_RUNG gives it no role, deliberately. Human minutes are the third cost measure and are never fused with tokens or usd."
     }
   },
   "output": {
