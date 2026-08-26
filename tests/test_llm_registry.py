@@ -290,6 +290,159 @@ def test_the_caller_passes_truncation_through_to_the_rung(tmp_path):
     assert usage["truncated"] is True
 
 
+# --- BioMistral-7B: the rung-4 judge (Phase C) -------------------------------
+#
+# The judge was granite4:micro-h — a 2B judging a 20B extractor, the wrong way
+# round, kept only because it was the sole locally installed family that
+# differed from the extractor. BioMistral-7B (Q5_K_M, imported 2026-08-25, see
+# docs/decisions.md) is a third family, domain-adapted to medical text, and
+# 3.5x the old judge's size. It is a NON-reasoning instruct model: the judge
+# reply is one JSON line (smoke test: 39 completion tokens), so its budgets are
+# small and explicit rather than inherited defaults.
+
+
+def test_biomistral_is_registered_and_local():
+    info = ModelInfo("ollama/biomistral:7b-q5_k_m")
+    assert info.local is True
+    assert info.dollars(1000, 1000) == 0.0
+
+
+def test_biomistral_has_a_small_explicit_output_budget():
+    """One JSON line, not a chain of thought. 512 is 13x the measured reply."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").max_tokens == 512
+
+
+def test_biomistral_has_an_explicit_timeout():
+    """240 records x one call each: a hung call must cost one record."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").timeout_s == 120
+
+
+def test_biomistral_declares_no_reasoning_channel():
+    """Mistral-instruct has no reasoning_effort parameter to send."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").reasoning_effort is None
+
+
+def test_the_manifest_judge_is_still_granite():
+    """Phase C swapped BioMistral-7B in and the measurement swapped it back
+    out (2026-08-25, docs/decisions.md): 167 of 240 records unjudged even
+    after two harness repairs, every parsed verdict "fail" (code_ok false on
+    72 of 73, including |Lower back pain| for "Lower Back Pain"), confidence
+    flat 0.0 so rung 5 has nothing to sweep. The judge remains granite — the
+    2B-judging-20B caveat stands, now as the measured lesser evil. BioMistral
+    stays registered above so the arm is reproducible; it must not be the
+    judge a full-ladder run silently picks up."""
+    import json
+
+    man = json.load(open("manifest.json"))
+    assert man["model"]["judge"] == "ollama/ibm/granite4:micro-h"
+    assert man["model"]["extractor"] != man["model"]["judge"]
+
+
+# --- a caller given no post sends no POST section ----------------------------
+#
+# Caller appends "\n\nPOST:\n{text}" for the rung-0 shape, where the prompt is
+# instructions and the text is the document. Rung 4's template embeds the post
+# ITSELF (the claim must follow the post), and passing the source again through
+# `text` sent every post twice — measured 2026-08-25 on the 240-record re-judge:
+# judge prompts at a median 582 tokens where the post once would be ~350, and
+# BioMistral-7B answers a 312-token prompt but EOSes after "{" at 582. The fix
+# is that a rung which embeds the post passes text="" and the suffix vanishes;
+# a dangling "POST:" header over nothing would be an invitation to hallucinate.
+
+
+def test_an_empty_text_sends_the_bare_prompt(tmp_path):
+    from ladder.llm import Caller
+
+    caller = Caller("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    caller.client = _client_returning(_Resp('{"ok":1}', "stop"), tmp_path)
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            sent.update(kw)
+            return _Resp('{"ok":1}', "stop")
+
+    caller.client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    caller("the whole prompt, post included", "", "judge")
+    assert sent["messages"][0]["content"] == "the whole prompt, post included"
+
+
+def test_a_nonempty_text_still_gets_the_post_section(tmp_path):
+    from ladder.llm import Caller
+
+    caller = Caller("ollama/gpt-oss:20b", cache_dir=tmp_path)
+    sent = {}
+
+    class FakeCompletions:
+        def create(self, **kw):
+            sent.update(kw)
+            return _Resp('{"ok":1}', "stop")
+
+    caller.client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    caller("instructions", "the post", "S1")
+    assert sent["messages"][0]["content"] == "instructions\n\nPOST:\nthe post"
+
+
+# --- a reply that stopped one brace short is repaired, and counted -----------
+#
+# Measured 2026-08-25, BioMistral-7B judging the 240-record replay: 91 replies
+# were a complete, correct judgement that hit EOS immediately BEFORE the
+# closing "}" — finish_reason stop, not truncated, valid JSON the moment the
+# brace is appended. That is a transport quirk of the same class as a markdown
+# fence: the judgement was made and delivered, the envelope is dented. Like
+# fences it is repaired centrally, counted on the caller, and never silent.
+# The repair fires only when the text does not parse and text+"}" does — a
+# prose reply, a truncation mid-string, or a reply missing "]}"  is left alone
+# and still fails downstream as it should.
+
+
+def _caller_returning(text, tmp_path):
+    from ladder.llm import Caller
+
+    caller = Caller("ollama/gpt-oss:20b", cache_dir=tmp_path)
+
+    class FakeCompletions:
+        def create(self, **kw):
+            return _Resp(text, "stop")
+
+    caller.client._client = type("C", (), {
+        "chat": type("Ch", (), {"completions": FakeCompletions()})()})()
+    return caller
+
+
+def test_a_reply_missing_only_the_closing_brace_is_repaired(tmp_path):
+    caller = _caller_returning('{"span_ok":true,"confidence":0.9,"why":"x"', tmp_path)
+    raw, _ = caller("p", "", "judge")
+    assert raw == '{"span_ok":true,"confidence":0.9,"why":"x"}'
+    assert caller.unclosed == 1
+
+
+def test_a_complete_reply_is_not_touched(tmp_path):
+    caller = _caller_returning('{"span_ok":true}', tmp_path)
+    raw, _ = caller("p", "", "judge")
+    assert raw == '{"span_ok":true}'
+    assert caller.unclosed == 0
+
+
+def test_a_reply_one_brace_cannot_fix_is_left_alone(tmp_path):
+    """'{' + '}' would parse as {} — a repair that INVENTS an empty judgement.
+    The guard is that the unrepaired text must already carry content the brace
+    completes; a bare '{' does not."""
+    caller = _caller_returning(" {", tmp_path)
+    raw, _ = caller("p", "", "judge")
+    assert raw == " {"
+    assert caller.unclosed == 0
+
+
+def test_prose_is_left_alone(tmp_path):
+    caller = _caller_returning("I think the span is fine.", tmp_path)
+    raw, _ = caller("p", "", "judge")
+    assert raw == "I think the span is fine."
+    assert caller.unclosed == 0
+
+
 # --- ONE place names a model -------------------------------------------------
 #
 # `manifest.model` said granite4:micro-h while `llm.py` said gpt-oss:20b, so

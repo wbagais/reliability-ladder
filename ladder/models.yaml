@@ -37,6 +37,13 @@ providers:
       # 8000 covers every call that terminates at this effort with room to
       # spare; timeout_s bounds the ones that do not.
       gpt-oss:20b: { max_tokens: 8000, timeout_s: 300, reasoning_effort: low }
+      # The rung-4 JUDGE (Phase C, 2026-08-25). BioMistral-7B Q5_K_M — a third
+      # local family, domain-adapted to medical text, replacing the 2B
+      # granite4:micro-h that was judging a 20B extractor. NON-reasoning
+      # Mistral-instruct: the judge reply is one JSON line (smoke test: 39
+      # completion tokens), so the budget is small and explicit. No
+      # reasoning_effort — the model has no such parameter.
+      biomistral:7b-q5_k_m: { max_tokens: 512, timeout_s: 120 }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY
