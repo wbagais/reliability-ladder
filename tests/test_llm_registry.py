@@ -290,6 +290,49 @@ def test_the_caller_passes_truncation_through_to_the_rung(tmp_path):
     assert usage["truncated"] is True
 
 
+# --- BioMistral-7B: the rung-4 judge (Phase C) -------------------------------
+#
+# The judge was granite4:micro-h — a 2B judging a 20B extractor, the wrong way
+# round, kept only because it was the sole locally installed family that
+# differed from the extractor. BioMistral-7B (Q5_K_M, imported 2026-08-25, see
+# docs/decisions.md) is a third family, domain-adapted to medical text, and
+# 3.5x the old judge's size. It is a NON-reasoning instruct model: the judge
+# reply is one JSON line (smoke test: 39 completion tokens), so its budgets are
+# small and explicit rather than inherited defaults.
+
+
+def test_biomistral_is_registered_and_local():
+    info = ModelInfo("ollama/biomistral:7b-q5_k_m")
+    assert info.local is True
+    assert info.dollars(1000, 1000) == 0.0
+
+
+def test_biomistral_has_a_small_explicit_output_budget():
+    """One JSON line, not a chain of thought. 512 is 13x the measured reply."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").max_tokens == 512
+
+
+def test_biomistral_has_an_explicit_timeout():
+    """240 records x one call each: a hung call must cost one record."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").timeout_s == 120
+
+
+def test_biomistral_declares_no_reasoning_channel():
+    """Mistral-instruct has no reasoning_effort parameter to send."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").reasoning_effort is None
+
+
+def test_the_manifest_judge_is_biomistral():
+    """Phase C's swap: manifest.model is the ONE place a model is named, and
+    rung 4's numbers are attributed to whatever this says. The judge must also
+    stay a different family from the extractor — r4 refuses to self-judge."""
+    import json
+
+    man = json.load(open("manifest.json"))
+    assert man["model"]["judge"] == "ollama/biomistral:7b-q5_k_m"
+    assert man["model"]["extractor"] != man["model"]["judge"]
+
+
 # --- ONE place names a model -------------------------------------------------
 #
 # `manifest.model` said granite4:micro-h while `llm.py` said gpt-oss:20b, so
