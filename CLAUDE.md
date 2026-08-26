@@ -240,62 +240,43 @@
   answer `null` for an id it does not know and does so 12.4% of the time — and
   still emitted `2714004`, a nonexistent code, beside a correct label.
 
-## Next, in order
-1. **Run the full ladder on the frozen S2.** The three dev runs are DONE and
-   S2 is frozen in the manifest (see above). Rungs 1-6 have never been
-   measured against it — every number above rung 0 predates the freeze.
-   `python -m ladder.run ladder --split dev` Everything measured so far is ONE
-   document (ARTHROTEC.107) plus corpus-wide vocabulary statistics. Pick the
-   winning step, freeze it in the manifest, and run the ladder from there —
-   otherwise rungs 1-6 are measured against three different rung 0s and nothing
-   above is comparable. `python -m ladder.run ladder --split dev --rung0-step S1`
-2. **A full dev-split run.** Everything measured so far is ONE document
-   (ARTHROTEC.107). The rung 4 confabulation and rung 3's `not_resampled` are
-   single observations, not rates. Dev is 40 documents at roughly 30s each.
-   `python -m ladder.run ladder --split dev` — drop `--limit`.
-3. **Rung 6** — the last unbuilt slot. "Tell the model to escalate when unsure"
-   is rung 5, not rung 6: rung 6 is a person actually resolving the record.
-4. **Rung 3 cannot currently vote, and it is not a rung 3 bug.** It matches
-   mentions by `(doc_id, spans)`, and samples at temperature 0.7 pick different
-   phrases, so keys never align — every record comes back `not_resampled`.
-5. **The lookup-vs-RAG 2x2 needs a model that names concepts.** Top row
-   measured: a perfect clinical term scores 99.3% by exact lookup AND 99.3% by
-   dense retrieval — they coincide by construction, so retrieval can only pay
-   on an IMPERFECT label. Bottom row unmeasurable at 2B: granite4:micro-h
-   proposed `AFTERPROMPT` for "rectal bleed", so there was no concept to
-   retrieve on. Needs claude-sonnet-5, which is a licence call
-   (`LADDER_ALLOW_REMOTE=1`, CADEC is non-transferable) as well as a cost one.
-   `checks["labels_proposed"]` now records what the model offered, which is
-   what makes the comparison possible at all.
-6. **Dense retrieval's 13.9% miss is mostly NOT fixable by a better
-   retriever, and a hybrid loses.** Measured at equal budget: dense@40 89.5%
-   beats dense@20+lexical@20 88.0% and dense@20+char-trigram@20 89.3%. The fix
-   for recall is `rung0_shortlist_k`, not a second index — but raising k costs
-   at the PICK step, where a long menu bought position bias (measured at the
-   retired S3). That trade-off is its own experiment. Miss profile: 8.6% are
-   SENTENCES retrieved against 4-word terms (the same defect query rewriting
-   would fix), 1.6% post-coordinated gold, 0.3% absent from the table, and the
-   rest are ranked-too-low — a large part of which is gold naming one concept
-   where the span literally names another ("little blurred vision" -> gold
-   |Hazy vision|, retrieved "blurred vision").
-7. **Schema enforcement is an A/B, not a switch.** It does not delete the
-   parse-failure metric — it MOVES the failure (truncation, empty mention
-   lists, plausible wrong values) and costs output quality, because
-   probability mass goes to satisfying the grammar. Run both arms and report
-   what it removed and what it cost. Not built.
-8. **Config measurements need more than three documents.** The
-   `reasoning_effort` choice was made on 3 documents and was right about
-   quality (`low` finds 1 gold mention of 17) and blind to the tail — three
-9. **The 111 retired gold mentions `clean.py` excludes but `outdated` can
-   answer.** All 407 wholly-retired gold mentions leave the denominator, on the
-   grounds that the keyword table is active-only. 111 of them (27.3%) have a
-   SNOMED-recorded successor, so a model naming that successor is right against
-   a stale answer key. Changing the answer key's inventory needs a measurement
-   and a decision, not a quiet edit — see docs/decisions.md 2026-08-24.
-10. `python -m ladder.rungs.r0 --compare` — the tool ablation. NOTE: mode B has
-   no tool-call loop; `vocab.search()` runs AFTER the model replies, so today it
-   measures "would a search have found the code it invented?", not "does search
-   help?".
+## Next, in order — the phase plan (2026-08-25, approved)
+Phase A is DONE (two-layer scorer, bootstrap CIs, excluded-overlap fix,
+S0/S1/S2 confirmed under the enhanced config — see docs/decisions.md).
+Run each remaining phase in its own session; this section is the handoff.
+
+1. **Phase B — rung 0 accuracy.** (a) NEGATION: extract denied reactions
+   with `negated: true` in all three step schemas — gold annotates them
+   (427 mentions, 4.7%; "no stomach pains" in DICLOFENAC-SODIUM.5 is gold),
+   the current prompt rule fights the answer key. Keep rung 1's cue as the
+   cross-check. (b) QUERY REWRITING for S2 retrieval (strip qualifiers
+   before embedding) — measure OFFLINE over the 6,595 coded gold mentions
+   first, wire only if it wins. (c) One dev run for a+b against
+   F1 0.296/0.451 with bootstrap CIs. (d) SPAN TRIMMER post-processor —
+   exact-mode detection is 0.429 vs 0.765 overlap: 34 points of pure
+   boundary convention; learn trims from POOL gold only. (e) menu
+   presentation arms (cached FIND ≈ 5 min each).
+2. **Phase C — models.** Import BioMistral-7B (GGUF → ollama Modelfile),
+   register in models.yaml, swap in as rung-4 JUDGE (fixes the 2B-judging-
+   20B inversion; different family; local so no licence issue). Re-judge
+   the full-ladder run's 240 records, compare against granite's 33%-vs-17%
+   signal, then re-run the rung 5 gate analysis + tau sweep on the new
+   judge's risk-coverage curve. Optional: one S2 extractor arm.
+3. **Phase D — rung 3 repair.** FIRST disable rung 3 in ladder runs (it
+   overwrote 9 of 32 verified-ACCEPT codes with memory-recalled
+   hallucinations — see decisions 2026-08-25). Then: (a) match votes by
+   record identity, not (doc_id, spans) key; (b) sampler must go through
+   the FULL S2 retrieve-and-pick path per sample so votes come from the
+   distribution being verified. Re-enable only with both fixed and measured.
+4. **Phase E — rung 6.** Human-loop desk over `checks.withheld` of
+   abstained records; resolution format feeds the scorer. Build AFTER C/D
+   so the inbox is the real residue.
+5. **Phase F — test split, ONCE.** Freeze manifest+prompts+models, run the
+   60 held-out test docs, report as-is. Nothing is re-run after it.
+
+Parked with the user: remote claude-sonnet-5 extractor (licence call,
+LADDER_ALLOW_REMOTE=1); the 111 retired-gold successors denominator
+decision.
 
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.
