@@ -59,7 +59,7 @@ DEFAULTS = {
     "tie": "unchanged",     # unchanged | first — never "null", see module docstring
 }
 
-# NO PROMPT HERE, DELIBERATELY.
+# NO PROMPT HERE, DELIBERATELY — AND NO PATH EITHER.
 #
 # The spec says "sample the extractor k times". A rung 3 with its own prompt
 # samples a DIFFERENT TASK and reports the result as if it were the extractor's
@@ -67,9 +67,15 @@ DEFAULTS = {
 # declining produced 39 declines out of 39, against a rung 0 that fabricates a
 # code every time. That measured the prompt, not the model.
 #
-# So rung 3 calls rung 0's own build_prompt() and parses with rung 0's own
-# logic. The only thing that varies across the k calls is the sampling
-# temperature.
+# The same argument applies to the WHOLE pipeline, not just the prompt, and it
+# was measured failing (2026-08-25): this rung sampled rung 0's legacy recall
+# prompt while the run's codes came from the frozen S2 retrieve-and-pick path,
+# and voting over that other distribution overwrote 9 of 32 rung-1-verified-
+# ACCEPT codes with memory-recalled hallucinations. So rung 3 now builds rung
+# 0's OWN configuration from the manifest (r0.prepare) and draws every sample
+# through rung 0's own per-document body (r0.extract_document) — step,
+# retriever, few-shot block and trimmer included. The only thing that varies
+# across the k draws is the sampling temperature.
 
 def normalise(code: str | None, registry) -> str:
     """One normalisation, shared with rung 1 — never a second implementation.
@@ -88,15 +94,66 @@ def normalise(code: str | None, registry) -> str:
     return str(fn(str(code).strip()))
 
 
-def sample_document(doc_id: str, text: str, mode: str, llm, cfg: dict):
-    """One extractor sample of a whole document, through rung 0's own path."""
-    from ladder.rungs.r0 import rung0
-    return rung0(doc_id, text, mode, llm, cfg)
+def rung0_cfg(cfg: dict) -> dict:
+    """Rung 0's configuration, rebuilt from the manifest for the sampler.
+
+    Rung 3's own cfg is manifest.rungs.3 — it says nothing about how rung 0
+    extracts. The distribution being verified is defined by manifest.rungs.0,
+    so that is what the sampler runs. With no manifest in cfg this degrades to
+    r0.DEFAULTS, i.e. the legacy recall path — the same fallback rung 0 itself
+    has.
+    """
+    from ladder.rungs import r0
+
+    man = cfg.get("manifest") or {}
+    r0cfg = dict((man.get("rungs") or {}).get("0") or {})
+    r0cfg.update(registry=cfg.get("registry"), manifest=man)
+    return r0.prepare(r0cfg)
 
 
-def _key(rec) -> tuple:
-    """Which mention is this? Span, not text: the text is what varies."""
-    return (rec.doc_id, tuple(tuple(s) for s in rec.spans))
+def sample_document(doc_id: str, text: str, llm, r0cfg: dict):
+    """One extractor sample of a whole document, through rung 0's own
+    CONFIGURED path — r0.extract_document, never a private reimplementation."""
+    from ladder.rungs.r0 import extract_document
+    return extract_document(doc_id, text, llm, r0cfg)
+
+
+def _overlap(a, b) -> int:
+    """Shared characters between two span lists. Overlap is the scorer's own
+    convention for 'the same mention', and it is what tolerates the boundary
+    shifts sampling produces ("extreme rectal bleed" vs "rectal bleed")."""
+    return sum(
+        max(0, min(e1, e2) - max(s1, s2)) for s1, e1 in a for s2, e2 in b
+    )
+
+
+def match_votes(recs: list, sample: list) -> dict[str, Any]:
+    """Assign each sampled mention to at most one record: best overlap first,
+    one-to-one, ties broken by list order so the assignment is deterministic.
+
+    Returns {record_id: sampled Record}. Votes are collected per RECORD
+    IDENTITY — the exact (doc_id, spans) key this replaces called every
+    shifted boundary a different mention, which cost 206/240 records their
+    votes on the 2026-08-25 run. One-to-one matters too: a single sampled
+    mention spanning two records must not be counted as two agreeing votes.
+    """
+    scored = []
+    for i, rec in enumerate(recs):
+        for j, s in enumerate(sample):
+            ov = _overlap(rec.spans, s.spans)
+            if ov > 0:
+                scored.append((-ov, i, j))
+    scored.sort()
+    out: dict[str, Any] = {}
+    used_rec: set[int] = set()
+    used_sample: set[int] = set()
+    for _, i, j in scored:
+        if i in used_rec or j in used_sample:
+            continue
+        used_rec.add(i)
+        used_sample.add(j)
+        out[recs[i].record_id] = sample[j]
+    return out
 
 
 
@@ -143,26 +200,37 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             "times. Set rungs.5.temperature above 0, or do not run this rung."
         )
 
-    mode = cfg.get("rung0_mode", "A")
     ledger = cfg.get("ledger")
+    r0cfg = rung0_cfg(cfg)
     agg = {"records": 0, "calls": 0, "documents": 0,
            "tokens_in": 0, "tokens_out": 0,
            "unanimous": 0, "split": 0, "tie": 0, "changed": 0,
+           "single_sample": 0,
            "unanimous_none": 0, "not_resampled": 0, "parse_failed": 0,
            "spread": Counter(), "t0": time.time()}
 
-    # k samples of each DOCUMENT, then match mentions by span.
-    by_doc: dict[str, list[dict]] = {}
-    for doc_id in {r.doc_id for r in records}:
+    # k samples of each DOCUMENT, each through rung 0's configured path, then
+    # each sample's mentions assigned to the run's records by span overlap.
+    # SORTED, deliberately: the sampler's draw sequence — and with it every
+    # cache key and every vote — must not depend on the hash seed a set
+    # iteration would tie it to. A rung 3 result is a sample from a
+    # distribution; the run id can only reproduce it if the order is fixed.
+    by_doc: dict[str, list[dict[str, Any]]] = {}
+    for doc_id in sorted({r.doc_id for r in records}):
         text = sources.get(doc_id, "")
+        recs_here = [r for r in records if r.doc_id == doc_id]
         agg["documents"] += 1
-        samples = []
-        doc_in = doc_out = 0
+        matches = []
+        doc_in = doc_out = doc_calls = 0
         doc_usd = 0.0
         doc_t0 = time.time()
         for _ in range(k):
-            got, meta = sample_document(doc_id, text, mode, llm, cfg)
-            agg["calls"] += 1
+            got, meta = sample_document(doc_id, text, llm, r0cfg)
+            # A sample through S2 is TWO calls (find, then pick). Billing one
+            # per sample would report the repaired rung at half its price.
+            calls = meta.get("api_calls", 1)
+            agg["calls"] += calls
+            doc_calls += calls
             doc_in += meta.get("tokens_in", 0)
             doc_out += meta.get("tokens_out", 0)
             # k times the price of one extraction, and paid whether or not a
@@ -174,15 +242,16 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             agg["usd"] = agg.get("usd", 0.0) + meta.get("usd", 0.0)
             if meta.get("parse_failed"):
                 agg["parse_failed"] += 1
-            samples.append({_key(r): r for r in got})
-        by_doc[doc_id] = samples
-        # The k calls are a DOCUMENT cost, not a record cost, and they are paid
-        # whether or not any record is re-found below. Logging them here is what
-        # stops a run where nothing matched from reporting rung 3 as free.
+            matches.append(match_votes(recs_here, got))
+        by_doc[doc_id] = matches
+        # The k samples are a DOCUMENT cost, not a record cost, and they are
+        # paid whether or not any record is re-found below. Logging them here
+        # is what stops a run where nothing matched from reporting rung 3 as
+        # free.
         if ledger:
             ledger.log(
                 rung=RUNG, doc_id=doc_id, record_id=doc_id, zone="NEW",
-                outcome="sampled", api_calls=k,
+                outcome="sampled", api_calls=doc_calls,
                 tokens_in=doc_in, tokens_out=doc_out, usd=doc_usd,
                 latency_ms=(time.time() - doc_t0) * 1000, k=k,
                 denominator="r3_documents", evaluable="pass",
@@ -193,8 +262,8 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         votes: Counter = Counter()
         raw: list[str | None] = []
         seen = 0
-        for s in by_doc.get(rec.doc_id, []):
-            match = s.get(_key(rec))
+        for m in by_doc.get(rec.doc_id, []):
+            match = m.get(rec.record_id)
             if match is None:
                 continue          # this sample did not find this mention
             seen += 1
@@ -241,10 +310,20 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             agg["unanimous_none"] += 1
             rec.checks["r3_unanimous_none"] = True
         elif win is not None and str(win) != str(rec.sct or ""):
-            agg["changed"] += 1
-            rec.checks["r3"]["changed"] = True
-            rec.sct = win
-            rec.mark(RUNG, rec.zone, None)
+            if seen < 2:
+                # One counted vote is not a vote, by the same argument that
+                # refuses k<2 above. Measured (phaseD-r3-1): the only
+                # verified-ACCEPT overwrite left after the sampler repair was
+                # a 1-0 "majority" replacing |Pain| with |Analgesia| — the
+                # absence of pain — from the single sample that re-found the
+                # mention. The verdict stays recorded; the action is withheld.
+                agg["single_sample"] += 1
+                rec.checks["r3"]["single_sample"] = True
+            else:
+                agg["changed"] += 1
+                rec.checks["r3"]["changed"] = True
+                rec.sct = win
+                rec.mark(RUNG, rec.zone, None)
 
         if ledger:
             ledger.log(record_id=rec.record_id, doc_id=rec.doc_id, rung=RUNG, zone=rec.zone,
@@ -266,8 +345,8 @@ def report(agg: dict) -> None:
     if not n:
         print("  nothing to vote on"); return
     print(f"  documents sampled  {agg['documents']} x k = {agg['calls']} calls")
-    for key in ("unanimous", "split", "tie", "changed", "unanimous_none",
-                "not_resampled"):
+    for key in ("unanimous", "split", "tie", "changed", "single_sample",
+                "unanimous_none", "not_resampled"):
         print(f"     {key:12s} {agg[key]:5d}  ({agg[key] / n * 100:.0f}%)")
     print(f"  vote spread: {agg['spread']}")
     print(f"  tokens {agg['tokens_in'] + agg['tokens_out']:6d}   "

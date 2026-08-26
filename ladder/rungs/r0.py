@@ -1129,29 +1129,18 @@ def honoured_tool(rec: Record) -> bool | None:
     return str(rec.sct) in {str(r["code"]) for r in results}
 
 
-def apply(
-    records: list[Record], sources: dict[str, str], cfg: dict[str, Any]
-) -> tuple[list[Record], dict]:
-    """The rung entry point. `records` is EMPTY — rung 0 builds from `sources`.
+def prepare(cfg: dict[str, Any] | None) -> dict[str, Any]:
+    """Merge DEFAULTS and build the run-scoped pieces of rung 0's path.
 
-    Refuses to run on a non-empty list rather than appending to it: rung 0 twice
-    over the same split would double every mention and every number above it.
+    Validates the step, requires a registry for the steps that resolve codes,
+    and builds the few-shot block and the trimmer ONCE, cached on the returned
+    cfg. Shared by apply() and by rung 3's sampler — rung 3 must draw its
+    votes from the distribution rung 0 actually ran (measured 2026-08-25:
+    sampling the legacy recall prompt against an S2 run overwrote 9 of 32
+    verified-ACCEPT codes with hallucinations), and two callers stay on one
+    path only if one function builds it.
     """
     cfg = {**DEFAULTS, **(cfg or {})}
-    if records:
-        raise RuntimeError(
-            f"rung 0 was handed {len(records)} existing records. It is the rung "
-            "that CREATES them, so running it over a populated set would double "
-            "the mention count. Run it first, or not at all."
-        )
-    llm = cfg.get("llm")
-    if llm is None:
-        raise RuntimeError(
-            "rung 0 has no model. Skipping silently would report an empty "
-            "extraction as a result. Set manifest.model.extractor."
-        )
-    ledger = cfg.get("ledger")
-    mode = "B" if cfg.get("rung0_mode") == "search" else "A"
     step = cfg.get("rung0_step")
     if step is not None and step not in STEPS:
         raise ValueError(
@@ -1168,14 +1157,56 @@ def apply(
         cfg["rung0_fewshot_block"] = pool_fewshot_block(
             cfg["manifest"], cfg["rung0_fewshot_docs"]
         )
+    if cfg.get("rung0_trim") and cfg.get("trimmer") is None:
+        from ladder.trim import pool_trimmer
 
-    trimmer = None
-    if cfg.get("rung0_trim"):
-        trimmer = cfg.get("trimmer")
-        if trimmer is None:
-            from ladder.trim import pool_trimmer
+        cfg["trimmer"] = pool_trimmer(cfg["manifest"])
+    return cfg
 
-            trimmer = cfg["trimmer"] = pool_trimmer(cfg["manifest"])
+
+def extract_document(doc_id: str, text: str, llm, cfg: dict[str, Any]) -> tuple[list[Record], dict]:
+    """One document through rung 0's CONFIGURED path — step dispatch plus the
+    span trim. The single per-document body: apply() loops over it and rung 3
+    samples through it, so the two cannot drift onto different paths.
+    `cfg` must have been through prepare()."""
+    step = cfg.get("rung0_step")
+    if step is None:
+        mode = "B" if cfg.get("rung0_mode") == "search" else "A"
+        got, meta = rung0(doc_id, text, mode, llm, cfg)
+        meta.setdefault("api_calls", 1)
+    else:
+        got, meta = run_step(doc_id, text, step, llm, cfg)
+    if cfg.get("rung0_trim") and cfg.get("trimmer") is not None:
+        counts = {"trimmed": 0}
+        _trim_records(got, cfg["trimmer"], counts)
+        meta["trimmed"] = counts["trimmed"]
+    return got, meta
+
+
+def apply(
+    records: list[Record], sources: dict[str, str], cfg: dict[str, Any]
+) -> tuple[list[Record], dict]:
+    """The rung entry point. `records` is EMPTY — rung 0 builds from `sources`.
+
+    Refuses to run on a non-empty list rather than appending to it: rung 0 twice
+    over the same split would double every mention and every number above it.
+    """
+    cfg = prepare(cfg)
+    if records:
+        raise RuntimeError(
+            f"rung 0 was handed {len(records)} existing records. It is the rung "
+            "that CREATES them, so running it over a populated set would double "
+            "the mention count. Run it first, or not at all."
+        )
+    llm = cfg.get("llm")
+    if llm is None:
+        raise RuntimeError(
+            "rung 0 has no model. Skipping silently would report an empty "
+            "extraction as a result. Set manifest.model.extractor."
+        )
+    ledger = cfg.get("ledger")
+    mode = "B" if cfg.get("rung0_mode") == "search" else "A"
+    step = cfg.get("rung0_step")
 
     agg: dict[str, Any] = {
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
@@ -1188,11 +1219,7 @@ def apply(
     out: list[Record] = []
     for doc_id, text in sources.items():
         t0 = time.time()
-        if step is None:
-            got, meta = rung0(doc_id, text, mode, llm, cfg)
-            meta.setdefault("api_calls", 1)
-        else:
-            got, meta = run_step(doc_id, text, step, llm, cfg)
+        got, meta = extract_document(doc_id, text, llm, cfg)
         elapsed_ms = (time.time() - t0) * 1000
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
@@ -1213,8 +1240,7 @@ def apply(
             agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
-        if trimmer is not None:
-            _trim_records(got, trimmer, agg)
+        agg["trimmed"] += meta.get("trimmed", 0)
         for rec in got:
             rec.checks["honoured_tool"] = honoured_tool(rec)
         # One ledger row per DOCUMENT, not per record: rung 0's unit of cost is

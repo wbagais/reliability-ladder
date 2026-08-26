@@ -175,6 +175,20 @@ def run_ladder(
             print(f"[run] rung {n} ({RUNG_NAMES[n]}) — not implemented, skipped")
             continue
         cfg: dict[str, Any] = dict(man["rungs"].get(str(n), {}))
+        # A rung disabled in the manifest is a RECORDED state, never a silent
+        # skip: "rung n did not run" and "rung n found nothing" are different
+        # claims about the same numbers, and only the first belongs to a rung
+        # that was off. The check sits BEFORE model resolution — a disabled
+        # rung must not need a model to be recorded as disabled.
+        if cfg.get("enabled", True) is False:
+            aggregates[n] = {"disabled": True}
+            ledger.log(
+                rung=n, doc_id="-", record_id=f"rung{n}", zone="CONFIG",
+                outcome="disabled", reason=f"manifest.rungs.{n}.enabled=false",
+                evaluable="could_not_run",
+            )
+            print(f"[run] rung {n} ({RUNG_NAMES[n]}) — DISABLED in manifest, not run")
+            continue
         # The rung never picks a model. One resolution point, here, so that
         # "which model produced this number" is answered by the manifest.
         caller = llm_mod.for_rung(n, man)
