@@ -317,8 +317,10 @@ Run each remaining phase in its own session; this section is the handoff.
    stay ESCALATE. The queue's withheld answers were already correct
    46×/74× (exact/overlap) — the oracle recovers 102 exact because a
    reviewer also FIXES wrong codes. Every oracle number is a labeled
-   ceiling; no real human session has been run yet — the desk is built
-   and waiting.
+   ceiling. DECIDED 2026-08-26: the headline rung-6 cost is the COUNT
+   routed to a person (208/245, reviews_per_100 84.9) — minutes are not
+   measurable here; the timed session is descoped, minutes_per_record
+   stays a declared illustration only.
 5. **Phase F — test split, ONCE.** Freeze manifest+prompts+models, run the
    60 held-out test docs, report as-is. Nothing is re-run after it.
 
