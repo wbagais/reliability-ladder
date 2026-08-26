@@ -92,8 +92,17 @@
   Never fuse them into a currency figure.
 
 ## Current state
-- **All seven rung slots exist except rung 6.** The full ladder runs end to end,
-  cold, in order `[0,1,2,3,4,5,6]`. 100 tests (96 + 4 integration), CI green.
+- **All seven rungs exist** (rung 6 landed 2026-08-26, Phase E). The full
+  ladder runs end to end, cold, in order `[0,1,2,3,4,5,6]`. 581 tests, CI green.
+- **Rung 6 is a rung with two modes and no model.** The queue is rung 5's
+  abstained residue (`checks.withheld` preserved). `simulated` prices the queue
+  at `minutes_per_record` into the ledger's `human_minutes` — no answer
+  invented, coverage cannot move. `desk` applies a resolutions file from
+  `scripts/r6_desk.py` (decisions `code|concept_less|uphold|skip`, matched BY
+  SPAN KEY one-to-one, minutes measured; rows carry no corpus text). The desk
+  shows vocabulary labels, never bare SCTIDs, and searches through rung 0's own
+  retriever. `--oracle` writes gold-derived resolutions — an ORACLE CEILING,
+  labeled `resolved_oracle` on every row and refused on the test split.
 - **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
   carries no default and `resolve()` RAISES on a missing entry — it used to
   fall back to `ollama/gpt-oss:20b` while the manifest said
@@ -295,9 +304,21 @@ Run each remaining phase in its own session; this section is the handoff.
    hallucinated overwrites GONE, 0 correct codes destroyed, stack F1
    exact 0.335 -> 0.347, cost 383k tokens (2.6x rung 0). Rung 3 numbers
    are SAMPLES — always cite the run id.
-4. **Phase E — rung 6.** Human-loop desk over `checks.withheld` of
-   abstained records; resolution format feeds the scorer. Build AFTER C/D
-   so the inbox is the real residue.
+4. **Phase E — rung 6. DONE 2026-08-26** (three decisions entries same
+   date). `ladder/rungs/r6.py` + rewritten `scripts/r6_desk.py`, 23 new
+   tests, all TDD'd. Measured on the phaseD-r3-2 residue (208 of 245
+   abstained): **simulated** = 416.0 human minutes at the declared 2.0
+   min/record, accuracy untouched (`out/phaseE-r6-sim.*`); **oracle
+   ceiling** = shipped F1 0.131 → 0.444 [0.335–0.548] exact, coding
+   accuracy on matched spans 0.291 → 0.990 with detection unchanged — the
+   whole remaining gap is span boundaries, which a code-picking desk
+   cannot fix (`out/phaseE-r6-oracle.*`). 9 schema-invalid records with
+   unlocated `(-1,-1)` spans are unreviewable by a span-keyed desk and
+   stay ESCALATE. The queue's withheld answers were already correct
+   46×/74× (exact/overlap) — the oracle recovers 102 exact because a
+   reviewer also FIXES wrong codes. Every oracle number is a labeled
+   ceiling; no real human session has been run yet — the desk is built
+   and waiting.
 5. **Phase F — test split, ONCE.** Freeze manifest+prompts+models, run the
    60 held-out test docs, report as-is. Nothing is re-run after it.
 
