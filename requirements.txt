@@ -14,3 +14,9 @@ pyyaml==6.0.2
 # numpy is imported LATE, inside ladder/embed.py, with a message naming this
 # file. A checkout that reads out/*.csv and never builds an embedding index
 # does not need it, and the lexical retrieval path runs without it.
+#
+# Dashboard (dashboard/ — `python -m dashboard`, M1 read-only lens). Local
+# viewing only; nothing in the pipeline imports these.
+# fastapi==0.141.1
+# uvicorn==0.52.4
+# httpx==0.28.1       # also the FastAPI TestClient's transport in the tests

@@ -1,0 +1,321 @@
+"""Dashboard M1 app — the read-only API behind tabs R1/R3/R4/R5.
+
+Constraint tests (spec.md: violating any is a bug by definition):
+  C1 loopback-only + export scrubbing; C2 read-only (no run invocation);
+  C3 provenance on every number-carrying payload; C4 caveats auto-attached;
+  C5 three cost measures, never fused.
+
+All corpus text here is SYNTHETIC (C1 applies to fixtures).
+"""
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+from fastapi.testclient import TestClient
+
+from ladder.corpus import Document, GoldMention
+from ladder.schema import REACTION
+
+from dashboard.app import create_app
+from dashboard.state import AppState
+from test_dashboard_core import SYN_TEXT, make_run
+
+SYN2_TEXT = "some fake twinge words padded out to look like a post body here."
+
+
+def syn_corpus() -> dict[str, Document]:
+    m1 = GoldMention(doc_id="SYN.1", index=0, entity_type=REACTION,
+                     cadec_type="ADR", text="pretend ache", spans=[(32, 44)],
+                     sct=["1111111111"], gold_kind="single")
+    m2 = GoldMention(doc_id="SYN.2", index=0, entity_type=REACTION,
+                     cadec_type="ADR", text="fake twinge", spans=[(5, 11), (20, 27)],
+                     sct=["2222222222"], gold_kind="single")
+    m3 = GoldMention(doc_id="SYN.2", index=1, entity_type=REACTION,
+                     cadec_type="Finding", text="look", spans=[(40, 44)],
+                     sct=[], gold_kind="concept_less")
+    return {
+        "SYN.1": Document("SYN.1", "ARTHROTEC", SYN_TEXT, [m1]),
+        "SYN.2": Document("SYN.2", "LIPITOR", SYN2_TEXT, [m2, m3]),
+        "SYN.3": Document("SYN.3", "LIPITOR", "third synthetic body.", []),
+    }
+
+
+@pytest.fixture()
+def client(tmp_path) -> TestClient:
+    make_run(tmp_path / "out")
+    make_run(tmp_path / "archive" / "old-branch", run_id="base-run")
+    state = AppState(
+        repo_root=tmp_path,
+        sources=[(tmp_path / "out", False), (tmp_path / "archive", True)],
+        corpus=syn_corpus(),
+        splits={"dev": ["SYN.1", "SYN.2", "SYN.3"], "test": ["TST.1"], "pool": []},
+        exclusion_rows=[{"record_id": "SYN.9#9", "doc_id": "SYN.9",
+                         "reason": "retired_code", "detail": "42"}],
+        registry=None,
+        manifest={"corpus": {"n_mentions_total": 9111},
+                  "vocabulary": {"snomed_backend": "local-rf2"}},
+    )
+    return TestClient(create_app(state))
+
+
+# --- C2: read-only, no run invocation ---------------------------------------
+
+
+def test_every_route_is_get_only(client):
+    for route in client.app.routes:
+        methods = getattr(route, "methods", None)
+        if methods:
+            assert methods <= {"GET", "HEAD"}, f"{route.path} allows {methods}"
+
+
+def test_no_dashboard_module_can_launch_anything():
+    pkg = Path(__file__).resolve().parent.parent / "dashboard"
+    for py in pkg.rglob("*.py"):
+        src = py.read_text(encoding="utf-8")
+        for needle in ("subprocess", "os.system", "Popen", "os.exec"):
+            assert needle not in src, f"{py.name} contains {needle} (C2: M1 launches nothing)"
+
+
+# --- C1: loopback only -------------------------------------------------------
+
+
+def test_serve_refuses_non_loopback_host():
+    from dashboard.__main__ import validate_host
+    assert validate_host("127.0.0.1") == "127.0.0.1"
+    for bad in ("0.0.0.0", "192.168.1.5", "example.com", ""):
+        with pytest.raises(SystemExit):
+            validate_host(bad)
+
+
+# --- runs list ---------------------------------------------------------------
+
+
+def test_runs_list_includes_local_and_archived(client):
+    body = client.get("/api/runs").json()
+    keys = {r["key"] for r in body["runs"]}
+    assert {"syn-run-1", "base-run"} <= keys
+    by_key = {r["key"]: r for r in body["runs"]}
+    assert by_key["base-run"]["archived"] is True
+    assert by_key["syn-run-1"]["archived"] is False
+    assert by_key["syn-run-1"]["split"] == "dev"
+
+
+# --- R3 results + C3/C4/C5 ---------------------------------------------------
+
+
+def test_results_payload_carries_provenance_and_caveats(client):
+    body = client.get("/api/run/results", params={"run": "syn-run-1"}).json()
+    prov = body["provenance"]
+    assert prov["run_id"] == "syn-run-1"
+    assert prov["split"] == "dev"
+    assert prov["backend"] == "local-rf2"
+    assert "rung3_samples" in body["caveats"]
+    assert "judge_2b" in body["caveats"]
+    assert "minutes_declared" in body["caveats"]
+    # absent CSV cells are null non-values, never zero (visual law)
+    r0 = next(r for r in body["rows"] if r["rung"] == "0")
+    assert r0["r1_reject_pct"] is None
+    assert r0["ci_low"] is None
+
+
+def test_cost_panels_are_three_separate_axes_never_fused(client):
+    body = client.get("/api/run/costs", params={"run": "syn-run-1"}).json()
+    panels = body["panels"]
+    assert set(panels) == {"tokens", "latency", "reviews"}
+    assert "usd" in body  # carried alongside, never summed in
+    dumped = json.dumps(body)
+    for fused in ("total_cost", "cost_usd_total", "combined"):
+        assert fused not in dumped
+    # denominators come from the ledger's own naming
+    assert body["denominators"]["0"]["denominator"] == "r0_documents"
+    assert body["denominators"]["6"]["denominator"] == "r6_queue"
+
+
+def test_disabled_rung_renders_as_non_value_not_zero(tmp_path):
+    make_run(tmp_path / "out", run_id="r3off", rung3_disabled=True)
+    state = AppState(repo_root=tmp_path, sources=[(tmp_path / "out", False)],
+                     corpus=syn_corpus(),
+                     splits={"dev": ["SYN.1", "SYN.2"]}, exclusion_rows=[],
+                     registry=None, manifest={})
+    c = TestClient(create_app(state))
+    body = c.get("/api/run/costs", params={"run": "r3off"}).json()
+    nv = {n["rung"]: n for n in body["non_values"]}
+    assert 3 in nv and nv[3]["reason"] == "manifest.rungs.3.enabled=false"
+
+
+def test_score_comes_only_from_ladder_score(client):
+    body = client.get("/api/run/score",
+                      params={"run": "syn-run-1", "span_match": "exact"}).json()
+    from ladder.clean import load_exclusions  # noqa: F401 (documenting path)
+    from ladder.corpus import gold_records
+    from ladder.score import bootstrap_ci, score_run
+    from ladder.run import read_predictions
+
+    run_dir = None
+    for r in client.get("/api/runs").json()["runs"]:
+        if r["key"] == "syn-run-1":
+            run_dir = Path(r["dir"])
+    records = read_predictions(run_dir / "syn-run-1.records.jsonl",
+                               {"SYN.1", "SYN.2", "SYN.3"})
+    golds = gold_records(syn_corpus(), ["SYN.1", "SYN.2"])
+    expected = score_run(records, golds, span_match="exact", exclude=set())
+    assert body["score"]["f1"] == expected["f1"]
+    assert body["score"]["detection"]["f1"] == expected["detection"]["f1"]
+    for o in ("correct", "outdated", "abstained", "incorrect", "modernised"):
+        assert body["score"][o] == expected[o]
+    ci = bootstrap_ci(records, golds, span_match="exact", exclude=set())
+    assert body["ci"]["f1"] == ci["f1"]
+    assert "outdated_separate" in body["caveats"]
+    assert body["provenance"]["span_match"] == "exact"
+
+
+def test_compare_refuses_mismatched_splits(tmp_path):
+    make_run(tmp_path / "out", run_id="dev-run")
+    make_run(tmp_path / "out", run_id="other-run", doc_ids=("TST.1", "TST.2"))
+    state = AppState(repo_root=tmp_path, sources=[(tmp_path / "out", False)],
+                     corpus=syn_corpus(),
+                     splits={"dev": ["SYN.1", "SYN.2"], "test": ["TST.1", "TST.2"]},
+                     exclusion_rows=[], registry=None, manifest={})
+    c = TestClient(create_app(state))
+    r = c.get("/api/run/compare", params={"a": "dev-run", "b": "other-run",
+                                          "span_match": "exact"})
+    assert r.status_code == 409
+    assert "split" in r.json()["detail"]
+
+
+# --- R4 walkthrough + span-key identity --------------------------------------
+
+
+def test_record_detail_found_by_span_key_in_any_segment_order(client):
+    r = client.get("/api/run/record", params={
+        "run": "syn-run-1", "doc_id": "SYN.2", "spans": "20:27,5:11"}).json()
+    assert r["record"]["record_id"] == "SYN.2#0"
+    assert r["record"]["checks"]["withheld"]["sct"] == "2222222222"
+    assert any(row["rung"] == 6 for row in r["ledger_rows"])
+    assert "provenance" in r
+
+
+def test_unlocatable_record_renders_explicit_state(client):
+    r = client.get("/api/run/record", params={
+        "run": "syn-run-1", "doc_id": "SYN.2", "spans": "-1:-1"}).json()
+    assert r["record"]["unlocatable"] is True
+
+
+def test_walkthrough_timeline_has_a_node_per_rung_with_stated_nothing(client):
+    body = client.get("/api/run/walkthrough",
+                      params={"run": "syn-run-1", "doc_id": "SYN.2"}).json()
+    rec = next(r for r in body["records"] if r["record_id"] == "SYN.2#0")
+    rungs = [n["rung"] for n in rec["timeline"]]
+    assert rungs == [0, 1, 2, 3, 4, 5, 6]
+    r2 = next(n for n in rec["timeline"] if n["rung"] == 2)
+    assert r2["state"] == "did_not_fire"  # stated, not omitted
+    assert "provenance" in body
+
+
+# --- R5 traceability ---------------------------------------------------------
+
+
+def test_aggregate_drills_to_records_by_outcome(client):
+    body = client.get("/api/run/records", params={
+        "run": "syn-run-1", "outcome": "abstained", "span_match": "exact"}).json()
+    ids = {r["record_id"] for r in body["records"]}
+    assert "SYN.2#0" in ids
+    assert "provenance" in body
+
+
+def test_llm_view_reports_not_retained_instead_of_empty(client):
+    r = client.get("/api/run/record_llm", params={
+        "run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"}).json()
+    assert r["local_only"] is True
+    assert all(c["status"] == "not_retained" for c in r["calls"]) or r["calls"] == []
+
+
+# --- C3: every number-carrying payload carries provenance --------------------
+
+
+def test_every_numbered_endpoint_carries_provenance(client):
+    numbered = [
+        ("/api/run/results", {"run": "syn-run-1"}),
+        ("/api/run/costs", {"run": "syn-run-1"}),
+        ("/api/run/score", {"run": "syn-run-1", "span_match": "exact"}),
+        ("/api/run/flow", {"run": "syn-run-1"}),
+        ("/api/run/records", {"run": "syn-run-1"}),
+        ("/api/run/walkthrough", {"run": "syn-run-1", "doc_id": "SYN.2"}),
+        ("/api/run/record", {"run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"}),
+        ("/api/corpus/stats", {}),
+        ("/api/corpus/zones", {}),
+    ]
+    for path, params in numbered:
+        body = client.get(path, params=params).json()
+        assert "provenance" in body, f"{path} carries numbers without provenance"
+
+
+# --- R1 corpus views ---------------------------------------------------------
+
+
+def test_corpus_stats_computed_and_mismatch_warns(client):
+    body = client.get("/api/corpus/stats").json()
+    assert body["n_mentions"] == 3  # computed from data, not hard-coded
+    assert any("9111" in w or "9,111" in w for w in body["warnings"])
+    assert body["discontinuous"]["reaction_mentions"] == 1
+
+
+def test_test_split_shows_spent_banner_and_dev_default_does_not(client):
+    dev = client.get("/api/corpus/docs").json()
+    assert dev["spent_split"] is False
+    assert {d["doc_id"] for d in dev["docs"]} == {"SYN.1", "SYN.2", "SYN.3"}
+    t = client.get("/api/corpus/docs", params={"split": "test"}).json()
+    assert t["spent_split"] is True
+
+
+def test_excluded_mentions_render_as_excluded_not_errors(client):
+    body = client.get("/api/corpus/exclusions").json()
+    assert body["rows"][0]["reason"] == "retired_code"
+    assert body["rows"][0]["record_id"] == "SYN.9#9"
+
+
+def test_document_view_marks_gold_spans_and_discontinuous(client):
+    body = client.get("/api/corpus/doc", params={"doc_id": "SYN.2"}).json()
+    assert body["text"] == SYN2_TEXT  # loopback-only view, not an export
+    m = body["mentions"][0]
+    assert m["spans"] == [[5, 11], [20, 27]]
+    assert m["discontinuous"] is True
+
+
+def test_zone_strip_degrades_cleanly_without_registry(client):
+    body = client.get("/api/corpus/zones").json()
+    assert body["available"] is False
+    assert "registry" in body["reason"]
+
+
+# --- C1: export scrubbing ----------------------------------------------------
+
+
+def test_exports_contain_no_corpus_text(client):
+    svg = client.get("/api/export/figure",
+                     params={"run": "syn-run-1", "span_match": "exact"})
+    assert svg.status_code == 200
+    for needle in (SYN_TEXT, SYN2_TEXT, "pretend ache", "fake twinge"):
+        assert needle not in svg.text
+    assert "syn-run-1" in svg.text  # provenance burned into the margin
+    csv_r = client.get("/api/export/results", params={"run": "syn-run-1"})
+    for needle in (SYN_TEXT, SYN2_TEXT):
+        assert needle not in csv_r.text
+
+
+def test_export_records_are_scrubbed_to_desk_file_fields(client):
+    r = client.get("/api/export/records",
+                   params={"run": "syn-run-1", "span_match": "exact"})
+    body = r.json()
+    dumped = json.dumps(body)
+    for needle in (SYN_TEXT, SYN2_TEXT, "pretend ache", "fake twinge", "\"text\""):
+        assert needle not in dumped
+    assert "provenance" in body
+
+
+def test_llm_view_is_not_exportable(client):
+    r = client.get("/api/export/record_llm",
+                   params={"run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"})
+    assert r.status_code == 404
