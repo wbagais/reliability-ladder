@@ -193,3 +193,42 @@ summary { cursor: pointer; color: var(--accent); }
 .kv dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 a.export { font-size: .8rem; margin-right: .6rem; color: var(--accent); }
 .err { color: var(--o-incorrect); }
+
+/* rung dependency diagram — computed from the run, both themes */
+.dep-row { display: flex; align-items: stretch; gap: 0; overflow-x: auto;
+  padding: .4rem 0; }
+.dep-card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: .5rem .6rem; min-width: 150px; max-width: 180px; flex: 0 0 auto;
+  font-size: .75rem;
+}
+.dep-card h4 { margin: 0 0 .2rem; font-size: .85rem; }
+.dep-card .role { color: var(--muted); }
+.dep-card.routes { border-color: var(--warn-ink); box-shadow: 0 0 0 1px var(--warn-ink); }
+.dep-card.disabled, .dep-card.absent {
+  background: repeating-linear-gradient(45deg,
+    var(--panel) 0 6px, color-mix(in srgb, var(--hatch-a) 30%, var(--panel)) 6px 9px);
+  color: var(--muted);
+}
+.dep-arrow {
+  flex: 0 0 auto; align-self: center; text-align: center; max-width: 130px;
+  font-size: .68rem; color: var(--muted); padding: 0 .3rem; position: relative;
+}
+.dep-arrow .shaft { color: var(--accent); font-size: 1.1rem; line-height: 1; }
+.dep-arrow.trigger .shaft { color: var(--z-reject); }
+.dep-arrow.queue .shaft { color: var(--z-escalate); }
+.chip {
+  display: inline-block; border-radius: 4px; padding: 0 .35rem;
+  font-size: .68rem; font-weight: 600; margin-left: .25rem;
+  border: 1px solid var(--line);
+}
+.chip.mode-observe { color: var(--z-accept); border-color: var(--z-accept); }
+.chip.mode-gate { color: #fff; background: var(--z-reject); border-color: var(--z-reject); }
+.chip.signal {
+  display: block; margin: .25rem 0 0; border-style: dashed;
+  color: var(--z-abstain); border-color: var(--z-abstain); font-weight: 400;
+}
+.stack-caption {
+  font-size: .8rem; color: var(--muted); margin: .3rem 0 .5rem;
+  border-left: 3px solid var(--line); padding-left: .6rem;
+}

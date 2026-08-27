@@ -188,6 +188,74 @@ def test_compare_refuses_mismatched_splits(tmp_path):
     assert "split" in r.json()["detail"]
 
 
+# --- rung dependencies (Results tab: how the rungs connect) ------------------
+
+
+def test_dependencies_computed_from_the_runs_own_artifacts(client):
+    body = client.get("/api/run/dependencies", params={"run": "syn-run-1"}).json()
+    assert body["rung_order"] == [0, 1, 2, 3, 4, 5, 6]  # from the manifest copy
+    assert body["run_kind"] == "stack"
+    nodes = {n["rung"]: n for n in body["nodes"]}
+    # r1 mode comes from the ledger's own recorded mode, never assumed
+    assert nodes[1]["mode"] == "observe"
+    assert nodes[1]["routes"] is False
+    # r2's trigger annotated with THIS run's counts: 2 REJECT, 1 correctable
+    assert nodes[2]["eligible"] == {"reject": 2, "correctable": 1, "attempted": 0}
+    # r6's queue is r5's abstained residue, sized from the ledger
+    assert nodes[6]["queue"] == 1
+    assert nodes[5]["abstained"] is not None
+    # verdict edges into r5 from both judging rungs; queue edge 5 -> 6
+    kinds = {(e["src"], e["dst"]): e["kind"] for e in body["edges"]}
+    assert kinds[(1, 5)] == "verdict"
+    assert kinds[(4, 5)] == "verdict"
+    assert kinds[(5, 6)] == "queue"
+    assert kinds[(0, 1)] == "records"
+    assert "provenance" in body
+
+
+def test_dependencies_gate_mode_rewires_and_disabled_rung_is_stated(tmp_path):
+    make_run(tmp_path / "out", run_id="gated", rung3_disabled=True,
+             r1_mode="gate")
+    state = AppState(repo_root=tmp_path, sources=[(tmp_path / "out", False)],
+                     corpus=syn_corpus(), splits={"dev": ["SYN.1", "SYN.2"]},
+                     exclusion_rows=[], registry=None, manifest={})
+    c = TestClient(create_app(state))
+    body = c.get("/api/run/dependencies", params={"run": "gated"}).json()
+    nodes = {n["rung"]: n for n in body["nodes"]}
+    assert nodes[1]["mode"] == "gate"
+    assert nodes[1]["routes"] is True  # rendered differently: r1 ROUTES
+    assert nodes[3]["disabled"] is True  # recorded state, never a silent skip
+    assert "gate" in body["caveats"] or any(
+        "confound" in t for t in body["caveats"].values())
+
+
+def test_ablate_run_is_detected_and_labeled(tmp_path):
+    d = make_run(tmp_path / "out", run_id="abl")
+    # an ablate ledger carries only the rung it ran (Phase E's r6 ledgers)
+    import json as _json
+    rows = [_json.loads(l) for l in
+            (d / "abl.ledger.jsonl").read_text().splitlines()]
+    keep = [r for r in rows if r["rung"] == 6]
+    (d / "abl.ledger.jsonl").write_text(
+        "\n".join(_json.dumps(r) for r in keep) + "\n")
+    state = AppState(repo_root=tmp_path, sources=[(tmp_path / "out", False)],
+                     corpus=syn_corpus(), splits={"dev": ["SYN.1", "SYN.2"]},
+                     exclusion_rows=[], registry=None, manifest={})
+    c = TestClient(create_app(state))
+    body = c.get("/api/run/dependencies", params={"run": "abl"}).json()
+    assert body["run_kind"] == "ablate"
+    assert body["rungs_present"] == [6]
+
+
+def test_denominator_sources_name_the_feeding_rung(client):
+    body = client.get("/api/run/dependencies", params={"run": "syn-run-1"}).json()
+    dens = {d["rung"]: d for d in body["denominators"]}
+    assert dens[6]["denominator"] == "r6_queue"
+    assert dens[6]["source_rung"] == 5
+    assert "abstained" in dens[6]["source_label"]
+    assert dens[1]["source_rung"] == 0
+
+
 # --- R4 walkthrough + span-key identity --------------------------------------
 
 

@@ -337,11 +337,12 @@ async function renderResults() {
     `<a class="export" href="/api/export/figure?run=${encodeURIComponent(run)}&span_match=${span}" target="_blank">export SVG</a>
      <a class="export" href="/api/export/results?run=${encodeURIComponent(run)}" target="_blank">export CSV</a>
      <a class="export" href="/api/export/records?run=${encodeURIComponent(run)}&span_match=${span}" target="_blank">export records (scrubbed)</a>`;
-  const [res, costs, score, flow] = await Promise.all([
+  const [res, costs, score, flow, dep] = await Promise.all([
     api("/api/run/results", { run }),
     api("/api/run/costs", { run }),
     api("/api/run/score", { run, span_match: span }),
     api("/api/run/flow", { run, span_match: span }),
+    api("/api/run/dependencies", { run }),
   ]);
   let base = null, cmp = null;
   if (S.baseline && S.baseline !== run) {
@@ -352,6 +353,7 @@ async function renderResults() {
   $("results-caveats").innerHTML = caveatChips(res.caveats) +
     (cmp && cmp.rung3_cross_draw ? `<div class="caveat">${esc(cmp.rung3_cross_draw)}</div>` : "") +
     (cmp && cmp.error ? `<div class="banner warn">comparison refused: ${esc(cmp.error)}</div>` : "");
+  renderDependencies(dep);
   renderHeadline(score, base);
   renderCIChart([{ label: run, score }, base && base.score ?
     { label: S.baseline, score: { available: true, ...base.score } } : null].filter(Boolean));
@@ -359,8 +361,78 @@ async function renderResults() {
   renderOutcomeBars(run);
   renderDumbbell(run, base);
   renderFlow(flow);
-  renderResultsTable(res);
+  renderResultsTable(res, dep);
   renderCostPanels(costs);
+}
+
+function depCounts(n) {
+  // the node's run-computed counts, rendered compactly
+  const parts = [];
+  if (n.records != null) parts.push(`${n.records} records / ${n.documents} docs`);
+  if (n.verdicts && Object.keys(n.verdicts).length)
+    parts.push(Object.entries(n.verdicts).map(([k, v]) => `${k} ${v}`).join(" · "));
+  if (n.eligible)
+    parts.push(`${n.eligible.reject} REJECT, ${n.eligible.correctable} correctable, ` +
+      `${n.eligible.attempted} attempted`);
+  if (n.k != null && !n.disabled)
+    parts.push(`k=${n.k}, T=${n.temperature} · ${n.changed} changed, ` +
+      `${n.not_resampled} not re-found`);
+  if (n.abstained != null || n.settled != null)
+    parts.push(`abstained ${n.abstained ?? 0} · settled ${n.settled ?? 0}`);
+  if (n.queue != null)
+    parts.push(`queue ${n.queue}` + (n.minutes_source ?
+      ` · ${n.human_minutes} min (${n.minutes_source})` : ""));
+  return parts.join("<br>");
+}
+
+function renderDependencies(dep) {
+  const el = $("dep-diagram");
+  const nodes = dep.nodes;
+  const byRung = {};
+  for (const n of nodes) byRung[n.rung] = n;
+  // records-path edges sit between adjacent cards; verdict edges become
+  // dashed signal chips inside their destination card
+  const between = {}, signals = {};
+  for (const e of dep.edges) {
+    if (e.kind === "verdict") (signals[e.dst] = signals[e.dst] || []).push(e);
+    else between[e.src] = e;
+  }
+  let html = '<div class="dep-row">';
+  dep.rung_order.forEach((rung, i) => {
+    const n = byRung[rung];
+    const cls = ["dep-card"];
+    if (n.disabled) cls.push("disabled");
+    if (!n.in_run) cls.push("absent");
+    if (n.routes) cls.push("routes");
+    const mode = n.mode ?
+      `<span class="chip mode-${esc(n.mode)}">${esc(n.mode)}</span>` : "";
+    const sig = (signals[rung] || []).map((e) =>
+      `<span class="chip signal" title="${esc(e.label)}">⇠ signal from r${e.src}: ${esc(e.label)}</span>`).join("");
+    html += `<div class="${cls.join(" ")}">
+      <h4>r${rung} ${esc(n.label)}${mode}</h4>
+      ${n.model ? `<div class="muted">${esc(n.model)}</div>` : ""}
+      <div class="role">${esc(n.role)}</div>
+      <div>${n.in_run ? depCounts(n) :
+        '<span class="muted">not in this run</span>'}</div>
+      ${sig}</div>`;
+    const e = between[rung];
+    if (i < dep.rung_order.length - 1)
+      html += `<div class="dep-arrow${e ? " " + esc(e.kind) : ""}">
+        <div class="shaft">➜</div>${e ? esc(e.label) : ""}</div>`;
+  });
+  html += "</div>";
+  if (dep.run_kind === "ablate")
+    html = `<div class="banner warn">ABLATE run — only rung(s)
+      ${esc(dep.rungs_present.join(", "))} ran over a saved input; the chain
+      below shows the full stack for orientation, absent rungs hatched.</div>` + html;
+  el.innerHTML = `<div class="chart">${html}
+    <div class="muted">solid arrows = where the records travel; dashed chips =
+    verdict signals recorded on checks and consumed later. Rung 1 in observe
+    mode judges without routing — in gate mode it routes, which rewires
+    everything above it.</div>
+    ${caveatChips(dep.caveats && dep.caveats.r1_gate ?
+      { r1_gate: dep.caveats.r1_gate } : null)}
+    ${provFooter(dep.provenance)}</div>`;
 }
 
 function renderHeadline(score, base) {
@@ -578,22 +650,38 @@ function renderFlow(flow) {
     ${caveatChips(flow.caveats)}${provFooter(flow.provenance)}</div>`;
 }
 
-function renderResultsTable(res) {
+function renderResultsTable(res, dep) {
   const el = $("results-table");
+  const dens = {};
+  for (const d of (dep && dep.denominators) || []) dens[d.rung] = d;
   const cols = ["rung", "layer", "n_records", "accept", "band", "reject",
     "abstained", "escalated", "verified", "r1_reject_pct", "r1_mode",
     "coverage", "f1_sct_strict", "corrupted", "sct_outdated", "sct_abstained",
     "sct_modernised", "err_per_100"];
-  el.innerHTML = `<table><tr>${cols.map((c) => `<th${["layer","r1_mode"].includes(c)?' class="l"':''}>${c}</th>`).join("")}</tr>` +
+  const denomCell = (rung) => {
+    const d = dens[Number(rung)];
+    if (!d || !d.denominator)
+      return '<td class="l nonvalue" title="no ledger rows">·</td>';
+    const src = d.source_rung === null || d.source_rung === undefined
+      ? "" : ` ← r${d.source_rung}`;
+    return `<td class="l" title="${esc(d.source_label ?? "")}">
+      ${esc(d.denominator)}${esc(src)}</td>`;
+  };
+  el.innerHTML =
+    // stack semantics stated with the table (computed run kind, never baked in)
+    `<div class="stack-caption">${esc((dep && dep.stack_semantics) || "")}</div>` +
+    `<table><tr>${cols.map((c) => `<th${["layer","r1_mode"].includes(c)?' class="l"':''}>${c}</th>`).join("")}
+     <th class="l" title="the denominator the ledger names, and the rung whose output it is">denominator ← source</th></tr>` +
     res.rows.map((r) => `<tr>` + cols.map((c) => {
       const v = r[c];
       if (v === null || v === undefined)
         return '<td class="nonvalue" title="no measurement">·</td>';
       if (["layer", "r1_mode"].includes(c)) return `<td class="l">${esc(v)}</td>`;
       return `<td>${esc(v)}</td>`;
-    }).join("") + `</tr>`).join("") + `</table>` +
+    }).join("") + denomCell(r.rung) + `</tr>`).join("") + `</table>` +
     `<div class="muted">counts drawn over each rung's snapshot (the ledger's
-     denominator), never the run total; · = no measurement</div>` +
+     denominator), never the run total; · = no measurement; hover a
+     denominator for what feeds it</div>` +
     provFooter(res.provenance);
 }
 

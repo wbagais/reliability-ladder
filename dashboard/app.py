@@ -15,7 +15,8 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from dashboard import caveats as caveats_mod
-from dashboard import corpus_views, ledger_views, llm_view, scoring, walkthrough
+from dashboard import (corpus_views, dependencies, ledger_views, llm_view,
+                       scoring, walkthrough)
 from dashboard.provenance import provenance_for
 from dashboard.runsindex import RunInfo
 from dashboard.scrub import assert_clean, scrub_payload
@@ -177,6 +178,17 @@ def create_app(state: AppState) -> FastAPI:
             payload["rung3_cross_draw"] = (
                 "rung 3 deltas are cross-draw: the two runs drew different "
                 "samples. " + r3)
+        return payload
+
+    @app.get("/api/run/dependencies")
+    def run_dependencies(run: str):
+        info = _run(run)
+        payload = dependencies.dependencies_payload(state, info)
+        payload["provenance"] = _prov(info)
+        payload["caveats"] = {
+            **_caveats(info),
+            **dependencies.gate_caveat(payload["r1_mode"]),
+        }
         return payload
 
     @app.get("/api/run/flow")

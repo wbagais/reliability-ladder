@@ -104,6 +104,19 @@ def test_golden_ledger_denominators_and_failure_labels(client):
     assert body["panels"]["reviews"]["6"]["routed"] == 242
 
 
+def test_golden_dependencies(client):
+    body = client.get("/api/run/dependencies", params={"run": RUN}).json()
+    assert body["run_kind"] == "stack"
+    nodes = {n["rung"]: n for n in body["nodes"]}
+    assert nodes[1]["mode"] == "observe"
+    # 16 REJECT, all schema_invalid — none statable, so 0 correctable, 0 attempts
+    assert nodes[2]["eligible"] == {"reject": 16, "correctable": 0, "attempted": 0}
+    assert nodes[5]["abstained"] == 242
+    assert nodes[6]["queue"] == 242
+    dens = {d["rung"]: d for d in body["denominators"]}
+    assert dens[6]["source_rung"] == 5
+
+
 def test_golden_flow_counts(client):
     body = client.get("/api/run/flow",
                       params={"run": RUN, "span_match": "exact"}).json()

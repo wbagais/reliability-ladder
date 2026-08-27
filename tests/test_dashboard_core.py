@@ -22,7 +22,8 @@ SYN_TEXT = "Made-up example sentence with a pretend ache in it for testing."
 
 
 def make_run(dir: Path, run_id: str = "syn-run-1", doc_ids=("SYN.1", "SYN.2"),
-             rung3_disabled: bool = False, oracle: bool = False) -> Path:
+             rung3_disabled: bool = False, oracle: bool = False,
+             r1_mode: str = "observe") -> Path:
     dir.mkdir(parents=True, exist_ok=True)
     records = [
         {
@@ -68,14 +69,29 @@ def make_run(dir: Path, run_id: str = "syn-run-1", doc_ids=("SYN.1", "SYN.2"),
          "zone": "NEW", "outcome": "judged", "reason": None, "tokens_in": 0,
          "tokens_out": 0, "api_calls": 0, "latency_ms": 1.0, "usd": 0.0,
          "human_minutes": 0.0, "ts": 0.0,
-         "extra": {"denominator": "r1_offered", "evaluable": "pass", "mode": "observe"},
+         "extra": {"denominator": "r1_offered", "evaluable": "pass", "mode": r1_mode},
          "verdict": "ACCEPT"})
-    # every rung logs one row per record even when it does not fire — "did
-    # not fire" must stay distinguishable from "did not run" in the ledger
-    for rung, outcome in ((2, "skipped"), (5, "kept")):
+    # one correctable REJECT (code_unknown) and one that is not (schema_invalid)
+    for rid, reason in ((f"{doc_ids[1]}#0", "code_unknown"),
+                        (f"{doc_ids[1]}#1", "schema_invalid")):
         ledger_rows.append(
-            {"run_id": run_id, "rung": rung, "doc_id": doc_ids[0],
-             "record_id": f"{doc_ids[0]}#0", "zone": "NEW", "outcome": outcome,
+            {"run_id": run_id, "rung": 1, "doc_id": doc_ids[1], "record_id": rid,
+             "zone": "NEW", "outcome": "judged", "reason": reason, "tokens_in": 0,
+             "tokens_out": 0, "api_calls": 0, "latency_ms": 1.0, "usd": 0.0,
+             "human_minutes": 0.0, "ts": 0.0,
+             "extra": {"denominator": "r1_offered", "evaluable": "fail",
+                       "mode": r1_mode},
+             "verdict": "REJECT"})
+    # every rung logs one row per record even when it does not fire — "did
+    # not fire" must stay distinguishable from "did not run" in the ledger.
+    # Outcomes use the pipeline's own vocabulary (r2 "unchanged"; r5
+    # "settled"/"abstained").
+    for rung, rid, outcome in ((2, f"{doc_ids[0]}#0", "unchanged"),
+                               (5, f"{doc_ids[0]}#0", "settled"),
+                               (5, f"{doc_ids[1]}#0", "abstained")):
+        ledger_rows.append(
+            {"run_id": run_id, "rung": rung, "doc_id": rid.split("#")[0],
+             "record_id": rid, "zone": "NEW", "outcome": outcome,
              "reason": None, "tokens_in": 0, "tokens_out": 0, "api_calls": 0,
              "latency_ms": 0.1, "usd": 0.0, "human_minutes": 0.0, "ts": 0.0,
              "extra": {"denominator": f"r{rung}_offered", "evaluable": "pass"},
