@@ -120,6 +120,61 @@ def verdict_flow(records, r1_mode: str) -> dict[str, Any]:
     }
 
 
+def flow_map(vf: dict[str, Any], r1_mode: str, rungs_cfg: dict,
+             rescued: int, eligible: dict[str, int]) -> dict[str, Any]:
+    """The integrated diagram's data: per bucket, the ACTUAL path this run
+    took and every STRUCTURALLY POSSIBLE path it did not — so the reader sees
+    what CAN happen at each rung next to what DID. Possible-path derivation
+    is mode-aware:
+
+    - r2 touches REJECT only; ACCEPT and BAND bypass it by construction.
+      The rescue path (corrected — rejoins as changed) exists as an option
+      for every run with a rung 2, even one whose correctable count was 0.
+    - r5 can structurally withdraw anything and keep anything — EXCEPT a
+      REJECT when `abstain_on_reject` is true (the manifest default), which
+      makes REJECT -> shipped impossible, not merely untaken: it is omitted,
+      never drawn as an option.
+    - gate mode: REJECT leaves the stack AT rung 1 (an actual exit path that
+      observe runs must not render at all), so it has no queue path.
+    """
+    r5_cfg = rungs_cfg.get("5", {})
+    abstain_on_reject = bool(r5_cfg.get("abstain_on_reject", True))
+
+    def leg(n: int) -> dict[str, Any]:
+        return {"n": n, "kind": "actual" if n > 0 else "possible"}
+
+    buckets = []
+    for b in vf["buckets"]:
+        v = b["verdict"]
+        out: dict[str, Any] = {
+            "verdict": v, "n": b["n"],
+            "through_r2": v == "REJECT",
+            "r3_changed": b.get("r3_changed", 0),
+            "r4": b.get("r4"),
+        }
+        if v == "REJECT":
+            out["r2"] = {**eligible, "rescued": rescued,
+                         "rescue": {**leg(rescued),
+                                    "label": "corrected — rejoins as changed"}}
+            if r1_mode == "gate":
+                out["exit_at_r1"] = {"n": b["n"], "kind": "actual"}
+                buckets.append(out)
+                continue
+        settled, abstained = b.get("settled", 0), b.get("abstained", 0)
+        if v == "REJECT" and abstain_on_reject:
+            pass  # shipped omitted: impossible under this config, not untaken
+        else:
+            out["shipped"] = {**leg(settled)}
+            if settled == 0:
+                out["shipped"]["label"] = "settled at r5"
+        out["person"] = {**leg(abstained)}
+        if abstained == 0:
+            out["person"]["label"] = "withdrawn at r5"
+        buckets.append(out)
+    return {"mode": r1_mode, "total": vf["total"], "buckets": buckets,
+            "abstain_on_reject": abstain_on_reject}
+
+
 def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
     man = read_manifest_copy(info) or {}
     rung_order = list(man.get("rung_order", [0, 1, 2, 3, 4, 5, 6]))
@@ -151,6 +206,8 @@ def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
     rejects = [e for e in r1_rows if e.verdict == "REJECT"]
     correctable = [e for e in rejects if e.reason in correctable_set]
     attempted = sum(1 for e in by_rung.get(2, []) if e.api_calls)
+    rescued = sum(1 for e in by_rung.get(2, [])
+                  if e.api_calls and e.extra.get("evaluable") == "pass")
 
     r3_rows = by_rung.get(3, [])
     r3_disabled = any(e.outcome == "disabled" for e in r3_rows) or \
@@ -277,6 +334,10 @@ def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
         "nodes": nodes,
         "edges": edges,
         "verdict_flow": verdict_flow(records, r1_mode),
+        "flow_map": flow_map(
+            verdict_flow(records, r1_mode), r1_mode, rungs_cfg, rescued,
+            {"reject": len(rejects), "correctable": len(correctable),
+             "attempted": attempted}),
         "denominators": denominators,
         "stack_semantics": (
             "Each per-rung row is a CUMULATIVE stack state — \"would this "

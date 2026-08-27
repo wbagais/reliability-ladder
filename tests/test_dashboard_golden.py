@@ -139,6 +139,31 @@ def test_golden_verdict_flow_crosstab(client):
     assert body["verdict_flow"]["total"] == 314
 
 
+def test_golden_flow_map_paths(client):
+    body = client.get("/api/run/dependencies", params={"run": RUN}).json()
+    fm = body["flow_map"]
+    assert fm["mode"] == "observe" and fm["total"] == 314
+    b = {x["verdict"]: x for x in fm["buckets"]}
+    assert b["ACCEPT"]["shipped"] == {"n": 72, "kind": "actual"}
+    assert b["ACCEPT"]["person"]["kind"] == "possible"  # untaken, rendered dashed
+    assert b["BAND"]["shipped"]["kind"] == "possible"
+    assert b["BAND"]["person"] == {"n": 226, "kind": "actual"}
+    assert b["REJECT"]["through_r2"] is True
+    assert b["REJECT"]["r2"]["rescue"] == {
+        "n": 0, "kind": "possible", "label": "corrected — rejoins as changed"}
+    assert "shipped" not in b["REJECT"]  # abstain_on_reject: impossible
+    assert "exit_at_r1" not in b["REJECT"]  # observe run: no gate exit drawn
+
+
+def test_golden_per_layer_composition(client):
+    body = client.get("/api/run/score",
+                      params={"run": RUN, "span_match": "exact"}).json()
+    comp = body["composition"]
+    assert comp["detection"] == {"matched": 153, "missed": 137, "spurious": 144}
+    assert comp["coding"] == {"correct": 60, "outdated": 0, "abstained": 91,
+                              "incorrect": 2, "modernised": 0}
+
+
 def test_golden_flow_counts(client):
     body = client.get("/api/run/flow",
                       params={"run": RUN, "span_match": "exact"}).json()

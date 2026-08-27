@@ -63,7 +63,7 @@ const S = {
   tabs: [], runs: [], tab: "results",
   resultsRun: null, baseline: null, span: "exact",
   walkRun: null, walkDoc: null, walkSpan: "exact", walkGold: false,
-  traceRun: null, traceSpan: "exact",
+  traceRun: null, traceSpan: "exact", traceFilter: null,
 };
 
 /* ---------------- boot + tab bar ---------------- */
@@ -133,7 +133,8 @@ function wireControls() {
   $("walk-doc").onchange = (e) => { S.walkDoc = e.target.value; renderWalkDoc(); };
   $("walk-span").onchange = (e) => { S.walkSpan = e.target.value; renderWalkDoc(); };
   $("walk-gold").onchange = (e) => { S.walkGold = e.target.checked; renderWalkDoc(); };
-  $("trace-run").onchange = (e) => { S.traceRun = e.target.value; renderTrace(); };
+  $("trace-run").onchange = (e) => {
+    S.traceRun = e.target.value; S.traceFilter = null; renderTrace(); };
   $("trace-span").onchange = (e) => { S.traceSpan = e.target.value; renderTrace(); };
 }
 
@@ -378,7 +379,6 @@ async function renderResults() {
     { label: S.baseline, score: { available: true, ...base.score } } : null].filter(Boolean));
   renderDependencies(dep, cv);
   renderLayers(scoreEx, scoreOv, cv);
-  renderOutcomeBars(scoreEx, scoreOv, cv);
   renderDumbbell(run, base, scoreEx, scoreOv);
   renderFlow(flow, dep);
   renderLadderCurve(res, costs);
@@ -398,191 +398,282 @@ function renderIntro() {
     they qualify.</div>`;
 }
 
-function depCounts(n) {
-  // the node's run-computed counts, rendered compactly
-  const parts = [];
-  if (n.records != null) parts.push(`${n.records} records / ${n.documents} docs`);
-  if (n.verdicts && Object.keys(n.verdicts).length)
-    parts.push(Object.entries(n.verdicts).map(([k, v]) => `${k} ${v}`).join(" · "));
-  if (n.eligible)
-    parts.push(`${n.eligible.reject} REJECT, ${n.eligible.correctable} correctable, ` +
-      `${n.eligible.attempted} attempted`);
-  if (n.k != null && !n.disabled)
-    parts.push(`k=${n.k}, T=${n.temperature} · ${n.changed} changed, ` +
-      `${n.not_resampled} not re-found`);
-  if (n.abstained != null || n.settled != null)
-    parts.push(`abstained ${n.abstained ?? 0} · settled ${n.settled ?? 0}`);
-  if (n.queue != null)
-    parts.push(`queue ${n.queue}` + (n.minutes_source ?
-      ` · ${n.human_minutes} min (${n.minutes_source})` : ""));
-  return parts.join("<br>");
-}
-
 const BUCKET_FILL = { ACCEPT: "var(--z-accept)", BAND: "var(--z-band)",
   REJECT: "var(--z-reject)", none: "var(--hatch-a)" };
 
-function verdictFlowSvg(dep) {
-  // Bucket-level dataflow: rung 1's three buckets as lanes flowing THROUGH
-  // rungs 2-4 (observe mode: verdicts are signals, records pass unbroken),
-  // branching only at r5 (settled vs abstained) and r6 (queue). All widths
-  // and counts are the run's own crosstab. In gate mode REJECT leaves at r1.
-  const vf = dep.verdict_flow;
-  if (!vf || !vf.buckets.length || !vf.total) return "";
-  const gate = vf.mode === "gate";
+const pctOf = (n, total) => total ? `${(100 * n / total).toFixed(1)}%` : "—";
+
+function nodeTitle(n) {
+  // fuller card detail on hover: meaning + this run's counts
+  const parts = [n.meaning || ""];
+  if (n.model) parts.push(`model: ${n.model}`);
+  if (n.mode) parts.push(`mode: ${n.mode}`);
+  if (n.verdicts && Object.keys(n.verdicts).length)
+    parts.push(Object.entries(n.verdicts).map(([k, v]) => `${k} ${v}`).join(" · "));
+  if (n.eligible)
+    parts.push(`${n.eligible.reject} REJECT, ${n.eligible.correctable} correctable, ${n.eligible.attempted} attempted`);
+  if (n.k != null && !n.disabled)
+    parts.push(`k=${n.k}, T=${n.temperature}; ${n.changed} changed, ${n.not_resampled} not re-found`);
+  if (n.abstained != null) parts.push(`abstained ${n.abstained} · settled ${n.settled ?? 0}`);
+  if (n.queue != null) parts.push(`queue ${n.queue} · ${n.human_minutes} min (${n.minutes_source ?? "—"})`);
+  if (n.disabled) parts.push("DISABLED — a recorded run state");
+  return parts.filter(Boolean).join("\n");
+}
+
+/* ONE integrated dataflow diagram (round-3/4 feedback): rungs as node
+   columns, records as Sankey-style ribbons in the zone tokens, widths
+   proportional to counts. ACCEPT/BAND visibly bypass the r2 node (it sits
+   on the REJECT lane only); dashed thin ribbons are structurally possible
+   paths this run did NOT take (from flow_map, mode-aware); every ribbon is
+   a clickable subset that drills to its records. */
+function integratedFlowSvg(dep, sel) {
+  const fm = dep.flow_map;
+  if (!fm || !fm.buckets.length || !fm.total) return "";
   const nodes = {};
   for (const n of dep.nodes) nodes[n.rung] = n;
-  const r2e = (nodes[2] && nodes[2].eligible) || null;
-  const buckets = vf.buckets.filter((b) => b.n > 0);
-  const laneArea = 190, gap = 12, top = 58;
-  const k = laneArea / vf.total;
+  const gate = fm.mode === "gate";
+  const total = fm.total;
+  const lanes = fm.buckets.filter((b) => b.n > 0);
+  const laneArea = 200, gap = 26, top = 84;
+  const k = laneArea / total;
   const H = (n) => Math.max(4, n * k);
-  // column xs
-  const X = { r0: 10, r1: 150, r2: 320, r3: 470, r4: 620, r5: 790, sink: 990 };
-  const W = 1150;
+  const X = { r0: 8, r1: 168, r2: 322, r3: 462, r4: 602, r5: 742, r6: 920, sink: 1056 };
+  const NODE_W = 96, W = 1190;
   let y = top;
-  const lanes = buckets.map((b) => {
-    const lane = { ...b, y, h: H(b.n) };
-    y += lane.h + gap;
-    return lane;
-  });
-  const height = Math.max(y + 90, top + 220);
-  // sinks: shipped stack (top), queue stack (below), open (hatched)
-  const shippedTotal = lanes.reduce((a, l) => a + l.settled, 0);
-  const queueTotal = lanes.reduce((a, l) => a + l.abstained, 0);
-  const openTotal = lanes.reduce((a, l) => a + l.open, 0);
-  let sy = top;
-  const shipY = sy; sy += H(shippedTotal || 0) + 26;
-  const queueY = sy; sy += H(queueTotal || 0) + 26;
-  const openY = sy;
+  for (const l of lanes) { l.y = y; l.h = H(l.n); y += l.h + gap; }
+  const shippedTotal = lanes.reduce((a, l) => a + ((l.shipped && l.shipped.n) || 0), 0);
+  const personTotal = lanes.reduce((a, l) => a + ((l.person && l.person.n) || 0), 0);
+  const height = Math.max(y + 70, top + 250);
+  const shipY = top - 6;
+  const personY = Math.min(y + 6, height - 60 - H(personTotal));
 
+  const dim = (bucket) => sel && sel !== bucket ? 0.25 : 0.85;
   let g = "";
-  // column headers
-  const heads = [["r0 extracts", X.r0], ["r1 verdicts", X.r1],
-    ["r2 self-correct", X.r2], ["r3 voting", X.r3], ["r4 judge", X.r4],
-    ["r5 decides", X.r5], ["outcome", X.sink]];
-  for (const [t, x] of heads)
-    g += `<text x="${x}" y="16" font-size="10" font-weight="bold">${t}</text>`;
-  g += `<text x="${X.r2}" y="28" font-size="8.5" class="svgmuted">${gate ?
-    "gate mode: REJECT already left" : "verdicts are signals — records pass through"}</text>`;
 
-  // r0 source band -> split into bucket lanes at r1
-  const srcH = H(vf.total);
-  const srcY = top + (laneArea + gap * (lanes.length - 1)) / 2 - srcH / 2;
-  g += `<rect x="${X.r0}" y="${srcY}" width="${X.r1 - X.r0 - 18}" height="${srcH}"
-    fill="var(--accent)" opacity="0.55"><title>rung 0 extracted ${vf.total} records</title></rect>
-    <text x="${X.r0 + 4}" y="${srcY - 6}" font-size="10">${vf.total} records</text>`;
+  // --- node columns (the rung cards, folded into headers) ---
+  const nodeBox = (rung, x, y0, h, extraCls) => {
+    const n = nodes[rung] || {};
+    const cls = n.disabled ? "url(#hatch)" : "var(--panel)";
+    return `<g class="flownode"><rect x="${x}" y="${y0}" width="${NODE_W}" height="${h}"
+      rx="6" fill="${cls}" stroke="${n.routes ? "var(--warn-ink)" : "var(--line)"}"
+      stroke-width="${n.routes ? 2 : 1}"/>
+      <title>${esc(`r${rung} ${n.label || ""}\n${nodeTitle(n)}`)}</title></g>`;
+  };
+  const nodeHead = (rung, x) => {
+    const n = nodes[rung] || {};
+    const mode = n.mode ? ` [${n.mode}]` : "";
+    return `<text x="${x + NODE_W / 2}" y="26" text-anchor="middle" font-size="11"
+      font-weight="bold">r${rung} ${esc(n.label || "")}${esc(mode)}</text>
+      <text x="${x + NODE_W / 2}" y="38" text-anchor="middle" font-size="8.5"
+      class="svgmuted">${esc((n.model || "").split("/").pop() || "")}</text>
+      <text x="${x + NODE_W / 2}" y="50" text-anchor="middle" font-size="8"
+      class="svgmuted">${esc(headline(rung))}</text>`;
+  };
+  function headline(rung) {
+    const n = nodes[rung] || {};
+    if (rung === 0) return `${n.documents ?? "—"} docs → ${n.records ?? "—"} records`;
+    if (rung === 1) return n.routes ? "routes (gate)" : "judges, does not route";
+    if (rung === 2) return "touches REJECT only";
+    if (rung === 3) return n.disabled ? "disabled" : `k=${n.k ?? "—"} resamples`;
+    if (rung === 4) return "verdict, not a route";
+    if (rung === 5) return "verdicts act here";
+    if (rung === 6) return "queue to a person";
+    return "";
+  }
+
+  const lanesTop = top - 12, lanesBot = y - gap + 12, lanesH = lanesBot - lanesTop;
+  g += nodeBox(0, X.r0, lanesTop, lanesH) + nodeHead(0, X.r0);
+  g += nodeBox(1, X.r1 - NODE_W / 2, lanesTop, lanesH) + nodeHead(1, X.r1 - NODE_W / 2);
+  const rej = lanes.find((l) => l.verdict === "REJECT");
+  if (rej)  // r2 sits ON the REJECT lane only — ACCEPT/BAND flow past it
+    g += nodeBox(2, X.r2 - NODE_W / 2, rej.y - 14, rej.h + 28) + nodeHead(2, X.r2 - NODE_W / 2);
+  else g += nodeHead(2, X.r2 - NODE_W / 2);
+  g += nodeBox(3, X.r3 - NODE_W / 2, lanesTop, lanesH) + nodeHead(3, X.r3 - NODE_W / 2);
+  g += nodeBox(4, X.r4 - NODE_W / 2, lanesTop, lanesH) + nodeHead(4, X.r4 - NODE_W / 2);
+  g += nodeBox(5, X.r5 - NODE_W / 2, lanesTop, lanesH) + nodeHead(5, X.r5 - NODE_W / 2);
+  if (personTotal)
+    g += nodeBox(6, X.r6 - NODE_W / 2, personY - 14, H(personTotal) + 28) +
+      nodeHead(6, X.r6 - NODE_W / 2);
+
+  // --- source ribbon: r0 emits the whole batch ---
+  const srcH = H(total);
+  const srcY = lanesTop + lanesH / 2 - srcH / 2;
+  g += `<g class="ribbon" data-bucket="ALL"><rect x="${X.r0 + NODE_W}" y="${srcY}"
+    width="${X.r1 - NODE_W / 2 - X.r0 - NODE_W}" height="${srcH}"
+    fill="var(--accent)" opacity="${sel ? 0.3 : 0.6}"/>
+    <title>rung 0 extracted ${total} records (100% of the batch)</title></g>
+    <text x="${X.r0 + NODE_W + 4}" y="${srcY - 5}" font-size="10">${total} records · 100%</text>`;
   for (const l of lanes)
-    g += `<polygon points="${X.r1 - 18},${srcY} ${X.r1 - 18},${srcY + srcH}
-      ${X.r1},${l.y + l.h} ${X.r1},${l.y}" fill="var(--accent)" opacity="0.18"/>`;
+    g += `<polygon points="${X.r1 - NODE_W / 2},${srcY} ${X.r1 - NODE_W / 2},${srcY + srcH}
+      ${X.r1 + NODE_W / 2},${l.y + l.h} ${X.r1 + NODE_W / 2},${l.y}"
+      fill="var(--accent)" opacity="0.14"/>`;
 
+  // --- bucket ribbons through r2..r5 ---
   for (const l of lanes) {
     const fill = BUCKET_FILL[l.verdict] || "var(--hatch-a)";
-    const laneEnd = gate && l.verdict === "REJECT" ? X.r2 : X.r5;
-    g += `<rect x="${X.r1}" y="${l.y}" width="${laneEnd - X.r1}" height="${l.h}"
-      fill="${fill}" opacity="0.8">
-      <title>${l.verdict} ${l.n}: settled ${l.settled}, abstained ${l.abstained}${l.open ? ", open " + l.open : ""}</title></rect>`;
-    g += `<text x="${X.r1 + 4}" y="${l.y - 4}" font-size="10"
-      font-weight="bold">${l.verdict} ${l.n}</text>`;
-    if (gate && l.verdict === "REJECT") {
-      g += `<rect x="${X.r2}" y="${l.y}" width="14" height="${l.h}" fill="url(#hatch)"/>
-        <text x="${X.r2 + 20}" y="${l.y + l.h / 2 + 3}" font-size="9"
-        class="svgmuted">left the stack at r1 (gate mode)</text>`;
+    const x0 = X.r1 + NODE_W / 2;
+    const xEnd = l.exit_at_r1 ? X.r2 - NODE_W / 2 : X.r5 - NODE_W / 2;
+    g += `<g class="ribbon" data-bucket="${l.verdict}">
+      <rect x="${x0}" y="${l.y}" width="${xEnd - x0}" height="${l.h}"
+      fill="${fill}" opacity="${dim(l.verdict)}"/>
+      <title>${l.verdict}: ${l.n} of ${total} (${pctOf(l.n, total)}) — click to follow this subset</title></g>`;
+    g += `<text x="${x0 + 6}" y="${l.y - 5}" font-size="10" font-weight="bold">
+      ${l.verdict} ${l.n} · ${pctOf(l.n, total)}</text>`;
+    if (l.exit_at_r1) {
+      g += `<polygon points="${xEnd},${l.y} ${xEnd + 26},${l.y + l.h / 2}
+        ${xEnd},${l.y + l.h}" fill="${fill}" opacity="${dim(l.verdict)}"/>
+        <text x="${xEnd + 30}" y="${l.y + l.h / 2 + 3}" font-size="9">
+        left the stack at r1 (gate) — ${l.exit_at_r1.n} · ${pctOf(l.exit_at_r1.n, total)}</text>`;
       continue;
     }
-    // per-lane annotations at the middle rungs (inside if tall, above if thin)
+    // per-lane annotations at the nodes (what happened to THIS subset there)
     const ann = (x, text) => {
-      const inside = l.h >= 16;
-      return `<text x="${x}" y="${inside ? l.y + l.h / 2 + 3 : l.y - 4}"
-        font-size="8.5" ${inside ? 'fill="#fff"' : 'class="svgmuted"'}>${text}</text>`;
+      const inside = l.h >= 15;
+      return `<text x="${x}" y="${inside ? l.y + l.h / 2 + 3 : l.y + l.h + 10}"
+        font-size="8.5" text-anchor="middle"
+        ${inside ? 'fill="#fff"' : 'class="svgmuted"'}>${text}</text>`;
     };
-    if (l.verdict === "REJECT" && r2e)
-      g += ann(X.r2, `r2: ${r2e.reject} offered, ${r2e.correctable} correctable, ${r2e.attempted} attempted`);
-    if (l.r3_changed)
-      g += ann(X.r3, `r3 changed ${l.r3_changed}`);
+    if (l.through_r2 && l.r2)
+      g += ann(X.r2, `${l.r2.reject ?? l.n} offered · ${l.r2.correctable} correctable · ${l.r2.attempted} attempted`);
+    if (l.r3_changed) g += ann(X.r3, `changed ${l.r3_changed}`);
     const r4 = l.r4 || {};
     if ((r4.pass || 0) + (r4.fail || 0) + (r4.parse_failed || 0) > 0)
-      g += ann(X.r4, `r4: pass ${r4.pass || 0} / fail ${r4.fail || 0}${r4.parse_failed ? ` / unparsed ${r4.parse_failed}` : ""}`);
-    // r5 branch: settled -> shipped sink, abstained -> queue sink
-    let off = 0;
-    const branch = (n, sinkYpos, sinkOff, fillB, label) => {
-      if (!n) return "";
-      const h = Math.max(3, n * k);
-      const p = `<polygon points="${X.r5},${l.y + off} ${X.r5},${l.y + off + h}
-        ${X.sink},${sinkYpos + sinkOff + h} ${X.sink},${sinkYpos + sinkOff}"
-        fill="${fillB}" opacity="0.55"><title>${l.verdict} → ${label}: ${n}</title></polygon>` +
-        (h >= 10 ? `<text x="${X.r5 + 8}" y="${l.y + off + h / 2 + 3}"
-          font-size="8.5">${label} ${n}</text>` : "");
-      off += h;
-      return p;
+      g += ann(X.r4, `pass ${r4.pass || 0} · fail ${r4.fail || 0}${r4.parse_failed ? ` · unparsed ${r4.parse_failed}` : ""}`);
+    // rescue path at r2 (possible or actual)
+    if (l.through_r2 && l.r2 && l.r2.rescue) {
+      const r = l.r2.rescue;
+      const dash = r.kind === "possible" ? 'stroke-dasharray="5 4"' : "";
+      g += `<path d="M ${X.r2} ${l.y - 2} C ${X.r2 + 30} ${l.y - 30},
+        ${X.r3 - 60} ${l.y - 30}, ${X.r3 - NODE_W / 2} ${l.y + 2}"
+        fill="none" stroke="${fill}" stroke-width="2" ${dash} opacity="0.9"/>
+        <text x="${(X.r2 + X.r3) / 2}" y="${l.y - 26}" font-size="8.5"
+        text-anchor="middle" class="svgmuted">${r.n} ${esc(r.label)}</text>`;
+    }
+    // --- r5 branches: actual = ribbon polygon, possible = thin dashed ---
+    const xb = X.r5 + NODE_W / 2 - NODE_W;  // branch start (r5 node right edge)
+    const x5 = X.r5 + NODE_W / 2;
+    const branch = (legName, leg, sinkYpos, sinkOff, sinkLabel) => {
+      if (!leg) return "";
+      if (leg.kind === "possible")
+        return `<path d="M ${x5 - NODE_W} ${l.y + l.h / 2} C ${x5 + 40} ${l.y + l.h / 2},
+          ${X.sink - 80} ${sinkYpos + 8}, ${X.sink} ${sinkYpos + 8}"
+          fill="none" stroke="${fill}" stroke-width="1.5" stroke-dasharray="4 4"
+          opacity="0.7"/>
+          <text x="${(x5 + X.sink) / 2}" y="${(l.y + l.h / 2 + sinkYpos) / 2}"
+          font-size="8.5" class="svgmuted">0 — ${esc(leg.label || legName)} (option)</text>`;
+      const h = Math.max(3, leg.n * k);
+      const yOff = legName === "shipped" ? 0 : l.h - h;
+      const xTo = legName === "shipped" ? X.sink : X.r6 - NODE_W / 2;
+      return `<g class="ribbon" data-bucket="${l.verdict}">
+        <polygon points="${x5},${l.y + yOff} ${x5},${l.y + yOff + h}
+        ${xTo},${sinkYpos + sinkOff + h} ${xTo},${sinkYpos + sinkOff}"
+        fill="${fill}" opacity="${dim(l.verdict) * 0.7}"/>
+        <title>${l.verdict} → ${sinkLabel}: ${leg.n} (${pctOf(leg.n, l.n)} of ${l.verdict}, ${pctOf(leg.n, total)} of batch)</title></g>` +
+        (h >= 10 ? `<text x="${x5 + 6}" y="${l.y + yOff + h / 2 + 3}" font-size="8.5">
+          ${legName} ${leg.n} · ${pctOf(leg.n, l.n)}</text>` : "");
     };
-    let shipOff = lanes.slice(0, lanes.indexOf(l)).reduce((a, x) => a + x.settled, 0) * k;
-    let qOff = lanes.slice(0, lanes.indexOf(l)).reduce((a, x) => a + x.abstained, 0) * k;
-    g += branch(l.settled, shipY, shipOff, BUCKET_FILL[l.verdict], "settled");
-    g += branch(l.abstained, queueY, qOff, BUCKET_FILL[l.verdict], "abstained");
+    const shipOff = lanes.slice(0, lanes.indexOf(l))
+      .reduce((a, x) => a + ((x.shipped && x.shipped.kind === "actual" && x.shipped.n) || 0), 0) * k;
+    const qOff = lanes.slice(0, lanes.indexOf(l))
+      .reduce((a, x) => a + ((x.person && x.person.kind === "actual" && x.person.n) || 0), 0) * k;
+    g += branch("shipped", l.shipped, shipY, shipOff, "SHIPPED");
+    g += branch("person", l.person, personY, qOff, "TO A PERSON");
   }
-  // sinks
-  if (shippedTotal)
-    g += `<rect x="${X.sink}" y="${shipY}" width="130" height="${H(shippedTotal)}"
-      fill="var(--z-verified)"><title>shipped: ${shippedTotal}</title></rect>
-      <text x="${X.sink + 4}" y="${shipY - 5}" font-size="10" font-weight="bold">
-      shipped ${shippedTotal} <tspan class="svgmuted" font-weight="normal">(r5 kept)</tspan></text>`;
-  if (queueTotal)
-    g += `<rect x="${X.sink}" y="${queueY}" width="130" height="${H(queueTotal)}"
-      fill="var(--z-escalate)"><title>queued for a person: ${queueTotal}</title></rect>
-      <text x="${X.sink + 4}" y="${queueY - 5}" font-size="10" font-weight="bold">
-      r6 queue ${queueTotal} <tspan class="svgmuted" font-weight="normal">(to a person)</tspan></text>`;
-  if (openTotal)
-    g += `<rect x="${X.sink}" y="${openY}" width="130" height="${H(openTotal)}"
-      fill="url(#hatch)"><title>no disposition recorded: ${openTotal}</title></rect>
-      <text x="${X.sink + 4}" y="${openY - 5}" font-size="10">open ${openTotal}</text>`;
+
+  // person bundle continues through the r6 node to the sink
+  if (personTotal) {
+    const h = H(personTotal);
+    g += `<rect x="${X.r6 + NODE_W / 2}" y="${personY}" width="${X.sink - X.r6 - NODE_W / 2}"
+      height="${h}" fill="var(--z-escalate)" opacity="0.55"/>`;
+  }
+  // --- sinks ---
+  if (shippedTotal || lanes.some((l) => l.shipped))
+    g += `<rect x="${X.sink}" y="${shipY}" width="120" height="${Math.max(H(shippedTotal), 10)}"
+      fill="var(--z-verified)"/><text x="${X.sink}" y="${shipY - 6}" font-size="10"
+      font-weight="bold">SHIPPED ${shippedTotal} · ${pctOf(shippedTotal, total)}</text>`;
+  if (personTotal || lanes.some((l) => l.person))
+    g += `<rect x="${X.sink}" y="${personY}" width="120" height="${Math.max(H(personTotal), 10)}"
+      fill="var(--z-escalate)"/><text x="${X.sink}" y="${personY - 6}" font-size="10"
+      font-weight="bold">TO A PERSON ${personTotal} of ${total} · ${pctOf(personTotal, total)}</text>`;
+
   return `<div class="depflow-scroll">${svgOpen(W, height)}${g}</svg></div>`;
 }
 
-function renderDependencies(dep, cv) {
+function subsetDetail(dep, bucket) {
+  // the clicked subset's own sub-flow: counts AND % at every split, with
+  // read-only drill-through to Traceability filtered to those records
+  const fm = dep.flow_map;
+  const b = fm.buckets.find((x) => x.verdict === bucket);
+  if (!b) return "";
+  const run = S.resultsRun;
+  const trace = (label, params) =>
+    `<a href="#" class="trace-link" data-params='${JSON.stringify(params)}'>${label}</a>`;
+  const rows = [];
+  rows.push(`<b>${esc(bucket)}</b>: ${b.n} of ${fm.total} records
+    (${pctOf(b.n, fm.total)} of the batch) —
+    ${trace("open in Traceability", { verdict: bucket })}`);
+  if (b.through_r2 && b.r2)
+    rows.push(`r2: ${b.r2.reject} offered · ${b.r2.correctable} correctable ·
+      ${b.r2.attempted} attempted · ${b.r2.rescued} rescued`);
+  if (b.r3_changed) rows.push(`r3 changed ${b.r3_changed} · ${pctOf(b.r3_changed, b.n)} of subset`);
+  const r4 = b.r4 || {};
+  rows.push(`r4: pass ${r4.pass || 0} (${pctOf(r4.pass || 0, b.n)}) ·
+    fail ${r4.fail || 0} (${pctOf(r4.fail || 0, b.n)})${r4.parse_failed ?
+    ` · unparsed ${r4.parse_failed}` : ""}`);
+  if (b.exit_at_r1)
+    rows.push(`left the stack at r1 (gate): ${b.exit_at_r1.n}`);
+  if (b.shipped)
+    rows.push(`→ shipped: ${b.shipped.n} (${pctOf(b.shipped.n, b.n)} of subset,
+      ${pctOf(b.shipped.n, fm.total)} of batch)${b.shipped.kind === "possible" ?
+      " — possible, untaken" : " — " +
+      trace("records", { verdict: bucket, disposition: "shipped" })}`);
+  if (b.person)
+    rows.push(`→ to a person: ${b.person.n} (${pctOf(b.person.n, b.n)} of subset,
+      ${pctOf(b.person.n, fm.total)} of batch)${b.person.kind === "possible" ?
+      " — possible, untaken" : " — " +
+      trace("records", { verdict: bucket, disposition: "escalated" })}`);
+  return `<div class="explainer subset">${rows.join("<br>")}
+    <span class="muted">(click the ribbon again to deselect)</span></div>`;
+}
+
+function renderDependencies(dep, cv, sel) {
   const el = $("dep-diagram");
-  const nodes = dep.nodes;
-  const byRung = {};
-  for (const n of nodes) byRung[n.rung] = n;
-  // verdict edges become dashed signal chips inside their destination card;
-  // the records path is drawn by the verdict-lane flow below the cards
-  const signals = {};
-  for (const e of dep.edges)
-    if (e.kind === "verdict") (signals[e.dst] = signals[e.dst] || []).push(e);
-  let html = '<div class="dep-row">';
-  dep.rung_order.forEach((rung) => {
-    const n = byRung[rung];
-    const cls = ["dep-card"];
-    if (n.disabled) cls.push("disabled");
-    if (!n.in_run) cls.push("absent");
-    if (n.routes) cls.push("routes");
-    const mode = n.mode ?
-      `<span class="chip mode-${esc(n.mode)}">${esc(n.mode)}</span>` : "";
-    const sig = (signals[rung] || []).map((e) =>
-      `<span class="chip signal" title="${esc(e.label)}">⇠ signal from r${e.src}: ${esc(e.label)}</span>`).join("");
-    html += `<div class="${cls.join(" ")}">
-      <h4>r${rung} ${esc(n.label)}${mode}</h4>
-      ${n.model ? `<div class="muted">${esc(n.model)}</div>` : ""}
-      <div class="meaning">${esc(n.meaning || "")}</div>
-      <div>${n.in_run ? depCounts(n) :
-        '<span class="muted">not in this run</span>'}</div>
-      ${sig}</div>`;
-  });
-  html += "</div>";
+  let banner = "";
   if (dep.run_kind === "ablate")
-    html = `<div class="banner warn">ABLATE run — only rung(s)
-      ${esc(dep.rungs_present.join(", "))} ran over a saved input; the chain
-      below shows the full stack for orientation, absent rungs hatched.</div>` + html;
-  el.innerHTML = `<div class="chart">${html}
-    ${verdictFlowSvg(dep)}
-    <div class="muted">Lanes: what happens to EACH rung-1 bucket downstream,
-    widths proportional to counts. In observe mode the buckets are signals —
-    records flow through rungs 2–4 unbroken (rung 3 changes and rung 4
-    verdicts annotated on each lane) and rung 5 is where the verdicts act.
+    banner = `<div class="banner warn">ABLATE run — only rung(s)
+      ${esc(dep.rungs_present.join(", "))} ran over a saved input; the diagram
+      shows the full stack for orientation, absent rungs hatched.</div>`;
+  el.innerHTML = `<div class="chart">${banner}
+    ${integratedFlowSvg(dep, sel)}
+    ${sel ? subsetDetail(dep, sel) : ""}
+    <div class="muted">One batch, left to right: ribbons are records, widths
+    proportional to counts, colors are rung 1's verdict buckets. The r2 node
+    sits on the REJECT ribbon only — ACCEPT and BAND bypass it by
+    construction. Dashed thin paths are structurally possible routes this
+    run did not take (labeled 0). Click a ribbon to follow that subset and
+    drill to its records; hover a node for the rung's meaning and counts.
     Section 4 shows the same records by disposition stage and correctness.</div>
     ${caveatChips(dep.caveats && dep.caveats.r1_gate ?
       { r1_gate: dep.caveats.r1_gate } : null)}
     ${caveatChips(pick(cv, ["rung3_samples", "judge_2b"]))}
     ${provFooter(dep.provenance)}</div>`;
+  el.querySelectorAll(".ribbon").forEach((r) => {
+    r.style.cursor = "pointer";
+    r.onclick = () => {
+      const b = r.dataset.bucket;
+      renderDependencies(dep, cv, sel === b || b === "ALL" ? null : b);
+    };
+  });
+  el.querySelectorAll(".trace-link").forEach((a) => {
+    a.onclick = (ev) => {
+      ev.preventDefault();
+      S.traceRun = S.resultsRun;
+      S.traceFilter = JSON.parse(a.dataset.params);
+      const t = S.tabs.find((x) => x.id === "trace");
+      $("trace-run").value = S.traceRun;
+      showTab(t);
+    };
+  });
 }
 
 function renderHeadline(score, base, flow, cv) {
@@ -606,8 +697,9 @@ function renderHeadline(score, base, flow, cv) {
     `Of ${s.n_gold} scorable gold mentions, ${s.correct} shipped with the ` +
     `right code (${esc(s.span_match)} spans) — F1 ${dl(s.f1)}, and the ` +
     `interval [${dl(ci.f1.lo)}–${dl(ci.f1.hi)}] is the claim` +
-    (routed !== null ? `; ${routed} of ${flow.n_records} records were ` +
-      `routed to a person instead of shipped.` : ".");
+    (routed !== null ? `; ${routed} of ${flow.n_records} records ` +
+      `(${pctOf(routed, flow.n_records)}) were routed to a person instead ` +
+      `of shipped.` : ".");
   el.innerHTML = `<div class="explainer">${reading}</div>
     <div class="cards">
     <div class="card"><div class="big">${dl(s.f1)}</div>
@@ -615,7 +707,9 @@ function renderHeadline(score, base, flow, cv) {
       [${dl(ci.f1.lo)}–${dl(ci.f1.hi)}]</div></div>
     <div class="card"><div class="big">${s.correct} / ${s.n_gold}</div>
       <div class="muted">shipped correct / scorable gold (excluded ${s.excluded})</div></div>
-    <div class="card"><div class="big">${routed ?? "—"}</div>
+    <div class="card"><div class="big">${routed ?? "—"}${routed !== null ?
+      ` <span class="muted" style="font-size:1rem">of ${flow.n_records} ·
+      ${pctOf(routed, flow.n_records)}</span>` : ""}</div>
       <div class="muted">records routed to a person (rung 6 — the count is
       the headline cost)</div></div>
     ${deltas}</div>` +
@@ -698,6 +792,32 @@ function renderLadderCurve(res, costs) {
     ${provFooter(res.provenance)}</div>`;
 }
 
+// one horizontal composition bar in a layer's OWN outcome vocabulary,
+// exact and overlap side by side (from score_run / checks — no new accounting)
+function compBar(rowsSpec, items) {
+  const w = 320, rh = 22;
+  let g = "";
+  rowsSpec.forEach(([label, counts], ri) => {
+    const total = items.reduce((a, [k]) => a + (counts[k] || 0), 0) || 1;
+    let x = 62; const y = 4 + ri * (rh + 12);
+    g += `<text x="0" y="${y + 14}" font-size="10">${label}</text>`;
+    for (const [key, color] of items) {
+      const n = counts[key] || 0;
+      if (!n) continue;
+      const bw = (n / total) * (w - 66);
+      g += `<rect x="${x}" y="${y}" width="${bw}" height="${rh}" fill="${color}">
+        <title>${key}: ${n} (${pctOf(n, total)})</title></rect>` +
+        (bw > 26 ? `<text x="${x + bw / 2}" y="${y + 15}" text-anchor="middle"
+          font-size="9" fill="#fff">${n}</text>` : "");
+      x += bw;
+    }
+  });
+  const legend = items.map(([k, c]) =>
+    `<span style="color:${c}">■</span> ${k}`).join(" · ");
+  const h = rowsSpec.length * (rh + 12) + 6;
+  return `${svgOpen(w, h)}${g}</svg><div class="muted" style="font-size:.7rem">${legend}</div>`;
+}
+
 function renderLayers(ex, ov, cv) {
   const el = $("layers-block");
   if (!ex.available) {
@@ -708,6 +828,7 @@ function renderLayers(ex, ov, cv) {
   }
   const dl = (x) => Number(x).toFixed(3);
   const ciTxt = (c) => `[${dl(c.lo)}–${dl(c.hi)}]`;
+  const cx = ex.composition, co = ov.composition;
   const twoNum = (label, vEx, ciEx, vOv, ciOv, nEx, nOv) => `
     <table class="layer-nums"><tr><th></th><th>exact</th><th>overlap</th></tr>
     <tr><td class="l">${label}</td>
@@ -727,6 +848,10 @@ function renderLayers(ex, ov, cv) {
         ov.score.detection.f1, ov.ci.detection_f1,
         `${ex.score.detection.n_matched} matched`,
         `${ov.score.detection.n_matched} matched`)}
+      ${compBar([["exact", cx.detection], ["overlap", co.detection]], [
+        ["matched", "var(--o-correct)"],
+        ["missed", "var(--o-abstained)"],
+        ["spurious", "var(--o-incorrect)"]])}
     </div>
     <div class="card layer">
       <h4>Code extraction <span class="muted">(coding layer)</span></h4>
@@ -737,6 +862,14 @@ function renderLayers(ex, ov, cv) {
         ex.score.coding.accuracy, ex.ci.coding_accuracy,
         ov.score.coding.accuracy, ov.ci.coding_accuracy,
         `${ex.score.coding.n} matched`, `${ov.score.coding.n} matched`)}
+      ${compBar([["exact", cx.coding], ["overlap", co.coding]], [
+        ["correct", "var(--o-correct)"],
+        ["outdated", "var(--o-outdated)"],
+        ["abstained", "var(--o-abstained)"],
+        ["incorrect", "var(--o-incorrect)"],
+        ["modernised", "var(--o-modernised)"]])}
+      <div class="muted" style="font-size:.72rem">report order; outdated and
+        modernised are never folded into correct</div>
     </div>
     <div class="card layer">
       <h4>Vocabulary label <span class="muted">(rung 1 label_check — a flag,
@@ -750,40 +883,13 @@ function renderLayers(ex, ov, cv) {
         <tr><td class="l">unchecked <span class="muted">(no code or no
           label)</span></td><td>${lc.unchecked}</td></tr>
       </table>
+      ${compBar([["records", cx.label]], [
+        ["verified", "var(--o-correct)"],
+        ["flagged", "var(--o-incorrect)"],
+        ["unchecked", "var(--hatch-a)"]])}
     </div></div>` +
     caveatChips(pick(cv, ["outdated_separate"])) +
     provFooter(ex.provenance);
-}
-
-function renderOutcomeBars(ex, ov, cv) {
-  const el = $("outcome-bars");
-  if (!ex.available) { el.innerHTML = ""; return; }
-  const order = ["correct", "outdated", "abstained", "incorrect", "modernised"];
-  const rows = [["exact", ex.score], ["overlap", ov.score]];
-  const w = 640, h = 96;
-  let g = "";
-  rows.forEach(([label, s], ri) => {
-    const total = order.reduce((a, o) => a + s[o], 0) || 1;
-    let x = 90; const y = 16 + ri * 36;
-    g += `<text x="2" y="${y + 14}" font-size="11">${label}</text>`;
-    for (const o of order) {
-      const bw = (s[o] / total) * (w - 110);
-      if (!bw) continue;
-      g += `<rect x="${x}" y="${y}" width="${bw}" height="20" fill="var(--o-${o})">
-        <title>${o}: ${s[o]}</title></rect>` +
-        (bw > 28 ? `<text x="${x + bw / 2}" y="${y + 14}" text-anchor="middle"
-          font-size="10" fill="#fff">${s[o]}</text>` : "");
-      x += bw;
-    }
-  });
-  const legend = order.map((o) =>
-    `<span class="outcome ${o}">■ ${o}</span>`).join(" ");
-  el.innerHTML = `<div class="chart">
-    <div><b>Outcome composition</b> <span class="muted">(V5 — four kinds of
-    wrong are not one)</span></div>
-    ${svgOpen(w, h)}${g}</svg>
-    <div class="muted">${legend} — report order; outdated/modernised are never
-    folded into correct</div>${provFooter(ex.provenance)}</div>`;
 }
 
 async function renderDumbbell(run, base, scoreEx, scoreOv) {
@@ -842,15 +948,26 @@ function renderFlow(flow, dep) {
     let g = `<text x="${x}" y="16" font-size="11" font-weight="bold">${title}</text>
       <text x="${x}" y="30" font-size="9" class="svgmuted">${subtitle}</text>`;
     let y = 42;
+    // side labels for thin bars collide when consecutive bars are thin —
+    // track the last label baseline and push each next one below it
+    let lastSideLabelY = 30;
     for (const it of items) {
       const bh = Math.max(2, scale(it.n));
       g += `<rect x="${x}" y="${y}" width="${colw}" height="${bh}"
         fill="${it.fill}" ${it.hatch ? 'fill="url(#hatch)"' : ""}>
-        <title>${it.label}: ${it.n}${it.tip ? " — " + it.tip : ""}</title></rect>` +
-        (bh > 12 ? `<text x="${x + 6}" y="${y + bh / 2 + 4}" font-size="10"
-          fill="#fff">${it.label} ${it.n}</text>` :
-          `<text x="${x + colw + 4}" y="${y + bh / 2 + 4}" font-size="9">${it.label} ${it.n}</text>`);
+        <title>${it.label}: ${it.n}${it.tip ? " — " + it.tip : ""}</title></rect>`;
+      if (bh > 12) {
+        g += `<text x="${x + 6}" y="${y + bh / 2 + 4}" font-size="10"
+          fill="#fff">${it.label} ${it.n}</text>`;
+      } else {
+        const ly = Math.max(y + bh / 2 + 4, lastSideLabelY + 11);
+        lastSideLabelY = ly;
+        g += `<line x1="${x + colw}" y1="${y + bh / 2}" x2="${x + colw + 3}"
+          y2="${ly - 3}" stroke="var(--hatch-a)" stroke-width="1"/>
+          <text x="${x + colw + 5}" y="${ly}" font-size="9">${it.label} ${it.n}</text>`;
+      }
       y += bh + 6;
+      lastSideLabelY = Math.max(lastSideLabelY, 30);
     }
     return g;
   }
@@ -979,12 +1096,16 @@ function renderCostPanels(costs, cv) {
   // routed-to-a-person is a rung-6 fact, not a per-rung column of zeros
   const routedRung = rungs.find((r) => rv[r] && rv[r].routed > 0);
   const rr = routedRung ? rv[routedRung] : null;
+  const nAll = Object.values(costs.denominators || {})
+    .reduce((a, d) => Math.max(a, d.rows || 0), 0);
   const reviewsCard = `<div class="card" style="min-width:260px">
     <b>routed to a person</b>
-    <div class="big">${rr ? rr.routed : 0}</div>
-    <div class="muted">${rr ? `records, at rung ${routedRung} only —
-      reviews/100 = ${rr.reviews_per_100}; ${rr.human_minutes} minutes at the
-      declared rate, never measured` :
+    <div class="big">${rr ? rr.routed : 0}${rr && nAll ?
+      ` <span class="muted" style="font-size:1rem">of ${nAll} ·
+      ${pctOf(rr.routed, nAll)}</span>` : ""}</div>
+    <div class="muted">${rr ? `${pctOf(rr.routed, nAll)} of the batch, at
+      rung ${routedRung} only; ${rr.human_minutes} minutes at the declared
+      rate, never measured` :
       "no records routed in this run"}</div></div>`;
   // usd: all zeros for local models — one line, not a table (still three
   // separate measures; usd stays carried in exports)
@@ -1024,10 +1145,12 @@ function renderHumanBlock(flow, costs, res, cv) {
   const q = flow.escalated;
   const r6row = (res.rows || []).find((r) => String(r.rung) === "6");
   el.innerHTML = `<div class="cards">
-    <div class="card"><div class="big">${q.n}</div>
+    <div class="card"><div class="big">${q.n}
+      <span class="muted" style="font-size:1rem">of ${flow.n_records} ·
+      ${pctOf(q.n, flow.n_records)}</span></div>
       <div class="muted">records in the rung-6 queue — the COUNT is the
       headline cost${r6row && r6row.reviews_per_100 != null ?
-        ` (reviews/100 = ${r6row.reviews_per_100})` : ""}</div></div>
+        ` (${r6row.reviews_per_100} per 100 cases)` : ""}</div></div>
     <div class="card"><div class="big">${scored ? q.withheld_correct : "—"}</div>
       <div class="muted">withheld answers that were already correct — what
       rung 5 pays for its shipped accuracy${scored ? "" :
@@ -1165,9 +1288,18 @@ async function renderTrace() {
 }
 
 async function listRecords(outcome) {
+  const f = S.traceFilter || {};
   const body = await api("/api/run/records",
-    { run: S.traceRun, span_match: S.traceSpan, outcome });
-  $("trace-records").innerHTML =
+    { run: S.traceRun, span_match: S.traceSpan, outcome,
+      verdict: f.verdict, disposition: f.disposition });
+  const filterChip = (f.verdict || f.disposition)
+    ? `<div class="caveat">subset from the flow diagram:
+       ${f.verdict ? `rung 1 verdict ${esc(f.verdict)}` : ""}
+       ${f.disposition ? ` · disposition ${esc(f.disposition)}` : ""}
+       (${body.records.length} records)
+       <a href="#" id="trace-clear">clear</a></div>`
+    : "";
+  $("trace-records").innerHTML = filterChip +
     `<table><tr><th class="l">record</th><th class="l">spans</th>
      <th class="l">zone</th><th class="l">code</th><th class="l">outcome</th></tr>` +
     body.records.map((r) =>
@@ -1180,6 +1312,12 @@ async function listRecords(outcome) {
     `</table>` + provFooter(body.provenance);
   $("trace-records").querySelectorAll("tr[data-doc]").forEach((tr) =>
     (tr.onclick = () => recordDetail(tr.dataset.doc, tr.dataset.spans)));
+  const clear = $("trace-clear");
+  if (clear) clear.onclick = (ev) => {
+    ev.preventDefault();
+    S.traceFilter = null;
+    listRecords(outcome);
+  };
 }
 
 async function recordDetail(docId, spans) {

@@ -150,11 +150,14 @@ def create_app(state: AppState) -> FastAPI:
             return {"available": False,
                     "reason": "corpus unavailable — scores need the licensed corpus",
                     "provenance": _prov(info, span_match)}
+        label_check = scoring.label_check_counts(state.records(info))
         return {
             "available": True,
             **scored,
             # the third result layer (rung 1's label_check) — span-independent
-            "label_check": scoring.label_check_counts(state.records(info)),
+            "label_check": label_check,
+            # per-layer composition, each in its own outcome vocabulary
+            "composition": scoring.composition(scored["score"], label_check),
             "provenance": _prov(info, span_match),
             "caveats": _caveats(info, extra=["outdated_separate"]),
         }
@@ -207,11 +210,20 @@ def create_app(state: AppState) -> FastAPI:
     @app.get("/api/run/records")
     def run_records(run: str, span_match: str = Query("exact"),
                     zone: str | None = None, outcome: str | None = None,
-                    doc_id: str | None = None):
+                    doc_id: str | None = None, verdict: str | None = None,
+                    disposition: str | None = None):
         info = _run(run)
         annotations = scoring.annotate_records(state, info, span_match)
         records = state.records(info)
         ann = annotations or [{} for _ in records]
+
+        def _disposition(rec) -> str:
+            if rec.zone in ("VERIFIED", "RESOLVED"):
+                return "shipped"
+            if rec.zone in ("ESCALATE", "ABSTAIN"):
+                return "escalated"
+            return "open"
+
         out = []
         for rec, a in zip(records, ann):
             if zone and rec.zone != zone:
@@ -219,6 +231,11 @@ def create_app(state: AppState) -> FastAPI:
             if doc_id and rec.doc_id != doc_id:
                 continue
             if outcome and a.get("outcome") != outcome:
+                continue
+            # the diagram's subsets: a ribbon is (r1 verdict, disposition)
+            if verdict and (rec.checks or {}).get("r1_verdict") != verdict:
+                continue
+            if disposition and _disposition(rec) != disposition:
                 continue
             out.append({
                 "record_id": rec.record_id,  # display only — identity is the span key

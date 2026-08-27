@@ -62,6 +62,26 @@ def label_check_counts(records) -> dict[str, int]:
     return out
 
 
+def composition(score: dict, label_counts: dict[str, int]) -> dict[str, Any]:
+    """Each result layer's composition in ITS OWN outcome vocabulary — no new
+    accounting, only `score_run`'s numbers and the recorded label check:
+    detection partitions gold+predictions into matched / missed (FN) /
+    spurious (FP); coding is the five outcomes of PAIRED predictions in
+    report order (never folded); label is rung 1's flag counts."""
+    m = score["detection"]["n_matched"]
+    return {
+        "detection": {
+            "matched": m,
+            "missed": score["n_gold"] - m,
+            "spurious": score["n_pred"] - m,
+        },
+        "coding": {o: score[o] for o in
+                   ("correct", "outdated", "abstained", "incorrect",
+                    "modernised")},
+        "label": dict(label_counts),
+    }
+
+
 def annotate_records(state: AppState, info: RunInfo,
                      span_match: str) -> list[dict] | None:
     """One annotation per record (aligned with state.records): the five-way

@@ -229,6 +229,80 @@ def test_verdict_flow_gate_mode_is_flagged(tmp_path):
     assert vf["mode"] == "gate"
 
 
+def test_score_payload_carries_per_layer_composition(client):
+    body = client.get("/api/run/score",
+                      params={"run": "syn-run-1", "span_match": "exact"}).json()
+    comp = body["composition"]
+    s = body["score"]
+    # detection layer vocabulary: matched / missed (FN) / spurious (FP)
+    m = s["detection"]["n_matched"]
+    assert comp["detection"] == {"matched": m,
+                                 "missed": s["n_gold"] - m,
+                                 "spurious": s["n_pred"] - m}
+    # coding layer: the five outcomes of PAIRED predictions, report order
+    assert list(comp["coding"]) == ["correct", "outdated", "abstained",
+                                    "incorrect", "modernised"]
+    assert comp["coding"]["correct"] == s["correct"]
+    # label layer: rung 1's label_check vocabulary
+    assert comp["label"] == body["label_check"]
+
+
+def test_records_filter_by_verdict_and_disposition(client):
+    # the diagram's subsets drill through to Traceability: a ribbon is a
+    # (r1 verdict, disposition) subset of records
+    r = client.get("/api/run/records", params={
+        "run": "syn-run-1", "verdict": "BAND", "disposition": "escalated"}).json()
+    assert [x["record_id"] for x in r["records"]] == ["SYN.2#0"]
+    r = client.get("/api/run/records", params={
+        "run": "syn-run-1", "verdict": "ACCEPT"}).json()
+    assert [x["record_id"] for x in r["records"]] == ["SYN.1#0"]
+    r = client.get("/api/run/records", params={
+        "run": "syn-run-1", "disposition": "shipped"}).json()
+    assert [x["record_id"] for x in r["records"]] == ["SYN.1#0"]
+
+
+def test_flow_map_actuals_and_possible_paths_observe(client):
+    body = client.get("/api/run/dependencies", params={"run": "syn-run-1"}).json()
+    fm = body["flow_map"]
+    assert fm["mode"] == "observe"
+    b = {x["verdict"]: x for x in fm["buckets"]}
+    # r2 only ever touches REJECT — the bypass is structural, not styling
+    assert b["ACCEPT"]["through_r2"] is False
+    assert b["BAND"]["through_r2"] is False
+    assert b["REJECT"]["through_r2"] is True
+    # actual paths carry their counts; untaken-but-possible paths are kind
+    # "possible" with n 0 — the reader sees what CAN happen vs what DID
+    assert b["ACCEPT"]["shipped"] == {"n": 1, "kind": "actual"}
+    assert b["ACCEPT"]["person"]["n"] == 0
+    assert b["ACCEPT"]["person"]["kind"] == "possible"
+    assert b["BAND"]["shipped"]["kind"] == "possible"
+    assert b["BAND"]["person"] == {"n": 1, "kind": "actual"}
+    # the rescue path exists as an option even when this run never took it
+    assert b["REJECT"]["r2"]["rescue"]["kind"] == "possible"
+    assert b["REJECT"]["r2"]["rescue"]["n"] == 0
+    # abstain_on_reject defaults true: a REJECT structurally cannot ship
+    assert "shipped" not in b["REJECT"]
+    # observe mode: no gate exit anywhere
+    assert all("exit_at_r1" not in x for x in fm["buckets"])
+
+
+def test_flow_map_gate_mode_reject_exits_at_r1(tmp_path):
+    make_run(tmp_path / "out", run_id="gated", r1_mode="gate")
+    state = AppState(repo_root=tmp_path, sources=[(tmp_path / "out", False)],
+                     corpus=syn_corpus(), splits={"dev": ["SYN.1", "SYN.2"]},
+                     exclusion_rows=[], registry=None, manifest={})
+    c = TestClient(create_app(state))
+    fm = c.get("/api/run/dependencies", params={"run": "gated"}).json()["flow_map"]
+    assert fm["mode"] == "gate"
+    b = {x["verdict"]: x for x in fm["buckets"]}
+    # gate mode: the REJECT ribbon leaves the stack at rung 1 — an ACTUAL
+    # path in this run, and one that observe runs must not render at all.
+    # n follows the RECORDS' checks (one REJECT record), not the ledger's
+    # row count — ribbons are records.
+    assert b["REJECT"]["exit_at_r1"] == {"n": 1, "kind": "actual"}
+    assert "person" not in b["REJECT"]  # routed out, not queued
+
+
 def test_dependency_nodes_carry_a_meaning_sentence(client):
     body = client.get("/api/run/dependencies", params={"run": "syn-run-1"}).json()
     nodes = {n["rung"]: n for n in body["nodes"]}
