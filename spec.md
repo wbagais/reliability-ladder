@@ -13,6 +13,21 @@ invents a file format (reads `out/*.records.jsonl`, `*.ledger.jsonl`,
 `data/splits/`, `data/exclusions.csv`, and the archived baselines in the
 main checkout's `out/archive/`).
 
+**One interface.** The repo already has a run-monitor pair —
+`docs/ladder-monitor.html` (static page over `runs/*.ledger.jsonl`, replay +
+follow modes) and `scripts/ladder_top.py` (terminal twin, same ledger). The
+Workbench **absorbs** them: their features and design rules become the Run
+monitor tab (R6.5), and once that tab reaches feature parity,
+`docs/ladder-monitor.html` is retired (deleted, with a decisions entry) so
+there is exactly one web interface. `ladder_top.py` stays as the headless /
+SSH companion — it reads the same ledger, so the two views cannot disagree
+by construction. Three design rules from that pair are promoted to
+app-wide law (see Visuals shared rules): per-rung numbers are drawn over
+the **denominator the ledger names**, never the run total; `could_not_run`
+renders as a **hatched non-value**, never a color, because the absence of a
+measurement must not read as one; and every view of a run reads the
+ledger's own fields — replay and live share one ingest path.
+
 ---
 
 ## Objective
@@ -162,8 +177,22 @@ excluded from all exports (C1). Provenance footer at every level (C3).
    side by side, exactly as the model would see them.
 4. **Gate probe panel** — planted-error detection profile + gold-replay
    error floor, re-runnable against the current rung 1 config.
-5. **Run monitor** — live + historical runs, per-rung progress, failure
-   counts, kill.
+5. **Run monitor** — absorbs the existing monitor pair. Two modes sharing
+   one ingest path: **follow** (tail the newest/selected ledger live) and
+   **replay** (animate any finished run's ledger — including the archived
+   baselines — row by row). Renders: the headline counter; per-rung
+   pass/fail/could_not_run bars over ledger-named denominators (hatch for
+   could_not_run); the three cost tiles; a bounded live feed; failure-label
+   counts; kill for a live run (operator only). Adds from `ladder_top.py`:
+   the **Watch** panel — live checks derived from this project's own
+   recorded mistakes (e.g. a rung reporting zero without a `disabled` row;
+   a verdict column conflated with zones; per-record price fused with
+   per-document) — and, when available, the compute panel (GPU clock vs
+   temperature, the thermal-throttling check). Provenance comes from the
+   run's own manifest copy, never hard-coded (the old page's baked-in
+   header — stale models, a frozen denominator — is the defect this
+   replaces). Parity criterion: everything the old page and TUI show is
+   shown here; then `docs/ladder-monitor.html` is deleted.
 6. **Cache browser** — entries by model/params/age; purge with cold-rerun
    warning.
 7. **Decisions log reader** — `docs/decisions.md` searchable; pre-2026-08-23
@@ -220,9 +249,12 @@ Criteria:
 
 Shared rules: provenance footer (C3); semantic zone colors as theme tokens
 (ACCEPT/BAND/REJECT + outcome palette), light and dark; `tabular-nums`; no
-chart fuses cost measures (C5); no decorative charts — each row below names
-the finding it makes visible and its data source. Ship these in R3/R7;
-reuse components elsewhere.
+chart fuses cost measures (C5); every per-rung number is drawn over the
+denominator the ledger names, never the run total; `could_not_run` (and any
+absent measurement) renders as a hatched non-value, never a color or a
+zero; no decorative charts — each row below names the finding it makes
+visible and its data source. Ship these in R3/R7; reuse components
+elsewhere, the run monitor included.
 
 | # | Visual | Encodes (the finding) | Data |
 |---|---|---|---|
@@ -269,7 +301,8 @@ reuse components elsewhere.
 2. **M2 demo:** R7 (dataset, aggregate export, tour) reusing M1 tabs; demo
    dataset doubles as M1's test fixtures.
 3. **M3 workbench:** R2 (launcher, working manifest, cache pricing,
-   promote) + run monitor, manifest diff, V7–V9.
+   promote) + run monitor at parity with the old pair (then delete
+   `docs/ladder-monitor.html`), manifest diff, V7–V9.
 4. **M4 rest of R6:** desk, vocabulary inspector, retrieval explorer, gate
    probe, cache browser, decisions reader.
 
