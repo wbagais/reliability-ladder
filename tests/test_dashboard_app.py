@@ -287,6 +287,60 @@ def test_document_view_marks_gold_spans_and_discontinuous(client):
     assert m["discontinuous"] is True
 
 
+class StubRegistry:
+    """label() like ladder.registry.Registry — the only lookup path used."""
+
+    LABELS = {"1111111111": "pretend ache (finding)"}
+
+    def exists(self, code):
+        return code in self.LABELS or code == "2222222222"
+
+    def label(self, code):
+        return self.LABELS.get(code)
+
+
+def _doc_client(tmp_path, registry):
+    state = AppState(repo_root=tmp_path, sources=[],
+                     corpus=syn_corpus(),
+                     splits={"dev": ["SYN.1", "SYN.2", "SYN.3"]},
+                     exclusion_rows=[], registry=registry, manifest={})
+    return TestClient(create_app(state))
+
+
+def test_document_mentions_carry_codes_with_vocabulary_labels(tmp_path):
+    c = _doc_client(tmp_path, StubRegistry())
+    body = c.get("/api/corpus/doc", params={"doc_id": "SYN.1"}).json()
+    assert body["registry_available"] is True
+    [m] = body["mentions"]
+    # never a bare SCTID alone when the registry can label it
+    assert m["codes"] == [{"code": "1111111111",
+                           "label": "pretend ache (finding)",
+                           "in_vocabulary": True}]
+    # a code the registry holds but cannot label states that, not nothing
+    m2 = c.get("/api/corpus/doc", params={"doc_id": "SYN.2"}).json()["mentions"][0]
+    assert m2["codes"] == [{"code": "2222222222", "label": None,
+                            "in_vocabulary": True}]
+
+
+def test_concept_less_mention_renders_explicitly_not_as_empty(tmp_path):
+    c = _doc_client(tmp_path, StubRegistry())
+    body = c.get("/api/corpus/doc", params={"doc_id": "SYN.2"}).json()
+    cl = next(m for m in body["mentions"] if m["record_id"] == "SYN.2#1")
+    assert cl["gold_kind"] == "concept_less"
+    assert cl["concept_less"] is True
+    assert cl["codes"] == []
+
+
+def test_document_codes_without_registry_state_the_absence(client):
+    # the `client` fixture has registry=None: labels are stated unavailable,
+    # never silently blank
+    body = client.get("/api/corpus/doc", params={"doc_id": "SYN.1"}).json()
+    assert body["registry_available"] is False
+    [m] = body["mentions"]
+    assert m["codes"] == [{"code": "1111111111", "label": None,
+                           "in_vocabulary": None}]
+
+
 def test_zone_strip_degrades_cleanly_without_registry(client):
     body = client.get("/api/corpus/zones").json()
     assert body["available"] is False

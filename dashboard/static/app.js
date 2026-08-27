@@ -263,29 +263,65 @@ function highlight(text, marks) {
   return html;
 }
 
+function codeLine(c, registryAvailable) {
+  // The desk's display rule: never a bare SCTID alone when the registry can
+  // label it; when it cannot, SAY so rather than showing nothing.
+  if (c.label) return `${c.code} |${c.label}|`;
+  if (!registryAvailable) return `${c.code} (label unavailable — no SNOMED index)`;
+  if (c.in_vocabulary === false) return `${c.code} (absent from this release)`;
+  return `${c.code} (no label in release)`;
+}
+
+function mentionCodesHtml(m, registryAvailable) {
+  if (m.concept_less)
+    return `<span class="muted">CONCEPT_LESS — the annotators found no
+      concept that fits</span>`;
+  const kind = m.gold_kind === "all_of"
+    ? ' <span class="muted">(post-coordinated: A + B)</span>'
+    : m.gold_kind === "any_of"
+      ? ' <span class="muted">(disjunction: either counts)</span>' : "";
+  return m.codes.map((c) => esc(codeLine(c, registryAvailable)))
+    .join("<br>") + kind;
+}
+
 async function renderDocView(docId) {
   try {
     const d = await api("/api/corpus/doc", { doc_id: docId });
     const marks = [];
     for (const m of d.mentions) {
+      const codesText = m.concept_less ? "CONCEPT_LESS" :
+        m.codes.map((c) => codeLine(c, d.registry_available)).join("; ");
       for (const [a, b] of m.spans) {
         if (a < 0) continue;
         marks.push({
           start: a, end: b,
           cls: "gold-span" + (m.excluded ? " excluded" : "") +
                (m.discontinuous ? " seg" : ""),
-          title: `${m.record_id} ${m.entity_type}` +
-                 (m.sct.length ? ` → ${m.sct.join(", ")}` : " (concept-less)") +
+          title: `${m.record_id} ${m.entity_type} → ${codesText}` +
                  (m.excluded ? ` — EXCLUDED (${m.exclusion_reason})` : "") +
                  (m.discontinuous ? " — discontinuous" : ""),
         });
       }
     }
+    const rows = d.mentions.map((m) =>
+      `<tr${m.excluded ? ' class="hatch"' : ""}>
+        <td class="l">${esc(m.record_id)}</td>
+        <td class="l">${esc(m.cadec_type)}</td>
+        <td class="l">“${esc(m.text)}”${m.discontinuous ? ' <span class="muted">(discontinuous)</span>' : ""}</td>
+        <td class="l">${mentionCodesHtml(m, d.registry_available)}</td>
+        <td class="l">${m.excluded ? `EXCLUDED (${esc(m.exclusion_reason)})` : ""}</td>
+      </tr>`).join("");
     $("doc-view").innerHTML =
       `<h3>${esc(d.doc_id)} <span class="muted">${esc(d.drug_group)}</span></h3>
        <div class="doc-text">${highlight(d.text, marks)}</div>
        <div class="muted">underline = gold span (dotted = excluded, renders as
-       excluded, not as an error; dashed outline = discontinuous segment)</div>` +
+       excluded, not as an error; dashed outline = discontinuous segment)</div>
+       ${d.registry_available ? "" : `<div class="banner warn">SNOMED index
+       unavailable — codes shown without vocabulary labels (stated, not
+       blank)</div>`}
+       <table><tr><th class="l">mention</th><th class="l">type</th>
+       <th class="l">span text</th><th class="l">gold code(s) · |vocabulary label|</th>
+       <th class="l">excluded</th></tr>${rows}</table>` +
       provFooter(d.provenance);
   } catch (err) {
     $("doc-view").innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;

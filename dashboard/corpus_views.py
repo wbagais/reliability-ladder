@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
+from ladder.corpus import GOLD_NONE
+
 from dashboard.state import AppState
 
 #: The repo's RECORDED claims (manifest.json / CLAUDE.md). Used only to warn
@@ -126,6 +128,18 @@ def doc_payload(state: AppState, doc_id: str) -> dict[str, Any] | None:
     doc = corpus[doc_id]
     excluded = state.exclusions()
     exclusion_reasons = {r["record_id"]: r for r in state.exclusion_rows()}
+    registry = state.registry()
+
+    def _code_entry(code: str) -> dict[str, Any]:
+        """Code plus its vocabulary label through `Registry.label` — the
+        desk's display rule: never a bare SCTID alone when the registry can
+        label it; label None means "no label", stated by the view, and
+        `in_vocabulary` None means the registry itself is absent."""
+        if registry is None:
+            return {"code": code, "label": None, "in_vocabulary": None}
+        return {"code": code, "label": registry.label(code),
+                "in_vocabulary": bool(registry.exists(code))}
+
     mentions = []
     for m in doc.mentions:
         row = exclusion_reasons.get(m.record_id)
@@ -137,13 +151,19 @@ def doc_payload(state: AppState, doc_id: str) -> dict[str, Any] | None:
             "spans": [list(s) for s in m.spans],
             "discontinuous": len(m.spans) > 1,
             "sct": list(m.sct or []),
+            # a mention can carry multiple codes (post-coordinated A+B,
+            # disjunctions) — one labelled entry per code
+            "codes": [_code_entry(str(c)) for c in (m.sct or [])],
             "gold_kind": m.gold_kind,
+            # CONCEPT_LESS has no code — an explicit state, never an empty cell
+            "concept_less": m.gold_kind == GOLD_NONE or not m.sct,
             # excluded renders as EXCLUDED, never as an error (R1 criteria)
             "excluded": m.record_id in excluded,
             "exclusion_reason": row.get("reason") if row else None,
         })
     return {"doc_id": doc_id, "drug_group": doc.drug_group,
-            "text": doc.text, "mentions": mentions}
+            "text": doc.text, "mentions": mentions,
+            "registry_available": registry is not None}
 
 
 def zones_payload(state: AppState, split: str) -> dict[str, Any]:
