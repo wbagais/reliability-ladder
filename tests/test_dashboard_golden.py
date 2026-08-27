@@ -117,6 +117,28 @@ def test_golden_dependencies(client):
     assert dens[6]["source_rung"] == 5
 
 
+def test_golden_verdict_flow_crosstab(client):
+    """The bucket-level truth of phaseF-test-1, computed from its records:
+    every ACCEPT settled (r4 pass 51 / fail 21 — rung 5 shipped them
+    regardless of rung 4), every BAND and every REJECT abstained and was
+    queued. Pinned so the diagram can never drift from the artifacts."""
+    body = client.get("/api/run/dependencies", params={"run": RUN}).json()
+    b = {x["verdict"]: x for x in body["verdict_flow"]["buckets"]}
+    assert b["ACCEPT"]["n"] == 72
+    assert b["ACCEPT"]["settled"] == 72 and b["ACCEPT"]["abstained"] == 0
+    assert b["ACCEPT"]["r4"] == {"pass": 51, "fail": 21,
+                                 "parse_failed": 0, "absent": 0}
+    assert b["BAND"]["n"] == 226
+    assert b["BAND"]["abstained"] == 226 and b["BAND"]["settled"] == 0
+    assert b["BAND"]["queued"] == 226
+    assert b["BAND"]["r4"] == {"pass": 136, "fail": 88,
+                               "parse_failed": 2, "absent": 0}
+    assert b["BAND"]["r3_changed"] == 29
+    assert b["REJECT"]["n"] == 16
+    assert b["REJECT"]["abstained"] == 16 and b["REJECT"]["queued"] == 16
+    assert body["verdict_flow"]["total"] == 314
+
+
 def test_golden_flow_counts(client):
     body = client.get("/api/run/flow",
                       params={"run": RUN, "span_match": "exact"}).json()

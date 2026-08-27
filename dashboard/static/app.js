@@ -330,6 +330,22 @@ async function renderDocView(docId) {
 
 /* ================= R3 — results & comparison ================= */
 
+// pick a subset of a run's caveats — caveats attach where their numbers
+// render, never as a wall of banners at the top
+function pick(caveats, keys) {
+  const out = {};
+  for (const k of keys) if (caveats && caveats[k]) out[k] = caveats[k];
+  return out;
+}
+
+const SPAN_EXPLAINER =
+  `<div class="explainer"><b>exact vs overlap:</b> the model quotes
+   "extreme rectal bleed" where gold says "rectal bleed" — the same finding,
+   different boundaries. <b>overlap</b> pairs them (any shared character,
+   each gold mention claimed once); <b>exact</b> requires the identical span
+   set, so that pair counts as one false positive AND one false negative.
+   Both are reported — neither is the "true" number alone.</div>`;
+
 async function renderResults() {
   if (!S.resultsRun) return;
   const run = S.resultsRun, span = S.span;
@@ -337,32 +353,49 @@ async function renderResults() {
     `<a class="export" href="/api/export/figure?run=${encodeURIComponent(run)}&span_match=${span}" target="_blank">export SVG</a>
      <a class="export" href="/api/export/results?run=${encodeURIComponent(run)}" target="_blank">export CSV</a>
      <a class="export" href="/api/export/records?run=${encodeURIComponent(run)}&span_match=${span}" target="_blank">export records (scrubbed)</a>`;
-  const [res, costs, score, flow, dep] = await Promise.all([
+  const [res, costs, scoreEx, scoreOv, flow, dep] = await Promise.all([
     api("/api/run/results", { run }),
     api("/api/run/costs", { run }),
-    api("/api/run/score", { run, span_match: span }),
+    api("/api/run/score", { run, span_match: "exact" }),
+    api("/api/run/score", { run, span_match: "overlap" }),
     api("/api/run/flow", { run, span_match: span }),
     api("/api/run/dependencies", { run }),
   ]);
+  const score = span === "overlap" ? scoreOv : scoreEx;
   let base = null, cmp = null;
   if (S.baseline && S.baseline !== run) {
     try { cmp = await api("/api/run/compare", { a: run, b: S.baseline, span_match: span }); }
     catch (err) { cmp = { error: err.message }; }
     if (cmp && !cmp.error) base = cmp.b;
   }
-  $("results-caveats").innerHTML = caveatChips(res.caveats) +
+  $("results-notices").innerHTML =
     (cmp && cmp.rung3_cross_draw ? `<div class="caveat">${esc(cmp.rung3_cross_draw)}</div>` : "") +
     (cmp && cmp.error ? `<div class="banner warn">comparison refused: ${esc(cmp.error)}</div>` : "");
-  renderDependencies(dep);
-  renderHeadline(score, base);
+  const cv = { ...res.caveats, ...(score.caveats || {}) };
+  renderIntro();
+  renderHeadline(score, base, flow, cv);
   renderCIChart([{ label: run, score }, base && base.score ?
     { label: S.baseline, score: { available: true, ...base.score } } : null].filter(Boolean));
+  renderDependencies(dep, cv);
+  renderLayers(scoreEx, scoreOv, cv);
+  renderOutcomeBars(scoreEx, scoreOv, cv);
+  renderDumbbell(run, base, scoreEx, scoreOv);
+  renderFlow(flow, dep);
   renderLadderCurve(res, costs);
-  renderOutcomeBars(run);
-  renderDumbbell(run, base);
-  renderFlow(flow);
+  renderCostPanels(costs, cv);
+  renderHumanBlock(flow, costs, res, cv);
   renderResultsTable(res, dep);
-  renderCostPanels(costs);
+}
+
+function renderIntro() {
+  $("results-intro").innerHTML = `<div class="explainer">
+    <b>How to read this page.</b> The run is a LADDER: rung 0 extracts every
+    record, and each rung above it only checks, votes on, withdraws or
+    escalates those records. Read top to bottom: what shipped, how the rungs
+    produced it, the three layers a "result" decomposes into, where the
+    records ended up, what it cost, and what is left for a person. Every
+    number carries its provenance footer; caveats sit beside the numbers
+    they qualify.</div>`;
 }
 
 function depCounts(n) {
@@ -385,20 +418,138 @@ function depCounts(n) {
   return parts.join("<br>");
 }
 
-function renderDependencies(dep) {
+const BUCKET_FILL = { ACCEPT: "var(--z-accept)", BAND: "var(--z-band)",
+  REJECT: "var(--z-reject)", none: "var(--hatch-a)" };
+
+function verdictFlowSvg(dep) {
+  // Bucket-level dataflow: rung 1's three buckets as lanes flowing THROUGH
+  // rungs 2-4 (observe mode: verdicts are signals, records pass unbroken),
+  // branching only at r5 (settled vs abstained) and r6 (queue). All widths
+  // and counts are the run's own crosstab. In gate mode REJECT leaves at r1.
+  const vf = dep.verdict_flow;
+  if (!vf || !vf.buckets.length || !vf.total) return "";
+  const gate = vf.mode === "gate";
+  const nodes = {};
+  for (const n of dep.nodes) nodes[n.rung] = n;
+  const r2e = (nodes[2] && nodes[2].eligible) || null;
+  const buckets = vf.buckets.filter((b) => b.n > 0);
+  const laneArea = 190, gap = 12, top = 58;
+  const k = laneArea / vf.total;
+  const H = (n) => Math.max(4, n * k);
+  // column xs
+  const X = { r0: 10, r1: 150, r2: 320, r3: 470, r4: 620, r5: 790, sink: 990 };
+  const W = 1150;
+  let y = top;
+  const lanes = buckets.map((b) => {
+    const lane = { ...b, y, h: H(b.n) };
+    y += lane.h + gap;
+    return lane;
+  });
+  const height = Math.max(y + 90, top + 220);
+  // sinks: shipped stack (top), queue stack (below), open (hatched)
+  const shippedTotal = lanes.reduce((a, l) => a + l.settled, 0);
+  const queueTotal = lanes.reduce((a, l) => a + l.abstained, 0);
+  const openTotal = lanes.reduce((a, l) => a + l.open, 0);
+  let sy = top;
+  const shipY = sy; sy += H(shippedTotal || 0) + 26;
+  const queueY = sy; sy += H(queueTotal || 0) + 26;
+  const openY = sy;
+
+  let g = "";
+  // column headers
+  const heads = [["r0 extracts", X.r0], ["r1 verdicts", X.r1],
+    ["r2 self-correct", X.r2], ["r3 voting", X.r3], ["r4 judge", X.r4],
+    ["r5 decides", X.r5], ["outcome", X.sink]];
+  for (const [t, x] of heads)
+    g += `<text x="${x}" y="16" font-size="10" font-weight="bold">${t}</text>`;
+  g += `<text x="${X.r2}" y="28" font-size="8.5" class="svgmuted">${gate ?
+    "gate mode: REJECT already left" : "verdicts are signals — records pass through"}</text>`;
+
+  // r0 source band -> split into bucket lanes at r1
+  const srcH = H(vf.total);
+  const srcY = top + (laneArea + gap * (lanes.length - 1)) / 2 - srcH / 2;
+  g += `<rect x="${X.r0}" y="${srcY}" width="${X.r1 - X.r0 - 18}" height="${srcH}"
+    fill="var(--accent)" opacity="0.55"><title>rung 0 extracted ${vf.total} records</title></rect>
+    <text x="${X.r0 + 4}" y="${srcY - 6}" font-size="10">${vf.total} records</text>`;
+  for (const l of lanes)
+    g += `<polygon points="${X.r1 - 18},${srcY} ${X.r1 - 18},${srcY + srcH}
+      ${X.r1},${l.y + l.h} ${X.r1},${l.y}" fill="var(--accent)" opacity="0.18"/>`;
+
+  for (const l of lanes) {
+    const fill = BUCKET_FILL[l.verdict] || "var(--hatch-a)";
+    const laneEnd = gate && l.verdict === "REJECT" ? X.r2 : X.r5;
+    g += `<rect x="${X.r1}" y="${l.y}" width="${laneEnd - X.r1}" height="${l.h}"
+      fill="${fill}" opacity="0.8">
+      <title>${l.verdict} ${l.n}: settled ${l.settled}, abstained ${l.abstained}${l.open ? ", open " + l.open : ""}</title></rect>`;
+    g += `<text x="${X.r1 + 4}" y="${l.y - 4}" font-size="10"
+      font-weight="bold">${l.verdict} ${l.n}</text>`;
+    if (gate && l.verdict === "REJECT") {
+      g += `<rect x="${X.r2}" y="${l.y}" width="14" height="${l.h}" fill="url(#hatch)"/>
+        <text x="${X.r2 + 20}" y="${l.y + l.h / 2 + 3}" font-size="9"
+        class="svgmuted">left the stack at r1 (gate mode)</text>`;
+      continue;
+    }
+    // per-lane annotations at the middle rungs (inside if tall, above if thin)
+    const ann = (x, text) => {
+      const inside = l.h >= 16;
+      return `<text x="${x}" y="${inside ? l.y + l.h / 2 + 3 : l.y - 4}"
+        font-size="8.5" ${inside ? 'fill="#fff"' : 'class="svgmuted"'}>${text}</text>`;
+    };
+    if (l.verdict === "REJECT" && r2e)
+      g += ann(X.r2, `r2: ${r2e.reject} offered, ${r2e.correctable} correctable, ${r2e.attempted} attempted`);
+    if (l.r3_changed)
+      g += ann(X.r3, `r3 changed ${l.r3_changed}`);
+    const r4 = l.r4 || {};
+    if ((r4.pass || 0) + (r4.fail || 0) + (r4.parse_failed || 0) > 0)
+      g += ann(X.r4, `r4: pass ${r4.pass || 0} / fail ${r4.fail || 0}${r4.parse_failed ? ` / unparsed ${r4.parse_failed}` : ""}`);
+    // r5 branch: settled -> shipped sink, abstained -> queue sink
+    let off = 0;
+    const branch = (n, sinkYpos, sinkOff, fillB, label) => {
+      if (!n) return "";
+      const h = Math.max(3, n * k);
+      const p = `<polygon points="${X.r5},${l.y + off} ${X.r5},${l.y + off + h}
+        ${X.sink},${sinkYpos + sinkOff + h} ${X.sink},${sinkYpos + sinkOff}"
+        fill="${fillB}" opacity="0.55"><title>${l.verdict} → ${label}: ${n}</title></polygon>` +
+        (h >= 10 ? `<text x="${X.r5 + 8}" y="${l.y + off + h / 2 + 3}"
+          font-size="8.5">${label} ${n}</text>` : "");
+      off += h;
+      return p;
+    };
+    let shipOff = lanes.slice(0, lanes.indexOf(l)).reduce((a, x) => a + x.settled, 0) * k;
+    let qOff = lanes.slice(0, lanes.indexOf(l)).reduce((a, x) => a + x.abstained, 0) * k;
+    g += branch(l.settled, shipY, shipOff, BUCKET_FILL[l.verdict], "settled");
+    g += branch(l.abstained, queueY, qOff, BUCKET_FILL[l.verdict], "abstained");
+  }
+  // sinks
+  if (shippedTotal)
+    g += `<rect x="${X.sink}" y="${shipY}" width="130" height="${H(shippedTotal)}"
+      fill="var(--z-verified)"><title>shipped: ${shippedTotal}</title></rect>
+      <text x="${X.sink + 4}" y="${shipY - 5}" font-size="10" font-weight="bold">
+      shipped ${shippedTotal} <tspan class="svgmuted" font-weight="normal">(r5 kept)</tspan></text>`;
+  if (queueTotal)
+    g += `<rect x="${X.sink}" y="${queueY}" width="130" height="${H(queueTotal)}"
+      fill="var(--z-escalate)"><title>queued for a person: ${queueTotal}</title></rect>
+      <text x="${X.sink + 4}" y="${queueY - 5}" font-size="10" font-weight="bold">
+      r6 queue ${queueTotal} <tspan class="svgmuted" font-weight="normal">(to a person)</tspan></text>`;
+  if (openTotal)
+    g += `<rect x="${X.sink}" y="${openY}" width="130" height="${H(openTotal)}"
+      fill="url(#hatch)"><title>no disposition recorded: ${openTotal}</title></rect>
+      <text x="${X.sink + 4}" y="${openY - 5}" font-size="10">open ${openTotal}</text>`;
+  return `<div class="depflow-scroll">${svgOpen(W, height)}${g}</svg></div>`;
+}
+
+function renderDependencies(dep, cv) {
   const el = $("dep-diagram");
   const nodes = dep.nodes;
   const byRung = {};
   for (const n of nodes) byRung[n.rung] = n;
-  // records-path edges sit between adjacent cards; verdict edges become
-  // dashed signal chips inside their destination card
-  const between = {}, signals = {};
-  for (const e of dep.edges) {
+  // verdict edges become dashed signal chips inside their destination card;
+  // the records path is drawn by the verdict-lane flow below the cards
+  const signals = {};
+  for (const e of dep.edges)
     if (e.kind === "verdict") (signals[e.dst] = signals[e.dst] || []).push(e);
-    else between[e.src] = e;
-  }
   let html = '<div class="dep-row">';
-  dep.rung_order.forEach((rung, i) => {
+  dep.rung_order.forEach((rung) => {
     const n = byRung[rung];
     const cls = ["dep-card"];
     if (n.disabled) cls.push("disabled");
@@ -411,14 +562,10 @@ function renderDependencies(dep) {
     html += `<div class="${cls.join(" ")}">
       <h4>r${rung} ${esc(n.label)}${mode}</h4>
       ${n.model ? `<div class="muted">${esc(n.model)}</div>` : ""}
-      <div class="role">${esc(n.role)}</div>
+      <div class="meaning">${esc(n.meaning || "")}</div>
       <div>${n.in_run ? depCounts(n) :
         '<span class="muted">not in this run</span>'}</div>
       ${sig}</div>`;
-    const e = between[rung];
-    if (i < dep.rung_order.length - 1)
-      html += `<div class="dep-arrow${e ? " " + esc(e.kind) : ""}">
-        <div class="shaft">➜</div>${e ? esc(e.label) : ""}</div>`;
   });
   html += "</div>";
   if (dep.run_kind === "ablate")
@@ -426,16 +573,19 @@ function renderDependencies(dep) {
       ${esc(dep.rungs_present.join(", "))} ran over a saved input; the chain
       below shows the full stack for orientation, absent rungs hatched.</div>` + html;
   el.innerHTML = `<div class="chart">${html}
-    <div class="muted">solid arrows = where the records travel; dashed chips =
-    verdict signals recorded on checks and consumed later. Rung 1 in observe
-    mode judges without routing — in gate mode it routes, which rewires
-    everything above it.</div>
+    ${verdictFlowSvg(dep)}
+    <div class="muted">Lanes: what happens to EACH rung-1 bucket downstream,
+    widths proportional to counts. In observe mode the buckets are signals —
+    records flow through rungs 2–4 unbroken (rung 3 changes and rung 4
+    verdicts annotated on each lane) and rung 5 is where the verdicts act.
+    Section 4 shows the same records by disposition stage and correctness.</div>
     ${caveatChips(dep.caveats && dep.caveats.r1_gate ?
       { r1_gate: dep.caveats.r1_gate } : null)}
+    ${caveatChips(pick(cv, ["rung3_samples", "judge_2b"]))}
     ${provFooter(dep.provenance)}</div>`;
 }
 
-function renderHeadline(score, base) {
+function renderHeadline(score, base, flow, cv) {
   const el = $("results-headline");
   if (!score.available) {
     el.innerHTML = `<div class="banner warn">${esc(score.reason)}</div>` +
@@ -443,26 +593,34 @@ function renderHeadline(score, base) {
     return;
   }
   const s = score.score, ci = score.ci;
-  const det = s.detection, cod = s.coding;
   const dl = (x) => x === null ? "—" : Number(x).toFixed(3);
   let deltas = "";
   if (base && base.score) {
     const d = s.f1 - base.score.score.f1;
     deltas = `<div class="card"><div class="big">${d >= 0 ? "+" : ""}${d.toFixed(3)}</div>
-      <div class="muted">Δ F1 vs baseline (both intervals shown in V6)</div></div>`;
+      <div class="muted">Δ F1 vs baseline (both intervals shown below)</div></div>`;
   }
-  el.innerHTML = `<div class="cards">
+  // one plain-language line, composed entirely from the run's numbers
+  const routed = flow ? flow.escalated.n : null;
+  const reading =
+    `Of ${s.n_gold} scorable gold mentions, ${s.correct} shipped with the ` +
+    `right code (${esc(s.span_match)} spans) — F1 ${dl(s.f1)}, and the ` +
+    `interval [${dl(ci.f1.lo)}–${dl(ci.f1.hi)}] is the claim` +
+    (routed !== null ? `; ${routed} of ${flow.n_records} records were ` +
+      `routed to a person instead of shipped.` : ".");
+  el.innerHTML = `<div class="explainer">${reading}</div>
+    <div class="cards">
     <div class="card"><div class="big">${dl(s.f1)}</div>
       <div class="muted">shipped F1 (${esc(s.span_match)})
       [${dl(ci.f1.lo)}–${dl(ci.f1.hi)}]</div></div>
-    <div class="card"><div class="big">${dl(det.f1)}</div>
-      <div class="muted">detection F1 [${dl(ci.detection_f1.lo)}–${dl(ci.detection_f1.hi)}]</div></div>
-    <div class="card"><div class="big">${dl(cod.accuracy)}</div>
-      <div class="muted">coding accuracy on ${cod.n} matched
-      [${dl(ci.coding_accuracy.lo)}–${dl(ci.coding_accuracy.hi)}]</div></div>
-    <div class="card"><div class="big">${s.n_pred} / ${s.n_gold}</div>
-      <div class="muted">predictions / scorable gold (excluded ${s.excluded})</div></div>
-    ${deltas}</div>` + provFooter(score.provenance);
+    <div class="card"><div class="big">${s.correct} / ${s.n_gold}</div>
+      <div class="muted">shipped correct / scorable gold (excluded ${s.excluded})</div></div>
+    <div class="card"><div class="big">${routed ?? "—"}</div>
+      <div class="muted">records routed to a person (rung 6 — the count is
+      the headline cost)</div></div>
+    ${deltas}</div>` +
+    caveatChips(pick(cv, ["spent_test"])) +
+    provFooter(score.provenance);
 }
 
 function renderCIChart(rows) {
@@ -540,13 +698,66 @@ function renderLadderCurve(res, costs) {
     ${provFooter(res.provenance)}</div>`;
 }
 
-async function renderOutcomeBars(run) {
+function renderLayers(ex, ov, cv) {
+  const el = $("layers-block");
+  if (!ex.available) {
+    el.innerHTML = SPAN_EXPLAINER +
+      `<div class="banner warn">${esc(ex.reason)}</div>` +
+      provFooter(ex.provenance);
+    return;
+  }
+  const dl = (x) => Number(x).toFixed(3);
+  const ciTxt = (c) => `[${dl(c.lo)}–${dl(c.hi)}]`;
+  const twoNum = (label, vEx, ciEx, vOv, ciOv, nEx, nOv) => `
+    <table class="layer-nums"><tr><th></th><th>exact</th><th>overlap</th></tr>
+    <tr><td class="l">${label}</td>
+      <td>${dl(vEx)} <span class="muted">${ciEx ? ciTxt(ciEx) : ""}</span></td>
+      <td>${dl(vOv)} <span class="muted">${ciOv ? ciTxt(ciOv) : ""}</span></td></tr>
+    ${nEx != null ? `<tr><td class="l muted">over</td>
+      <td class="muted">${nEx}</td><td class="muted">${nOv}</td></tr>` : ""}
+    </table>`;
+  const lc = ex.label_check || { verified: 0, flagged: 0, unchecked: 0 };
+  el.innerHTML = SPAN_EXPLAINER + `<div class="cards layers">
+    <div class="card layer">
+      <h4>Correct annotation <span class="muted">(detection layer)</span></h4>
+      <div class="explainer">Was the mention found at all? Codes are ignored
+      here — only whether a predicted span pairs with a gold mention.</div>
+      ${twoNum("detection F1",
+        ex.score.detection.f1, ex.ci.detection_f1,
+        ov.score.detection.f1, ov.ci.detection_f1,
+        `${ex.score.detection.n_matched} matched`,
+        `${ov.score.detection.n_matched} matched`)}
+    </div>
+    <div class="card layer">
+      <h4>Code extraction <span class="muted">(coding layer)</span></h4>
+      <div class="explainer">Given a found mention, is the SNOMED code
+      right? Conditional on the match, so recall = detection × coding by
+      construction.</div>
+      ${twoNum("coding accuracy",
+        ex.score.coding.accuracy, ex.ci.coding_accuracy,
+        ov.score.coding.accuracy, ov.ci.coding_accuracy,
+        `${ex.score.coding.n} matched`, `${ov.score.coding.n} matched`)}
+    </div>
+    <div class="card layer">
+      <h4>Vocabulary label <span class="muted">(rung 1 label_check — a flag,
+        never a rejection)</span></h4>
+      <div class="explainer">Does the model's OWN label agree with the
+      vocabulary's terms for the code it chose? Catches a real code with the
+      wrong meaning. Span-independent.</div>
+      <table class="layer-nums">
+        <tr><td class="l">label agrees</td><td>${lc.verified}</td></tr>
+        <tr><td class="l">label flagged</td><td>${lc.flagged}</td></tr>
+        <tr><td class="l">unchecked <span class="muted">(no code or no
+          label)</span></td><td>${lc.unchecked}</td></tr>
+      </table>
+    </div></div>` +
+    caveatChips(pick(cv, ["outdated_separate"])) +
+    provFooter(ex.provenance);
+}
+
+function renderOutcomeBars(ex, ov, cv) {
   const el = $("outcome-bars");
-  const [ex, ov] = await Promise.all([
-    api("/api/run/score", { run, span_match: "exact" }),
-    api("/api/run/score", { run, span_match: "overlap" }),
-  ]);
-  if (!ex.available) { el.innerHTML = `<div class="muted">${esc(ex.reason)}</div>`; return; }
+  if (!ex.available) { el.innerHTML = ""; return; }
   const order = ["correct", "outdated", "abstained", "incorrect", "modernised"];
   const rows = [["exact", ex.score], ["overlap", ov.score]];
   const w = 640, h = 96;
@@ -567,19 +778,23 @@ async function renderOutcomeBars(run) {
   });
   const legend = order.map((o) =>
     `<span class="outcome ${o}">■ ${o}</span>`).join(" ");
-  el.innerHTML = `<div class="chart">${svgOpen(w, h)}${g}</svg>
+  el.innerHTML = `<div class="chart">
+    <div><b>Outcome composition</b> <span class="muted">(V5 — four kinds of
+    wrong are not one)</span></div>
+    ${svgOpen(w, h)}${g}</svg>
     <div class="muted">${legend} — report order; outdated/modernised are never
     folded into correct</div>${provFooter(ex.provenance)}</div>`;
 }
 
-async function renderDumbbell(run, base) {
+async function renderDumbbell(run, base, scoreEx, scoreOv) {
   const el = $("dumbbell");
   const entries = [];
-  for (const [label, key] of [[run, run]].concat(
-    base ? [[S.baseline, S.baseline]] : [])) {
+  if (scoreEx && scoreEx.available) entries.push({ label: `${run} · exact`, s: scoreEx });
+  if (scoreOv && scoreOv.available) entries.push({ label: `${run} · overlap`, s: scoreOv });
+  if (base) {
     for (const span of ["exact", "overlap"]) {
-      const s = await api("/api/run/score", { run: key, span_match: span });
-      if (s.available) entries.push({ label: `${label} · ${span}`, s });
+      const s = await api("/api/run/score", { run: S.baseline, span_match: span });
+      if (s.available) entries.push({ label: `${S.baseline} · ${span}`, s });
     }
   }
   if (!entries.length) { el.innerHTML = `<div class="muted">needs the corpus</div>`; return; }
@@ -597,26 +812,41 @@ async function renderDumbbell(run, base) {
   });
   g += `<text x="${x(0)}" y="${h - 8}" font-size="10" class="svgmuted">0</text>
     <text x="${x(1) - 8}" y="${h - 8}" font-size="10" class="svgmuted">1</text>`;
-  el.innerHTML = `<div class="chart">${svgOpen(w, h)}${g}</svg>
+  // the boundary-disagreement reading, composed from the run's own numbers
+  let gapLine = "";
+  if (scoreEx && scoreEx.available && scoreOv && scoreOv.available) {
+    const dEx = scoreEx.score.detection.f1, dOv = scoreOv.score.detection.f1;
+    gapLine = `<div class="explainer">detection ${dEx.toFixed(3)} exact vs
+      ${dOv.toFixed(3)} overlap: the same mentions are being found — the gap
+      between the two is boundary disagreement over where a mention starts
+      and ends, not missed mentions.</div>`;
+  }
+  el.innerHTML = `<div class="chart">
+    <div><b>Detection vs coding</b> <span class="muted">(V3 — the residual
+    gap is span boundaries)</span></div>
+    ${svgOpen(w, h)}${g}</svg>
     <div class="muted"><span style="color:var(--accent)">●</span> detection F1
     · <span style="color:var(--o-correct)">●</span> coding accuracy on matched
     spans — the oracle ceiling (dev only) moves coding, not detection</div>
-    ${provFooter(entries[0].s.provenance)}</div>`;
+    ${gapLine}${provFooter(entries[0].s.provenance)}</div>`;
 }
 
-function renderFlow(flow) {
+function renderFlow(flow, dep) {
   const el = $("flow-chart");
   const v = flow.rung1_verdicts || {};
   const total = flow.n_records || 1;
-  const w = 720, h = 240, colw = 150, x1 = 10, x2 = 250, x3 = 500;
+  const r1mode = dep ? dep.r1_mode : "observe";
+  const w = 760, h = 290, colw = 160, x1 = 10, x2 = 265, x3 = 520;
   const scale = (n) => (n / total) * 180;
-  function col(x, items, title) {
-    let y = 30, g = `<text x="${x}" y="18" font-size="11" font-weight="bold">${title}</text>`;
+  function col(x, items, title, subtitle) {
+    let g = `<text x="${x}" y="16" font-size="11" font-weight="bold">${title}</text>
+      <text x="${x}" y="30" font-size="9" class="svgmuted">${subtitle}</text>`;
+    let y = 42;
     for (const it of items) {
       const bh = Math.max(2, scale(it.n));
       g += `<rect x="${x}" y="${y}" width="${colw}" height="${bh}"
         fill="${it.fill}" ${it.hatch ? 'fill="url(#hatch)"' : ""}>
-        <title>${it.label}: ${it.n}</title></rect>` +
+        <title>${it.label}: ${it.n}${it.tip ? " — " + it.tip : ""}</title></rect>` +
         (bh > 12 ? `<text x="${x + 6}" y="${y + bh / 2 + 4}" font-size="10"
           fill="#fff">${it.label} ${it.n}</text>` :
           `<text x="${x + colw + 4}" y="${y + bh / 2 + 4}" font-size="9">${it.label} ${it.n}</text>`);
@@ -625,39 +855,62 @@ function renderFlow(flow) {
     return g;
   }
   const scored = flow.scored;
+  // Stage 1 — extraction + judgement: rung 0 made the records, rung 1
+  // judged them (observe mode: a verdict, not a route).
   let g = col(x1, [
-    { label: "ACCEPT", n: v.ACCEPT || 0, fill: "var(--z-accept)" },
-    { label: "BAND", n: v.BAND || 0, fill: "var(--z-band)" },
-    { label: "REJECT", n: v.REJECT || 0, fill: "var(--z-reject)" },
-  ], `records ${total} → rung 1 verdicts`);
+    { label: "ACCEPT", n: v.ACCEPT || 0, fill: "var(--z-accept)",
+      tip: "vocabulary uses these very words" },
+    { label: "BAND", n: v.BAND || 0, fill: "var(--z-band)",
+      tip: "plausible, unverifiable by code alone" },
+    { label: "REJECT", n: v.REJECT || 0, fill: "var(--z-reject)",
+      tip: "provably wrong" },
+  ], `1 · extracted &amp; judged (${total})`,
+     `rung 0 made the records; rung 1 ${r1mode === "gate" ?
+       "ROUTED them (gate mode)" : "judged them (verdict only, no routing)"}`);
+  // Stage 2 — disposition: rung 5 withdraws, rung 6 routes the residue.
   g += col(x2, [
-    { label: "shipped", n: flow.shipped.n, fill: "var(--z-verified)" },
-    { label: "escalated", n: flow.escalated.n, fill: "var(--z-escalate)" },
-    { label: "open", n: flow.open.n, fill: "var(--hatch-a)" },
-  ], "→ final state");
+    { label: "shipped", n: flow.shipped.n, fill: "var(--z-verified)",
+      tip: "rung 5 kept it — this is the system's answer" },
+    { label: "escalated", n: flow.escalated.n, fill: "var(--z-escalate)",
+      tip: "rung 5 withdrew it; rung 6 routed it to a person" },
+    { label: "open", n: flow.open.n, fill: "var(--hatch-a)",
+      tip: "no disposition recorded" },
+  ], "2 · disposition",
+     "rung 5 withdraws (ABSTAIN); rung 6 routes the residue (ESCALATE)");
+  // Stage 3 — scored against gold (no rung: the evaluation, outside the run).
   g += col(x3, scored ? [
     { label: "shipped correct", n: flow.shipped.correct, fill: "var(--o-correct)" },
     { label: "shipped wrong", n: flow.shipped.wrong, fill: "var(--o-incorrect)" },
-    { label: "withheld-correct", n: flow.escalated.withheld_correct, fill: "var(--o-abstained)" },
-    { label: "unlocatable", n: flow.escalated.unlocatable, fill: "var(--hatch-a)" },
+    { label: "withheld-correct", n: flow.escalated.withheld_correct, fill: "var(--o-abstained)",
+      tip: "routed to a person although the withheld answer was already right — rung 5's price" },
+    { label: "unlocatable", n: flow.escalated.unlocatable, fill: "var(--hatch-a)",
+      tip: "(-1,-1) spans — a span-keyed desk cannot review these" },
     { label: "escalated other", n: flow.escalated.n - flow.escalated.withheld_correct - flow.escalated.unlocatable, fill: "var(--z-escalate)" },
   ] : [{ label: "needs corpus to split", n: total, fill: "var(--hatch-a)", hatch: true }],
-    "→ correctness (COUNTS)");
+    "3 · scored against gold",
+    "not a rung — the evaluation layer, exclusions applied");
   el.innerHTML = `<div class="chart">${svgOpen(w, h)}${g}</svg>
     <div class="muted">abstention's bill is a count: ${flow.escalated.n} of
     ${total} routed to a person${scored ? `; ${flow.escalated.withheld_correct}
     withheld answers were already correct` : ""}</div>
-    ${caveatChips(flow.caveats)}${provFooter(flow.provenance)}</div>`;
+    ${provFooter(flow.provenance)}</div>`;
 }
 
 function renderResultsTable(res, dep) {
   const el = $("results-table");
   const dens = {};
   for (const d of (dep && dep.denominators) || []) dens[d.rung] = d;
-  const cols = ["rung", "layer", "n_records", "accept", "band", "reject",
-    "abstained", "escalated", "verified", "r1_reject_pct", "r1_mode",
-    "coverage", "f1_sct_strict", "corrupted", "sct_outdated", "sct_abstained",
-    "sct_modernised", "err_per_100"];
+  const byRung = {};
+  for (const n of (dep && dep.nodes) || []) byRung[n.rung] = n;
+  // shared metrics only — rung-specific metrics (verdict counts, reject %,
+  // eligible counts, queue size) live on that rung's own line, not as a
+  // column of blanks for every other rung
+  const cols = ["rung", "layer", "n_records", "coverage", "f1_sct_strict",
+    "corrupted", "err_per_100", "tokens_per_record"];
+  const names = { rung: "rung", layer: "layer", n_records: "records",
+    coverage: "coverage", f1_sct_strict: "answered acc.",
+    corrupted: "errors", err_per_100: "err/100",
+    tokens_per_record: "tokens/rec" };
   const denomCell = (rung) => {
     const d = dens[Number(rung)];
     if (!d || !d.denominator)
@@ -667,25 +920,53 @@ function renderResultsTable(res, dep) {
     return `<td class="l" title="${esc(d.source_label ?? "")}">
       ${esc(d.denominator)}${esc(src)}</td>`;
   };
+  const ownCell = (rung, row) => {
+    // the metrics that exist for exactly this rung, from its node + csv row
+    const n = byRung[Number(rung)] || {};
+    const bits = [];
+    if (Number(rung) === 1) {
+      if (n.verdicts) bits.push(Object.entries(n.verdicts)
+        .map(([k, v]) => `${k} ${v}`).join(" · "));
+      if (row.r1_reject_pct != null) bits.push(`reject ${row.r1_reject_pct}%`);
+      if (row.r1_mode) bits.push(`mode ${row.r1_mode}`);
+    }
+    if (Number(rung) === 2 && n.eligible)
+      bits.push(`${n.eligible.reject} REJECT, ${n.eligible.correctable}
+        correctable, ${n.eligible.attempted} attempted`);
+    if (Number(rung) === 3 && !n.disabled && n.k != null)
+      bits.push(`k=${n.k} · ${n.changed} changed · ${n.not_resampled} not re-found`);
+    if (Number(rung) === 3 && n.disabled) bits.push("DISABLED (recorded)");
+    if (Number(rung) === 4 && n.verdicts)
+      bits.push(Object.entries(n.verdicts).map(([k, v]) => `${k} ${v}`).join(" · "));
+    if (Number(rung) === 5 && n.abstained != null)
+      bits.push(`abstained ${n.abstained} · settled ${n.settled ?? 0}`);
+    if (Number(rung) === 6 && n.queue != null)
+      bits.push(`queue ${n.queue}` +
+        (row.reviews_per_100 != null ? ` · reviews/100 ${row.reviews_per_100}` : ""));
+    return `<td class="l muted">${bits.join("; ") || ""}</td>`;
+  };
   el.innerHTML =
     // stack semantics stated with the table (computed run kind, never baked in)
     `<div class="stack-caption">${esc((dep && dep.stack_semantics) || "")}</div>` +
-    `<table><tr>${cols.map((c) => `<th${["layer","r1_mode"].includes(c)?' class="l"':''}>${c}</th>`).join("")}
+    `<table><tr>${cols.map((c) => `<th${c === "layer" ? ' class="l"' : ""}>${names[c]}</th>`).join("")}
+     <th class="l">this rung's own metrics</th>
      <th class="l" title="the denominator the ledger names, and the rung whose output it is">denominator ← source</th></tr>` +
     res.rows.map((r) => `<tr>` + cols.map((c) => {
       const v = r[c];
       if (v === null || v === undefined)
         return '<td class="nonvalue" title="no measurement">·</td>';
-      if (["layer", "r1_mode"].includes(c)) return `<td class="l">${esc(v)}</td>`;
+      if (c === "layer") return `<td class="l">${esc(v)}</td>`;
       return `<td>${esc(v)}</td>`;
-    }).join("") + denomCell(r.rung) + `</tr>`).join("") + `</table>` +
-    `<div class="muted">counts drawn over each rung's snapshot (the ledger's
+    }).join("") + ownCell(r.rung, r) + denomCell(r.rung) + `</tr>`).join("") +
+    `</table>` +
+    `<div class="muted">shared metrics only — each rung's specific numbers sit
+     on its own line; counts drawn over each rung's snapshot (the ledger's
      denominator), never the run total; · = no measurement; hover a
      denominator for what feeds it</div>` +
     provFooter(res.provenance);
 }
 
-function renderCostPanels(costs) {
+function renderCostPanels(costs, cv) {
   const el = $("cost-panels");
   const rungs = Object.keys(costs.denominators || {});
   const panel = (title, rows) =>
@@ -695,21 +976,36 @@ function renderCostPanels(costs) {
       `<tr><td class="l">${label}</td>` + rungs.map((r) => cell(get(r), d)).join("") +
       `</tr>`).join("") + `</table></div>`;
   const t = costs.panels.tokens, l = costs.panels.latency, rv = costs.panels.reviews;
+  // routed-to-a-person is a rung-6 fact, not a per-rung column of zeros
+  const routedRung = rungs.find((r) => rv[r] && rv[r].routed > 0);
+  const rr = routedRung ? rv[routedRung] : null;
+  const reviewsCard = `<div class="card" style="min-width:260px">
+    <b>routed to a person</b>
+    <div class="big">${rr ? rr.routed : 0}</div>
+    <div class="muted">${rr ? `records, at rung ${routedRung} only —
+      reviews/100 = ${rr.reviews_per_100}; ${rr.human_minutes} minutes at the
+      declared rate, never measured` :
+      "no records routed in this run"}</div></div>`;
+  // usd: all zeros for local models — one line, not a table (still three
+  // separate measures; usd stays carried in exports)
+  const usdVals = Object.values(costs.usd || {});
+  const usdAllZero = usdVals.every((v) => !v);
+  const usdBlock = usdAllZero
+    ? `<div class="muted">usd 0.00 across every rung — local models; carried
+       in exports alongside the three measures, never summed into them</div>`
+    : `<div class="cards">${panel("usd (carried alongside, never fused)",
+        [["usd", (r) => costs.usd[r], 4]])}</div>`;
   const failures = Object.entries(costs.failure_labels || {});
   el.innerHTML = `<div class="cards">` +
     panel("tokens", [
       ["tokens/record", (r) => t[r] && t[r].tokens_per_record, 1],
       ["api calls", (r) => t[r] && t[r].api_calls, 0]]) +
     panel("latency", [["p95 s/call", (r) => l[r] && l[r].p95_s, 2]]) +
-    panel("routed to a person", [
-      ["count", (r) => rv[r] && rv[r].routed, 0],
-      ["reviews/100", (r) => rv[r] && rv[r].reviews_per_100, 2],
-      ["minutes (declared rate)", (r) => rv[r] && rv[r].human_minutes, 1]]) +
-    panel("usd (carried alongside, never fused)", [["usd", (r) => costs.usd[r], 4]]) +
-    `</div>` +
-    (failures.length ? `<h3>failure labels <span class="muted">most specific
+    reviewsCard +
+    `</div>` + usdBlock +
+    (failures.length ? `<h4>failure labels <span class="muted">most specific
       first: timed_out &gt; truncated &gt; json_decode — filed under cost, not
-      accuracy</span></h3><table><tr><th>rung</th><th>timed_out</th>
+      accuracy</span></h4><table><tr><th>rung</th><th>timed_out</th>
       <th>truncated</th><th>json_decode</th></tr>` +
       failures.map(([r, f]) => `<tr><td>${r}</td><td>${f.timed_out}</td>
         <td>${f.truncated}</td><td>${f.json_decode}</td></tr>`).join("") +
@@ -719,7 +1015,29 @@ function renderCostPanels(costs) {
       `<div class="banner warn">could_not_run (hatched, never a color): ` +
       costs.non_values.map((n) => `rung ${n.rung} × ${n.count} (${esc(n.reason)})`).join("; ") +
       `</div>` : "") +
-    caveatChips(costs.caveats) + provFooter(costs.provenance);
+    caveatChips(pick(cv, ["minutes_declared"])) + provFooter(costs.provenance);
+}
+
+function renderHumanBlock(flow, costs, res, cv) {
+  const el = $("human-block");
+  const scored = flow.scored;
+  const q = flow.escalated;
+  const r6row = (res.rows || []).find((r) => String(r.rung) === "6");
+  el.innerHTML = `<div class="cards">
+    <div class="card"><div class="big">${q.n}</div>
+      <div class="muted">records in the rung-6 queue — the COUNT is the
+      headline cost${r6row && r6row.reviews_per_100 != null ?
+        ` (reviews/100 = ${r6row.reviews_per_100})` : ""}</div></div>
+    <div class="card"><div class="big">${scored ? q.withheld_correct : "—"}</div>
+      <div class="muted">withheld answers that were already correct — what
+      rung 5 pays for its shipped accuracy${scored ? "" :
+        " (needs the corpus to score)"}</div></div>
+    <div class="card"><div class="big">${q.unlocatable}</div>
+      <div class="muted">unlocatable (-1,-1) records a span-keyed desk cannot
+      review — they stay escalated</div></div>
+    </div>` +
+    caveatChips(pick(cv, ["minutes_declared", "oracle_ceiling", "spent_test"])) +
+    provFooter(flow.provenance);
 }
 
 /* ================= R4 — walkthrough ================= */

@@ -232,3 +232,21 @@ a.export { font-size: .8rem; margin-right: .6rem; color: var(--accent); }
   font-size: .8rem; color: var(--muted); margin: .3rem 0 .5rem;
   border-left: 3px solid var(--line); padding-left: .6rem;
 }
+
+/* narrative flow (Results redesign) */
+.explainer {
+  font-size: .85rem; color: var(--ink);
+  background: color-mix(in srgb, var(--panel) 88%, var(--accent));
+  border-left: 3px solid var(--accent); border-radius: 4px;
+  padding: .45rem .7rem; margin: .4rem 0;
+}
+.dep-card .meaning { margin: .2rem 0; }
+.dep-row { gap: .5rem; }
+.layers { align-items: stretch; }
+.card.layer { flex: 1 1 280px; max-width: 420px; }
+.card.layer h4 { margin: 0 0 .3rem; }
+.card.layer .explainer { font-size: .78rem; }
+.layer-nums { margin-top: .3rem; }
+.layer-nums td, .layer-nums th { padding: .15rem .5rem; }
+.depflow-scroll { overflow-x: auto; margin-top: .6rem;
+  border-top: 1px dashed var(--line); padding-top: .5rem; }

@@ -39,6 +39,31 @@ DENOMINATOR_SOURCES: dict[str, tuple[int | None, str]] = {
     "r6_queue": (5, "rung 5's abstained residue"),
 }
 
+#: What each rung IS — what it can and cannot do. The repo's own semantics
+#: (CLAUDE.md / the rung docstrings), held as data like the caveats; the
+#: run-specific facts (mode, counts, disabled) are computed beside it.
+MEANINGS: dict[int, str] = {
+    0: ("The extractor. Everything above only checks, votes on, or withdraws "
+        "what rung 0 produced — no later rung adds a mention."),
+    1: ("Deterministic checks against the vocabulary. It can prove a code "
+        "WRONG; it can never prove one right — most records land in BAND "
+        "(plausible, unverifiable)."),
+    2: ("States a proven failure back to the model as a fact. It can only "
+        "act on records rung 1 rejected for a statable reason — a pass gives "
+        "it nothing to say."),
+    3: ("Re-extracts each document k times and takes a real majority. The "
+        "only rung that can rewrite an answer; its numbers are samples of "
+        "those draws."),
+    4: ("A different model family judges each claim. It writes a verdict, "
+        "never a route — rung 5 is where verdicts get consequences."),
+    5: ("Refuses rather than answers: withdraws records the verdicts do not "
+        "support. It fixes nothing — it trades coverage for shipped "
+        "accuracy."),
+    6: ("A person. Simulated mode only counts and prices the queue — no "
+        "answer is invented; a real desk session applies span-keyed "
+        "decisions."),
+}
+
 #: Edge structure: (src, dst, kind). Labels are composed with run counts.
 #: "records" edges are where the records physically travel; "verdict" edges
 #: are signals (recorded on checks, consumed later); "trigger"/"queue" edges
@@ -52,6 +77,47 @@ EDGES: list[tuple[int, int, str]] = [
     (1, 5, "verdict"),
     (5, 6, "queue"),
 ]
+
+
+def verdict_flow(records, r1_mode: str) -> dict[str, Any]:
+    """The bucket-level crosstab: rung 1's verdict × what actually happened
+    downstream, computed from the records — never assumed. In observe mode
+    the buckets are SIGNALS (every record passes through rungs 2-4; rung 5
+    is where the verdicts act), so any ACCEPT that abstained or BAND that
+    settled is real interaction and must render as a split."""
+    buckets: dict[str, dict[str, Any]] = {}
+    for rec in records:
+        c = rec.checks or {}
+        verdict = c.get("r1_verdict") or "none"
+        b = buckets.setdefault(verdict, {
+            "verdict": verdict, "n": 0, "settled": 0, "abstained": 0,
+            "open": 0, "queued": 0, "r3_changed": 0,
+            "r4": {"pass": 0, "fail": 0, "parse_failed": 0, "absent": 0},
+        })
+        b["n"] += 1
+        if rec.zone in ("VERIFIED", "RESOLVED"):
+            b["settled"] += 1
+        elif rec.zone in ("ESCALATE", "ABSTAIN"):
+            b["abstained"] += 1
+            if rec.zone == "ESCALATE":
+                b["queued"] += 1
+        else:
+            b["open"] += 1
+        if (c.get("r3") or {}).get("changed"):
+            b["r3_changed"] += 1
+        if "r4_verdict" in c:
+            v = c["r4_verdict"]
+            b["r4"]["parse_failed" if v is None else v] = \
+                b["r4"].get("parse_failed" if v is None else v, 0) + 1
+        else:
+            b["r4"]["absent"] += 1
+    order = {"ACCEPT": 0, "BAND": 1, "REJECT": 2, "none": 3}
+    return {
+        "mode": r1_mode,
+        "total": len(records),
+        "buckets": sorted(buckets.values(),
+                          key=lambda b: order.get(b["verdict"], 9)),
+    }
 
 
 def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
@@ -111,7 +177,8 @@ def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
     nodes: list[dict[str, Any]] = []
     for rung in rung_order:
         n: dict[str, Any] = {"rung": rung, "in_run": rung in rungs_present,
-                             "disabled": False}
+                             "disabled": False,
+                             "meaning": MEANINGS.get(rung, "")}
         if rung == 0:
             n.update(label="bare LLM", role="produces the records",
                      documents=len(by_rung.get(0, [])) or None,
@@ -209,6 +276,7 @@ def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
         "r1_mode": r1_mode,
         "nodes": nodes,
         "edges": edges,
+        "verdict_flow": verdict_flow(records, r1_mode),
         "denominators": denominators,
         "stack_semantics": (
             "Each per-rung row is a CUMULATIVE stack state — \"would this "

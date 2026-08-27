@@ -153,6 +153,8 @@ def create_app(state: AppState) -> FastAPI:
         return {
             "available": True,
             **scored,
+            # the third result layer (rung 1's label_check) — span-independent
+            "label_check": scoring.label_check_counts(state.records(info)),
             "provenance": _prov(info, span_match),
             "caveats": _caveats(info, extra=["outdated_separate"]),
         }

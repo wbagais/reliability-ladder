@@ -188,7 +188,55 @@ def test_compare_refuses_mismatched_splits(tmp_path):
     assert "split" in r.json()["detail"]
 
 
+# --- the third result layer: rung 1's label check ----------------------------
+
+
+def test_score_payload_carries_label_check_counts_from_recorded_checks(client):
+    body = client.get("/api/run/score",
+                      params={"run": "syn-run-1", "span_match": "exact"}).json()
+    lc = body["label_check"]
+    # fixture: SYN.1#0 has label_verified true; the other two records carry
+    # no label_verified check (no code, or no label) -> unchecked
+    assert lc == {"verified": 1, "flagged": 0, "unchecked": 2}
+
+
 # --- rung dependencies (Results tab: how the rungs connect) ------------------
+
+
+def test_verdict_flow_crosstab_computed_from_records(client):
+    body = client.get("/api/run/dependencies", params={"run": "syn-run-1"}).json()
+    vf = body["verdict_flow"]
+    b = {x["verdict"]: x for x in vf["buckets"]}
+    # fixture: ACCEPT record settled; BAND and REJECT records escalated
+    assert b["ACCEPT"]["n"] == 1 and b["ACCEPT"]["settled"] == 1
+    assert b["ACCEPT"]["abstained"] == 0
+    assert b["BAND"]["n"] == 1 and b["BAND"]["abstained"] == 1
+    assert b["BAND"]["queued"] == 1
+    assert b["REJECT"]["n"] == 1 and b["REJECT"]["abstained"] == 1
+    # r4 interaction per bucket, from recorded checks (absent = never judged)
+    assert b["ACCEPT"]["r4"]["absent"] == 1
+    assert vf["total"] == 3
+    assert vf["mode"] == "observe"
+
+
+def test_verdict_flow_gate_mode_is_flagged(tmp_path):
+    make_run(tmp_path / "out", run_id="gated", r1_mode="gate")
+    state = AppState(repo_root=tmp_path, sources=[(tmp_path / "out", False)],
+                     corpus=syn_corpus(), splits={"dev": ["SYN.1", "SYN.2"]},
+                     exclusion_rows=[], registry=None, manifest={})
+    c = TestClient(create_app(state))
+    vf = c.get("/api/run/dependencies", params={"run": "gated"}).json()["verdict_flow"]
+    assert vf["mode"] == "gate"
+
+
+def test_dependency_nodes_carry_a_meaning_sentence(client):
+    body = client.get("/api/run/dependencies", params={"run": "syn-run-1"}).json()
+    nodes = {n["rung"]: n for n in body["nodes"]}
+    for rung in range(7):
+        assert len(nodes[rung].get("meaning", "")) > 20, f"rung {rung} has no meaning"
+    # the epistemics the cards must state
+    assert "never" in nodes[1]["meaning"]        # can prove wrong, never right
+    assert "refus" in nodes[5]["meaning"].lower()  # refuses rather than answers
 
 
 def test_dependencies_computed_from_the_runs_own_artifacts(client):

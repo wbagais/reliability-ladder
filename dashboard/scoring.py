@@ -44,6 +44,24 @@ def score_payload(state: AppState, info: RunInfo, span_match: str,
     return {"score": score, "ci": ci, "vocab_available": vocab is not None}
 
 
+def label_check_counts(records) -> dict[str, int]:
+    """The third result layer: rung 1's label_check — does the model's OWN
+    label agree with the vocabulary's terms for its code? Read from the
+    recorded `checks.label_verified`, never re-derived. `unchecked` covers
+    records the check could not apply to (no code, or no label) — an absent
+    check is stated, never counted as agreement."""
+    out = {"verified": 0, "flagged": 0, "unchecked": 0}
+    for r in records:
+        v = (r.checks or {}).get("label_verified")
+        if v is True:
+            out["verified"] += 1
+        elif v is False:
+            out["flagged"] += 1
+        else:
+            out["unchecked"] += 1
+    return out
+
+
 def annotate_records(state: AppState, info: RunInfo,
                      span_match: str) -> list[dict] | None:
     """One annotation per record (aligned with state.records): the five-way
