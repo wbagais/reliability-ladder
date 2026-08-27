@@ -265,15 +265,16 @@ footer{
 <header class="hero">
   <div class="wrap">
     <div class="band-row">
-      <div class="rail"><b>Build log</b>2026-08-22</div>
+      <div class="rail"><b>Build log</b>2026-08-26</div>
       <div class="col">
         <p class="eyebrow">The Reliability Ladder · article raw material</p>
-        <h1>What the corpus said about the plan</h1>
-        <p class="standfirst">A validation gate characterised end to end before a single model call — and every place the plan and the corpus disagreed. This is the layer underneath the article: the numbers worth quoting, and how they were arrived at.</p>
+        <h1>The ladder, measured to the top</h1>
+        <p class="standfirst">Seven reliability layers — validation, self-correction, voting, a judge, abstention, a human queue — measured one rung at a time, then run cold, once, on held-out data. This is the layer underneath the article: the numbers worth quoting, and how they were arrived at.</p>
         <div class="meta">
           <span><b>Corpus</b> CADEC v3 · 1,250 posts · 9,111 gold mentions</span>
-          <span><b>Vocabulary</b> SNOMED CT AU1000036_20260731</span>
-          <span><b>Model calls</b> zero</span>
+          <span><b>Vocabulary</b> SNOMED CT AU1000036_20260731 · local-rf2</span>
+          <span><b>Models</b> gpt-oss:20b extract · granite4:micro-h 2B judge · local</span>
+          <span><b>Test split</b> spent once · run <code style="background:none;padding:0">phaseF-test-1</code></span>
         </div>
       </div>
     </div>
@@ -288,7 +289,7 @@ footer{
     <div class="col">
       <h2>The thesis, in one paragraph</h2>
       <p class="lede">Every LLM agent is roughly 10% model and 90% harness, and that harness gets built by intuition: teams stack retries, validators, judges, voting and human review because each one sounds like it should help. The seven layers are known. What nobody publishes is the <strong>measured trade-off per layer</strong> — what each buys, in which currency, and where it stops being worth paying for. That curve is the contribution; everything else exists to keep it clean.</p>
-      <p>Everything here is measured on <strong>CADEC</strong> — patient-reported adverse-event posts, normalised to SNOMED CT. Owner A's half of the ladder is built and measured; the model-facing rungs (0, 3, 4, 5) are outstanding, so every number below is a property of the <em>deterministic</em> layer, measured against the gold standard and against planted errors. That is a narrower claim than a full ladder curve, and a stronger one for being checkable.</p>
+      <p>Everything here is measured on <strong>CADEC</strong> — patient-reported adverse-event posts, normalised to SNOMED CT. The deterministic gate was characterised first, against the gold standard and planted errors, before a single model call; the model-facing rungs were then measured through five dev phases; and on 2026-08-26 the whole ladder ran cold, in order, on the 60 held-out test documents, under a frozen configuration, <strong>exactly once</strong>. Nothing was re-run after the numbers were seen. The cost curve this page once listed as “still to come” is now its first finding.</p>
     </div>
   </div>
 </section>
@@ -298,6 +299,28 @@ footer{
     <div class="rail"><b>02</b>Findings<div class="note">Ranked by how quotable they are, not by when they were found.</div></div>
     <div class="col">
       <h2>The findings worth a pull-quote</h2>
+
+      <h3>The ladder, run once on held-out data — what each rung actually bought</h3>
+      <div class="stat">
+        <span class="n">0.204</span>
+        <span class="lbl">shipped F1, exact span and strict code, on the one test run [CI 0.150–0.260] — with <strong>77 of every 100 records routed to a person</strong>. Overlap 0.215; detection 0.521/0.808; coding accuracy on matched spans 0.392.</span>
+      </div>
+      <p>The whole point of the project, in one table. 60 held-out documents, frozen configuration, one run, nothing re-run after the numbers were seen. Outcomes on the exact layer: 60 correct, 0 outdated, 91 abstained, 2 incorrect, 0 modernised.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Rung</th><th>What happened</th><th>Cost</th></tr></thead>
+          <tbody>
+            <tr><td>0 · bare LLM</td><td>314 records, answered-accuracy 0.370</td><td>194.5k tokens · p95 57&nbsp;s/call</td></tr>
+            <tr><td>1 · deterministic</td><td>ACCEPT 72 / BAND 226 / REJECT 16 (5.1%, local-rf2)</td><td class="ok">free · 0.15&nbsp;s total</td></tr>
+            <tr><td>2 · self-correct</td><td><strong>fired zero times</strong> — every REJECT was <code>schema_invalid</code>, not a statable fact</td><td>0</td></tr>
+            <tr><td>3 · voting</td><td>re-found 8 unanswered records; <strong>all 8 wrong</strong>; correct count unchanged</td><td class="hi">536.5k tokens — 2.8× rung 0</td></tr>
+            <tr><td>4 · LLM judge</td><td>pass 202 / fail 110 (2B judging 20B — see below)</td><td>113.6k tokens</td></tr>
+            <tr><td>5 · abstention</td><td>ships 72 records at 0.833 accuracy; errors/100 fall 59.6 → 3.8</td><td>withdraws 242 answers — 45 already exactly correct</td></tr>
+            <tr><td>6 · human loop</td><td>routes the residue</td><td><strong>242 of 314 records to a person</strong> · 77.1/100</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>The curve is not a staircase of improvements. On this run one paid rung was net negative, one never fired, and the two that clearly work — the free gate and abstention — work by <em>refusing</em>, which is exactly the cost the third measure exists to count. Three cost currencies, never fused: 845k tokens, minute-scale p95 latencies on a local 20B, 77 reviews per 100 records. Test came out above the re-derived dev baseline on all three layers (dev shipped F1 0.131) with no tuning ever touching test — generalisation plus split luck, in that order.</p>
 
       <h3>A gate's leniency setting decides whether it protects you or lies to you</h3>
       <div class="stat">
@@ -354,6 +377,37 @@ footer{
         <figcaption>Even when every answer is correct, 57% of records are unverifiable by string comparison. That fraction is the bill the paid rungs have to work through, and it is knowable before the first token is spent.</figcaption>
       </figure>
       <p>Worth stating as a planning tool: <strong>run your deterministic layer over your answer key first — the BAND fraction is your bill.</strong></p>
+
+      <h3>Asking a model to recall a nine-digit code is broken, not weak</h3>
+      <div class="stat">
+        <span class="n warn">0.018</span>
+        <span class="lbl">F1 when the model states the SNOMED code from memory — vs 0.171 for naming the concept, at <strong>more</strong> tokens. Retrieve-and-pick: 0.209.</span>
+      </div>
+      <p>Rung 0 is a three-step prompt study with identical scope; only where the code comes from changes. The memory step is ten times worse than the naming step, costs more (44.0k vs 36.1k tokens), and is the only step that fails to parse (5 of 40 documents). The one thing a language model cannot do — recall a nine-digit identifier — is also the most expensive way to ask. An abstention hatch reduces fabrication without removing it: allowed to answer null for unknown ids, the model did so 12.4% of the time — and still emitted a nonexistent code beside a correct label.</p>
+      <p>And the retrieval that fixes this is not presentation-neutral: <strong>alphabetising the candidate menu — changing nothing but the order — cost 10–12 points of coding accuracy</strong> at byte-identical detection. Small models anchor on early slots; the retriever's best-first ranking is doing real work.</p>
+
+      <h3>Voting can only shuffle what is below it — and its numbers are samples</h3>
+      <p>Rung 3 resamples each document at temperature and takes majorities. As first built it destroyed verified answers: votes matched by exact span key never aligned across resamples (206 of 240 records got no vote), and a “majority” of one — the only sample that re-found a mention — overwrote a vocabulary-verified code with its opposite. Three repairs, each test-first: match votes by span overlap one-to-one, draw every sample through rung 0's own configured path so votes come from the distribution being voted on, and require at least two sightings before a change.</p>
+      <p>After repair, on dev: hallucinated overwrites gone, zero correct codes destroyed, +5 net correct — for 2.6× rung 0's tokens. On the one test draw: 8 records re-found, all 8 wrong, correct count unmoved. <strong>A voting rung's contribution is a sample, not a property</strong> — cite the run id with every number, and price the draw honestly: it is the most expensive rung on the ladder.</p>
+
+      <h3>The judge measured, the better judge rejected, and the signal that lived in an accident</h3>
+      <div class="stat">
+        <span class="n warn">167<span style="font-size:.55em">/240</span></span>
+        <span class="lbl">records left unjudged by the domain-adapted 7B judge that was installed to replace the 2B one. Every verdict it did parse was “fail”; its confidence was a flat 0.0.</span>
+      </div>
+      <p>The judge must be a different model family from the extractor, and the only local option judges the wrong way round: 2B judging 20B, stated with every rung 4 number. The obvious fix — a domain-adapted 7B — was installed, harness-repaired twice, and rejected on measurement: it answers end-of-sequence after <code>{</code> on prompts past ~430 tokens. <strong>Domain adaptation does not buy instruction-following.</strong></p>
+      <p>The sharper finding came from re-judging the incumbent through a repaired prompt path: an accidental duplication — the post pasted twice — turned out to be load-bearing. With it, the judge's pass/fail correctness split was 28.0% vs 15.6%; without it, 25.4% vs 23.6% — no separation. Same lesson as the menu order: <strong>for small models, prompt form is part of the measurement</strong>, and a signal that lives in an accident is not a signal an article can stand on. The duplication stayed fixed; the test-split verdicts carry the caveat.</p>
+
+      <h3>Abstention's bill is countable — and a person could pay it down to 0.99</h3>
+      <div class="stat">
+        <span class="n">242<span style="font-size:.55em">/314</span></span>
+        <span class="lbl">records routed to a person on the test run — the headline cost of rung 6, kept as a <strong>count</strong>, because minutes here are declarable, not measurable.</span>
+      </div>
+      <p>Rung 5 withdraws every answer the stack could not corroborate; rung 6 is what happens to the queue. Two measurements make it legible. Its composition: rung 5 withheld 45 exactly-correct answers on test (86 by overlap) — the price of taking errors per 100 from 59.6 to 3.8. And its ceiling, measured on dev with an oracle desk (gold-derived resolutions, refused on the test split by design): a perfect reviewer takes shipped F1 from 0.131 to <strong>0.444</strong>, and coding accuracy on matched spans from 0.291 to <strong>0.990 — with detection unchanged</strong>.</p>
+      <p>Read that pair carefully. After a perfect code-picking human, the entire remaining gap is <strong>span boundaries</strong>, which neither the desk nor any code-level rung can fix. The next rung worth building is boundary repair — and this number is how we know, which is the real use of a ceiling.</p>
+
+      <h3>Retrieval's gain decomposes — and the decomposition inverts with k</h3>
+      <p>The dense retriever beats the lexical one 86.1% to 61.8% recall@20 — but the two also search different corpora, so the headline confounds two changes. Running the lexical scorer over the dense corpus separates them: at k=20 the gain is <strong>+3.3 from the corpus and +21.0 from dense scoring</strong>. At k=1 it inverts — +29.1 corpus, +15.2 scoring: filtering to the right semantic types is what clears the top slot; better scoring is what fills the rest of the menu. Both retrievers are kept, because a recall number under one is only interpretable next to the other.</p>
 
     </div>
   </div>
@@ -476,6 +530,30 @@ footer{
         </dl>
       </div>
 
+      <div class="iter">
+        <h3>7 · One runaway document must cost one record, and a cut-off reply is not a parse failure</h3>
+        <dl>
+          <dt>Data</dt>
+          <dd>A dev run stopped dead for 25 minutes on a 761-character forum post — a reasoning model generating unboundedly. 90% of calls finish under 3.3k completion tokens; the tail is what makes a run unbounded.</dd>
+          <dt>Change</dt>
+          <dd>A wall-clock budget on every call, as per-model registry data, that does not raise: it returns an empty response flagged <code>timed_out</code>, so the run loses one record instead of its afternoon. Downstream, failures carry <strong>three labels, most specific first: <code>timed_out</code> &gt; <code>truncated</code> &gt; <code>json_decode</code></strong> — a reply cut off by the token cap must never be counted as “the model cannot produce JSON”, and a hung machine as neither. Timeouts are filed in the cost column, not the accuracy one.</dd>
+          <dt>Corollary</dt>
+          <dd>The call cache's key must cover every generation parameter — a cache that survives a <code>max_tokens</code> change serves a stale result and calls it reproducibility — and a timeout is never cached: it is a property of the machine, not the question. On the final test run all three failure counters were zero, a checkable claim only because the labels exist.</dd>
+        </dl>
+      </div>
+
+      <div class="iter">
+        <h3>8 · “Which model produced this number” must have exactly one answer</h3>
+        <dl>
+          <dt>Data</dt>
+          <dd>Midway through, the answer had quietly become “two”: the manifest named one extractor while a code-level default substituted another whenever a manifest didn't reach the call site. Every number in that window had ambiguous provenance.</dd>
+          <dt>Change</dt>
+          <dd>The manifest is the ONE place a model is named; the resolver RAISES on a missing entry instead of defaulting; rungs never name models — they are bound by role (extractor / judge) through a single resolution function, which is also where “the judge must be a different family” is enforced rather than remembered.</dd>
+          <dt>Why it matters</dt>
+          <dd>Same shape as iterations 4 and 5: the constraints that hold are the ones with no way to express the forbidden thing. A default argument is a way to express it.</dd>
+        </dl>
+      </div>
+
       <h3>The gate's own error floor</h3>
       <div class="scroll">
         <table>
@@ -514,7 +592,7 @@ footer{
         <li><strong>The fixture gate caught our own wrong expectation on its first run.</strong> The failing case was one we had asserted should ACCEPT: “little blurred vision”, coded <code>246636008</code>. SNOMED's terms for that concept are Foggy / Hazy / Misty / Cloudy vision — it never uses the word “blurred”. Correct code, zero lexical evidence, correctly BAND.</li>
         <li><strong>Every open choice became a manifest setting, not a default argument.</strong> Four settings in rung 1 each move the rejection rate by 5–15 points. A number produced by a hard-coded opinion is not reproducible even by its author.</li>
         <li><strong>Splits are by document, not by mention</strong> — mentions from one post share its wording and its annotator — and stratified by drug family, because CADEC is 80% Lipitor and the human-agreement ceiling we cite was measured on the other one.</li>
-        <li><strong>Missing rungs are reported, never faked.</strong> Half a ladder honestly labelled is a result. The scorer is injected the same way, so accuracy columns are written empty rather than guessed.</li>
+        <li><strong>Missing rungs were reported, never faked.</strong> For the months the ladder was half-built, half a ladder honestly labelled was the result. The scorer is injected the same way, so accuracy columns were written empty rather than guessed.</li>
         <li><strong>The call cache is architecture, not convenience.</strong> Every model call is keyed and written to disk, so a re-run costs nothing, an interrupted run resumes, and results files become disposable derivatives rather than the only copy of an experiment.</li>
         <li><strong>A finding we published to ourselves and retracted:</strong> on a 10-item smoke run, cross-prompt vote dispersion looked like a better abstention signal than self-reported confidence. At n=60 it isn't. Nine errors was too small a base.</li>
       </ul>
@@ -524,17 +602,18 @@ footer{
 
 <section>
   <div class="band-row">
-    <div class="rail"><b>04</b>Structure<div class="note">Six beats, practitioner voice.</div></div>
+    <div class="rail"><b>04</b>Structure<div class="note">Seven beats, practitioner voice.</div></div>
     <div class="col">
       <h2>Suggested article structure</h2>
-      <p>Reordered from the original outline on purpose: lead with the finding that is cheapest for a reader to act on.</p>
+      <p>The ladder is measured end to end now, so the piece leads with the curve and spends its middle on why each number can be trusted — the measurement discipline is the story.</p>
       <ol>
         <li><strong>Every agent is 90% harness, built by vibes.</strong> The hook. Name the seven layers in a paragraph each and move on — they are not the contribution.</li>
-        <li><strong>You can measure a layer before you build the layer above it.</strong> Replay your deterministic gate over the answer key, where every rejection is false by construction. It costs nothing, and it caught three faults that would otherwise have shipped as a plausible 9.3% rejection rate.</li>
-        <li><strong>What a free layer actually buys.</strong> Exact on its own classes, blind on the interesting one, and 57% of even a perfect answer set left unverifiable. Reframe: free filter plus paid resolvers.</li>
-        <li><strong>The gate that vouches for the error.</strong> The strongest single number, and a process story: the obvious setting, the measurement, the reversal. This is where the piece earns its “we measured it”.</li>
-        <li><strong>The flip.</strong> Whether withholding is worth it depends entirely on your cost of a wrong answer versus a missing one — rung 1 below ~$2 per error, rung 2 at ~$5, human review from ~$10 up.</li>
-        <li><strong>Decision rules and the tool.</strong> Compose deliberately, not cumulatively. Calibrate the abstention gate per model before concluding the layer doesn't work. Run your deterministic layer over your answer key before you trust it. Measure the permissive setting's false-vouch rate.</li>
+        <li><strong>The curve, once, on held-out data.</strong> One run, frozen config, three cost currencies never fused. One paid rung net negative, one never fired, the two that work refuse rather than answer. The figure the reader came for; everything after explains why it can be believed.</li>
+        <li><strong>You can measure a layer before you build the layer above it.</strong> Replay your deterministic gate over the answer key, where every rejection is false by construction. It caught three faults that would otherwise have shipped as a plausible 9.3% rejection rate — errors every paid rung above would have inherited.</li>
+        <li><strong>What a free layer actually buys.</strong> Exact on its own classes, blind on the interesting one, and 57% of even a perfect answer set left unverifiable. Reframe: free filter plus paid resolvers for the residue.</li>
+        <li><strong>The paid rungs, honestly.</strong> Never ask a model to recall an identifier (0.018 vs 0.171 for more tokens); a voting rung's number is a sample, and its first build destroyed verified answers on 1-0 “majorities”; the judge's separation partly lived in an accidental prompt duplication. Running thread: for small models, presentation IS measurement.</li>
+        <li><strong>Abstention and the person.</strong> The bill is a count, not a currency conversion; the queue holds 45 answers that were already right; the oracle ceiling proves the residual gap is span boundaries — which names the next rung to build, the real use of a ceiling.</li>
+        <li><strong>Decision rules.</strong> Measure the permissive setting's false-vouch rate before shipping it. Pin the vocabulary release. Don't let a validation layer filter the input to the layers you are measuring. Check whether your reference list came from your answer key. Hold presentation fixed or you are measuring two things. Cite the run id on any sampled rung. Spend your test split once.</li>
       </ol>
     </div>
   </div>
@@ -546,12 +625,13 @@ footer{
     <div class="col">
       <h2>Figures, with captions written now</h2>
       <ul class="figs">
-        <li><span class="ftitle">1 · Yield vs accuracy across the seven rungs</span><span class="fcap">“At the judge rung accuracy rises and yield falls. The layer improved the metric most teams watch and reduced the number of correct fields the user actually receives by 17%.”</span></li>
+        <li><span class="ftitle">1 · The ladder curve — accuracy and three costs per rung, test split</span><span class="fcap">“Seven rungs, one cold run on 60 held-out documents. Errors per 100 fall 59.6 → 3.8; the price is 845k tokens, minute-scale p95 latencies on a local 20B, and 77 of every 100 records routed to a person. One paid rung was net negative on this draw; one never fired. The three costs are three axes — never one currency.”</span></li>
         <li><span class="ftitle">2 · Rung 1 detection profile, six planted error classes</span><span class="fcap">“Deterministic checks are exact on the classes they are built for and blind to the one that matters. Rejection rate by planted error type, 8,666 records per class, zero model calls.”</span></li>
         <li><span class="ftitle">3 · The lexical knob</span><span class="fcap">“Token containment lifts the free-settlement lane from 43% to 55% of a perfect answer set, and puts 19% of near-miss errors into ACCEPT — records the gate actively vouches for. Exact matching puts 0.1% there.”</span></li>
         <li><span class="ftitle">4 · Zone occupancy on the gold standard</span><span class="fcap">“Even when every answer is correct, 57% of records are unverifiable by string comparison. That fraction is the bill the paid rungs have to work through, and it is knowable before the first token is spent.”</span></li>
         <li><span class="ftitle">5 · The gate's own error floor, before and after</span><span class="fcap">“Rung 1 as specified rejected 9.3% of the answer key. Three fixes — negation demoted to a flag, retired concepts distinguished from misplaced ones, inactive codes from nonexistent ones — took it to 0.13%.”</span></li>
-        <li><span class="ftitle">6 · Net utility by cost of a wrong answer</span><span class="fcap">“The optimal rung is a function of your economics, not of the model: rung 1 below ~$2 per error, rung 2 at ~$5, human review from ~$10 up.”</span></li>
+        <li><span class="ftitle">6 · The prompt-shape cliff</span><span class="fcap">“Same model, same scope, same documents. Asking for the code from memory: F1 0.018, and the most tokens. Asking for names: 0.171. Retrieve-and-pick: 0.209. The step that cannot work is also the most expensive way to ask.”</span></li>
+        <li><span class="ftitle">7 · What abstention withholds, and what a perfect reviewer would recover</span><span class="fcap">“Rung 5's queue on test holds 242 records, 45 of them already exactly correct. On dev, an oracle desk lifts shipped F1 0.131 → 0.444 with detection unchanged: after a perfect code-picker, the whole remaining gap is span boundaries.”</span></li>
       </ul>
     </div>
   </div>
@@ -563,11 +643,16 @@ footer{
     <div class="col">
       <h2>Limitations to state plainly</h2>
       <ul>
+        <li><strong>The test split was spent exactly once, so its CIs are the claim.</strong> 60 documents, 290 scorable mentions: F1 0.204 lives in [0.150–0.260]. Nothing was tuned on test and nothing re-run — which also means no second draw exists to average with. Report the interval, not the point.</li>
+        <li><strong>Test above dev is partly split luck.</strong> Shipped F1 0.131 (dev) vs 0.204 (test), CIs barely overlapping, no test tuning anywhere in the pipeline. Generalisation is the honest first-order read; the second-order read is that the 40-document dev set was the harder draw. Say both.</li>
+        <li><strong>Rung 3's numbers are samples.</strong> Temperature resamples differ run to run — dev gained +5 net correct, the one test draw gained zero — so every voting number carries its run id, and the rung's value claim is bounded by a between-draw spread that two draws cannot estimate.</li>
+        <li><strong>The judge is 2B judging 20B</strong> — the wrong way round, kept as the measured lesser evil after the domain-adapted 7B alternative failed to return parseable verdicts at all. Every rung 4 number carries this.</li>
+        <li><strong>The oracle desk is a dev-only ceiling.</strong> Derived from gold, labeled on every row, refused on the test split by construction. No real human desk session exists; human minutes appear only “at the declared rate”.</li>
         <li><strong>The MedDRA check cannot be trusted as configured.</strong> Its reference table is derived from the answer key. It is reported, not scored, and any number from it carries the caveat.</li>
-        <li><strong>This is half a ladder.</strong> Rungs 0, 3, 4 and 5 are outstanding. Everything in section 2's first three findings is a property of the <em>gate</em>, measured against the gold standard and against planted errors — not a model result. Saying so makes the claim stronger, not weaker.</li>
         <li><strong>Contamination.</strong> CADEC is public and from 2015, so it is almost certainly in pretraining. It inflates rung 0, which makes the ladder's gains look <em>smaller</em> — the conclusion is conservative. The v2 slice is the check, and is not run yet.</li>
         <li><strong>Human ceiling.</strong> Strict span agreement between CADEC's own annotators was about 68.7 on the diclofenac posts. A system near 0.69 strict span F1 is at the noise floor of the answer key, not underperforming.</li>
-        <li><strong>The abstention target is thin</strong> at 60 test documents: 7 <code>CONCEPT_LESS</code> mentions in 393. Abstention accuracy cannot be separated from noise there.</li>
+        <li><strong>The abstention target is thin</strong> on the test split: 3 <code>CONCEPT_LESS</code> mentions in 290 scorable. Abstention accuracy against concept-less gold cannot be separated from noise there.</li>
+        <li><strong>The confidence gate never earned a threshold.</strong> The 2B judge's confidence is nearly two-valued (a τ=0.95 shelf keeps 5.4% coverage — too thin to gate on), so rung 5 gates on verdicts, not confidence. A calibrated distribution remains unbuilt.</li>
         <li><strong>Near-miss corruption is synthetic.</strong> The pool is built from concepts sharing a head word — a proxy for the confusions a normalisation model makes, not a sample of them. The 19% is a property of the check under a plausible error model, and should be quoted that way.</li>
       </ul>
     </div>
@@ -588,7 +673,14 @@ python -m ladder.probe     --split all --lexical-mode contained
 python -m ladder.probe     --split all --meddra-check reject
 python -m ladder.run ladder --split test --source gold --run-id gold_control
 python -m ladder.vocab_crosscheck --live 40
-python scripts/preflight.py --history</code></pre>
+python scripts/preflight.py --history
+
+# The model-facing ladder (Ollama: gpt-oss:20b + granite4:micro-h;
+# preprocessing per CLAUDE.md). Dev replays from the call cache; the
+# test run below is THE run — executed once, archived with every
+# baseline in the main checkout's out/archive/.
+python -m ladder.run ladder --split dev  --run-id &lt;your-dev-run&gt;
+python -m ladder.run ladder --split test --run-id phaseF-test-1</code></pre>
       <p>The corpus is not redistributable and the SNOMED release needs an affiliate licence — CADEC carries the CSIRO Data Licence, non-commercial and non-transferable. See <code>docs/licences.md</code>. Every figure above comes from the commands here; nothing is quoted from a pipeline that is no longer in the repo.</p>
     </div>
   </div>
