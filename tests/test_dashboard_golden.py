@@ -10,7 +10,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from fastapi.testclient import TestClient
+
+pytest.importorskip(
+    "fastapi", reason="dashboard extras not installed (CI runs without them)")
+from fastapi.testclient import TestClient  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 RUN = "phaseF-test-1"
