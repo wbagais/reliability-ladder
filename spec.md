@@ -24,7 +24,9 @@ JSONL spelunking with:
    transform it;
 5. **traceability** for every number and every record down to the prompt and
    the raw model reply;
-6. the additional views in §9 that the project's artifacts already support.
+6. the additional views in §9 that the project's artifacts already support;
+7. a **demo mode** (§9bis) — a guided, licence-clean walkthrough of the
+   whole interface on synthetic data, safe to show to anyone.
 
 The dashboard is a *lens and a launcher* over the existing pipeline. It never
 computes a score its own way: every number on screen comes from
@@ -47,10 +49,10 @@ paths is how a benchmark ends up with two numbers for the same run.
 
 One persona: **the researcher** — owns the repo, wrote the phases, is writing
 the article. Deep context, low patience for re-deriving things by hand. A
-secondary, occasional persona: **a reviewer/reader** shown the dashboard in a
-demo — they must never be able to trigger a state-changing action by
-accident (runs, manifest edits, desk resolutions are all explicit,
-confirmable actions).
+secondary persona: **a demo viewer** (reviewer, reader, audience) — served by
+demo mode (R7, §9bis), which runs on synthetic data with every
+state-changing control structurally absent, so nothing costly, private or
+licence-bound can be reached from a demo session.
 
 ---
 
@@ -332,6 +334,87 @@ out once.
 
 ---
 
+## 9bis. Requirement R7 — Demo mode
+
+A demo of this dashboard collides head-on with C1: every real tab renders
+CADEC text, and CADEC is non-transferable. So the demo is not "the app with
+a tour on top" — it is the app running on a **separate, synthetic, tracked
+demo dataset**, plus a guided tour. Two deliverables:
+
+**R7a — The demo dataset.**
+
+- A small synthetic corpus (5–10 invented forum-style posts, written for
+  this purpose, no CADEC derivation) with hand-made gold annotations against
+  real SNOMED codes, covering the cases the interface exists to show: a
+  clean extraction, a wrong-code near miss, a retired code (`outdated`), a
+  retired-gold successor (`modernised`), a concept-less mention, a denied
+  (negated) mention, a discontinuous span, a schema-invalid `(-1,-1)`
+  record, and an abstained-then-escalated record.
+- Canned run artifacts over that corpus (records/ledger/results/manifest
+  copy, plus matching fake cache entries for the prompt/reply drill-down),
+  produced once by actually running the pipeline over the synthetic docs,
+  then checked in — so every tab, including R5 traceability, is populated
+  **without Ollama, without the RF2 release, and without `data/cadec/`**.
+  A stub vocabulary table (the pattern the test suite already uses) backs
+  the registry views for exactly the codes the demo corpus uses.
+- All demo assets are tracked in-repo (e.g. `dashboard/demo/`), pass
+  preflight, and are the one exception to "out-of-repo run artifacts" —
+  legitimate because they contain no corpus text and exist to be shipped.
+
+**R7b — The guided tour.**
+
+- A scripted, step-through overlay that walks the tabs in story order: the
+  data explorer → one rung tab with a config change and its (canned) effect
+  → the results summary → one example's journey through all seven rungs →
+  one drill-down to prompt and reply → the desk queue. Each step is a short
+  caption anchored to the live UI element, advanced by click; skippable and
+  resumable at any step.
+- The tour narrates the project's real findings as labeled callouts (the
+  measured numbers, quoted as static text with their run ids) while the
+  interactive panels show the demo data's own numbers — the two must never
+  be visually confusable (see criteria).
+
+**User stories**
+
+- As the researcher, I want to show the dashboard to a colleague, a reviewer
+  or a conference audience without a licence conversation, so demo mode must
+  contain zero CADEC-derived content end to end.
+- As the researcher, I want the demo to run from a fresh clone with no
+  downloads (no corpus, no RF2 release, no Ollama), so "try it" is one
+  command.
+- As a demo viewer, I want a guided tour that teaches me the ladder's story
+  through the interface, and the freedom to leave the tour and click around
+  the demo data myself.
+- As the researcher, I want it to be impossible to mistake demo numbers for
+  the measured results, and impossible for a demo session to write anything
+  into real runs, the manifest, or resolutions.
+
+**Acceptance criteria**
+
+- Demo mode is an explicit launch state (flag or startup toggle). In it, the
+  data-path layer resolves **only** the demo dataset: an automated test
+  asserts no file under `data/cadec/`, `out/` (real runs), or `.llm_cache/`
+  is opened while demo mode is active — the isolation is structural, not a
+  filter.
+- Demo mode forces viewer mode: launchers, manifest promote, desk writes and
+  cache purge are absent from the DOM, not merely disabled (the R2 operator
+  toggle does not exist in demo mode).
+- A persistent, unmistakable banner marks every view: "DEMO — synthetic
+  data; numbers are illustrative." Demo figures use a visually distinct
+  provenance footer (C3 still applies: run id `demo-1`, split `demo`), and
+  the tour's quoted *measured* numbers are typographically distinct labeled
+  callouts, never rendered inside charts of demo data.
+- The demo corpus and annotations pass `scripts/preflight.py` and contain no
+  text derived from CADEC posts (written from scratch; reviewed against the
+  C1 criteria before first commit).
+- The full tour runs on a fresh clone with only the app's own dependencies
+  installed; every tab it visits renders with demo data; abandoning the
+  tour leaves a fully browsable demo app.
+- Exiting demo mode requires an app restart into the real data paths — no
+  in-session toggle that could mix the two datasets in one view.
+
+---
+
 ## 10. Acceptance criteria for the hard constraints (§3)
 
 - **C1:** the server refuses non-loopback connections; an automated test
@@ -387,7 +470,10 @@ out once.
    operator mode by default?
 3. **Scope of the first milestone.** Recommended cut: R1 + R3 + R4 + R5
    (pure readers over existing artifacts — no launcher, no writes), then R2
-   (launcher + working manifest), then R6.1 desk and the rest of R6.
+   (launcher + working manifest), then R6.1 desk and the rest of R6. R7
+   demo mode slots naturally right after the first milestone — it reuses
+   the read-only tabs verbatim, and building its dataset early doubles as
+   the fixture set for the tabs' own tests.
 4. **Does the test split appear in the data explorer at all**, or only its
    results? Displaying test *documents* is safe for a spent split but
    normalizes browsing them; recommend results-only by default with an
@@ -396,6 +482,11 @@ out once.
    config-sweep queue (dev only, cache-priced first) wanted, or does it
    invite exactly the unrecorded tuning the decisions log exists to
    prevent?
+6. **Hosting the demo.** Demo mode contains no CADEC content, so C1's
+   localhost rule need not bind it — a static or hosted build of demo mode
+   (e.g. beside the article) is legally possible. Decide whether that is
+   wanted; if yes, the demo build must be produced from the demo dataset
+   alone by construction (a build-time test, not a promise).
 
 ---
 
