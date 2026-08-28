@@ -146,6 +146,19 @@ class _CheckView:
         return self.get(k)
 
 
+def _r1_params(cfg: dict) -> dict:
+    """Rung 1's settings, read from the manifest rung 2 was handed.
+
+    Rung 2's own cfg is manifest.rungs.2 and says nothing about how rung 1
+    judges. With no manifest this is empty, and r1.zone falls back to its own
+    defaults — which is the right degradation for a unit test, and the WRONG
+    one for a run, which is why the manifest is threaded through.
+    """
+    man = cfg.get("manifest") or {}
+    return {k: v for k, v in ((man.get("rungs") or {}).get("1") or {}).items()
+            if k in r1.DEFAULTS}
+
+
 def _verdict(rec: Record) -> tuple[str | None, str | None]:
     """Rung 1's judgement, whether or not rung 1 was gating. Mirrors rung 5."""
     v = rec.checks.get("r1_verdict")
@@ -315,9 +328,15 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                              denominator="r2_attempted", evaluable="fail")
             continue
 
-        # Re-validate with the ONE measured rung 1, never a second copy.
+        # Re-validate with the ONE measured rung 1, never a second copy — and
+        # under the rung 1 THE MANIFEST CONFIGURES, never r1.DEFAULTS.
+        # `run_ladder` builds each rung's cfg from manifest.rungs[n] alone, so
+        # rung 2's cfg carries no rung 1 settings at all; passing it straight
+        # to r1.zone silently substituted the defaults, and a repair could be
+        # counted `rescued` under a rule the rung 1 that rejected it does not
+        # use. The meddra table goes with it for the same reason.
         new_verdict, new_reason, new_checks = r1.zone(
-            cand, source, cfg.get("registry"), cfg
+            cand, source, cfg.get("registry"), _r1_params(cfg), cfg.get("meddra")
         )
         rescued = new_verdict in (ZONE_ACCEPT, ZONE_BAND)
         agg["rescued" if rescued else "still_failing"] += 1
