@@ -41,6 +41,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from dataclasses import replace
 from typing import Any
@@ -127,6 +128,27 @@ DEFAULTS: dict[str, Any] = {
     #: NEVER over CONCEPT_LESS, which is a positive claim the scorer grades.
     #: Measured on dev, three draws: exact F1 +0.015 [+0.002, +0.025].
     "rung0_pick_fallback": True,
+    #: Three span filters, all decidable WITHOUT gold — they only decline to
+    #: emit a record, never invent one. Measured stacked on dev 2026-08-28
+    #: against the four-fix arm: exact F1 0.386 -> 0.399, paired bootstrap
+    #: +0.0133 [+0.0033, +0.0214]. Off by default: each changes what rung 0
+    #: emits, so each is a declared arm like every other rung 0 choice.
+    #:
+    #: `drop_ungrounded` — locate() could not find the quote in the post, so
+    #: the model paraphrased rather than quoted. 11 such records on dev and
+    #: NONE of them matched a gold mention: false positives by construction.
+    #: `drop_fragments` — the span carries no content word ("because", "This",
+    #: "No"). A span of function words cannot name a clinical concept. Single
+    #: CONTENT words are never touched: 14 of 45 unproposed gold mentions on
+    #: dev are one word ("sore", "painful", "tingly").
+    #: `drop_duplicate_spans` — the same span key twice. Gold is claimed
+    #: one-to-one so the second can only be a false positive. This is NOT a
+    #: merge of OVERLAPPING spans, which was measured and LOST (-0.008): the
+    #: coordination splitter emits several records sharing a head span BY
+    #: DESIGN, and merging them undoes it.
+    "rung0_drop_ungrounded": False,
+    "rung0_drop_fragments": False,
+    "rung0_drop_duplicate_spans": False,
     #: Split a coordinated quote into the DISCONTINUOUS mentions gold keeps
     #: ("muscle and joint pain" -> ['muscle' … 'pain'], ['joint' … 'pain']).
     #: See ladder/split.py. Runs before retrieval so each half gets its own
@@ -1193,6 +1215,52 @@ def _fill_from_menu(pairs, cfg, meta) -> None:
         meta["pick_fallback"] = meta.get("pick_fallback", 0) + 1
 
 
+#: Words that cannot carry a clinical concept on their own. Deliberately a
+#: closed list of function words rather than a frequency threshold: a learned
+#: cutoff would eventually reach "pain".
+_FUNCTION_WORDS = frozenset(
+    "i me my mine we our us you your he she it they them their the a an and or "
+    "but if because so that this that these those of to in on at for with from "
+    "as is are was were be been being do does did done not no nor can cant "
+    "cannot will would could should have has had am been there here then than "
+    "when what which who whom how why all any some more most very just".split()
+)
+
+
+def filter_spans(records: list[Record], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
+    """Drop records rung 0 should not have emitted. Gold is never consulted.
+
+    Order matters only for the counts: a record is charged to the FIRST rule
+    that rejects it, so the three numbers sum to the records removed.
+    """
+    counts = {"dropped_ungrounded": 0, "dropped_fragment": 0, "dropped_duplicate": 0}
+    out: list[Record] = []
+    seen: set = set()
+    for rec in records:
+        if rec.entity_type != REACTION:
+            out.append(rec)
+            continue
+        if cfg.get("rung0_drop_ungrounded") and (
+            not rec.spans or not isinstance(rec.spans[0][0], int) or rec.spans[0][0] < 0
+        ):
+            counts["dropped_ungrounded"] += 1
+            continue
+        if cfg.get("rung0_drop_fragments"):
+            words = re.findall(r"[a-z']+", (rec.text or "").lower())
+            if not words or all(w in _FUNCTION_WORDS for w in words):
+                counts["dropped_fragment"] += 1
+                continue
+        if cfg.get("rung0_drop_duplicate_spans"):
+            key = (rec.doc_id, tuple(tuple(s) for s in rec.spans),
+                   (rec.text or "").strip().lower())
+            if key in seen:
+                counts["dropped_duplicate"] += 1
+                continue
+            seen.add(key)
+        out.append(rec)
+    return out, counts
+
+
 def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
     """Boundary-convention trim, in place, after locate().
 
@@ -1320,6 +1388,10 @@ def extract_document(doc_id: str, text: str, llm, cfg: dict[str, Any]) -> tuple[
         counts = {"trimmed": 0}
         _trim_records(got, cfg["trimmer"], counts)
         meta["trimmed"] = counts["trimmed"]
+    # LAST, after locate() and after the trim: a filter that ran earlier would
+    # judge spans the trimmer had not yet corrected.
+    got, dropped = filter_spans(got, cfg)
+    meta.update(dropped)
     return got, meta
 
 
@@ -1354,6 +1426,7 @@ def apply(
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
         "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
         "trimmed": 0, "pick_fallback": 0, "split": 0,
+        "dropped_ungrounded": 0, "dropped_fragment": 0, "dropped_duplicate": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -1377,7 +1450,8 @@ def apply(
         agg["code_unknown"] += meta.get("code_unknown", 0)
         # S1/S2 pick outcomes that are failures or declines, not choices.
         for k in ("no_pick", "bad_pick", "declined_shortlist", "pick_fallback",
-                  "split"):
+                  "split", "dropped_ungrounded", "dropped_fragment",
+                  "dropped_duplicate"):
             agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)
