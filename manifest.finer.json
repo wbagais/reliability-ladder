@@ -34,18 +34,6 @@
     "n_dev_docs": 40,
     "n_test_docs": 60,
     "_split_note": "Matched to CADEC's dev=40 / test=60 so record counts stay comparable. 100 documents total, so POOL IS EMPTY \u2014 FiNER has no few-shot pool arm, and the few-shot examples in the frozen prompts are CADEC posts. The model gets financial filings with medical examples attached. That is a consequence of freezing the config for comparability, and it may well be the dominant reason if this arm underperforms. State it; do not fix it by tuning.",
-    "prompt": {
-      "_note": "The ONLY prompt change between the two arms. Structure, field names, offset convention, JSON shape and the do-not-invent instruction are frozen \u2014 a corpus that needed those changed would be a different experiment. Pointed at FiNER with CADEC's task text, gpt-oss:20b returned {'mentions':[]} for every document in 13.7s each: it was asked for adverse drug reactions in a dividend disclosure and correctly said there were none.",
-      "entity": "reported financial fact",
-      "entity_short": "fact",
-      "entity_plural": "facts",
-      "author": "the filer",
-      "source": "the filing excerpt",
-      "vocabulary": "US-GAAP XBRL tag",
-      "id_name": "tag name",
-      "policy": "Report only figures the filing actually states. Do not report numbers\nthat are not being reported as a tagged fact.",
-      "sentinel_rationale": "many numbers in a filing are not tagged facts"
-    },
     "documents": 120,
     "prompts": {
       "_derivation": "Derived from FiNER's own gold over 407 mentions, not invented. Spans are the bare number: 0 of 407 start with '$', none contain '%', 3 of 407 are multi-token and one of those is the word 'two'. 38 texts repeat within a document and each repeat is tagged separately, the same convention CADEC has. 39 numbers carry DIFFERENT tags in different places, which is the whole difficulty of the task.",
@@ -60,7 +48,8 @@
       "id_name": "tag name",
       "rules": "\nQuote the NUMBER ONLY. Not the currency symbol, not the unit, not the\nword 'million' or 'percent' \u2014 measured on gold: 0 of 407 spans begin with\n'$' and none contain '%'. A quantity written as a word ('two business\nsegments') is quoted as that word.\n\nReport EVERY tagged figure, working through the whole excerpt. A sentence\noften states two or three.\n\nReport a figure EVERY TIME it appears. If the same number is stated twice,\nreport it twice, each one where it appears \u2014 never merge repeats. Measured:\n38 numbers repeat within a document in the gold.\n\nReport only figures the filing states as facts about itself. A number in a\nheading, a section number, a date or a page reference is not a reported\nfact.\n",
       "pick_guidance": "Choose the tag that names WHAT KIND OF QUANTITY this number is \u2014 not the\ninstrument or the account it belongs to. For a debt face amount of 40.5 the\nanswer is DebtInstrumentFaceAmount, not NotesPayable: the tag names the\nmeasurement, the instrument is context.\n\nThe number itself carries no information. The sentence around it decides:\nmeasured on gold, 39 numbers take different tags in different places.",
-      "_negation_note": "CADEC's negation rule is DROPPED, not translated. Its gold codes denied reactions and marks them negated:true; FiNER gold shows no denied-figure convention, so `negated` is always false here. Recorded because a silently dropped rule is indistinguishable from an overlooked one."
+      "_negation_note": "CADEC's negation rule is DROPPED, not translated. Its gold codes denied reactions and marks them negated:true; FiNER gold shows no denied-figure convention, so `negated` is always false here. Recorded because a silently dropped rule is indistinguishable from an overlooked one.",
+      "vocabulary_qualifier": "US-GAAP tag"
     }
   },
   "vocabulary": {

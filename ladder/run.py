@@ -269,7 +269,7 @@ def run_ladder(
             registry=registry,
             # The task description belongs to the CORPUS, not the ladder. None
             # keeps rung 0's CADEC wording, so nothing changes for that arm.
-            prompt_slots=(man.get("corpus") or {}).get("prompt"),
+            prompt_slots=(man.get("corpus") or {}).get("prompts"),
             # Bound with the manifest's sampling options. An unbound
             # loader builds a DIFFERENT corpus than the one the splits
             # were cut from, and the pool ids then do not exist.

@@ -340,12 +340,16 @@ def resolve(over: dict | None = None) -> dict:
     return {**PROMPTS, **{k: v for k, v in (over or {}).items() if v is not None}}
 
 
-_ASK = """  span_text  - the reporter's exact words, copied character for character
+_ASK_TEMPLATE = """  span_text  - {author_possessive} exact words, copied character for character
   context    - the three or four words IMMEDIATELY BEFORE span_text, copied the
                same way, so the quote can be located when it appears twice
 """
 
-_RULES = """
+#: CADEC's extraction conventions. Every paragraph is a rule about THIS corpus,
+#: several with measurements behind them, so this is a whole-paragraph slot
+#: rather than something substitution can produce. A second corpus supplies its
+#: own under manifest corpus.prompts.rules.
+_RULES_CADEC = """
 Report a reaction the writer explicitly says they did NOT have as well, and
 mark it "negated": true — a denied reaction is still recorded. Every other
 mention is "negated": false. Only the writer's own reactions count either way.
@@ -370,6 +374,124 @@ Report the reaction, not the treatment for it. A transfusion, an operation, a
 scan or a hospital admission is something done TO the writer, not something the
 drug did to them. Measured: 1 of 7,311 gold mentions names a procedure.
 """
+
+#: The pick step's guidance. Also a whole-paragraph slot: it encodes what
+#: "the right concept" MEANS for this corpus, including a worked example.
+_PICK_GUIDANCE_CADEC = """Choose the PLAIN concept that names the reaction itself. When the list has
+both a plain concept and a more specific variant of it, the plain one is
+correct — severity, timing and circumstances the writer added do not belong
+in the concept."""
+
+#: CADEC-only. Fires only when rung0_fewshot_docs is empty; a corpus that names
+#: its own pool documents never reaches it. NOT ported to other corpora —
+#: porting a fallback nobody exercises is invented work.
+_PICK_EXTRA_CADEC = """Example of no_concept: for reaction "felt like my old self was gone" with a
+list of mood and fatigue concepts, the writer is describing a personal state
+no clinical concept names — the answer is "no_concept", not the nearest mood.
+
+A reaction marked [denied] is one the writer says they did NOT have. It is
+still coded: choose the concept for the reaction being denied, exactly as if
+it were experienced — the denial is recorded separately. That the writer did
+not have it is never a reason to answer null or "no_concept"."""
+
+PROMPTS["rules"] = _RULES_CADEC
+PROMPTS["pick_guidance"] = _PICK_GUIDANCE_CADEC
+PROMPTS["pick_extra"] = _PICK_EXTRA_CADEC
+#: "any clinical concept" — the adjective is corpus-specific and belongs in
+#: the slot table, not baked into the template.
+PROMPTS.setdefault("vocabulary_qualifier", "clinical concept")
+
+
+def ask(over: dict | None = None) -> str:
+    return _ASK_TEMPLATE.format(**resolve(over))
+
+
+def rules(over: dict | None = None) -> str:
+    return resolve(over)["rules"]
+
+
+def s0_prompt(over: dict | None = None) -> str:
+    s = resolve(over)
+    return (
+        f"Extract every {s['entity']} {s['author']} describes in {s['source']} below.\n"
+        "\nFor each one return:\n"
+        + ask(over)
+        + f"  start,end  - character offsets of span_text in {s['source']}\n"
+        + f"  sct_label  - up to three {s['vocabulary']} names for the {s['entity_short']}, best first\n"
+        + f"  sct_code   - the {s['vocabulary']} id matching sct_label[0]\n"
+        "  confidence - 0.0 to 1.0\n"
+        + rules(over)
+        + "\nTwo different answers, and they are not the same:\n\n"
+        f"  If no {s['vocabulary']} describes the {s['entity_short']}, answer CONCEPT_LESS for both\n"
+        "  sct_label and sct_code.\n\n"
+        f"  If you know which {s['vocabulary_short']} it is but do not recall its id, give sct_label and\n"
+        "  answer null for sct_code. That is a complete and acceptable answer.\n\n"
+        f"Never invent a {s['vocabulary_short']} id, and do not spend effort trying to recall one — null\n"
+        "is better than a guess.\n\n"
+        'Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,'
+        '"sct_label":[..],"sct_code":..,"negated":..,"confidence":..}]}\n'
+    )
+
+
+def s1_prompt(over: dict | None = None) -> str:
+    s = resolve(over)
+    return (
+        f"Extract every {s['entity']} {s['author']} describes in {s['source']} below.\n"
+        "\nFor each one return:\n"
+        + ask(over)
+        + f"  sct_label  - up to three {s['vocabulary']} NAMES for the {s['entity_short']}, best\n"
+        "               first. Names, not id numbers — the id is looked up for you.\n"
+        "  confidence - 0.0 to 1.0\n"
+        + rules(over)
+        + f"\nIf no {s['vocabulary']} describes the {s['entity_short']}, answer CONCEPT_LESS.\n\n"
+        'Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],'
+        '"negated":..,"confidence":..}]}\n'
+    )
+
+
+def find_prompt(over: dict | None = None) -> str:
+    s = resolve(over)
+    return (
+        f"Extract every {s['entity']} {s['author']} describes in {s['source']} below.\n"
+        "\nFor each one return:\n"
+        + ask(over)
+        + "  confidence - 0.0 to 1.0\n"
+        + rules(over)
+        + f"\nQuote the {s['entity_short']} itself, not the sentence around it. "
+        f"The {s['vocabulary_short']} name is\nchosen in a second step, so do not give one here.\n\n"
+        'Return JSON: {"mentions":[{"span_text":..,"context":..,"negated":..,'
+        '"confidence":..}]}\n'
+    )
+
+
+def pick_prompt(over: dict | None = None) -> str:
+    s = resolve(over)
+    extra = s.get("pick_extra")
+    return (
+        f"For each {s['entity_short']} below, choose the {s['vocabulary_short']} that means the same thing.\n"
+        "\n"
+        + s["pick_guidance"] + "\n"
+        f'\nEach {s["entity_short"]} has a number after the word "{s["entity_short"]}". '
+        f'Each {s["vocabulary_short"]} has a number\n'
+        f"in [square brackets]. Answer with the {s['entity_short']}'s number and the number in\n"
+        f"brackets of the {s['vocabulary_short']} you choose. Answer with numbers only, never with a\n"
+        f"{s['vocabulary_short']} name. Two other answers exist for choice:\n"
+        f"  null          - the {s['entity_short']} is real, but none of these "
+        f"{s['vocabulary_short']}s describes it\n"
+        f'  "no_concept"  - this is not something any {s["vocabulary_qualifier"]} could describe\n'
+        + (("\n" + extra + "\n") if extra else "")
+        + "\n{blocks}\n"
+        'Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}\n'
+    )
+
+
+_ASK = ask()
+_RULES = rules()
+S0_PROMPT = s0_prompt()
+S1_PROMPT = s1_prompt()
+FIND_PROMPT = find_prompt()
+PICK_PROMPT = pick_prompt()
+
 
 #: The few-shot ARM (rung0_fewshot, default False). CADEC's span conventions
 #: are not all stateable as prose — measured 2026-08-25, gold KEEPS a leading
@@ -476,77 +598,7 @@ def pool_fewshot_block(man: dict, doc_ids: list[str], loader=None) -> str:
         examples.append((doc.text, [m.text for m in kept]))
     return render_fewshot(examples)
 
-S0_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
 
-For each one return:
-""" + _ASK + """  start,end  - character offsets of span_text in the post
-  sct_label  - up to three SNOMED CT concept names for the reaction, best first
-  sct_code   - the SNOMED CT concept id matching sct_label[0]
-  confidence - 0.0 to 1.0
-""" + _RULES + """
-Two different answers, and they are not the same:
-
-  If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS for both
-  sct_label and sct_code.
-
-  If you know which concept it is but do not recall its id, give sct_label and
-  answer null for sct_code. That is a complete and acceptable answer.
-
-Never invent a concept id, and do not spend effort trying to recall one — null
-is better than a guess.
-
-Return JSON: {"mentions":[{"span_text":..,"context":..,"start":..,"end":..,"sct_label":[..],"sct_code":..,"negated":..,"confidence":..}]}
-"""
-
-S1_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
-
-For each one return:
-""" + _ASK + """  sct_label  - up to three SNOMED CT concept NAMES for the reaction, best
-               first. Names, not id numbers — the id is looked up for you.
-  confidence - 0.0 to 1.0
-""" + _RULES + """
-If no SNOMED CT concept describes the reaction, answer CONCEPT_LESS.
-
-Return JSON: {"mentions":[{"span_text":..,"context":..,"sct_label":[..],"negated":..,"confidence":..}]}
-"""
-
-FIND_PROMPT = """Extract every adverse reaction the reporter describes in the post below.
-
-For each one return:
-""" + _ASK + """  confidence - 0.0 to 1.0
-""" + _RULES + """
-Quote the reaction itself, not the sentence around it. The concept name is
-chosen in a second step, so do not give one here.
-
-Return JSON: {"mentions":[{"span_text":..,"context":..,"negated":..,"confidence":..}]}
-"""
-
-PICK_PROMPT = """For each reaction below, choose the concept that means the same thing.
-
-Choose the PLAIN concept that names the reaction itself. When the list has
-both a plain concept and a more specific variant of it, the plain one is
-correct — severity, timing and circumstances the writer added do not belong
-in the concept.
-
-Each reaction has a number after the word "reaction". Each concept has a number
-in [square brackets]. Answer with the reaction's number and the number in
-brackets of the concept you choose. Answer with numbers only, never with a
-concept name. Two other answers exist for choice:
-  null          - the reaction is real, but none of these concepts describes it
-  "no_concept"  - this is not something any clinical concept could describe
-
-Example of no_concept: for reaction "felt like my old self was gone" with a
-list of mood and fatigue concepts, the writer is describing a personal state
-no clinical concept names — the answer is "no_concept", not the nearest mood.
-
-A reaction marked [denied] is one the writer says they did NOT have. It is
-still coded: choose the concept for the reaction being denied, exactly as if
-it were experienced — the denial is recorded separately. That the writer did
-not have it is never a reason to answer null or "no_concept".
-
-{blocks}
-Return JSON: {{"picks":[{{"reaction":..,"choice":..}}]}}
-"""
 
 
 def locate(span_text: str, source: str, context: str = "", claimed=None):
@@ -712,7 +764,7 @@ def _resolve_labels(rec: Record, labels, cfg: dict, source_name: str) -> None:
 
 
 def _step_s0(doc_id, source, llm, cfg, meta):
-    raw, usage = llm(_extraction_prompt(S0_PROMPT, cfg), source, "S0")
+    raw, usage = llm(_extraction_prompt(s0_prompt(cfg.get("prompt_slots")), cfg), source, "S0")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -813,7 +865,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     single candidate is not a choice, and paying for a pick over it is pure
     cost. So S1's call count is data about the corpus, not a constant.
     """
-    raw, usage = llm(_extraction_prompt(S1_PROMPT, cfg), source, "S1")
+    raw, usage = llm(_extraction_prompt(s1_prompt(cfg.get("prompt_slots")), cfg), source, "S1")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -966,7 +1018,7 @@ def _order_menu(cands: list[dict], which: str) -> list[dict]:
 
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
-    raw, usage = llm(_extraction_prompt(FIND_PROMPT, cfg), source, step)
+    raw, usage = llm(_extraction_prompt(find_prompt(cfg.get("prompt_slots")), cfg), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -1033,7 +1085,7 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
     answer key here, and padding it with entries the model was not shown would
     assign one mention's pick to another.
     """
-    raw, usage = llm(PICK_PROMPT.format(blocks=_blocks(pairs)), source, step)
+    raw, usage = llm(pick_prompt(cfg.get("prompt_slots")).format(blocks=_blocks(pairs)), source, step)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
