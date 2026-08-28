@@ -264,9 +264,13 @@ def test_a_menu_decline_is_not_concept_less(reg):  # noqa: F811
     "no concept exists". The scorer credits CONCEPT_LESS as CORRECT against
     concept-less gold, so the old behaviour scored a claim the model never
     made. The decline now degrades to None (abstained), flagged and counted.
+
+    The 2026-08-27 menu fallback would fill this record from candidate 0, so
+    the arm is off here: what this test pins is that the DECLINE is recorded
+    and never upgraded to CONCEPT_LESS, which is unchanged either way.
     """
     llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": None}, {"i": 1, "choice": None}]})
-    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_pick_fallback=False))
     assert recs[0].sct is None
     assert recs[0].sct_label is None
     assert recs[0].checks["declined_shortlist"] is True
@@ -284,8 +288,9 @@ def test_pick_failures_reach_the_run_summary(reg):  # noqa: F811
 
 
 def test_s2_out_of_range_index_is_refused_not_clamped(reg):  # noqa: F811
+    """Fallback off: the point is that 99 is REFUSED, not clamped to a code."""
     llm = FakeLLM(FIND, {"picks": [{"i": 0, "choice": 99}, {"i": 1, "choice": 0}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_pick_fallback=False))
     assert recs[0].sct is None
     assert recs[0].checks["bad_pick"] == 99
 
@@ -597,9 +602,10 @@ def test_no_concept_pick_is_concept_less(reg):  # noqa: F811
 
 
 def test_a_null_choice_still_declines_not_asserts(reg):  # noqa: F811
+    """Fallback off — see test_a_menu_decline_is_not_concept_less."""
     llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": None},
                                    {"reaction": 1, "choice": 0}]})
-    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    recs, _ = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_pick_fallback=False))
     assert recs[0].sct is None
     assert recs[0].checks["declined_shortlist"] is True
 
@@ -1042,7 +1048,11 @@ def test_s1_declining_the_menu_is_not_concept_less(reg):  # noqa: F811
     model's OWN names reached — declining it says "none of my names' codes
     fits the span", which may just mean the names were bad. CONCEPT_LESS in
     S1 stays what it always was: the model asserting the sentinel in
-    sct_label, which still passes through untouched."""
+    sct_label, which still passes through untouched.
+    The 2026-08-27 menu fallback would fill this record from candidate 0, so
+    the arm is off here: what this test pins is that the DECLINE is recorded
+    and never upgraded to CONCEPT_LESS, which is unchanged either way.
+    """
     kw = keyword_table(**{"rectal pain": ["77880009"], "rectal bleeding": ["12063002"]})
     llm = FakeLLM(
         {"mentions": [{"span_text": "extreme rectal bleed", "context": "due",
@@ -1050,7 +1060,10 @@ def test_s1_declining_the_menu_is_not_concept_less(reg):  # noqa: F811
                        "confidence": 0.9}]},
         {"picks": [{"reaction": 0, "choice": None}]},
     )
-    recs, agg = r0.apply([], SOURCES, cfg(reg, "S1", llm=llm, keywords=kw))
+    recs, agg = r0.apply(
+        [], SOURCES,
+        cfg(reg, "S1", llm=llm, keywords=kw, rung0_pick_fallback=False),
+    )
     assert recs[0].sct is None
     assert recs[0].checks["declined_shortlist"] is True
     assert agg["declined_shortlist"] == 1
@@ -1640,9 +1653,10 @@ def test_the_pick_prompt_says_denial_is_not_a_decline():
 
 
 def test_a_string_null_choice_is_a_decline_not_a_bad_pick(reg):  # noqa: F811
+    """Fallback off: the point is "null" routes to DECLINE, not bad_pick."""
     llm = FakeLLM(FIND, {"picks": [{"reaction": 0, "choice": "null"},
                                    {"reaction": 1, "choice": 0}]})
-    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm))
+    recs, agg = r0.apply([], SOURCES, cfg(reg, "S2", llm=llm, rung0_pick_fallback=False))
     assert recs[0].sct is None
     assert recs[0].checks["declined_shortlist"] is True
     assert "bad_pick" not in recs[0].checks

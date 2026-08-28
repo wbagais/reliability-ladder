@@ -179,3 +179,63 @@ def test_a_trimmer_without_cut_rules_still_works(trimmer):
     """cut_drop defaults empty — the edge-only trimmer is the same object."""
     text, span = trimmer.trim("headache that would not stop", (0, 28))
     assert text == "headache that would not stop"
+
+
+# --- the interior cut, and what the splitter makes safe (2026-08-27) ----------
+#
+# The cut threshold was frozen at inside_rate <= 0.02 over >= 50 sightings on
+# the Phase B measurement, where looser points bought exact F1 by cutting
+# spans out of their overlap matches. Measured on pool 2026-08-27, the tokens
+# that open the trailing clauses rung 0 still keeps sit just ABOVE it:
+#
+#     so 0.053   with 0.054   has 0.043   while 0.030   went 0.025   and 0.049
+#
+# One of those is not like the others. Cutting at "and" truncates a
+# COORDINATION, which since ladder/split.py is a mention boundary rather than
+# a clause boundary — so a looser rate is only safe if coordinators are held
+# out of the cut set explicitly.
+
+
+def test_coordinators_are_never_cut_tokens_however_loose_the_rate():
+    """"muscle and joint pain" must reach the splitter whole."""
+    docs = [("muscle and joint pain " * 60, [])]
+    t = SpanTrimmer.learn(docs, cut_min_total=1, cut_max_rate=1.0)
+    for w in ("and", "or", ",", "&"):
+        assert w not in t.cut_drop
+
+
+def test_the_cut_rate_is_configurable_and_defaults_to_the_frozen_value():
+    """The frozen value stays the default; the arm moves it. "so" sits at
+    inside_rate 0.05 on pool — above 0.02, below 0.055."""
+    from ladder import trim
+
+    assert trim.DEFAULT_CUT_MAX_RATE == 0.02
+    # 60 occurrences of "so", 3 of them inside a gold span -> rate 0.05
+    text = ("so ache. " * 3) + ("pain so bad. " * 57)
+    spans = [(m, m + 2) for m in range(0, 27, 9)]
+    docs = [(text, spans)]
+    assert "so" in SpanTrimmer.learn(docs, cut_min_total=10, cut_max_rate=0.055).cut_drop
+    assert "so" not in SpanTrimmer.learn(docs, cut_min_total=10, cut_max_rate=0.02).cut_drop
+
+
+def test_pool_trimmer_passes_the_thresholds_through(monkeypatch):
+    """The arm has to reach the rules, or the manifest setting is decoration."""
+    from ladder import trim
+    from ladder.corpus import Document
+
+    seen = {}
+    real = SpanTrimmer.learn
+
+    def spy(docs, **kw):
+        seen.update(kw)
+        return real(docs, **kw)
+
+    monkeypatch.setattr(trim.SpanTrimmer, "learn", staticmethod(spy))
+
+    class AnyDoc(dict):
+        def __getitem__(self, k):
+            return Document(doc_id=k, drug_group="X", text="pain", mentions=[])
+
+    man = {"corpus": {"splits_dir": "data/splits", "cadec_root": "unused"}}
+    trim.pool_trimmer(man, loader=lambda root: AnyDoc(), cut_max_rate=0.055)
+    assert seen["cut_max_rate"] == 0.055
