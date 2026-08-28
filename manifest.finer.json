@@ -1,0 +1,74 @@
+{
+  "_experiment": "FiNER-139 — the same ladder, a second corpus. The ONLY thing that varies from manifest.json is the corpus and the vocabulary. Rung order, rung parameters, models, thresholds and prompts are frozen at the phase F configuration, because a second data point is worth nothing if the ladder moved between them.",
+
+  "_why_this_corpus": "CADEC's findings were all shaped by a knowledge gap: the extractor did not know SNOMED, so it fabricated codes, and every rung's bet was made against that. FiNER-139 has 139 tags. They fit in a prompt. The knowledge gap is GONE, and with it the odds on every rung change at once. That is the contrast — not replication.",
+
+  "_prediction": {
+    "_recorded_before_the_run": "2026-08-28. Written down first so the result is a measurement rather than a story told afterwards. Deciding what a run showed after seeing it is the failure this whole project documents.",
+    "rung_1_validate": "WEAKENS. 'Does the code exist' is near-trivial against 139 tags the model can see, so code_unknown should approach zero and rung 1's rejection rate should fall well below CADEC's 5.1%. The deterministic spine has less to do, which is a cost of the closed vocabulary, not a benefit.",
+    "rung_2_repair": "IMPROVES. On CADEC it declined 158 of 158 because the model had no better code to offer. Here it can be told a tag is wrong and pick from a list it can see. If repair ever works, it works here.",
+    "rung_3_vote": "UNCERTAIN, and the interesting one. On CADEC samples did not re-find the same spans, so voting had almost nothing to vote on. Numeric spans are far more stable than patient prose, so the mechanism should at least ENGAGE. Whether agreement means anything is a separate question: errors from a closed choice set are correlated differently from fabrications, and voting bets they are not.",
+    "rung_4_judge": "IMPROVES. A small judge cannot verify a SNOMED code it has never seen. It can plausibly check whether a number in a sentence is an interest rate or a face amount.",
+    "rung_5_abstain": "WEAKENS. It withdrew 242 of 314 on CADEC and that was the layer that worked. With fewer invalid answers upstream there is less to withdraw, so its contribution should shrink — which, if it happens, is the clearest evidence that abstention's value is a function of what is above it.",
+    "if_nothing_flips": "That is the stronger result, not a failed run: the ordering would be domain-independent. Say so either way."
+  },
+
+  "corpus": {
+    "adapter": "finer",
+    "name": "FiNER-139",
+    "version": "nlpaueb/finer-139, finer139.zip, CC-BY-SA-4.0",
+    "source": "https://huggingface.co/datasets/nlpaueb/finer-139",
+    "root": "data/finer/extracted",
+    "splits_dir": "data/finer/splits",
+    "_licence": "CC-BY-SA-4.0 — REDISTRIBUTABLE, unlike CADEC. A reader can reproduce this arm. That is a real difference and the article should say so.",
+    "_loader_note": "The canonical HuggingFace loader is a dataset script and `datasets` 5.x refuses to run those, so load_dataset() fails outright. The adapter reads finer139.zip's JSONL directly. Worth recording: the standard path to this dataset is already broken against current tooling.",
+
+    "sampling": {
+      "mode": "natural_rate",
+      "sentences_per_document": 10,
+      "documents": 100,
+      "order": "file_order",
+      "_mode_note": "natural_rate | tagged_only. Chosen: natural_rate. 17.3% of test sentences carry any tag (18,789 of 108,378; 31,717 tagged tokens, 1.69 per tagged sentence). Sampling ONLY tagged sentences would give the same gold volume for a fifth of the compute — and would remove the model's chance to correctly find nothing. CADEC could never test over-extraction, because every post has mentions. FiNER can, and that capability is worth the tokens.",
+      "_grouping_note": "10 consecutive sentences per pseudo-document. 100 documents x 10 = 1,000 sentences, ~173 tagged, ~292 gold spans — matched to CADEC test's 290 scorable mentions. Grouping is for TWO reasons and both are declared: rung 0 makes 100 calls rather than 1,000 (CADEC phase F was 78 min for 60 docs; 1,000 single-sentence calls would be 3-5 hours), and FiNER tags depend on context rather than on the token, so a sentence in isolation may genuinely lack what is needed to tag it.",
+      "_order_note": "FILE ORDER, not random. Consecutive sentences come from the same filing, so grouping preserves discourse context. Random grouping would be a different task and would have to be declared as one."
+    },
+
+    "_shape_differences_from_cadec": [
+      "Token-level IOB2, not span-plus-code. The tag IS the answer; there is no separate identifier to normalise to. GoldMention.sct carries the tag name.",
+      "154 distinct labels in test, not 139 — IOB2 splits each type into B- and I-, and only some types appear with I-.",
+      "Almost every tagged span is a SINGLE token. CADEC had 11.7% discontinuous spans; here span handling is far simpler, which removes a source of difficulty the CADEC numbers include.",
+      "Gold is what the company FILED, audited by professionals — not an annotator's judgement. Stronger than CADEC, where 2.8% of mentions are post-coordinated or disjunctive and four answer-key codes were found corrupted.",
+      "Tagged tokens are numeric and meaningless in isolation: '47.6' is EffectiveIncomeTaxRateContinuingOperations only because of the sentence around it."
+    ]
+  },
+
+  "vocabulary": {
+    "backend": "finer-tags",
+    "lossy": false,
+    "tag_count": 139,
+    "_backend_note": "139 US-GAAP tag names, in memory — not a database. Implements the same schemas/vocabulary.Vocabulary Protocol as Registry and the OLS4 backend, so tests/test_contracts.py covers it unchanged. exists() is membership in a set of 139. is_finding() is vacuously true: there is no semantic-type hierarchy here, and saying so is better than inventing one.",
+    "_ceiling_note": "CADEC's exact-term retrieval found nothing for 202 of 343 gold spans — a 59% ceiling on every rung that depends on lookup. There is no such ceiling here: 139 names fit in a prompt and retrieval is not needed. That removes a confound and removes a finding at the same time."
+  },
+
+  "model": {
+    "extractor": "ollama/gpt-oss:20b",
+    "judge": "ollama/ibm/granite4:micro-h",
+    "_frozen": "Identical to manifest.json at phase F. NOT tuned for this corpus, deliberately. A model tuned per corpus would make the two arms incomparable, and the prompts were tuned on CADEC's dev split over five phases — so FiNER runs with prompts fitted to a different domain. State that as a limitation; do not fix it by tuning, which would forfeit the comparison."
+  },
+
+  "rung_order": [0, 1, 2, 3, 4, 5, 6],
+  "rung_order_note": "Frozen at phase F. Not re-derived for this corpus.",
+
+  "_frozen_from": {
+    "manifest": "manifest.json at b7aba48 (Phase F: test split run once)",
+    "_note": "Fill in the SHA from `git rev-parse --short HEAD` at the phase F merge before running. ladder/provenance.py records the SHA of the run itself; this records what it was frozen AGAINST. Both are needed: the ladder is under active development, and a comparison against a moving reference is not a comparison."
+  },
+
+  "rungs": {
+    "_note": "Every rung's parameters are inherited from manifest.json unchanged. This block exists to be empty, and its emptiness is the experimental design: if a value has to be overridden here to make FiNER work, that is a finding about the harness and belongs in decisions.md before it is written into config."
+  },
+
+  "output": {
+    "dir": "out/finer"
+  }
+}

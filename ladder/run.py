@@ -32,6 +32,36 @@ from typing import Any, Callable
 
 from ladder import clean as clean_mod
 from ladder import corpus as corpus_mod
+
+
+def _corpus_for(man):
+    """The corpus adapter named in the manifest. Defaults to CADEC.
+
+    Added for the FiNER-139 arm. schemas/adapter.py is listed in the plan as
+    one of the three contracts and was never written, so there is no declared
+    interface — only the five functions ladder/corpus.py happens to expose.
+    That absence is a finding; see docs/decisions.md.
+    """
+    name = (man.get("corpus") or {}).get("adapter", "cadec")
+    if name == "cadec":
+        return corpus_mod
+    if name == "finer":
+        from ladder import corpus_finer
+        return corpus_finer
+    raise ValueError(f"unknown corpus adapter {name!r}")
+
+
+def _corpus_root(man):
+    c = man.get("corpus") or {}
+    return c.get("root") or c["cadec_root"]
+
+
+def _vocab_for(man):
+    """The vocabulary the manifest names. Registry unless told otherwise."""
+    if (man.get("vocabulary") or {}).get("backend") == "finer-tags":
+        from ladder import vocab_finer
+        return vocab_finer.load(_corpus_root(man))
+    return Registry(man["vocabulary"]["snomed_db"])
 from ladder import llm as llm_mod
 from ladder.ledger import Ledger
 from ladder.manifest import friendly, load_manifest
@@ -409,7 +439,7 @@ def write_results(rows: list[dict[str, Any]], path: Path) -> None:
 
 def cmd_init(a) -> int:
     man = load_manifest(a.manifest)
-    docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
+    docs = _corpus_for(man).load_corpus(_corpus_root(man))
     mentions = sum(len(d.mentions) for d in docs.values())
     print(f"corpus  : {len(docs)} documents, {mentions} gold mentions")
 
@@ -431,21 +461,21 @@ def cmd_init(a) -> int:
     splits_dir = Path(man["corpus"]["splits_dir"])
     if (splits_dir / "test.json").exists() and not a.force:
         for name in ("dev", "test", "pool"):
-            ids = corpus_mod.read_split(splits_dir, name)
-            recs = corpus_mod.gold_records(docs, ids)
+            ids = _corpus_for(man).read_split(splits_dir, name)
+            recs = _corpus_for(man).gold_records(docs, ids)
             print(f"split   : {name:5s} {len(ids):5d} docs  {len(recs):5d} mentions (frozen)")
         return 0
-    splits = corpus_mod.make_splits(
+    splits = _corpus_for(man).make_splits(
         docs,
         seed=man["seed"],
         n_dev=man["corpus"]["n_dev_docs"],
         n_test=man["corpus"]["n_test_docs"],
     )
-    corpus_mod.write_splits(
+    _corpus_for(man).write_splits(
         splits, splits_dir, {"seed": man["seed"], "corpus": man["corpus"]["version"]}
     )
     for name, ids in splits.items():
-        recs = corpus_mod.gold_records(docs, ids)
+        recs = _corpus_for(man).gold_records(docs, ids)
         cl = sum(1 for m in recs if m.gold_kind == "concept_less")
         print(f"split   : {name:5s} {len(ids):5d} docs  {len(recs):5d} mentions  {cl} concept_less")
     print(f"\nwrote {splits_dir}/*.json — these are frozen; never regenerate them.")
@@ -468,10 +498,10 @@ NO_RUNG0 = (
 
 def _load_inputs(man: dict[str, Any], split: str):
     """Corpus, split, sources and the two vocabularies. One reader, two commands."""
-    docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
-    doc_ids = corpus_mod.read_split(man["corpus"]["splits_dir"], split)
+    docs = _corpus_for(man).load_corpus(_corpus_root(man))
+    doc_ids = _corpus_for(man).read_split(man["corpus"]["splits_dir"], split)
     sources = {d: docs[d].text for d in doc_ids}
-    registry = Registry(man["vocabulary"]["snomed_db"])
+    registry = _vocab_for(man)
     return docs, doc_ids, sources, registry, _load_meddra(man)
 
 
