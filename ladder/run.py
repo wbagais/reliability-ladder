@@ -443,19 +443,27 @@ def cmd_init(a) -> int:
     mentions = sum(len(d.mentions) for d in docs.values())
     print(f"corpus  : {len(docs)} documents, {mentions} gold mentions")
 
-    db = Path(man["vocabulary"]["snomed_db"])
-    if not db.exists():
-        print(
-            f"\nvocabulary index missing. Build it once (a few seconds):\n"
-            f"    python -m ladder.registry --build "
-            f"--release {man['vocabulary']['snomed_release_dir']}",
-            file=sys.stderr,
-        )
-        return 2
-    reg = Registry(db)
-    print(f"vocab   : {reg.release}  {reg.stats()}")
-    # The plan's first-three-commands gate: a real code resolves, a fake one does not.
-    assert reg.exists("162031009") and not reg.exists("999999999"), "vocabulary gate FAILED"
+    # The vocabulary gate is corpus-independent: a real code resolves and a fake
+    # one does not. Only the codes differ, so they come from the backend rather
+    # than being hardcoded to SNOMED.
+    if man["vocabulary"].get("backend") == "finer-tags":
+        reg = _vocab_for(man)
+        real = sorted(reg._tags)[0]
+        print(f"vocab   : {reg.name}  {reg.stats()}")
+    else:
+        db = Path(man["vocabulary"]["snomed_db"])
+        if not db.exists():
+            print(
+                f"\nvocabulary index missing. Build it once (a few seconds):\n"
+                f"    python -m ladder.registry --build "
+                f"--release {man['vocabulary']['snomed_release_dir']}",
+                file=sys.stderr,
+            )
+            return 2
+        reg = Registry(db)
+        real = "162031009"
+        print(f"vocab   : {reg.release}  {reg.stats()}")
+    assert reg.exists(real) and not reg.exists("999999999"), "vocabulary gate FAILED"
     print("gate    : real code resolves, fake code does not — rung 1 has a vocabulary")
 
     splits_dir = Path(man["corpus"]["splits_dir"])

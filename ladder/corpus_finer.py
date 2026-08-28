@@ -180,8 +180,8 @@ def load_corpus(root: str | os.PathLike, *, split: str = "test",
     return docs
 
 
-def make_splits(docs: dict[str, Document], *, dev: int = 40, test: int = 60,
-                seed: int = 0, **_) -> dict[str, list[str]]:
+def make_splits(docs: dict[str, Document], *, n_dev: int = 40,
+                n_test: int = 60, seed: int = 0, **_) -> dict[str, list[str]]:
     """Deterministic dev/test/pool over the pseudo-documents.
 
     No stratification. CADEC stratifies by drug family because a drug group is a
@@ -191,9 +191,9 @@ def make_splits(docs: dict[str, Document], *, dev: int = 40, test: int = 60,
     ids = sorted(docs)
     random.Random(seed).shuffle(ids)
     return {
-        "dev": ids[:dev],
-        "test": ids[dev:dev + test],
-        "pool": ids[dev + test:],
+        "dev": ids[:n_dev],
+        "test": ids[n_dev:n_dev + n_test],
+        "pool": ids[n_dev + n_test:],
     }
 
 
