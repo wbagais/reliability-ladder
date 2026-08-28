@@ -49,6 +49,7 @@ from typing import Any
 from ladder import vocab
 from ladder.ledger import Ledger
 from ladder.rungs import r1
+from ladder import rerank
 from ladder.schema import (
     CONCEPT_LESS,
     REACTION,
@@ -166,6 +167,19 @@ DEFAULTS: dict[str, Any] = {
     #: coordinators out unconditionally now, so the relaxation and the
     #: splitter are one change measured together, not two.
     "rung0_cut_rate": None,
+    #: THE RERANK STAGE — retrieve deep, reorder, hand the pick a short menu.
+    #: See ladder/rerank.py for the measurement it exists for: the pick
+    #: converts a gold code at menu rank 0 at 94.5% and at rank 1-19 at 42.3%,
+    #: while retrieval puts gold at rank 0 only 52.3% of the time and inside
+    #: its top 200 for 91.4%. `rung0_rerank_deep` is what retrieval is asked
+    #: for and `rung0_rerank_k` is what the pick is shown; the stage is
+    #: pointless unless they differ. "llm" COSTS A CALL PER BATCH and it goes
+    #: to the ledger. Off by default, like every other rung 0 choice.
+    "rung0_rerank": None,  # None | "polarity" | "llm"
+    "rung0_rerank_deep": 50,
+    "rung0_rerank_k": 15,
+    "rung0_rerank_batch": 5,
+    "rung0_rerank_weight": None,
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
@@ -1008,12 +1022,25 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
                     if x is not None and str(x).strip()
                     and str(x).strip().upper() != CONCEPT_LESS]
         menu_order = cfg.get("rung0_menu_order", DEFAULTS["rung0_menu_order"])
+        # How deep retrieval goes is the RERANKER's business, not the menu's.
+        # Without one the two are the same number and always were: sorting a
+        # deep pool by the cosine returns the cosine's top k, so raising
+        # rung0_shortlist_k alone only lengthens the menu (measured 2026-08-24,
+        # k=40 made picks worse).
+        depth = (cfg.get("rung0_rerank_deep", DEFAULTS["rung0_rerank_deep"])
+                 if cfg.get("rung0_rerank")
+                 else cfg.get("rung0_shortlist_k", 20))
         cands = _order_menu(
-            _merged_candidates(
-                search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
-            ),
+            _merged_candidates(search, rec.text, proposed, depth),
             menu_order,
         )
+        # The free reranker runs per mention here; "llm" batches several
+        # mentions into one call and runs below, once the whole document's
+        # menus exist.
+        if cfg.get("rung0_rerank") and cfg["rung0_rerank"] != "llm":
+            cands, rr = rerank.rerank_menu(
+                rec.text, cands, cfg, meta, denied=bool(rec.checks.get("r0_negated")))
+            rec.checks.update(rr)
         rec.checks["candidates"] = cands
         rec.checks["rung0_menu_order"] = menu_order
         # WHAT the model offered, same as S0/S1 — it is also what makes the
@@ -1028,6 +1055,18 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
 
     if not pairs:
         return []
+    if cfg.get("rung0_rerank") == "llm":
+        menus, _ = rerank.rerank_llm(
+            [(rec.text, cands, bool(rec.checks.get("r0_negated")))
+             for rec, cands in pairs],
+            source, llm, cfg, meta)
+        for (rec, cands), menu in zip(pairs, menus):
+            rec.checks["rung0_rerank"] = "llm"
+            rec.checks["candidates_preranked"] = [c["code"] for c in cands]
+            rec.checks["rerank_moved"] = (
+                [c["code"] for c in menu] != [c["code"] for c in cands[:len(menu)]])
+            rec.checks["candidates"] = menu
+        pairs = [(rec, menu) for (rec, _), menu in zip(pairs, menus)]
     _decide(pairs, source, llm, cfg, meta, step)
     return [rec for rec, _ in pairs]
 
