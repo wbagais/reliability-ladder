@@ -77,8 +77,21 @@ class FinerVocabulary:
                 self._index.setdefault(tok, []).append(t)
 
     # -- the contract ------------------------------------------------------
+    @staticmethod
+    def _strip_ns(code: str | None) -> str:
+        """`us-gaap:NotesPayable` -> `NotesPayable`.
+
+        gpt-oss:20b emits the taxonomy namespace; FiNER's labels do not carry
+        it. It is a namespace, not part of the name, and the concept is the same
+        either way — so this is a format normalisation, not a leniency. Leaving
+        it in would fail every code on punctuation and measure JSON conventions
+        rather than the ladder.
+        """
+        c = str(code or "")
+        return c.split(":", 1)[1] if ":" in c else c
+
     def exists(self, code: str | None) -> bool:
-        return bool(code) and str(code) in set(self._tags)
+        return bool(code) and self._strip_ns(code) in set(self._tags)
 
     def is_active(self, code: str | None) -> bool:
         """Vacuously true for anything that exists.
@@ -170,6 +183,23 @@ class FinerVocabulary:
         scored.sort(key=lambda x: (-x[0], x[1]))
         return [{"code": t, "label": normalise_term(t), "score": round(s, 3)}
                 for s, t in scored[:rows]]
+
+    def shortlist(self, text: str, k: int = 20,
+                  findings_only: bool = True) -> list[dict]:
+        """Rung 0's candidate menu. `search` under the name the rung expects.
+
+        `findings_only` is accepted and ignored: all 139 tags are US-GAAP
+        numeric facts, so the filter has nothing to filter. Accepting the
+        argument rather than dropping it keeps the call site identical for both
+        backends.
+
+        Note what this means for the experiment. CADEC retrieves 20 candidates
+        from 129,675 concepts, and dense retrieval beat lexical by 21 points
+        there. Here the whole vocabulary is 139 names and all of them fit in the
+        prompt, so retrieval has almost nothing to do. That is the fifth thing
+        that weakens when the knowledge gap closes.
+        """
+        return self.search(text, rows=k)
 
     def codes_for_term(self, text: str) -> list[str]:
         t = self._norm.get(normalise_term(text))

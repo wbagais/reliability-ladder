@@ -116,7 +116,8 @@ def _spans_from_iob(tokens: list[str], tags: list[str]) -> list[tuple[int, int, 
 
 def load_corpus(root: str | os.PathLike, *, split: str = "test",
                 sentences_per_document: int = 10, documents: int | None = 100,
-                order: str = "file_order", seed: int = 0) -> dict[str, Document]:
+                order: str = "file_order", seed: int = 0,
+                **_) -> dict[str, Document]:
     """Group consecutive sentences into pseudo-documents.
 
     Sampling is NATURAL RATE: sentences are taken in file order and grouped,

@@ -27,11 +27,18 @@ import json
 import sys
 import time
 from collections import Counter
+import functools
 from pathlib import Path
 from typing import Any, Callable
 
 from ladder import clean as clean_mod
 from ladder import corpus as corpus_mod
+
+# Set by cmd_ladder when --tui is passed. run_ladder consults it rather than
+# taking a parameter, so no caller signature changes and nothing else in the
+# module has to know the monitor exists.
+_MON = None
+_TUI_REQUESTED = False
 
 
 def _corpus_for(man):
@@ -49,6 +56,20 @@ def _corpus_for(man):
         from ladder import corpus_finer
         return corpus_finer
     raise ValueError(f"unknown corpus adapter {name!r}")
+
+
+def _corpus_opts(man):
+    """Corpus-specific loader options from the manifest.
+
+    CADEC's load_corpus takes only a root. FiNER's needs sampling parameters —
+    how many sentences per pseudo-document, how many documents, in what order —
+    and those are properties of the CORPUS, so they belong in the manifest
+    rather than in the adapter's defaults. An earlier version had them in the
+    manifest and read from the defaults, so the config was decorative.
+    """
+    c = man.get("corpus") or {}
+    return {k: v for k, v in (c.get("sampling") or {}).items()
+            if not k.startswith("_")}
 
 
 def _corpus_root(man):
@@ -191,7 +212,25 @@ def run_ladder(
     meddra: MeddraTable | None = None,
 ) -> dict[str, Any]:
     order = [n for n in man["rung_order"] if n in rungs]
-    ledger = Ledger(out_dir / f"{run_id}.ledger.jsonl", run_id=run_id)
+    _ledger_path = out_dir / f"{run_id}.ledger.jsonl"
+    ledger = Ledger(_ledger_path, run_id=run_id)
+
+    global _MON
+    if _MON is _TUI_REQUESTED and _TUI_REQUESTED:
+        # Started HERE rather than in cmd_ladder because this is the first
+        # point at which the ledger path exists. A monitor pointed at a file
+        # that has not been created yet shows an empty frame and looks broken.
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        from ladder_top import Monitor
+        _MON = Monitor(str(_ledger_path), provenance={
+            "run": run_id,
+            "split": split,
+            "order": ",".join(str(r) for r in [g["rung"] for g in rungs])
+            if rungs and isinstance(rungs[0], dict) else "",
+        }).start()
+    else:
+        print(f"[run] watch:  python3 scripts/ladder_top.py --file {_ledger_path}")
     snapshots: dict[int, list[Record]] = {}
     callers: dict[int, Any] = {}
     aggregates: dict[int, dict] = {}
@@ -228,6 +267,14 @@ def run_ladder(
         cfg.update(
             ledger=ledger,
             registry=registry,
+            # The task description belongs to the CORPUS, not the ladder. None
+            # keeps rung 0's CADEC wording, so nothing changes for that arm.
+            prompt_slots=(man.get("corpus") or {}).get("prompt"),
+            # Bound with the manifest's sampling options. An unbound
+            # loader builds a DIFFERENT corpus than the one the splits
+            # were cut from, and the pool ids then do not exist.
+            corpus_loader=functools.partial(
+                _corpus_for(man).load_corpus, **_corpus_opts(man)),
             meddra=meddra,
             manifest=man,
             split=split,
@@ -250,7 +297,19 @@ def run_ladder(
                 extractor_model=extractor.spec if extractor else None,
             )
         t0 = time.perf_counter()
-        out = mod.apply(records, sources, cfg)
+        if _MON is not None:
+            # A rung's report() prints, and printing into a Live display tears
+            # it. Captured text goes to the reports panel instead — collapsed
+            # to one line once read, most recent expanded. Nothing is lost.
+            import contextlib as _ctx, io as _io
+            _buf = _io.StringIO()
+            with _ctx.redirect_stdout(_buf):
+                out = mod.apply(records, sources, cfg)
+            _txt = _buf.getvalue()
+            if _txt.strip():
+                _MON.add_report(rung, _txt)
+        else:
+            out = mod.apply(records, sources, cfg)
         # Two return conventions live in ladder/rungs: r1 and r5 return the
         # records, r0/r2/r3/r4 return (records, aggregates). Normalising here
         # means neither convention has to be rewritten to make a run work.
@@ -270,6 +329,8 @@ def run_ladder(
             + "  ".join(f"{z}={c}" for z, c in sorted(counts.items()))
         )
     ledger.close()
+    if _MON is not None:
+        _MON.stop()
 
     return {
         "run_id": run_id,
@@ -439,7 +500,7 @@ def write_results(rows: list[dict[str, Any]], path: Path) -> None:
 
 def cmd_init(a) -> int:
     man = load_manifest(a.manifest)
-    docs = _corpus_for(man).load_corpus(_corpus_root(man))
+    docs = _corpus_for(man).load_corpus(_corpus_root(man), **_corpus_opts(man))
     mentions = sum(len(d.mentions) for d in docs.values())
     print(f"corpus  : {len(docs)} documents, {mentions} gold mentions")
 
@@ -506,7 +567,7 @@ NO_RUNG0 = (
 
 def _load_inputs(man: dict[str, Any], split: str):
     """Corpus, split, sources and the two vocabularies. One reader, two commands."""
-    docs = _corpus_for(man).load_corpus(_corpus_root(man))
+    docs = _corpus_for(man).load_corpus(_corpus_root(man), **_corpus_opts(man))
     doc_ids = _corpus_for(man).read_split(man["corpus"]["splits_dir"], split)
     sources = {d: docs[d].text for d in doc_ids}
     registry = _vocab_for(man)
@@ -541,6 +602,8 @@ def cmd_ladder(a) -> int:
 
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_{time.strftime('%Y%m%d-%H%M%S')}"
+    global _TUI_REQUESTED
+    _TUI_REQUESTED = bool(getattr(a, "tui", False))
     result = run_ladder(
         man, a.split, rungs, records, sources, registry, out_dir, run_id, meddra=meddra
     )
@@ -724,6 +787,8 @@ def main(argv: list[str] | None = None) -> int:
 
     def _run_args(p):
         p.add_argument("--split", default="test")
+        p.add_argument("--tui", action="store_true",
+                       help="live monitor instead of scrolling reports")
         p.add_argument("--rungs", default="0-6")
         p.add_argument("--source", default="model", choices=["model", "gold"])
         p.add_argument("--predictions", help="JSONL of rung-0 records")

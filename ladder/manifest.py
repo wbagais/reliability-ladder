@@ -36,6 +36,7 @@ def _resolve_paths(man: dict[str, Any], base: Path) -> None:
     """Manifest paths are relative to the manifest, so a checkout moves cleanly."""
     for section, key in (
         ("corpus", "cadec_root"),
+        ("corpus", "root"),          # any non-CADEC adapter
         ("corpus", "splits_dir"),
         ("vocabulary", "snomed_db"),
         ("vocabulary", "snomed_release_dir"),

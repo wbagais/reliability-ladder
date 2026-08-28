@@ -118,25 +118,57 @@ DEFAULTS: dict[str, Any] = {
 }
 
 # ------------------------------------------------------------------ prompts
-BASE = """Extract every adverse reaction the reporter describes in the post below.
+# The task belongs to the CORPUS; the structure belongs to the LADDER.
+#
+# Only these five slots vary between corpora. The field names, the offset
+# convention, the JSON shape and the do-not-invent instruction are NOT slots —
+# they are what makes two arms comparable, and a corpus that needed them changed
+# would be a different experiment rather than a second data point.
+#
+# Defaults are CADEC's exact wording, so the rendered CADEC prompt is
+# byte-identical to what phase F ran. There is an assertion below that says so.
+PROMPT_SLOTS = {
+    "entity": "adverse reaction",
+    "entity_short": "reaction",
+    "entity_plural": "reactions",
+    "author": "the reporter",
+    "source": "the post",
+    "vocabulary": "SNOMED CT concept",
+    "id_name": "concept id",
+    "policy": (
+        "Report only reactions the writer actually experienced. Do not report "
+        "anything\nthey say they did NOT have."
+    ),
+    "sentinel_rationale": (
+        "many reactions people\ndescribe have no SNOMED CT concept"
+    ),
+}
+
+BASE_TEMPLATE = """Extract every {entity} {author} describes in {source} below.
 
 For each one return:
-  span_text  - the reporter's exact words, copied character for character
-  start,end  - character offsets of span_text in the post
-  code       - the SNOMED CT concept id for that reaction, or the literal
-               string CONCEPT_LESS if no SNOMED CT concept correctly describes it
+  span_text  - {author}'s exact words, copied character for character
+  start,end  - character offsets of span_text in {source}
+  code       - the {vocabulary} id for that {entity_short}, or the literal
+               string CONCEPT_LESS if no {vocabulary} correctly describes it
   confidence - 0.0 to 1.0
 
-Report only reactions the writer actually experienced. Do not report anything
-they say they did NOT have.
+{policy}
 
-Do not invent a concept id. If you cannot name one you are confident is a real
-SNOMED CT concept for this reaction, answer CONCEPT_LESS. That is a correct
-answer in its own right, not a failure to answer — many reactions people
-describe have no SNOMED CT concept.
+Do not invent a {id_name}. If you cannot name one you are confident is a real
+{vocabulary} for this {entity_short}, answer CONCEPT_LESS. That is a correct
+answer in its own right, not a failure to answer — {sentinel_rationale}.
 
-Return JSON: {"mentions":[{"span_text":..,"start":..,"end":..,"code":..,"confidence":..}]}
+Return JSON: {{"mentions":[{{"span_text":..,"start":..,"end":..,"code":..,"confidence":..}}]}}
 """
+
+
+def render_base(slots: dict | None = None) -> str:
+    """The task prompt for one corpus. Missing slots fall back to CADEC's."""
+    return BASE_TEMPLATE.format(**{**PROMPT_SLOTS, **(slots or {})})
+
+
+BASE = render_base()
 
 # The literal above has to be the sentinel rung 1 branches on and the scorer
 # grades against, so a rename of the constant must not leave the prompt behind.
@@ -156,11 +188,13 @@ CONCEPT_LESS — do not fall back to a code you did not look up.
 """
 
 
-def build_prompt(mode: str) -> str:
-    return BASE + (
+def build_prompt(mode: str, slots: dict | None = None) -> str:
+    """`slots` comes from manifest.corpus.prompt. None keeps CADEC's wording."""
+    s = {**PROMPT_SLOTS, **(slots or {})}
+    return render_base(s) + (
         TOOL_BLOCK
         if mode == "B"
-        else "\nEmit the SNOMED CT concept id from your own knowledge.\n"
+        else f"\nEmit the {s['vocabulary']} id from your own knowledge.\n"
     )
 
 
@@ -193,7 +227,7 @@ def recover_offsets(span_text: str, source: str, claimed: tuple[int, int]) -> tu
 def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record], dict]:
     """One document, one model call. Identical for A and B except the tool block."""
     meta = {"tool_calls": 0, "tokens_in": 0, "tokens_out": 0, "usd": 0.0}
-    raw, usage = llm(build_prompt(mode), text, mode)
+    raw, usage = llm(build_prompt(mode, cfg.get("prompt_slots")), text, mode)
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -267,6 +301,44 @@ def rung0(doc_id: str, text: str, mode: str, llm, cfg=None) -> tuple[list[Record
 # ============================================================================
 
 STEPS = ("S0", "S1", "S2")
+
+# ---------------------------------------------------------------------------
+# THE TASK BELONGS TO THE CORPUS.
+#
+# Seven prompt constants below were written about adverse drug reactions in
+# patient posts. Pointed at a financial filing they ask the wrong question, and
+# gpt-oss:20b correctly answers {"mentions":[]} — the extractor did not port.
+#
+# These slots are what varies. The STRUCTURE does not: field names, JSON
+# shapes, the find-then-pick split and the pick menu's numbering are frozen,
+# because they are what make two arms comparable. A corpus needing those
+# changed would be a different experiment rather than a second data point.
+#
+# Defaults are CADEC's exact wording. There is an assertion in
+# scripts/port_prompts.py that every CADEC prompt renders byte-identical.
+PROMPTS = {
+    "entity": "adverse reaction",
+    "entity_short": "reaction",
+    "entity_plural": "reactions",
+    "author": "the reporter",
+    "author_possessive": "the reporter's",
+    "source": "the post",
+    "vocabulary": "SNOMED CT concept",
+    "vocabulary_short": "concept",
+    "id_name": "concept id",
+    "rules": None,          # filled from _RULES_CADEC below
+    "pick_guidance": None,  # filled from _PICK_GUIDANCE_CADEC below
+}
+
+
+def prompt_text(key: str, over: dict | None = None) -> str:
+    return {**PROMPTS, **(over or {})}[key]
+
+
+def resolve(over: dict | None = None) -> dict:
+    """Slots for one corpus. Missing keys fall back to CADEC's."""
+    return {**PROMPTS, **{k: v for k, v in (over or {}).items() if v is not None}}
+
 
 _ASK = """  span_text  - the reporter's exact words, copied character for character
   context    - the three or four words IMMEDIATELY BEFORE span_text, copied the
@@ -384,7 +456,12 @@ def pool_fewshot_block(man: dict, doc_ids: list[str], loader=None) -> str:
             "example from dev or test puts its own gold answers in the "
             "prompt of a scored run."
         )
-    docs = (loader or corpus_mod.load_corpus)(man["corpus"]["cadec_root"])
+    # `cadec_root` was hardcoded here — a rung reaching for the corpus
+    # directly rather than receiving it. The FiNER port found it: this is
+    # the second corpus-loading site in the codebase and the only one
+    # inside a rung.
+    _c = man.get("corpus") or {}
+    docs = (loader or corpus_mod.load_corpus)(_c.get("root") or _c["cadec_root"])
     excluded = clean.load_exclusions()
     examples = []
     for d in doc_ids:
@@ -1155,12 +1232,13 @@ def prepare(cfg: dict[str, Any] | None) -> dict[str, Any]:
     if (cfg.get("rung0_fewshot") and cfg.get("rung0_fewshot_docs")
             and not cfg.get("rung0_fewshot_block")):
         cfg["rung0_fewshot_block"] = pool_fewshot_block(
-            cfg["manifest"], cfg["rung0_fewshot_docs"]
+            cfg["manifest"], cfg["rung0_fewshot_docs"],
+            loader=cfg.get("corpus_loader"),
         )
     if cfg.get("rung0_trim") and cfg.get("trimmer") is None:
         from ladder.trim import pool_trimmer
 
-        cfg["trimmer"] = pool_trimmer(cfg["manifest"])
+        cfg["trimmer"] = pool_trimmer(cfg["manifest"], loader=cfg.get("corpus_loader"))
     return cfg
 
 
