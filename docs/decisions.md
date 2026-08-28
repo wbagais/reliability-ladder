@@ -2959,3 +2959,192 @@ FiNER-139 is CC-BY-SA-4.0 and REDISTRIBUTABLE, unlike CADEC — a reader can
 reproduce this arm. And its canonical HuggingFace loader is a dataset script,
 which `datasets` 5.x refuses to run, so `load_dataset()` fails outright. The
 adapter reads the shipped JSONL directly.
+
+## 2026-08-28 — porting to a second corpus: sixteen edits, and one rung that did not port
+
+FiNER-139 was added as a second domain, chosen for CONTRAST rather than
+replication: 139 XBRL tags fit in a prompt, so the knowledge gap that shaped
+every CADEC finding is gone and every rung's bet changes odds at once. The
+prediction was written into `manifest.finer.json` before the run.
+
+This entry is about what the PORT found. It is worth recording separately
+because it is true whether or not the FiNER arm ever produces a number.
+
+### The ladder ported. Rung 0 did not.
+
+**Sixteen one-line edits, no rung logic changed**, two new modules
+(`corpus_finer.py`, `vocab_finer.py`), one manifest. The runner contract, the
+vocabulary Protocol, the ledger, the injected scorer and the manifest-driven
+config all held. Most research code would have needed a rewrite; this needed a
+selector.
+
+**Rung 0 did not port at all.** There are SEVEN prompt constants in
+`ladder/rungs/r0.py` — `_ASK`, `_RULES`, `FEWSHOT`, `S0_PROMPT`, `S1_PROMPT`,
+`FIND_PROMPT`, `PICK_PROMPT` — and every one is written about adverse drug
+reactions in patient posts. Pointed at a dividend disclosure, `gpt-oss:20b`
+returned `{"mentions":[]}` in 13.7 seconds for every document. Nothing reached
+rung 1, so nothing about the ladder could be measured. The model was not
+failing; it was answering a question about a different dataset.
+
+`_RULES` is the one that cannot be translated at all. Its paragraphs encode
+CADEC annotation conventions, several with measurements behind them — denied
+reactions are still coded, report the condition the drug was taken for, report
+repeats separately, vague states count, *1 of 7,311 gold mentions names a
+procedure*. `PICK_PROMPT` is worse: it carries a worked example about *"felt
+like my old self was gone"* and a rule that severity and timing do not belong
+in a concept.
+
+So the honest statement is not "the prompt was hardcoded". It is that **rung 0
+is a CADEC extraction system**, tuned over five phases against CADEC's dev
+split, and the ladder above it is what generalises.
+
+### Why it was missed, which is the part worth keeping
+
+Every axis KNOWN to vary was abstracted: models, rung order, thresholds,
+retrieval mode, few-shot document ids, the vocabulary backend, the scorer, the
+rung order itself. The prompts were never known to vary, because there was one
+corpus. With one dataset a task description looks like a constant.
+
+That is a limit of the method rather than a lapse in discipline. You can only
+parameterise what you can imagine changing, and the seams you can see are the
+ones you have already crossed. `schemas/adapter.py` is listed in the plan as one
+of three contracts and was never written, for the same reason — nothing needed
+it, so a new adapter imitates a shape rather than conforming to one.
+
+**Modularity is a claim about which axes vary, and one dataset cannot test that
+claim.** A second corpus is the only thing that finds the rest.
+
+### What the port actually touched
+
+  * **Four corpus-loading sites**, each hardcoding `man["corpus"]["cadec_root"]`
+    — `run.py`, `r0.py`'s `pool_fewshot_block`, `trim.py`'s `pool_trimmer`, and
+    the analysis tools. Two of them are inside rungs, reaching for the corpus
+    rather than receiving it. Found one crash at a time.
+  * **An unbound loader.** Passing `load_corpus` as a bare callable meant three
+    call sites each built a DIFFERENT corpus from the same adapter — the splits
+    were cut from 120 documents and the trimmer rebuilt 100, so pool ids did not
+    exist. A loader is not a function; it is a function plus its configuration.
+  * **`manifest.py` resolved `corpus.cadec_root` to an absolute path** and had
+    no entry for any other corpus root.
+  * **An empty `rungs` block.** `manifest.finer.json` originally carried one as
+    a statement that nothing was overridden. It meant nothing was CONFIGURED, so
+    rung 0 ran without `rung0_offsets: "search"` and every span came back
+    ungrounded. A manifest that says "same as that one except these" is the only
+    safe form.
+  * **Sampling config that was never read.** The manifest carried
+    `sentences_per_document` and `documents`; the adapter used its own defaults.
+    Decorative configuration, and the same shape as the empty rungs block.
+
+### Two settings that CANNOT be held constant across corpora
+
+Freezing the configuration is what makes the two arms comparable, so each
+deviation is declared:
+
+  * **`rung0_retrieval`: dense → lexical.** CADEC retrieves 20 candidates from
+    129,675 concepts and dense beats lexical by 21.0 points there. FiNER's whole
+    vocabulary is 139 names and all of them fit in the prompt. There is nothing
+    to embed. Retrieval mode is a function of what is being retrieved from, and
+    the two differ by three orders of magnitude.
+  * **Few-shot documents.** `rung0_fewshot_docs` names CADEC pool posts that do
+    not exist in FiNER. Few-shot examples belong to the corpus — the same
+    finding as the task prompt, one layer down, found the same way.
+
+### Two of rung 1's three checks go vacuous
+
+Available from the data shape alone, before any measurement:
+
+  * `is_active()` — vacuously true. XBRL types are versioned by taxonomy year,
+    not retired individually, and this dataset pins one snapshot.
+  * `is_finding()` — vacuously true. No semantic hierarchy; all 139 are US-GAAP
+    numeric facts, so `wrong_semantic_type` cannot fire.
+  * `exists()` — decidable but nearly trivial: a model that can see all 139
+    names can barely fabricate one. On CADEC `code_unknown` was 155 of 169.
+
+Implemented as constants rather than inventing hierarchy so the numbers look
+comparable. **The deterministic spine's value on CADEC came from a vocabulary
+large enough to be fabricated against.** Remove the knowledge gap and the free
+checks stop earning their place. `lexical_match` is also always False here: the
+tagged token is a NUMBER and the tag is a concept name, so BAND will dominate on
+FiNER as it did on CADEC, for an unrelated reason. A rejection rate compared
+across the two corpora without that caveat is meaningless.
+
+### The model's failure mode is different, and better
+
+First real extraction, on a document with 27 gold mentions: `gpt-oss:20b` found
+the right numbers — `$ 40.5 million` against gold's `40.5` — and tagged it
+`us-gaap:NotesPayable` where gold says `DebtInstrumentFaceAmount`.
+
+That is a real US-GAAP concept, correctly namespaced, sensibly chosen for a debt
+figure. It is not in FiNER-139 — **no tag in the set contains "Notes" or
+"Payable"** — because FiNER-139 is the 139 MOST FREQUENT tags out of thousands
+in the taxonomy. The model is not wrong about accounting; it is wrong about
+which subset someone chose to annotate.
+
+That is a different failure from CADEC, where invented codes existed nowhere,
+and it changes how a low score should be read here. It also raises a limitation
+worth stating rather than fixing: mode A asks the model to emit a tag "from your
+own knowledge", which on FiNER means guessing which 139 of several thousand tags
+were labelled. The pick step exists to fix exactly that, so the configuration
+stays frozen and the ladder is left to do its job.
+
+The `us-gaap:` namespace is stripped in `exists()`. That is a format
+normalisation, not a leniency: the namespace is not part of the tag name, and
+leaving it would fail every code on punctuation and measure JSON conventions
+rather than the ladder.
+
+### FiNER's own conventions, derived rather than invented
+
+Over 407 gold mentions, so the ported prompts state facts about this corpus
+instead of translations of CADEC's:
+
+  * Spans are the BARE NUMBER — 0 of 407 begin with `$`, none contain `%`.
+    3 of 407 are multi-token, and one of those is the word `two`.
+  * 38 texts repeat within a document and each repeat is tagged separately —
+    the same convention CADEC has.
+  * **39 numbers carry different tags in different places.** That is the whole
+    difficulty: the number is meaningless and the sentence decides. `47.6` and
+    `13.4` in *"the effective tax rate was 47.6 percent and 13.4 percent"* share
+    a tag, and the words immediately before them do not distinguish either.
+  * Gold picks `DebtInstrumentFaceAmount` for `40.5`, not `NotesPayable` — name
+    the MEASUREMENT, not the instrument. The same shape as CADEC's "the plain
+    concept, not a more specific variant": describe the thing itself, not its
+    circumstances.
+  * CADEC's negation rule is **dropped, not translated**. FiNER shows no
+    denied-figure convention, so `negated` is always false. Recorded because a
+    silently dropped rule is indistinguishable from an overlooked one.
+
+### Sampling, declared
+
+17.3% of test sentences carry any tag (18,789 of 108,378). NATURAL RATE was
+chosen over tagged-only: sampling only tagged sentences gives the same gold
+volume for a fifth of the compute and removes the model's chance to correctly
+find nothing — which CADEC could never test, because every post has mentions.
+36 of 100 pseudo-documents contain no gold at all, and the first smoke run drew
+five of them, which is why it looked like a failure and was not.
+
+10 consecutive sentences per pseudo-document, file order, both declared: rung 0
+makes 100 calls rather than 1,000, and FiNER tags depend on context rather than
+on the token.
+
+Built at 120 documents: dev 40 / test 60 / pool 20, 407 gold mentions, 86 of 139
+tag types exercised. **Only 3 of 407 spans are multi-token against CADEC's 11.7%
+discontinuous mentions** — span extraction is materially easier here, and any
+accuracy difference between the arms includes that.
+
+### Also worth recording
+
+  * FiNER-139 is CC-BY-SA-4.0 and REDISTRIBUTABLE, unlike CADEC. A reader can
+    reproduce this arm.
+  * Its canonical HuggingFace loader is a dataset script and `datasets` 5.x
+    refuses to run those, so `load_dataset()` fails outright. The adapter reads
+    the shipped JSONL directly.
+  * `manifest.json` names the judge `ollama/ibm/granite4:micro-h`. That string
+    404s against local Ollama. If phase F ran with it, rung 4's numbers need
+    explaining — **A to confirm.**
+  * Phase F records the vocabulary backend but **not the compute backend**. Its
+    78 minutes, 57s p95 and 126s rung-3 latency are unattributable to any
+    machine. Token counts are comparable across machines; wall clock is not.
+    `ladder/provenance.py` closes this and landed after phase F.
+  * `tests/test_scripts_import.py` takes **4,231 seconds** — 34 minutes for
+    `ladder_run` alone. Importing a script should be milliseconds; these do work
+    at module level. The tests are right and the scripts are the problem.
