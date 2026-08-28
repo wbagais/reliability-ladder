@@ -2879,3 +2879,83 @@ collide with rung 1's negation flag. Parked.
 - 2026-08-26 — **Spec v2 (spec.md): demo shows the REAL study safely, a visuals catalogue added, whole spec compressed to implementation-ready.** Decided: demo mode carries TWO data layers, never mixed in one chart — real AGGREGATE results (scores, CIs, per-rung tables, curve data; licence-clean because aggregates carry no corpus text; exported at build time to dashboard/demo/results/ and rendered with their real run ids) and SYNTHETIC interactive examples (actual CADEC examples are never in the demo, by construction — showing real examples is what the local operator app is for). Added a ten-visual catalogue where every chart names the finding it encodes and its data source (ladder curve small-multiples, record-flow Sankey, detection-vs-coding dumbbell with oracle marker, zone strip per backend, five-outcome bars, CI bands, prompt-shape cliff, recall@k decomposition, judge-confidence/τ shelf, per-record rung timeline) — no decorative charts. Spec rewritten ~40% shorter with binding implementation notes (in-repo dashboard/, entry points, ledger fields, progress signal, TDD test classes) and four milestones (read-only → demo → workbench → supporting tabs).
 - 2026-08-26 — **Spec: the Workbench ABSORBS the existing monitor pair — one web interface, not three.** docs/ladder-monitor.html (replay + follow over runs/*.ledger.jsonl) and scripts/ladder_top.py predate the current models (the page's hard-coded header still names granite as extractor and qwen2.5:7b as judge, with a frozen "of 105 graded" denominator) but carry design rules worth keeping. Decided: their features become the app's Run monitor tab (follow + replay incl. archived baselines, Watch checks from the TUI, compute panel, provenance from the run's manifest copy instead of hard-coded text); at parity the HTML page is DELETED; ladder_top.py stays as the headless/SSH companion over the same ledger. Three of the pair's rules promoted to app-wide law in the visuals shared rules: per-rung numbers over the denominator the ledger names (never the run total), could_not_run as a hatched non-value (never a color or a zero), and one ingest path for replay and live.
 - 2026-08-26 — **Article versioning: docs/versions/ created.** The 2026-08-26 full-ladder rewrite replaced docs/article-iterations.md and docs/article-build-log.html in place; the pre-rewrite versions are now archived byte-identical (verified against git history) as docs/versions/article-iterations-v1-2026-08-22.* per the convention in docs/versions/README.md: before a major rewrite of a living document, snapshot the outgoing version as <name>-vN-<date>; archived copies are never edited.
+
+## 2026-08-28 — FiNER-139 as a second corpus, and what porting cost
+
+Second domain, chosen for CONTRAST rather than replication. CADEC's findings
+were all shaped by one fact: the extractor did not know SNOMED, so it fabricated
+codes, and every rung's bet was made against that gap. FiNER-139 has 139 XBRL
+tags. They fit in a prompt. The gap is gone.
+
+Prediction recorded in manifest.finer.json BEFORE the run: rung 2 improves
+(repair finally has something to pick from), rung 5 weakens (less to withdraw),
+rung 3 uncertain but should at least engage, rung 1 weakens.
+
+### The port cost ten edits
+
+`ladder/corpus_finer.py` and `ladder/vocab_finer.py` are new. `ladder/run.py`
+took ten one-line changes, all replacing a hardcoded `corpus_mod.` call or
+`Registry(...)` with a manifest-driven selector. No rung was touched. The
+harness generalises, and ten is the number.
+
+**`schemas/adapter.py` does not exist.** The plan lists it as one of three
+contracts. There is no declared corpus interface — only the five functions
+`ladder/corpus.py` happens to expose, and a new adapter imitates a shape rather
+than conforming to one. Two `GoldMention` fields are CADEC-named and were reused
+rather than renamed: `cadec_type` carries the XBRL tag name, `drug_group`
+carries the source split. That is a wart, and renaming them would touch every
+rung.
+
+### Two of rung 1's three checks are constants here
+
+Found while writing the vocabulary, before any measurement:
+
+- `is_active()` — vacuously true. XBRL types are versioned by taxonomy year, not
+  retired individually, and this dataset pins one snapshot.
+- `is_finding()` — vacuously true. No semantic hierarchy; all 139 are US-GAAP
+  numeric facts. `wrong_semantic_type` cannot fire.
+- `exists()` — still decidable but nearly trivial: a model that can see all 139
+  names can barely fabricate one. On CADEC `code_unknown` was 155 of 169.
+
+They are implemented as constants rather than inventing structure so the numbers
+look comparable. **The deterministic spine's value on CADEC came from a
+vocabulary large enough to be fabricated against.** Remove the knowledge gap and
+the free checks stop earning their place. That is a result about closed
+vocabularies and it was available from the data shape alone.
+
+`lexical_match` is also always False here: the tagged token is a NUMBER ('47.6')
+and the tag is a concept name. BAND will dominate on FiNER as it did on CADEC,
+for an unrelated reason. A rejection rate compared across the two corpora
+without that caveat is meaningless.
+
+### Sampling, declared
+
+17.3% of test sentences carry any tag (18,789 of 108,378; 31,717 tagged tokens,
+1.69 per tagged sentence). NATURAL RATE was chosen over tagged-only: sampling
+only tagged sentences gives the same gold volume for a fifth of the compute and
+removes the model's chance to correctly find nothing — which CADEC could never
+test, because every post has mentions. 36 of the 100 pseudo-documents contain no
+gold at all.
+
+10 consecutive sentences per pseudo-document, file order. Two reasons, both
+declared: rung 0 makes 100 calls rather than 1,000, and FiNER tags depend on
+context rather than on the token, so a sentence alone may lack what is needed.
+
+Built: 100 documents, 362 gold mentions (CADEC test: 290), 86 of 139 tag types
+exercised, 3 multi-token spans. **Only 3 of 362 spans are multi-token, against
+CADEC's 11.7% discontinuous mentions — span extraction is materially easier
+here, and any accuracy difference between the arms includes that.**
+
+### Frozen against
+
+manifest.json at b7aba48 (Phase F). Models and prompts unchanged, deliberately —
+the prompts were tuned on CADEC's dev split over five phases, so FiNER runs with
+prompts fitted to another domain. That is a limitation to state, not to fix:
+tuning per corpus would forfeit the comparison.
+
+### Also
+
+FiNER-139 is CC-BY-SA-4.0 and REDISTRIBUTABLE, unlike CADEC — a reader can
+reproduce this arm. And its canonical HuggingFace loader is a dataset script,
+which `datasets` 5.x refuses to run, so `load_dataset()` fails outright. The
+adapter reads the shipped JSONL directly.
