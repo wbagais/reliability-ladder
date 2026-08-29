@@ -1120,6 +1120,12 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
         meta["pick_parse_failed"] = True
     choices = {}
     if picked is not None:
+        # A reply that parses to something other than an object is a parse
+        # failure, not a crash. mistral:7b-instruct returned a bare value
+        # here; the contract in _parse says a bad shape costs one document.
+        if not isinstance(picked, dict):
+            meta["pick_parse_failed"] = True
+            picked = {}
         for p in picked.get("picks", []):
             # "reaction" is what the prompt asks for; "i" is accepted too,
             # because an earlier prompt used it and its cached replies are
