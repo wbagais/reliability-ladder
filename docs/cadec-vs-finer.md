@@ -1,3 +1,27 @@
+> **SUPERSEDED IN PART — read this first.**
+>
+> The CADEC column below was written from phase F and from what passed through
+> a chat session. It does not incorporate the rung 1–6 audit (`b0216f7`), which
+> changes at least one comparison materially:
+>
+> * Rung 1's rejection rate is quoted here as 5.1%. The audit measured it at
+>   **0.4%** after rung 0's span filters removed the entire rejection class —
+>   and with it rung 2's trigger. So the CADEC/FiNER rejection-rate contrast in
+>   this document is **not** a knowledge-gap effect; both arms are near zero,
+>   for unrelated reasons.
+> * `code_unknown` fires **0 times** on CADEC now. Retrieval moved the failure
+>   mode out from under the check.
+> * **Nothing reads `checks["r4_verdict"]`** — rung 4 cannot change a shipped
+>   number on either arm.
+> * Rung 5's tau is a dead dial: rung 0's confidence is only ever {1.0, 0.99}.
+> * `manifest.json` runs a rung 0 scoring **5.9 exact points below** the
+>   baseline recent sessions measured against, so phase F's figures and the
+>   current configuration disagree.
+>
+> The FiNER column and the port findings stand. The prediction table's "rung 1
+> weakens on a small vocabulary" is now **uncertain** rather than confirmed —
+> it weakens on CADEC too, without a small vocabulary.
+
 # CADEC vs FiNER-139 — the two arms, side by side
 
 **Read the caveat first.** These are not comparable as results. CADEC is a
