@@ -66,22 +66,80 @@ DEFAULTS = {
 
 ALLOWED_CHECK_KEYS = frozenset({"r1_verdict", "r1_reason"})
 
-PROMPT = """You are checking another system's work. It read a patient's post and claimed a specific adverse reaction was reported, with a SNOMED CT code.
+# THE SEVENTH PROMPT CONSTANT. The FiNER port (2026-08-29) rendered six rung 0
+# prompt constants from `manifest.corpus.prompts` and missed this one, so a
+# judge grading an SEC filing was asked whether the text described "a personal
+# adverse reaction ... the writer says they experienced", with a "SNOMED CT
+# code". The judge is the one rung whose entire job is to read the text, so a
+# prompt about the wrong domain does not degrade its verdicts, it invalidates
+# them. Same slot mechanism as r0.PROMPT_SLOTS; missing slots fall back to
+# CADEC's, so the CADEC arm renders byte-identically to the old constant.
+PROMPT_SLOTS = {
+    "entity": "adverse reaction",
+    "entity_short": "reaction",
+    "author": "the writer",
+    "source": "the post",
+    "source_owner": "a patient's post",
+    "claim_object": "code",
+    "vocabulary": "SNOMED CT",
+    "vocabulary_concept": "SNOMED CT concept",
+    "claim_verb": "was reported",
+    "span_question": "really an {entity} {author} says they experienced",
+}
 
-The post:
-{source}
+PROMPT_TEMPLATE = """You are checking another system's work. It read {source_owner} and claimed a specific {entity} {claim_verb}, with a {vocabulary} {claim_object}.
+
+The {source_noun}:
+{{source}}
 
 Its claim:
-  reaction: "{text}"  (characters {start}-{end})
-  code:     {sct}
+  {entity_short}: "{{text}}"  (characters {{start}}-{{end}})
+  code:     {{sct}}
 
 Is this claim correct? Judge two things separately:
-  span  - is "{text}" really an adverse reaction the writer says they experienced?
-  code  - is {sct} the right SNOMED CT concept for it?
+  span  - is "{{text}}" {span_question}?
+  code  - is {{sct}} the right {vocabulary_concept} for it?
 
 Return JSON only:
-{{"span_ok":true|false,"code_ok":true|false,"confidence":0.0,"why":"one short sentence"}}
+{{{{"span_ok":true|false,"code_ok":true|false,"confidence":0.0,"why":"one short sentence"}}}}
 """
+
+
+def judge_prompt(slots: dict | None = None) -> str:
+    """The judge prompt for one corpus. Missing slots fall back to CADEC's.
+
+    Returns a template still carrying {source}/{text}/{start}/{end}/{sct} for
+    `judge()` to fill — the slots name the DOMAIN, the placeholders carry the
+    RECORD, and the two substitutions must not be collapsed into one.
+    """
+    given = dict(slots or {})
+    s = {**PROMPT_SLOTS, **given}
+    # DERIVED, not defaulted. A corpus that sets `vocabulary` and not
+    # `vocabulary_concept` would otherwise keep CADEC's "SNOMED CT concept"
+    # and half-port the prompt — the same silent-partial-port defect this
+    # whole function exists to fix, one slot down.
+    if "vocabulary" in given and "vocabulary_concept" not in given:
+        s["vocabulary_concept"] = given["vocabulary"]
+    # Same argument for every slot that mentions the corpus in passing. A
+    # corpus should have to declare its DOMAIN words, not remember every
+    # sentence CADEC happened to phrase around them.
+    if "source" in given and "source_owner" not in given:
+        s["source_owner"] = given["source"]
+    if "vocabulary" in given and "claim_object" not in given:
+        # "a US-GAAP XBRL tag code" reads wrong; the vocabulary already says
+        # what the identifier is called.
+        s["claim_object"] = given.get("id_name", "identifier")
+    # the span question is itself a slotted phrase, so it renders first
+    s["span_question"] = s["span_question"].format(**{
+        k: v for k, v in s.items() if k != "span_question"})
+    # "the post" -> "post"; the template says "The {source_noun}:"
+    s.setdefault("source_noun", s["source"])
+    src = s["source"]
+    s["source_noun"] = src[4:] if src.startswith("the ") else src
+    return PROMPT_TEMPLATE.format(**s)
+
+
+PROMPT = judge_prompt(None)
 
 
 def _guard(rec: Record) -> dict:
@@ -92,7 +150,8 @@ def _guard(rec: Record) -> dict:
 def judge(rec: Record, source: str, llm, cfg: dict) -> tuple[dict | None, dict]:
     _guard(rec)          # the boundary is applied before the prompt is built
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
-    prompt = PROMPT.format(source=source, text=rec.text, start=s, end=e, sct=rec.sct)
+    prompt = judge_prompt(cfg.get("prompt_slots")).format(
+        source=source, text=rec.text, start=s, end=e, sct=rec.sct)
     # text="" — the template above already carries the post. Passing `source`
     # here sent every post TWICE (fixed 2026-08-25; Caller appends non-empty
     # text as a POST section). The doubled prompt was invisible with granite

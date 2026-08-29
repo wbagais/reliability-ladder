@@ -30,6 +30,8 @@ import pytest
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
+
 from ladder.rungs import r1, r2, r3
 from ladder.schema import (
     R_CODE_UNKNOWN,
@@ -222,3 +224,64 @@ def test_rung_2_is_sent_the_post_exactly_once_still():
              {"llm": llm, "registry": vocab, "manifest": {}})
     assert seen["text"] == ""
     assert seen["prompt"].count(PAIN_SOURCE) == 1
+
+
+# ------------------------------------------- defect 3: rung 4's unported prompt
+def test_rung_4_prompt_renders_from_the_corpus_slot_table():
+    """Rung 4 is the SEVENTH prompt constant, and it was never ported.
+
+    The FiNER arm rendered six rung 0 prompt constants from
+    `manifest.corpus.prompts`, and rung 4 was missed — so a judge grading an
+    SEC filing was asked whether the text described "a personal adverse
+    reaction ... the writer says they experienced", with a "SNOMED CT code".
+    Every FiNER verdict from that prompt is answering a question about the
+    wrong domain. The judge is the one rung whose whole job is to read the
+    text, so a prompt about the wrong text is not a cosmetic defect.
+    """
+    from ladder.rungs import r4
+
+    cadec = r4.judge_prompt(None)
+    assert "adverse reaction" in cadec, "CADEC wording is the default"
+    assert "SNOMED CT" in cadec
+
+    import json as _json
+    slots = (_json.load(open(_ROOT / "manifest.finer.json"))
+             .get("corpus", {}).get("prompts"))
+    finer = r4.judge_prompt(slots)
+    assert "reported financial fact" in finer and "US-GAAP XBRL tag" in finer
+    # NOT just the two obvious substitutions. Every CADEC-specific word has to
+    # be gone, or the prompt has half-ported: the first version of this fix
+    # still said "It read a patient's post" and "the filer says they
+    # EXPERIENCED", which is the same defect wearing the new mechanism.
+    for word in ("adverse", "SNOMED", "patient", "experienced", "post",
+                 "reaction"):
+        assert word.lower() not in finer.lower(), (
+            f"CADEC word {word!r} survived into the FiNER judge prompt:\n{finer}"
+        )
+    # the format placeholders survive rendering, or judge() cannot fill them
+    for f in ("{source}", "{text}", "{start}", "{end}", "{sct}"):
+        assert f in finer, f"{f} lost during slot rendering"
+
+
+def test_rung_4_uses_the_rendered_prompt_when_slots_are_passed():
+    """The rendering must reach the actual call, not just exist as a helper."""
+    from ladder.rungs import r4
+    from ladder.schema import REACTION, Record
+
+    seen = {}
+
+    def llm(prompt, text, mode):
+        seen["prompt"] = prompt
+        return (json.dumps({"span_ok": True, "code_ok": True,
+                            "confidence": 0.9, "why": "ok"}), {})
+
+    rec = Record(doc_id="D1", entity_type=REACTION, text="47.6",
+                 spans=[(0, 4)], sct="EffectiveIncomeTaxRate",
+                 zone=ZONE_NEW, record_id="D1#0")
+    r4.apply([rec], {"D1": "a tax rate of 47.6 percent"},
+             {"judge_llm": llm, "prompt_slots": {
+                 "entity": "reported financial fact", "entity_short": "fact",
+                 "author": "the filer", "source": "the filing excerpt",
+                 "vocabulary": "US-GAAP XBRL tag"}})
+    assert "adverse reaction" not in seen["prompt"]
+    assert "reported financial fact" in seen["prompt"]
