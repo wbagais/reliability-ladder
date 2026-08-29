@@ -124,6 +124,14 @@ survivor, and it separates hard — coding accuracy on matched spans, overlap:
 2.3x separation for free, against 1.65x falling to 1.23x for a call per record
 — on the only axis a judge is for.
 
+**The free side survives the three-draw test that killed the reranker arm.**
+Across `arm-rrbase-d0/d1/d2`: ACCEPT 83.7 / 83.0 / 87.2, BAND 35.9 / 36.8 /
+36.2, ratio 2.33 / 2.26 / 2.41 — BAND moves 0.9 points, tighter than the
+headline F1's own 1.3-point spread, because it is conditional on a
+deterministic property of the record rather than on the run. Under a different
+rung 0 (pre-filters) it is 85.7 vs 30.1. Rung 4's separation is one draw per
+split and is reported with that caveat.
+
 **Rung 5's `tau` is a dead dial.** Rung 0's confidence is
 `{1.0: 204, 0.99: 44}` on the dev baseline. There is no operating point: any
 tau ≤ 0.9 abstains nothing, any tau above it abstains 80-98% on a number the

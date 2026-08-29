@@ -378,7 +378,14 @@ matched spans, overlap:
 | rung 4 judge `fail`, held-out test | 73 | 21.9% |
 
 A 2.3x separation for free, against 1.65x on dev falling to 1.23x out of
-sample — on the only axis a judge is for. The judge here is a 2B model grading a
+sample — on the only axis a judge is for. The free side survives this
+project's own three-draw test, the one that killed the reranker arm: over
+three independent draws the ACCEPT lane reads 83.7 / 83.0 / 87.2 and BAND
+35.9 / 36.8 / 36.2, a ratio of 2.33 / 2.26 / 2.41, and under a different
+rung 0 entirely it is 85.7 vs 30.1. It is conditional on a deterministic
+property of the record rather than on the run, which is why it is steadier
+than the headline F1 it sits inside. Rung 4's separation is one draw per
+split, and carries that caveat. The judge here is a 2B model grading a
 20B one, which is the wrong way round and is stated wherever its numbers are;
 the domain-adapted 7B brought in to fix that was measured and rejected. But the
 comparison that matters is not judge-vs-better-judge. It is that a string
