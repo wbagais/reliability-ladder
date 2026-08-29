@@ -184,6 +184,16 @@ class FinerVocabulary:
         return [{"code": t, "label": normalise_term(t), "score": round(s, 3)}
                 for s, t in scored[:rows]]
 
+    def all_codes(self) -> list[str]:
+        """Every tag. Only sane for a vocabulary that fits in a prompt.
+
+        `Registry` deliberately has no equivalent: enumerating 129,675 SNOMED
+        concepts into a menu is not a retrieval strategy, it is a mistake, and
+        the absence of the method is what stops rung0_retrieval='full' being
+        set for CADEC by accident.
+        """
+        return list(self._tags)
+
     def shortlist(self, text: str, k: int = 20,
                   findings_only: bool = True) -> list[dict]:
         """Rung 0's candidate menu. `search` under the name the rung expects.

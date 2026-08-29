@@ -98,6 +98,13 @@ class Ledger:
         )
         self.rows.append(e)
         self._fh.write(json.dumps(asdict(e), ensure_ascii=False) + "\n")
+        # Flushed per row so the ledger can be TAILED while a run is in
+        # progress. Without this the rows sit in Python's buffer until close()
+        # and a monitor watching the file sees nothing for the length of the
+        # run — which is a checkpoint at the end, not an append-only log.
+        # The cost is one write syscall per record, against a model call
+        # measured in seconds. It is a real cost and it is worth it.
+        self._fh.flush()
         return e
 
     def flush(self) -> None:

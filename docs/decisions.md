@@ -3148,3 +3148,135 @@ accuracy difference between the arms includes that.
   * `tests/test_scripts_import.py` takes **4,231 seconds** — 34 minutes for
     `ladder_run` alone. Importing a script should be milliseconds; these do work
     at module level. The tests are right and the scripts are the problem.
+
+## 2026-08-29 — the FiNER arm runs, and stops at the hardware
+
+The port is complete: rung 0's prompts render from the corpus slot table, the
+pick step works, and the ladder runs end to end on FiNER. What it will not do
+is produce a split result on this machine, and the reason is worth recording
+precisely because it is not a finding about the ladder.
+
+### The sequence of failures, each one informative
+
+**1. `{"mentions":[]}` on every document.** The frozen prompt asked
+`gpt-oss:20b` for adverse drug reactions in a dividend disclosure. It answered
+correctly that there were none, in 13.7 seconds, every time. Six prompt
+constants had to be ported before the arm asked a question about its own
+corpus; see the 2026-08-28 entry.
+
+**2. Every span ungrounded.** `manifest.finer.json` carried an empty `rungs`
+block as a statement that nothing was overridden. It meant nothing was
+CONFIGURED, so `rung0_offsets: "search"` never applied and the model's own
+character arithmetic was trusted — it is 19% correct at best. Fixed by
+inheriting the whole block.
+
+**3. `declined_shortlist: true` on 22 of 22 records.** The pick step builds its
+menu from `shortlist(span_text)`, token overlap against the vocabulary. The
+FiNER span is a NUMBER. `shortlist("19.8")` has no tokens to overlap on and
+returned `[]` every time, so the model never saw a menu and every record came
+back with `sct: null`. Rung 1 read that as BAND rather than as a wrong code,
+which is correct and is the deterministic spine behaving well.
+
+**Retrieval by term overlap is meaningless when the span carries no terms.**
+That is a property of the task, and it was predictable from the data shape.
+
+**4. Fixed with `rung0_retrieval: "full"`** — the whole 139-name vocabulary as
+the menu, no ranking. Justified: retrieval exists because SNOMED's 129,675
+concepts cannot go in a prompt, and 139 can. It is a removal rather than a
+tuning, and the second declared deviation from frozen after dense → lexical.
+Both have the same cause: retrieval is a function of what is retrieved from,
+and the two corpora differ by three orders of magnitude.
+
+It worked. The pick step began choosing real menu indices and real FiNER tags.
+
+### And then the hardware said no
+
+A 139-item menu is a much longer prompt than CADEC's 20 candidates. With
+`gpt-oss:20b` — 14 GB against 4 GB of VRAM — the split moved to **81% CPU / 19%
+GPU**, 2.8 GB resident, 10-14% GPU utilisation. Almost all the compute on CPU
+cores with the card idle.
+
+The consequence: **half of rung 0's calls produce nothing.** 10 documents, 5
+extracted, 5 `parse_failed`, and the failures are `truncated: true` with EMPTY
+text after 900-2,000 completion tokens. The model was cut off mid-generation by
+the 300-second timeout, having spent its budget thinking.
+
+`timeout_s` was raised 300 → 900 to test whether that was the constraint. It
+was not: 6 failures became 5. **Tripling the budget bought one document.**
+
+So the full-retrieval decision is right in principle and unaffordable here.
+That is a hardware statement, not a finding about the ladder, and it is stated
+as one.
+
+### What the arm produced before it stopped
+
+32 records from 10 documents, all BAND at rung 1 — every tag exists, is active,
+is the right type, and only the lexical match fails, because the span is a
+number and the tag is a concept name. On the earlier 5-document run, 3 spans
+matched gold and 0 codes were correct.
+
+Too small for a number, but the ERROR SHAPE is consistent and it differs from
+CADEC's:
+
+    gold  1     StockIssuedDuringPeriodSharesNewIssues
+    pred  1     BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued
+
+    gold  19.4  ProceedsFromIssuanceOfCommonStock
+    pred  19.4  CashAndCashEquivalentsFairValueDisclosure
+
+Both pairs are the right CATEGORY and the wrong tag — share counts and cash
+amounts respectively. On CADEC the model invented codes that existed nowhere.
+Here it names real, related, plausible tags. That is a different failure and a
+better one, and it means a low score on this arm should not be read the way a
+low score on CADEC was.
+
+Also: the model ignores the bare-number rule. It quotes `$ 6.1 billion` and
+`$ 90.07 per share` where gold has `6.1` and `90.07`, despite the ported rules
+stating the convention with the measurement behind it. Detection is finding
+numbers that are not tagged facts, and only 3 of 22 predicted spans matched a
+gold span — a larger loss than the coding error.
+
+### Where this stops
+
+**The port worked. The run does not fit on a 4 GB card.** Three options were
+considered and the choice is recorded rather than left implicit:
+
+  * report the numbers as they are, with the 50% could-not-run rate stated —
+    rejected, because every rate would be over a non-random remainder and the
+    watch panel says so itself;
+  * drop to a 40-item menu — deferred, because it is a third deviation and it
+    forfeits the "everything fits" argument the second one rests on;
+  * **say the arm needs different hardware** — taken. It is true, it is
+    checkable, and the port findings do not depend on the numbers.
+
+### The configuration encodes hardware without recording it
+
+The general version, and the most useful thing in this entry:
+
+  * `rung0_retrieval: "full"` was chosen from the vocabulary size, by someone
+    who did not know the card.
+  * `timeout_s: 300` is correct on the machine phase F ran on and wrong here.
+    It is a shared value, so raising it to 900 makes a runaway take 15 minutes
+    to surface on the CADEC arm too. **A to be told.**
+  * `ladder/provenance.py` already computes `fits` — model size against VRAM —
+    and nothing acts on it. A run could refuse to start, or warn, instead of
+    discovering the problem as a 27-minute run with 50% timeouts.
+  * Phase F records the vocabulary backend and not the compute backend, so its
+    78 minutes and 57s p95 are unattributable to any machine.
+
+**Config that depends on hardware, with no record of which hardware it was
+chosen for, is the same failure as a rate with no denominator.** The number is
+real and it describes a set nobody named.
+
+### Monitor bugs found on the way, two fixed and two open
+
+  * FIXED: `Ledger.log()` never flushed, so every row sat in Python's buffer
+    until `close()`. The monitor was tailing the right file; the file was empty
+    for the length of the run. Now flushed per row — one write syscall per
+    record against a model call measured in seconds.
+  * FIXED: a rung that was working rendered identically to a rung that had not
+    started, for the 338 seconds before rung 0 wrote its first row.
+  * OPEN: the reader still stalls. The ledger holds 112 rows and the display
+    shows 3.
+  * OPEN: rung 0 logs no `latency_ms`, so the time panel reads `0m00s in calls`
+    against a 19-minute wall clock.

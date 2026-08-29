@@ -927,7 +927,7 @@ def _step_s1(doc_id, source, llm, cfg, meta):
     return out
 
 
-RETRIEVERS = ("lexical", "dense")
+RETRIEVERS = ("lexical", "dense", "full")
 
 
 def _retriever(cfg: dict):
@@ -948,6 +948,24 @@ def _retriever(cfg: dict):
     if which == "lexical":
         reg = cfg["registry"]
         return (lambda text, k: reg.shortlist(text, k=k)), which
+
+    if which == "full":
+        # No ranking, no query: the whole vocabulary IS the menu. Correct when
+        # it fits in a prompt, which is the case that makes retrieval
+        # unnecessary rather than the case that makes it easy. The `text`
+        # argument is ignored, deliberately — a number carries no terms to rank
+        # on, and pretending otherwise is what produced an empty menu and a
+        # null code for every record.
+        reg = cfg.get("registry")
+        if reg is None or not hasattr(reg, "all_codes"):
+            raise RuntimeError(
+                "rung0_retrieval='full' needs a vocabulary that can enumerate "
+                "itself (an `all_codes()` method). It is meant for a tag set "
+                "small enough to put in a prompt; SNOMED is not."
+            )
+        menu = [{"code": c, "label": reg.preferred(c) or c, "fsn": c,
+                 "via": "full"} for c in reg.all_codes()]
+        return (lambda text, k: menu), which
 
     index = cfg.get("dense")
     if index is None:

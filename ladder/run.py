@@ -216,7 +216,7 @@ def run_ladder(
     ledger = Ledger(_ledger_path, run_id=run_id)
 
     global _MON
-    if _MON is _TUI_REQUESTED and _TUI_REQUESTED:
+    if _TUI_REQUESTED and _MON is None:
         # Started HERE rather than in cmd_ladder because this is the first
         # point at which the ledger path exists. A monitor pointed at a file
         # that has not been created yet shows an empty frame and looks broken.
@@ -264,6 +264,8 @@ def run_ladder(
         if caller is not None:
             callers[n] = caller
             print(f"[run] rung {n} model={caller.spec} ({caller.role})")
+        if _MON is not None:
+            _MON.mark_running(n, f"{caller.spec}" if caller else "")
         cfg.update(
             ledger=ledger,
             registry=registry,
@@ -603,10 +605,24 @@ def cmd_ladder(a) -> int:
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_{time.strftime('%Y%m%d-%H%M%S')}"
     global _TUI_REQUESTED
-    _TUI_REQUESTED = bool(getattr(a, "tui", False))
-    result = run_ladder(
-        man, a.split, rungs, records, sources, registry, out_dir, run_id, meddra=meddra
+    _TUI_REQUESTED = (
+        not getattr(a, "plain", False)
+        and sys.stdout.isatty()          # never in a pipe, a log or CI
     )
+    # A monitor that hides a traceback is worse than no monitor: rich.Live
+    # owns the terminal and the next frame overwrites whatever was printed.
+    # Stop it first, then let the exception through untouched.
+    try:
+        result = run_ladder(
+            man, a.split, rungs, records, sources, registry, out_dir, run_id,
+            meddra=meddra,
+        )
+    except BaseException:
+        global _MON
+        if _MON is not None:
+            _MON.stop()
+            _MON = None
+        raise
 
     # Declared exclusions are applied to the ANSWER KEY, once, here — see
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
@@ -787,8 +803,14 @@ def main(argv: list[str] | None = None) -> int:
 
     def _run_args(p):
         p.add_argument("--split", default="test")
+        # ON BY DEFAULT. A run with no visible progress is the failure that
+        # has come up four times on this project; --plain restores the old
+        # scrolling output. The monitor is skipped anyway when stdout is
+        # not a terminal, so piped and CI runs are unaffected.
+        p.add_argument("--plain", action="store_true",
+                       help="scrolling reports instead of the live monitor")
         p.add_argument("--tui", action="store_true",
-                       help="live monitor instead of scrolling reports")
+                       help=argparse.SUPPRESS)
         p.add_argument("--rungs", default="0-6")
         p.add_argument("--source", default="model", choices=["model", "gold"])
         p.add_argument("--predictions", help="JSONL of rung-0 records")

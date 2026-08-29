@@ -105,6 +105,8 @@ class State:
         self.last_row_at = None
         self.reports: list[tuple[int, str, str]] = []
         self.gpu = collections.deque(maxlen=90)
+        self.running = None
+        self.running_note = ""
         self.lock = threading.Lock()
 
     def _slot(self, r: int) -> dict:
@@ -145,6 +147,19 @@ class State:
     def add_report(self, rung: int, text: str) -> None:
         with self.lock:
             self.reports.append((rung, summarise(text), text))
+
+    def mark_running(self, rung: int | None, note: str = "") -> None:
+        """Which rung is working right now, and on what.
+
+        Rung 0 on FiNER takes 338 seconds before it writes its first ledger
+        row. For those 338 seconds every rung looked identical — empty. A rung
+        that is working and a rung that has not started must not render the
+        same way; that confusion is exactly what hid rung 0's unreachable
+        ledger row for the life of this project.
+        """
+        with self.lock:
+            self.running = rung
+            self.running_note = note
 
     @staticmethod
     def p95(v: list[float]) -> float:
@@ -395,11 +410,15 @@ def render(st: State, path: pathlib.Path, provenance: dict | None = None) -> Gro
                          ts=list(v.get("ts") or []))
                  for k, v in st.rung.items()}
         rows, feed = st.rows, list(st.feed)
+        running, running_note = st.running, st.running_note
         reports, gpu = list(st.reports), list(st.gpu)
         last_row_at, t0 = st.last_row_at, st.t0
 
-    all_ts = [t for r in rungs.values() for t in (r.get('ts') or [])]
-    elapsed = (max(all_ts) - min(all_ts)) if len(all_ts) > 1 else time.time() - t0
+    # The RUN's elapsed time, not the monitor's lifetime and not the
+    # spread of whatever rows happen to be in the file. An earlier version
+    # used the timestamp spread with a fallback, and reported 8h44m for a
+    # twenty-minute run because the ledger was empty and t0 was stale.
+    elapsed = time.time() - t0
     age = ""
     if last_row_at:
         d = time.time() - last_row_at
@@ -428,8 +447,17 @@ def render(st: State, path: pathlib.Path, provenance: dict | None = None) -> Gro
     for rid, name, kind in visible_rungs(rungs):
         s = rungs.get(rid)
         if not s:
-            tbl.add_row(str(rid), Text(name, style="grey35"),
-                        Text("—", style="grey30"), "", bar(0, 0, 0), "", "", "", "", "")
+            # A rung with no rows is either working or not started, and those
+            # must look different.
+            if rid == running:
+                tbl.add_row(Text(str(rid), style="yellow"),
+                            Text(name, style="yellow"),
+                            Text(running_note or "working…", style="yellow"),
+                            "", Text("▚" * 20, style="yellow"), "", "", "", "", "")
+            else:
+                tbl.add_row(str(rid), Text(name, style="grey35"),
+                            Text("—", style="grey30"), "", bar(0, 0, 0),
+                            "", "", "", "", "")
             continue
         p, f, c = s["pass"], s["fail"], s["could_not_run"]
         n = p + f + c + s["unset"]
@@ -554,6 +582,10 @@ class Monitor:
 
     def add_report(self, rung: int, text: str) -> None:
         self.state.add_report(rung, text)
+
+    def mark_running(self, rung: int | None, note: str = "") -> None:
+        self.state.mark_running(rung, note)
+
 
     def _loop(self) -> None:
         console = Console()
