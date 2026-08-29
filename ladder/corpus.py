@@ -155,7 +155,7 @@ def _parse_codes(path: Path) -> dict[str, tuple[list[str], str, list[tuple[int, 
     return out
 
 
-def load_corpus(root: str | os.PathLike) -> dict[str, Document]:
+def load_corpus(root: str | os.PathLike, **_) -> dict[str, Document]:
     """Read every post + its three annotation layers into memory (~35 MB)."""
     root = Path(root)
     tdir, odir, sdir, mdir = (root / "text", root / "original", root / "sct", root / "meddra")

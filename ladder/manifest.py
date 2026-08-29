@@ -36,6 +36,7 @@ def _resolve_paths(man: dict[str, Any], base: Path) -> None:
     """Manifest paths are relative to the manifest, so a checkout moves cleanly."""
     for section, key in (
         ("corpus", "cadec_root"),
+        ("corpus", "root"),          # any non-CADEC adapter
         ("corpus", "splits_dir"),
         ("vocabulary", "snomed_db"),
         ("vocabulary", "snomed_release_dir"),
@@ -57,5 +58,12 @@ def friendly(fn, *args):
     try:
         return fn(*args)
     except FileNotFoundError as exc:
+        # LADDER_DEBUG=1 re-raises. The clear line is right for a missing
+        # prerequisite, and wrong when a BUG raises FileNotFoundError — the
+        # FiNER port hit exactly that, four times: CADEC's loader called
+        # against another corpus's root reports "download CADEC" and hides
+        # which of five call sites did it.
+        if os.environ.get("LADDER_DEBUG"):
+            raise
         print(f"\n{exc}\n", file=sys.stderr)
         return 2

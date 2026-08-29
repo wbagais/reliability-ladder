@@ -185,7 +185,8 @@ def gather(man: dict | None = None, *, split: str | None = None,
         "git": git(),
         "compute": compute(model_gib),
         "corpus": {
-            "root": man.get("corpus", {}).get("cadec_root"),
+            "root": (man.get("corpus") or {}).get("root")
+                    or (man.get("corpus") or {}).get("cadec_root"),
             "version": man.get("corpus", {}).get("version"),
             "split": split or os.environ.get("LADDER_SPLIT", "dev"),
             "n_docs": n_docs,

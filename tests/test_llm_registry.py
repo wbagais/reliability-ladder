@@ -12,10 +12,13 @@ it is talking to.
 """
 
 import os
+import pathlib
 
 import pytest
 
-from ladder.llm import ModelInfo
+from ladder.llm import DEFAULT_TIMEOUT_S, ModelInfo
+
+_ROOT = pathlib.Path(__file__).resolve().parent.parent
 
 
 def test_the_local_default_is_still_local():
@@ -658,7 +661,24 @@ def test_changing_reasoning_effort_does_not_reuse_the_old_answer(tmp_path):
 
 
 def test_timeout_comes_from_the_registry():
-    assert ModelInfo("ollama/gpt-oss:20b").timeout_s == 300
+    """The REGISTRY is the source, which is why nothing here hard-codes a number.
+
+    This used to assert `== 300`. The FiNER arm raised the entry to 900 to test
+    whether the timeout was the binding constraint, and both timeout tests
+    broke on main — a test that pins the value it is supposed to be reading
+    fails every time the value legitimately changes, and says nothing about
+    whether the plumbing works. So: read models.yaml, and prove the value
+    arrives AND that it is not simply the fallback.
+    """
+    import yaml
+
+    reg = yaml.safe_load(open(_ROOT / "ladder" / "models.yaml"))
+    declared = reg["providers"]["ollama"]["models"]["gpt-oss:20b"]["timeout_s"]
+    assert ModelInfo("ollama/gpt-oss:20b").timeout_s == declared
+    assert declared != DEFAULT_TIMEOUT_S, (
+        "this model must declare a timeout that differs from the default, or "
+        "the assertion above passes even when the registry is never consulted"
+    )
 
 
 def test_a_model_with_no_entry_gets_the_default():
@@ -693,7 +713,11 @@ def test_the_timeout_reaches_the_request(tmp_path):
         client.chat([{"role": "user", "content": "hi"}])
     except RuntimeError:
         pass
-    assert sent["timeout"] == 300
+    assert sent["timeout"] == ModelInfo("ollama/gpt-oss:20b").timeout_s
+    assert sent["timeout"] != DEFAULT_TIMEOUT_S, (
+        "the registered value must differ from the fallback, or this cannot "
+        "tell a wired timeout from an unwired one"
+    )
 
 
 def test_a_timeout_is_reported_as_an_empty_timed_out_response(tmp_path):

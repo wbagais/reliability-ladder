@@ -205,7 +205,8 @@ def pool_trimmer(man: dict, split: str = "pool", loader=None, **thresholds) -> S
     from ladder import corpus as corpus_mod
     from ladder.schema import REACTION
 
-    docs = (loader or corpus_mod.load_corpus)(man["corpus"]["cadec_root"])
+    _c = man.get("corpus") or {}
+    docs = (loader or corpus_mod.load_corpus)(_c.get("root") or _c["cadec_root"])
     ids = corpus_mod.read_split(man["corpus"]["splits_dir"], split)
     excluded = clean.load_exclusions()
     data = []

@@ -2879,6 +2879,407 @@ collide with rung 1's negation flag. Parked.
 - 2026-08-26 — **Spec v2 (spec.md): demo shows the REAL study safely, a visuals catalogue added, whole spec compressed to implementation-ready.** Decided: demo mode carries TWO data layers, never mixed in one chart — real AGGREGATE results (scores, CIs, per-rung tables, curve data; licence-clean because aggregates carry no corpus text; exported at build time to dashboard/demo/results/ and rendered with their real run ids) and SYNTHETIC interactive examples (actual CADEC examples are never in the demo, by construction — showing real examples is what the local operator app is for). Added a ten-visual catalogue where every chart names the finding it encodes and its data source (ladder curve small-multiples, record-flow Sankey, detection-vs-coding dumbbell with oracle marker, zone strip per backend, five-outcome bars, CI bands, prompt-shape cliff, recall@k decomposition, judge-confidence/τ shelf, per-record rung timeline) — no decorative charts. Spec rewritten ~40% shorter with binding implementation notes (in-repo dashboard/, entry points, ledger fields, progress signal, TDD test classes) and four milestones (read-only → demo → workbench → supporting tabs).
 - 2026-08-26 — **Spec: the Workbench ABSORBS the existing monitor pair — one web interface, not three.** docs/ladder-monitor.html (replay + follow over runs/*.ledger.jsonl) and scripts/ladder_top.py predate the current models (the page's hard-coded header still names granite as extractor and qwen2.5:7b as judge, with a frozen "of 105 graded" denominator) but carry design rules worth keeping. Decided: their features become the app's Run monitor tab (follow + replay incl. archived baselines, Watch checks from the TUI, compute panel, provenance from the run's manifest copy instead of hard-coded text); at parity the HTML page is DELETED; ladder_top.py stays as the headless/SSH companion over the same ledger. Three of the pair's rules promoted to app-wide law in the visuals shared rules: per-rung numbers over the denominator the ledger names (never the run total), could_not_run as a hatched non-value (never a color or a zero), and one ingest path for replay and live.
 - 2026-08-26 — **Article versioning: docs/versions/ created.** The 2026-08-26 full-ladder rewrite replaced docs/article-iterations.md and docs/article-build-log.html in place; the pre-rewrite versions are now archived byte-identical (verified against git history) as docs/versions/article-iterations-v1-2026-08-22.* per the convention in docs/versions/README.md: before a major rewrite of a living document, snapshot the outgoing version as <name>-vN-<date>; archived copies are never edited.
+
+## 2026-08-28 — FiNER-139 as a second corpus, and what porting cost
+
+Second domain, chosen for CONTRAST rather than replication. CADEC's findings
+were all shaped by one fact: the extractor did not know SNOMED, so it fabricated
+codes, and every rung's bet was made against that gap. FiNER-139 has 139 XBRL
+tags. They fit in a prompt. The gap is gone.
+
+Prediction recorded in manifest.finer.json BEFORE the run: rung 2 improves
+(repair finally has something to pick from), rung 5 weakens (less to withdraw),
+rung 3 uncertain but should at least engage, rung 1 weakens.
+
+### The port cost ten edits
+
+`ladder/corpus_finer.py` and `ladder/vocab_finer.py` are new. `ladder/run.py`
+took ten one-line changes, all replacing a hardcoded `corpus_mod.` call or
+`Registry(...)` with a manifest-driven selector. No rung was touched. The
+harness generalises, and ten is the number.
+
+**`schemas/adapter.py` does not exist.** The plan lists it as one of three
+contracts. There is no declared corpus interface — only the five functions
+`ladder/corpus.py` happens to expose, and a new adapter imitates a shape rather
+than conforming to one. Two `GoldMention` fields are CADEC-named and were reused
+rather than renamed: `cadec_type` carries the XBRL tag name, `drug_group`
+carries the source split. That is a wart, and renaming them would touch every
+rung.
+
+### Two of rung 1's three checks are constants here
+
+Found while writing the vocabulary, before any measurement:
+
+- `is_active()` — vacuously true. XBRL types are versioned by taxonomy year, not
+  retired individually, and this dataset pins one snapshot.
+- `is_finding()` — vacuously true. No semantic hierarchy; all 139 are US-GAAP
+  numeric facts. `wrong_semantic_type` cannot fire.
+- `exists()` — still decidable but nearly trivial: a model that can see all 139
+  names can barely fabricate one. On CADEC `code_unknown` was 155 of 169.
+
+They are implemented as constants rather than inventing structure so the numbers
+look comparable. **The deterministic spine's value on CADEC came from a
+vocabulary large enough to be fabricated against.** Remove the knowledge gap and
+the free checks stop earning their place. That is a result about closed
+vocabularies and it was available from the data shape alone.
+
+`lexical_match` is also always False here: the tagged token is a NUMBER ('47.6')
+and the tag is a concept name. BAND will dominate on FiNER as it did on CADEC,
+for an unrelated reason. A rejection rate compared across the two corpora
+without that caveat is meaningless.
+
+### Sampling, declared
+
+17.3% of test sentences carry any tag (18,789 of 108,378; 31,717 tagged tokens,
+1.69 per tagged sentence). NATURAL RATE was chosen over tagged-only: sampling
+only tagged sentences gives the same gold volume for a fifth of the compute and
+removes the model's chance to correctly find nothing — which CADEC could never
+test, because every post has mentions. 36 of the 100 pseudo-documents contain no
+gold at all.
+
+10 consecutive sentences per pseudo-document, file order. Two reasons, both
+declared: rung 0 makes 100 calls rather than 1,000, and FiNER tags depend on
+context rather than on the token, so a sentence alone may lack what is needed.
+
+Built: 100 documents, 362 gold mentions (CADEC test: 290), 86 of 139 tag types
+exercised, 3 multi-token spans. **Only 3 of 362 spans are multi-token, against
+CADEC's 11.7% discontinuous mentions — span extraction is materially easier
+here, and any accuracy difference between the arms includes that.**
+
+### Frozen against
+
+manifest.json at b7aba48 (Phase F). Models and prompts unchanged, deliberately —
+the prompts were tuned on CADEC's dev split over five phases, so FiNER runs with
+prompts fitted to another domain. That is a limitation to state, not to fix:
+tuning per corpus would forfeit the comparison.
+
+### Also
+
+FiNER-139 is CC-BY-SA-4.0 and REDISTRIBUTABLE, unlike CADEC — a reader can
+reproduce this arm. And its canonical HuggingFace loader is a dataset script,
+which `datasets` 5.x refuses to run, so `load_dataset()` fails outright. The
+adapter reads the shipped JSONL directly.
+
+## 2026-08-28 — porting to a second corpus: sixteen edits, and one rung that did not port
+
+FiNER-139 was added as a second domain, chosen for CONTRAST rather than
+replication: 139 XBRL tags fit in a prompt, so the knowledge gap that shaped
+every CADEC finding is gone and every rung's bet changes odds at once. The
+prediction was written into `manifest.finer.json` before the run.
+
+This entry is about what the PORT found. It is worth recording separately
+because it is true whether or not the FiNER arm ever produces a number.
+
+### The ladder ported. Rung 0 did not.
+
+**Sixteen one-line edits, no rung logic changed**, two new modules
+(`corpus_finer.py`, `vocab_finer.py`), one manifest. The runner contract, the
+vocabulary Protocol, the ledger, the injected scorer and the manifest-driven
+config all held. Most research code would have needed a rewrite; this needed a
+selector.
+
+**Rung 0 did not port at all.** There are SEVEN prompt constants in
+`ladder/rungs/r0.py` — `_ASK`, `_RULES`, `FEWSHOT`, `S0_PROMPT`, `S1_PROMPT`,
+`FIND_PROMPT`, `PICK_PROMPT` — and every one is written about adverse drug
+reactions in patient posts. Pointed at a dividend disclosure, `gpt-oss:20b`
+returned `{"mentions":[]}` in 13.7 seconds for every document. Nothing reached
+rung 1, so nothing about the ladder could be measured. The model was not
+failing; it was answering a question about a different dataset.
+
+`_RULES` is the one that cannot be translated at all. Its paragraphs encode
+CADEC annotation conventions, several with measurements behind them — denied
+reactions are still coded, report the condition the drug was taken for, report
+repeats separately, vague states count, *1 of 7,311 gold mentions names a
+procedure*. `PICK_PROMPT` is worse: it carries a worked example about *"felt
+like my old self was gone"* and a rule that severity and timing do not belong
+in a concept.
+
+So the honest statement is not "the prompt was hardcoded". It is that **rung 0
+is a CADEC extraction system**, tuned over five phases against CADEC's dev
+split, and the ladder above it is what generalises.
+
+### Why it was missed, which is the part worth keeping
+
+Every axis KNOWN to vary was abstracted: models, rung order, thresholds,
+retrieval mode, few-shot document ids, the vocabulary backend, the scorer, the
+rung order itself. The prompts were never known to vary, because there was one
+corpus. With one dataset a task description looks like a constant.
+
+That is a limit of the method rather than a lapse in discipline. You can only
+parameterise what you can imagine changing, and the seams you can see are the
+ones you have already crossed. `schemas/adapter.py` is listed in the plan as one
+of three contracts and was never written, for the same reason — nothing needed
+it, so a new adapter imitates a shape rather than conforming to one.
+
+**Modularity is a claim about which axes vary, and one dataset cannot test that
+claim.** A second corpus is the only thing that finds the rest.
+
+### What the port actually touched
+
+  * **Four corpus-loading sites**, each hardcoding `man["corpus"]["cadec_root"]`
+    — `run.py`, `r0.py`'s `pool_fewshot_block`, `trim.py`'s `pool_trimmer`, and
+    the analysis tools. Two of them are inside rungs, reaching for the corpus
+    rather than receiving it. Found one crash at a time.
+  * **An unbound loader.** Passing `load_corpus` as a bare callable meant three
+    call sites each built a DIFFERENT corpus from the same adapter — the splits
+    were cut from 120 documents and the trimmer rebuilt 100, so pool ids did not
+    exist. A loader is not a function; it is a function plus its configuration.
+  * **`manifest.py` resolved `corpus.cadec_root` to an absolute path** and had
+    no entry for any other corpus root.
+  * **An empty `rungs` block.** `manifest.finer.json` originally carried one as
+    a statement that nothing was overridden. It meant nothing was CONFIGURED, so
+    rung 0 ran without `rung0_offsets: "search"` and every span came back
+    ungrounded. A manifest that says "same as that one except these" is the only
+    safe form.
+  * **Sampling config that was never read.** The manifest carried
+    `sentences_per_document` and `documents`; the adapter used its own defaults.
+    Decorative configuration, and the same shape as the empty rungs block.
+
+### Two settings that CANNOT be held constant across corpora
+
+Freezing the configuration is what makes the two arms comparable, so each
+deviation is declared:
+
+  * **`rung0_retrieval`: dense → lexical.** CADEC retrieves 20 candidates from
+    129,675 concepts and dense beats lexical by 21.0 points there. FiNER's whole
+    vocabulary is 139 names and all of them fit in the prompt. There is nothing
+    to embed. Retrieval mode is a function of what is being retrieved from, and
+    the two differ by three orders of magnitude.
+  * **Few-shot documents.** `rung0_fewshot_docs` names CADEC pool posts that do
+    not exist in FiNER. Few-shot examples belong to the corpus — the same
+    finding as the task prompt, one layer down, found the same way.
+
+### Two of rung 1's three checks go vacuous
+
+Available from the data shape alone, before any measurement:
+
+  * `is_active()` — vacuously true. XBRL types are versioned by taxonomy year,
+    not retired individually, and this dataset pins one snapshot.
+  * `is_finding()` — vacuously true. No semantic hierarchy; all 139 are US-GAAP
+    numeric facts, so `wrong_semantic_type` cannot fire.
+  * `exists()` — decidable but nearly trivial: a model that can see all 139
+    names can barely fabricate one. On CADEC `code_unknown` was 155 of 169.
+
+Implemented as constants rather than inventing hierarchy so the numbers look
+comparable. **The deterministic spine's value on CADEC came from a vocabulary
+large enough to be fabricated against.** Remove the knowledge gap and the free
+checks stop earning their place. `lexical_match` is also always False here: the
+tagged token is a NUMBER and the tag is a concept name, so BAND will dominate on
+FiNER as it did on CADEC, for an unrelated reason. A rejection rate compared
+across the two corpora without that caveat is meaningless.
+
+### The model's failure mode is different, and better
+
+First real extraction, on a document with 27 gold mentions: `gpt-oss:20b` found
+the right numbers — `$ 40.5 million` against gold's `40.5` — and tagged it
+`us-gaap:NotesPayable` where gold says `DebtInstrumentFaceAmount`.
+
+That is a real US-GAAP concept, correctly namespaced, sensibly chosen for a debt
+figure. It is not in FiNER-139 — **no tag in the set contains "Notes" or
+"Payable"** — because FiNER-139 is the 139 MOST FREQUENT tags out of thousands
+in the taxonomy. The model is not wrong about accounting; it is wrong about
+which subset someone chose to annotate.
+
+That is a different failure from CADEC, where invented codes existed nowhere,
+and it changes how a low score should be read here. It also raises a limitation
+worth stating rather than fixing: mode A asks the model to emit a tag "from your
+own knowledge", which on FiNER means guessing which 139 of several thousand tags
+were labelled. The pick step exists to fix exactly that, so the configuration
+stays frozen and the ladder is left to do its job.
+
+The `us-gaap:` namespace is stripped in `exists()`. That is a format
+normalisation, not a leniency: the namespace is not part of the tag name, and
+leaving it would fail every code on punctuation and measure JSON conventions
+rather than the ladder.
+
+### FiNER's own conventions, derived rather than invented
+
+Over 407 gold mentions, so the ported prompts state facts about this corpus
+instead of translations of CADEC's:
+
+  * Spans are the BARE NUMBER — 0 of 407 begin with `$`, none contain `%`.
+    3 of 407 are multi-token, and one of those is the word `two`.
+  * 38 texts repeat within a document and each repeat is tagged separately —
+    the same convention CADEC has.
+  * **39 numbers carry different tags in different places.** That is the whole
+    difficulty: the number is meaningless and the sentence decides. `47.6` and
+    `13.4` in *"the effective tax rate was 47.6 percent and 13.4 percent"* share
+    a tag, and the words immediately before them do not distinguish either.
+  * Gold picks `DebtInstrumentFaceAmount` for `40.5`, not `NotesPayable` — name
+    the MEASUREMENT, not the instrument. The same shape as CADEC's "the plain
+    concept, not a more specific variant": describe the thing itself, not its
+    circumstances.
+  * CADEC's negation rule is **dropped, not translated**. FiNER shows no
+    denied-figure convention, so `negated` is always false. Recorded because a
+    silently dropped rule is indistinguishable from an overlooked one.
+
+### Sampling, declared
+
+17.3% of test sentences carry any tag (18,789 of 108,378). NATURAL RATE was
+chosen over tagged-only: sampling only tagged sentences gives the same gold
+volume for a fifth of the compute and removes the model's chance to correctly
+find nothing — which CADEC could never test, because every post has mentions.
+36 of 100 pseudo-documents contain no gold at all, and the first smoke run drew
+five of them, which is why it looked like a failure and was not.
+
+10 consecutive sentences per pseudo-document, file order, both declared: rung 0
+makes 100 calls rather than 1,000, and FiNER tags depend on context rather than
+on the token.
+
+Built at 120 documents: dev 40 / test 60 / pool 20, 407 gold mentions, 86 of 139
+tag types exercised. **Only 3 of 407 spans are multi-token against CADEC's 11.7%
+discontinuous mentions** — span extraction is materially easier here, and any
+accuracy difference between the arms includes that.
+
+### Also worth recording
+
+  * FiNER-139 is CC-BY-SA-4.0 and REDISTRIBUTABLE, unlike CADEC. A reader can
+    reproduce this arm.
+  * Its canonical HuggingFace loader is a dataset script and `datasets` 5.x
+    refuses to run those, so `load_dataset()` fails outright. The adapter reads
+    the shipped JSONL directly.
+  * `manifest.json` names the judge `ollama/ibm/granite4:micro-h`. That string
+    404s against local Ollama. If phase F ran with it, rung 4's numbers need
+    explaining — **A to confirm.**
+  * Phase F records the vocabulary backend but **not the compute backend**. Its
+    78 minutes, 57s p95 and 126s rung-3 latency are unattributable to any
+    machine. Token counts are comparable across machines; wall clock is not.
+    `ladder/provenance.py` closes this and landed after phase F.
+  * `tests/test_scripts_import.py` takes **4,231 seconds** — 34 minutes for
+    `ladder_run` alone. Importing a script should be milliseconds; these do work
+    at module level. The tests are right and the scripts are the problem.
+
+## 2026-08-29 — the FiNER arm runs, and stops at the hardware
+
+The port is complete: rung 0's prompts render from the corpus slot table, the
+pick step works, and the ladder runs end to end on FiNER. What it will not do
+is produce a split result on this machine, and the reason is worth recording
+precisely because it is not a finding about the ladder.
+
+### The sequence of failures, each one informative
+
+**1. `{"mentions":[]}` on every document.** The frozen prompt asked
+`gpt-oss:20b` for adverse drug reactions in a dividend disclosure. It answered
+correctly that there were none, in 13.7 seconds, every time. Six prompt
+constants had to be ported before the arm asked a question about its own
+corpus; see the 2026-08-28 entry.
+
+**2. Every span ungrounded.** `manifest.finer.json` carried an empty `rungs`
+block as a statement that nothing was overridden. It meant nothing was
+CONFIGURED, so `rung0_offsets: "search"` never applied and the model's own
+character arithmetic was trusted — it is 19% correct at best. Fixed by
+inheriting the whole block.
+
+**3. `declined_shortlist: true` on 22 of 22 records.** The pick step builds its
+menu from `shortlist(span_text)`, token overlap against the vocabulary. The
+FiNER span is a NUMBER. `shortlist("19.8")` has no tokens to overlap on and
+returned `[]` every time, so the model never saw a menu and every record came
+back with `sct: null`. Rung 1 read that as BAND rather than as a wrong code,
+which is correct and is the deterministic spine behaving well.
+
+**Retrieval by term overlap is meaningless when the span carries no terms.**
+That is a property of the task, and it was predictable from the data shape.
+
+**4. Fixed with `rung0_retrieval: "full"`** — the whole 139-name vocabulary as
+the menu, no ranking. Justified: retrieval exists because SNOMED's 129,675
+concepts cannot go in a prompt, and 139 can. It is a removal rather than a
+tuning, and the second declared deviation from frozen after dense → lexical.
+Both have the same cause: retrieval is a function of what is retrieved from,
+and the two corpora differ by three orders of magnitude.
+
+It worked. The pick step began choosing real menu indices and real FiNER tags.
+
+### And then the hardware said no
+
+A 139-item menu is a much longer prompt than CADEC's 20 candidates. With
+`gpt-oss:20b` — 14 GB against 4 GB of VRAM — the split moved to **81% CPU / 19%
+GPU**, 2.8 GB resident, 10-14% GPU utilisation. Almost all the compute on CPU
+cores with the card idle.
+
+The consequence: **half of rung 0's calls produce nothing.** 10 documents, 5
+extracted, 5 `parse_failed`, and the failures are `truncated: true` with EMPTY
+text after 900-2,000 completion tokens. The model was cut off mid-generation by
+the 300-second timeout, having spent its budget thinking.
+
+`timeout_s` was raised 300 → 900 to test whether that was the constraint. It
+was not: 6 failures became 5. **Tripling the budget bought one document.**
+
+So the full-retrieval decision is right in principle and unaffordable here.
+That is a hardware statement, not a finding about the ladder, and it is stated
+as one.
+
+### What the arm produced before it stopped
+
+32 records from 10 documents, all BAND at rung 1 — every tag exists, is active,
+is the right type, and only the lexical match fails, because the span is a
+number and the tag is a concept name. On the earlier 5-document run, 3 spans
+matched gold and 0 codes were correct.
+
+Too small for a number, but the ERROR SHAPE is consistent and it differs from
+CADEC's:
+
+    gold  1     StockIssuedDuringPeriodSharesNewIssues
+    pred  1     BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued
+
+    gold  19.4  ProceedsFromIssuanceOfCommonStock
+    pred  19.4  CashAndCashEquivalentsFairValueDisclosure
+
+Both pairs are the right CATEGORY and the wrong tag — share counts and cash
+amounts respectively. On CADEC the model invented codes that existed nowhere.
+Here it names real, related, plausible tags. That is a different failure and a
+better one, and it means a low score on this arm should not be read the way a
+low score on CADEC was.
+
+Also: the model ignores the bare-number rule. It quotes `$ 6.1 billion` and
+`$ 90.07 per share` where gold has `6.1` and `90.07`, despite the ported rules
+stating the convention with the measurement behind it. Detection is finding
+numbers that are not tagged facts, and only 3 of 22 predicted spans matched a
+gold span — a larger loss than the coding error.
+
+### Where this stops
+
+**The port worked. The run does not fit on a 4 GB card.** Three options were
+considered and the choice is recorded rather than left implicit:
+
+  * report the numbers as they are, with the 50% could-not-run rate stated —
+    rejected, because every rate would be over a non-random remainder and the
+    watch panel says so itself;
+  * drop to a 40-item menu — deferred, because it is a third deviation and it
+    forfeits the "everything fits" argument the second one rests on;
+  * **say the arm needs different hardware** — taken. It is true, it is
+    checkable, and the port findings do not depend on the numbers.
+
+### The configuration encodes hardware without recording it
+
+The general version, and the most useful thing in this entry:
+
+  * `rung0_retrieval: "full"` was chosen from the vocabulary size, by someone
+    who did not know the card.
+  * `timeout_s: 300` is correct on the machine phase F ran on and wrong here.
+    It is a shared value, so raising it to 900 makes a runaway take 15 minutes
+    to surface on the CADEC arm too. **A to be told.**
+  * `ladder/provenance.py` already computes `fits` — model size against VRAM —
+    and nothing acts on it. A run could refuse to start, or warn, instead of
+    discovering the problem as a 27-minute run with 50% timeouts.
+  * Phase F records the vocabulary backend and not the compute backend, so its
+    78 minutes and 57s p95 are unattributable to any machine.
+
+**Config that depends on hardware, with no record of which hardware it was
+chosen for, is the same failure as a rate with no denominator.** The number is
+real and it describes a set nobody named.
+
+### Monitor bugs found on the way, two fixed and two open
+
+  * FIXED: `Ledger.log()` never flushed, so every row sat in Python's buffer
+    until `close()`. The monitor was tailing the right file; the file was empty
+    for the length of the run. Now flushed per row — one write syscall per
+    record against a model call measured in seconds.
+  * FIXED: a rung that was working rendered identically to a rung that had not
+    started, for the 338 seconds before rung 0 wrote its first row.
+  * OPEN: the reader still stalls. The ledger holds 112 rows and the display
+    shows 3.
+  * OPEN: rung 0 logs no `latency_ms`, so the time panel reads `0m00s in calls`
+    against a 19-minute wall clock.
 - 2026-08-27 — **FOUND: rung 0 is NOT reproducible run-to-run, and the spread is as large as every rung-0 gain ever measured.** Three fresh draws of the FROZEN rung 0 over the dev split, same machine, same hour, same manifest, `sample_index` varied so the disk cache could not serve an old answer — and `sample_index` is never sent to the provider, so all three sent a byte-identical request at temperature 0. Result: exact F1 0.309 / 0.309 / 0.330, overlap 0.423 / 0.398 / 0.428; pairwise span-set Jaccard 0.61–0.73, and the code differs on 25–39 of the shared mentions. Independently corroborated from disk: the Phase B worktree's private `.llm_cache` and the main checkout's share 92 keys (identical prompt + params by construction, since the key IS their hash) and **46 of those 92 hold different completion text**. The divergence is concentrated in the OPEN-ENDED call — of the shared keys, FIND differs 29/37 while PICK differs 5/35 — i.e. the constrained index-pick is nearly stable and the free-form extraction is not. Two consequences. (1) `Caller.sampler`'s docstring asserts "at temperature 0 every sample is the same answer"; that is false for `ollama/gpt-oss:20b` on this box, and rung 3's k votes are therefore not the only source of sample variation in the ladder. (2) A single-run dev A/B of a few points measures the runtime, not the change: within one session the spread is ~2pt exact / ~3pt overlap, and phaseB-2 re-scored on today's harness with the trimmer OFF gives 0.358/0.479 against 0.296/0.427 for today's draw with the trimmer OFF — ~6pt BETWEEN sessions, larger than Phase B's whole reported gain. Every rung-0 arm in docs/decisions.md dated 2026-08-24/25 was a one-draw comparison; they are hereby readable as suggestive, not as separated. NOTHING in Phase F moves — that run is reported as-is and is not re-run — but its dev/test comparison should be read next to this spread as well as next to its bootstrap CI. Protocol: `scripts`-free offline harness, `r0.prepare` + `r0.extract_document` on the frozen manifest, scored with `score_run` (exclusions + local-rf2 registry).
 - 2026-08-27 — **MEASURED, three draws, zero extra tokens: rung 0 abstains where its own retrieved menu already holds an answer, and stopping that is worth ~+2 points.** Rung 0 emits `sct: None` 15–38 times per dev run (CONCEPT_LESS ~1, and 0 in one draw) while a 20-candidate menu it already paid for sits on the record. Taking candidate rank 0 wherever the pick returned nothing scores, on draws 1/2/3: exact 0.327/0.336/0.339 vs 0.309/0.309/0.330 and overlap 0.444/0.434/0.441 vs 0.423/0.398/0.428 — it wins on every draw, and a PAIRED bootstrap over documents (1000 resamples, pooled across the three draws, so the runtime noise above is controlled) gives **+0.0179 [+0.0055, +0.0287] exact and +0.0238 [+0.0086, +0.0380] overlap**, both excluding zero. The design-respecting variant — fall back only on `None` (the ABSENCE of an answer) and leave CONCEPT_LESS (a positive claim) standing — keeps most of it: +1.3/+2.2/+0.9 exact. Nothing is destroyed: rung 0 scores **0 of 10** concept_less gold in every arm on every draw, so the abstentions it gives up were not right. It is also the ladder's own argument — rung 1 judges without routing and rung 5 is where coverage is finally allowed to cost, so a rung-0 abstention pre-empts the rung whose job it is. NOT WIRED: recorded as a measured option, since Phase F is spent and no held-out split remains to confirm it on. A second arm (override the pick when a candidate's label equals the span modulo case/plural) is +0.009 [0.000, 0.016] and adds NOTHING on top of the fallback — dropped.
 - 2026-08-27 — **MEASURED: the PICK call earns its keep, which had never been checked.** S2's second call was justified on the retrieval measurement, not against the null model of skipping the pick entirely. Over the same menus, "always take dense rank 0" scores exact 0.279/0.291/0.290 and overlap 0.370/0.371/0.370 against the model pick's 0.309/0.309/0.330 and 0.423/0.398/0.428 — the pick beats pure retrieval by 1.8–4.0 exact and 2.7–5.8 overlap points on every draw. The model's pick equals rank 0 in only 109–126 of ~225 records, so it is genuinely re-ranking rather than rubber-stamping. Also measured and rejected: "shortest label in the menu" as a stand-in for the answer key's preference for general concepts loses ~10 points (exact 0.209/0.228/0.223) — the preference is real in the failure list but is not a length rule.
@@ -2951,3 +3352,4 @@ collide with rung 1's negation flag. Parked.
 - 2026-08-28 — **`mistral:7b-instruct` WORKS, which closes the hole in our own BioMistral claim and sharpens it.** The un-adapted base family runs the full 40-document extraction with no crash and no unparseable replies: exact 0.206 / overlap 0.264, 259 predictions, 107 calls. The 2026-08-25 Phase C conclusion — "domain adaptation does not buy instruction-following" — was drawn WITHOUT ever running the base model, so it could not distinguish "the adaptation did not help" from "the family cannot do this". It now can: **the base family follows instructions in this pipeline and the domain-adapted variant could not**, which upgrades the claim to *domain adaptation COST instruction-following*. Caveats stated because the comparison is not perfectly matched: BioMistral ran in the JUDGE role on a different prompt at a different quantization (Q5_K_M), and mistral:7b-instruct here is an EXTRACTOR. What transfers is the existence proof — a 7B Mistral-family model can reliably emit the required JSON under these prompt lengths, so BioMistral's instant-EOS above ~430 prompt tokens is not a property of the family.
 - 2026-08-28 — **H2 IS FALSIFIED, and the falsification is the interesting part: the retrieved menu is a CEILING on coding accuracy, not a floor.** H2 predicted coding accuracy would stay within ~5 points across models because every model picks from the same 20-candidate dense-retrieved menu. Measured over three models, three draws each, coding accuracy on overlap-matched spans: gpt-oss:20b **0.599**, llama3.1:8b **0.530**, mistral:7b-instruct **0.386** — a **21.3-point spread**, four times the falsification threshold. Set against the 2026-08-28 Sonnet arm, where a frontier model produced IDENTICAL exact-correct answers (31 vs 31) and coding accuracy that drifted DOWN, the picture is asymmetric and now well evidenced: **a better reader cannot beat the menu, but a worse reader can certainly fail to use it.** Retrieval bounds how good coding gets; it does nothing to stop it being bad. H1 (detection spreads >10pt) survives, but only just — detection overlap 0.788 / 0.745 / 0.685, a 10.3-point spread.
 - 2026-08-28 — **H4 HOLDS, in a STRONGER form than it was registered in, and it is now the best-evidenced result in the project.** H4 predicted the rung 1 ACCEPT/BAND separation would hold at roughly 2-3x for every usable model. Measured, three models x three draws, coding accuracy on overlap-matched spans: **ACCEPT lane 84.6 / 80.4 / 83.3 — a 4.2-point spread — while headline exact F1 ranges 0.401 / 0.336 / 0.206, a factor of two.** The BAND lane meanwhile tracks model quality directly: 35.9 / 28.8 / 14.6. So the separation ratio does not merely survive, it GROWS as models get worse (2.36 / 2.79 / **5.70**), because the numerator holds while the denominator collapses. The claim is therefore stronger than "the check correlates with correctness": **the deterministic check identifies a subset of answers that are ~80-85% correct regardless of which model produced them, across a 2x range of model quality.** That is what "deterministic evidence" has to mean to be worth anything, and it is now measured across three model families rather than asserted from one.
+- 2026-08-29 — **Merged `origin/main` (the FiNER second-corpus arm, 10 commits) into the rungs 1-6 audit branch. Two conflicts, both resolved by keeping BOTH sides, and one pre-existing break on main fixed.** (a) `r0.prepare`'s trimmer construction conflicted: the audit branch passes `cut_max_rate` from `rung0_cut_rate` (the one free parameter of the trim rules — an arm built at a different threshold is comparing two trimmers), main passes `loader=cfg["corpus_loader"]` (what lets a second corpus learn its own rules instead of CADEC's). `pool_trimmer(man, split, loader=None, **thresholds)` accepts both, so both are passed; neither supersedes the other. (b) `docs/decisions.md` conflicted because both branches append to it — both blocks kept, main's first. (c) **`origin/main` fails two tests on its own**, verified in a clean worktree of `origin/main` before the merge was blamed: the FiNER work raised `gpt-oss:20b`'s `timeout_s` 300 -> 900 to test whether the timeout was the binding constraint, and `tests/test_llm_registry.py` still asserted the literal `300` in two places. **Fixed by making the tests read the registry rather than pin the number** — a test that hard-codes the value it exists to prove is being read breaks on every legitimate change and says nothing about the plumbing. Both now assert against `models.yaml`'s declared value AND that it differs from `DEFAULT_TIMEOUT_S`, so they still fail when the wiring breaks; verified by deliberately breaking both paths (per-model entry ignored -> 3 failures; timeout not passed to the request -> 1 failure) and restoring `ladder/llm.py` byte-clean. Post-merge: **672 tests green, preflight clean, and the rung 0 dev baseline reproduces EXACTLY through main's refactored corpus-slot prompt rendering** — exact 0.399 / overlap 0.469, det 0.516/0.785, coding 0.773/0.597, 92/108 correct, 235 predictions, all seven figures unchanged. That last check is the one that matters: main rewrote how six rung 0 prompt constants are built, and the audit's numbers are only comparable to the post-merge tree if that rewrite is byte-identical on CADEC. It is.

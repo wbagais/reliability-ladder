@@ -27,11 +27,62 @@ import json
 import sys
 import time
 from collections import Counter
+import functools
 from pathlib import Path
 from typing import Any, Callable
 
 from ladder import clean as clean_mod
 from ladder import corpus as corpus_mod
+
+# Set by cmd_ladder when --tui is passed. run_ladder consults it rather than
+# taking a parameter, so no caller signature changes and nothing else in the
+# module has to know the monitor exists.
+_MON = None
+_TUI_REQUESTED = False
+
+
+def _corpus_for(man):
+    """The corpus adapter named in the manifest. Defaults to CADEC.
+
+    Added for the FiNER-139 arm. schemas/adapter.py is listed in the plan as
+    one of the three contracts and was never written, so there is no declared
+    interface — only the five functions ladder/corpus.py happens to expose.
+    That absence is a finding; see docs/decisions.md.
+    """
+    name = (man.get("corpus") or {}).get("adapter", "cadec")
+    if name == "cadec":
+        return corpus_mod
+    if name == "finer":
+        from ladder import corpus_finer
+        return corpus_finer
+    raise ValueError(f"unknown corpus adapter {name!r}")
+
+
+def _corpus_opts(man):
+    """Corpus-specific loader options from the manifest.
+
+    CADEC's load_corpus takes only a root. FiNER's needs sampling parameters —
+    how many sentences per pseudo-document, how many documents, in what order —
+    and those are properties of the CORPUS, so they belong in the manifest
+    rather than in the adapter's defaults. An earlier version had them in the
+    manifest and read from the defaults, so the config was decorative.
+    """
+    c = man.get("corpus") or {}
+    return {k: v for k, v in (c.get("sampling") or {}).items()
+            if not k.startswith("_")}
+
+
+def _corpus_root(man):
+    c = man.get("corpus") or {}
+    return c.get("root") or c["cadec_root"]
+
+
+def _vocab_for(man):
+    """The vocabulary the manifest names. Registry unless told otherwise."""
+    if (man.get("vocabulary") or {}).get("backend") == "finer-tags":
+        from ladder import vocab_finer
+        return vocab_finer.load(_corpus_root(man))
+    return Registry(man["vocabulary"]["snomed_db"])
 from ladder import llm as llm_mod
 from ladder.ledger import Ledger
 from ladder.manifest import friendly, load_manifest
@@ -161,7 +212,25 @@ def run_ladder(
     meddra: MeddraTable | None = None,
 ) -> dict[str, Any]:
     order = [n for n in man["rung_order"] if n in rungs]
-    ledger = Ledger(out_dir / f"{run_id}.ledger.jsonl", run_id=run_id)
+    _ledger_path = out_dir / f"{run_id}.ledger.jsonl"
+    ledger = Ledger(_ledger_path, run_id=run_id)
+
+    global _MON
+    if _TUI_REQUESTED and _MON is None:
+        # Started HERE rather than in cmd_ladder because this is the first
+        # point at which the ledger path exists. A monitor pointed at a file
+        # that has not been created yet shows an empty frame and looks broken.
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        from ladder_top import Monitor
+        _MON = Monitor(str(_ledger_path), provenance={
+            "run": run_id,
+            "split": split,
+            "order": ",".join(str(r) for r in [g["rung"] for g in rungs])
+            if rungs and isinstance(rungs[0], dict) else "",
+        }).start()
+    else:
+        print(f"[run] watch:  python3 scripts/ladder_top.py --file {_ledger_path}")
     snapshots: dict[int, list[Record]] = {}
     callers: dict[int, Any] = {}
     aggregates: dict[int, dict] = {}
@@ -195,9 +264,19 @@ def run_ladder(
         if caller is not None:
             callers[n] = caller
             print(f"[run] rung {n} model={caller.spec} ({caller.role})")
+        if _MON is not None:
+            _MON.mark_running(n, f"{caller.spec}" if caller else "")
         cfg.update(
             ledger=ledger,
             registry=registry,
+            # The task description belongs to the CORPUS, not the ladder. None
+            # keeps rung 0's CADEC wording, so nothing changes for that arm.
+            prompt_slots=(man.get("corpus") or {}).get("prompts"),
+            # Bound with the manifest's sampling options. An unbound
+            # loader builds a DIFFERENT corpus than the one the splits
+            # were cut from, and the pool ids then do not exist.
+            corpus_loader=functools.partial(
+                _corpus_for(man).load_corpus, **_corpus_opts(man)),
             meddra=meddra,
             manifest=man,
             split=split,
@@ -220,7 +299,19 @@ def run_ladder(
                 extractor_model=extractor.spec if extractor else None,
             )
         t0 = time.perf_counter()
-        out = mod.apply(records, sources, cfg)
+        if _MON is not None:
+            # A rung's report() prints, and printing into a Live display tears
+            # it. Captured text goes to the reports panel instead — collapsed
+            # to one line once read, most recent expanded. Nothing is lost.
+            import contextlib as _ctx, io as _io
+            _buf = _io.StringIO()
+            with _ctx.redirect_stdout(_buf):
+                out = mod.apply(records, sources, cfg)
+            _txt = _buf.getvalue()
+            if _txt.strip():
+                _MON.add_report(n, _txt)
+        else:
+            out = mod.apply(records, sources, cfg)
         # Two return conventions live in ladder/rungs: r1 and r5 return the
         # records, r0/r2/r3/r4 return (records, aggregates). Normalising here
         # means neither convention has to be rewritten to make a run work.
@@ -240,6 +331,8 @@ def run_ladder(
             + "  ".join(f"{z}={c}" for z, c in sorted(counts.items()))
         )
     ledger.close()
+    if _MON is not None:
+        _MON.stop()
 
     return {
         "run_id": run_id,
@@ -409,43 +502,51 @@ def write_results(rows: list[dict[str, Any]], path: Path) -> None:
 
 def cmd_init(a) -> int:
     man = load_manifest(a.manifest)
-    docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
+    docs = _corpus_for(man).load_corpus(_corpus_root(man), **_corpus_opts(man))
     mentions = sum(len(d.mentions) for d in docs.values())
     print(f"corpus  : {len(docs)} documents, {mentions} gold mentions")
 
-    db = Path(man["vocabulary"]["snomed_db"])
-    if not db.exists():
-        print(
-            f"\nvocabulary index missing. Build it once (a few seconds):\n"
-            f"    python -m ladder.registry --build "
-            f"--release {man['vocabulary']['snomed_release_dir']}",
-            file=sys.stderr,
-        )
-        return 2
-    reg = Registry(db)
-    print(f"vocab   : {reg.release}  {reg.stats()}")
-    # The plan's first-three-commands gate: a real code resolves, a fake one does not.
-    assert reg.exists("162031009") and not reg.exists("999999999"), "vocabulary gate FAILED"
+    # The vocabulary gate is corpus-independent: a real code resolves and a fake
+    # one does not. Only the codes differ, so they come from the backend rather
+    # than being hardcoded to SNOMED.
+    if man["vocabulary"].get("backend") == "finer-tags":
+        reg = _vocab_for(man)
+        real = sorted(reg._tags)[0]
+        print(f"vocab   : {reg.name}  {reg.stats()}")
+    else:
+        db = Path(man["vocabulary"]["snomed_db"])
+        if not db.exists():
+            print(
+                f"\nvocabulary index missing. Build it once (a few seconds):\n"
+                f"    python -m ladder.registry --build "
+                f"--release {man['vocabulary']['snomed_release_dir']}",
+                file=sys.stderr,
+            )
+            return 2
+        reg = Registry(db)
+        real = "162031009"
+        print(f"vocab   : {reg.release}  {reg.stats()}")
+    assert reg.exists(real) and not reg.exists("999999999"), "vocabulary gate FAILED"
     print("gate    : real code resolves, fake code does not — rung 1 has a vocabulary")
 
     splits_dir = Path(man["corpus"]["splits_dir"])
     if (splits_dir / "test.json").exists() and not a.force:
         for name in ("dev", "test", "pool"):
-            ids = corpus_mod.read_split(splits_dir, name)
-            recs = corpus_mod.gold_records(docs, ids)
+            ids = _corpus_for(man).read_split(splits_dir, name)
+            recs = _corpus_for(man).gold_records(docs, ids)
             print(f"split   : {name:5s} {len(ids):5d} docs  {len(recs):5d} mentions (frozen)")
         return 0
-    splits = corpus_mod.make_splits(
+    splits = _corpus_for(man).make_splits(
         docs,
         seed=man["seed"],
         n_dev=man["corpus"]["n_dev_docs"],
         n_test=man["corpus"]["n_test_docs"],
     )
-    corpus_mod.write_splits(
+    _corpus_for(man).write_splits(
         splits, splits_dir, {"seed": man["seed"], "corpus": man["corpus"]["version"]}
     )
     for name, ids in splits.items():
-        recs = corpus_mod.gold_records(docs, ids)
+        recs = _corpus_for(man).gold_records(docs, ids)
         cl = sum(1 for m in recs if m.gold_kind == "concept_less")
         print(f"split   : {name:5s} {len(ids):5d} docs  {len(recs):5d} mentions  {cl} concept_less")
     print(f"\nwrote {splits_dir}/*.json — these are frozen; never regenerate them.")
@@ -468,10 +569,10 @@ NO_RUNG0 = (
 
 def _load_inputs(man: dict[str, Any], split: str):
     """Corpus, split, sources and the two vocabularies. One reader, two commands."""
-    docs = corpus_mod.load_corpus(man["corpus"]["cadec_root"])
-    doc_ids = corpus_mod.read_split(man["corpus"]["splits_dir"], split)
+    docs = _corpus_for(man).load_corpus(_corpus_root(man), **_corpus_opts(man))
+    doc_ids = _corpus_for(man).read_split(man["corpus"]["splits_dir"], split)
     sources = {d: docs[d].text for d in doc_ids}
-    registry = Registry(man["vocabulary"]["snomed_db"])
+    registry = _vocab_for(man)
     return docs, doc_ids, sources, registry, _load_meddra(man)
 
 
@@ -503,9 +604,25 @@ def cmd_ladder(a) -> int:
 
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_{time.strftime('%Y%m%d-%H%M%S')}"
-    result = run_ladder(
-        man, a.split, rungs, records, sources, registry, out_dir, run_id, meddra=meddra
+    global _TUI_REQUESTED
+    _TUI_REQUESTED = (
+        not getattr(a, "plain", False)
+        and sys.stdout.isatty()          # never in a pipe, a log or CI
     )
+    # A monitor that hides a traceback is worse than no monitor: rich.Live
+    # owns the terminal and the next frame overwrites whatever was printed.
+    # Stop it first, then let the exception through untouched.
+    try:
+        result = run_ladder(
+            man, a.split, rungs, records, sources, registry, out_dir, run_id,
+            meddra=meddra,
+        )
+    except BaseException:
+        global _MON
+        if _MON is not None:
+            _MON.stop()
+            _MON = None
+        raise
 
     # Declared exclusions are applied to the ANSWER KEY, once, here — see
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
@@ -686,6 +803,14 @@ def main(argv: list[str] | None = None) -> int:
 
     def _run_args(p):
         p.add_argument("--split", default="test")
+        # ON BY DEFAULT. A run with no visible progress is the failure that
+        # has come up four times on this project; --plain restores the old
+        # scrolling output. The monitor is skipped anyway when stdout is
+        # not a terminal, so piped and CI runs are unaffected.
+        p.add_argument("--plain", action="store_true",
+                       help="scrolling reports instead of the live monitor")
+        p.add_argument("--tui", action="store_true",
+                       help=argparse.SUPPRESS)
         p.add_argument("--rungs", default="0-6")
         p.add_argument("--source", default="model", choices=["model", "gold"])
         p.add_argument("--predictions", help="JSONL of rung-0 records")

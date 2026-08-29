@@ -111,7 +111,15 @@ def rung0_cfg(cfg: dict) -> dict:
 
     man = cfg.get("manifest") or {}
     r0cfg = dict((man.get("rungs") or {}).get("0") or {})
-    r0cfg.update(registry=cfg.get("registry"), manifest=man)
+    # Enumerating what rung 0 needs means a new key silently does not
+    # arrive: corpus_loader and prompt_slots were added for the second
+    # corpus and rung 3 kept handing rung 0 a CADEC-shaped cfg.
+    r0cfg.update(
+        registry=cfg.get("registry"),
+        manifest=man,
+        corpus_loader=cfg.get("corpus_loader"),
+        prompt_slots=cfg.get("prompt_slots"),
+    )
     return r0.prepare(r0cfg)
 
 

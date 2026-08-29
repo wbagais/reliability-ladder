@@ -1,0 +1,46 @@
+{
+  "mode": "A/search",
+  "n": 192,
+  "rejected": 124,
+  "reasons": {
+    "schema_invalid": 5,
+    "span_ungrounded": 0,
+    "span_out_of_range": 0,
+    "negated": 0,
+    "code_unknown": 115,
+    "code_inactive": 0,
+    "wrong_semantic_type": 4,
+    "meddra_code_unknown": 0,
+    "label_mismatch": 0,
+    "code_outdated": 0
+  },
+  "reasons_all": {
+    "schema_invalid": 5,
+    "span_ungrounded": 0,
+    "span_out_of_range": 0,
+    "negated": 0,
+    "code_unknown": 119,
+    "code_inactive": 0,
+    "wrong_semantic_type": 4,
+    "meddra_code_unknown": 0,
+    "label_mismatch": 0,
+    "code_outdated": 0
+  },
+  "masked": 4,
+  "overrode_tool": 0,
+  "tokens": 23995,
+  "tool_calls": 0,
+  "arm": "search",
+  "documents": 40,
+  "offset_provenance": {
+    "search_unique": 177,
+    "search_nearest_of_2": 6,
+    "search_case_insensitive": 4,
+    "not_in_source": 5
+  },
+  "latency_p95_s": 63.323,
+  "tokens_per_record": 125.0,
+  "model": "granite4:micro-h",
+  "snomed_release": "SnomedCT_Release_AU1000036_20260731",
+  "corpus_version": "CADEC v2 (corpus); DAP collection v3 (csiro:10948, 10.4225/08/570FB102BDAD2)"
+}
