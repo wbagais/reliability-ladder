@@ -285,3 +285,42 @@ def test_rung_4_uses_the_rendered_prompt_when_slots_are_passed():
                  "vocabulary": "US-GAAP XBRL tag"}})
     assert "adverse reaction" not in seen["prompt"]
     assert "reported financial fact" in seen["prompt"]
+
+
+# ------------------------- defect 4: CADEC's exclusions applied to every corpus
+def test_exclusions_are_corpus_scoped_not_global():
+    """`load_exclusions()` reads `data/exclusions.csv` whatever corpus is running.
+
+    Observed on the first FiNER run: `[run] gold exclusions applied: 414 (see
+    data/exclusions.csv)` — 414 CADEC record ids, on a corpus whose ids all
+    start with FINER. Harmless only because the two id spaces happen not to
+    collide; the exclusion list is a claim about ONE answer key ("these gold
+    mentions cannot be answered"), and applying it to another corpus's gold is
+    a category error that would silently drop mentions the moment an id did
+    collide. The manifest already knows which corpus it is.
+    """
+    from ladder import clean
+
+    man = {"corpus": {"adapter": "finer", "exclusions": None}}
+    assert clean.exclusions_for(man) == set(), (
+        "a corpus that declares no exclusions file must exclude NOTHING, not "
+        "fall back to another corpus's list"
+    )
+
+
+def test_exclusions_for_reads_the_declared_file(tmp_path):
+    """A corpus that DOES declare one gets exactly that file."""
+    from ladder import clean
+
+    p = tmp_path / "excl.csv"
+    p.write_text("record_id,reason\nFINER.test.0001#0,bad span\n", encoding="utf-8")
+    man = {"corpus": {"adapter": "finer", "exclusions": str(p)}}
+    assert clean.exclusions_for(man) == {"FINER.test.0001#0"}
+
+
+def test_cadec_still_gets_its_exclusions_by_default():
+    """The CADEC arm must not change: no `exclusions` key means its own file."""
+    from ladder import clean
+
+    got = clean.exclusions_for({"corpus": {"cadec_root": "data/cadec"}})
+    assert len(got) == len(clean.load_exclusions()) > 0

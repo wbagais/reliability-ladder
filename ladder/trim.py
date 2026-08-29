@@ -208,7 +208,9 @@ def pool_trimmer(man: dict, split: str = "pool", loader=None, **thresholds) -> S
     _c = man.get("corpus") or {}
     docs = (loader or corpus_mod.load_corpus)(_c.get("root") or _c["cadec_root"])
     ids = corpus_mod.read_split(man["corpus"]["splits_dir"], split)
-    excluded = clean.load_exclusions()
+    # Corpus-scoped: the trim rules are learned from THIS corpus's pool gold,
+    # so the exclusion list has to be this corpus's too.
+    excluded = clean.exclusions_for(man)
     data = []
     for d in ids:
         doc = docs[d]

@@ -207,6 +207,34 @@ def load_exclusions(path: str | Path = DEFAULT_OUT) -> set[str]:
         return {r["record_id"] for r in csv.DictReader(fh) if r.get("record_id")}
 
 
+def exclusions_for(man: dict) -> set[str]:
+    """The excluded record_ids for THE CORPUS THIS MANIFEST DESCRIBES.
+
+    `load_exclusions()` defaults to `data/exclusions.csv`, which is CADEC's —
+    a list of CADEC gold mentions that cannot be answered. Every caller called
+    it with no argument, so a FiNER run loaded 414 CADEC ids and printed
+    "gold exclusions applied: 414". Nothing was dropped, because no FINER id
+    collides with an ARTHROTEC or LIPITOR one, but the exclusion list is a
+    claim about ONE answer key and applying it to another corpus's gold is a
+    category error that a single colliding id would turn into silent data loss.
+
+    Resolution, in order:
+      manifest.corpus.exclusions is a path  -> that file
+      manifest.corpus.exclusions is null    -> nothing, explicitly declared
+      absent, and the corpus is CADEC       -> CADEC's default file
+      absent, and the corpus is NOT CADEC   -> nothing
+
+    The last rule is the fix: a second corpus has to OPT IN to an exclusion
+    list, because it cannot inherit a judgement made about someone else's gold.
+    """
+    corpus = (man or {}).get("corpus") or {}
+    if "exclusions" in corpus:
+        declared = corpus["exclusions"]
+        return load_exclusions(declared) if declared else set()
+    adapter = corpus.get("adapter", "cadec")
+    return load_exclusions() if adapter == "cadec" else set()
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--build", action="store_true")

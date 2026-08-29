@@ -628,14 +628,14 @@ def cmd_ladder(a) -> int:
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
     # only invalid codes, 4 quote text that is not at their offsets). They are
     # excluded and counted, never corrected.
-    excluded = clean_mod.load_exclusions()
+    excluded = clean_mod.exclusions_for(man)
     gold = {
         m.record_id: m
         for d in doc_ids for m in docs[d].mentions
         if m.record_id not in excluded
     }
     if excluded:
-        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
+        print(f"[run] gold exclusions applied: {len(excluded)}")
     scorer = load_scorer(a.scorer)
     rows = results_rows(
         result, is_correct=scorer, gold=gold,
@@ -699,14 +699,14 @@ def cmd_ablate(a) -> int:
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
     # only invalid codes, 4 quote text that is not at their offsets). They are
     # excluded and counted, never corrected.
-    excluded = clean_mod.load_exclusions()
+    excluded = clean_mod.exclusions_for(man)
     gold = {
         m.record_id: m
         for d in doc_ids for m in docs[d].mentions
         if m.record_id not in excluded
     }
     if excluded:
-        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
+        print(f"[run] gold exclusions applied: {len(excluded)}")
     scorer = load_scorer(a.scorer)
     outcome_fn = load_outcome()
     rows = [
