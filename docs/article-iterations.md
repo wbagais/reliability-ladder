@@ -501,7 +501,47 @@ and the arm you ship are then different arms, and nothing in the repository
 knows which is which. If you gate changes behind flags, make the flag's value at
 measurement time part of the recorded result.
 
-### 2C.9 What this section is evidence for
+### 2C.9 The whole ladder, run again with the audit's eyes open
+
+**The numbers: rung 3 net negative, rung 4 moves nothing, and rung 1 plus
+rung 5 do all of the work.**
+
+All seven rungs, in order, on 40 dev documents, one run id
+(`audit-full-dev-1`), with the stale-verdict arm left OFF because this is the
+ladder as it ships. Shipped **F1 exact 0.182 [0.124–0.244], overlap 0.187**;
+52 records shipped VERIFIED at 0.808 answered-accuracy; **196 of 248 routed to
+a person.**
+
+| rung | answered accuracy | what it did | tokens | p95 latency |
+|---|---|---|---|---|
+| 0 · bare LLM | 0.371 | 248 records | 164,897 | *cache-served* |
+| 1 · deterministic | 0.371 | ACCEPT 52 / BAND 195 / REJECT 1 | **0** | **0** |
+| 2 · self-correct | 0.371 | fired **once** — one correctable rejection existed | 548 | *cache-served* |
+| 3 · voting | **0.367** | 29 changed, 7 withheld, 27 not re-found | **425,355** | **152.2 s** |
+| 4 · LLM judge | 0.367 | pass 146 / fail 95 / 7 unjudged — **no downstream effect** | 92,687 | 1.5 s |
+| 5 · abstention | ships 0.808 | coverage 1.00 → 0.21; errors/100 **63.3 → 4.03** | 0 | 0 |
+| 6 · human loop | — | **196 records to a person** · 79.0 per 100 | 0 | 0 |
+
+Three cost measures, never fused: 683,487 tokens over 618 calls; a 152-second
+p95 on the voting rung; 79 reviews per 100 records. Rung 0's and rung 2's
+latencies are cache-served and are *not* latency measurements — said rather
+than quoted.
+
+Read down the accuracy column. It does not move until rung 5, and then it
+moves by refusing. **Rung 3 is net negative on this draw at 2.6x rung 0's
+entire token budget; rung 4 cannot move it at all, because nothing reads its
+verdict.** Every point of the fall from 63.3 to 4.03 errors per 100 is rung
+1's free lexical verdict, acted on by rung 5, paid for in coverage.
+
+The stale-verdict defect also fired again, for the third independent time, and
+the new stamp caught it in production: `r3_r1_stale` on all 29 changed
+records — 28 already heading to a person, and **one shipped VERIFIED**. This
+time it was the span "stamina", ACCEPTed on an exact match to |Stamina| and
+then voted 2-1 to |Lack of stamina|, which does not match. Across three full
+runs: 25, 30 and 29 stale verdicts, and **exactly one false VERIFIED warrant
+in each**. It is not an artefact of a draw; it is what the rung does.
+
+### 2C.10 What this section is evidence for
 
 The ladder's premise is that stacking reliability layers buys reliability. Six
 of the seven rungs are now measured, and the honest summary is that **the ladder

@@ -182,6 +182,43 @@ record that was wrong scores the same whether it ships wrong or is withdrawn.
 The ladder's own headline metric is blind to the defect the ladder exists to
 prevent. That is the argument for the arm, and it is not an accuracy argument.
 
+## The full run, all seven rungs (`out/audit-full-dev-1.*`)
+
+One run id, 40 dev documents, 248 records, order [0,1,2,3,4,5,6], config =
+`out/manifest-audit.json` (the tracked manifest plus the five rung 0 arms it
+does not carry — see below), `rungs.3.revalidate` left **false** because this
+is the ladder as it ships.
+
+Shipped **F1 exact 0.182 [0.124–0.244] / overlap 0.187**, detection
+0.516/0.785, coding 0.353/0.238; outcomes exact 42 correct / 0 outdated / 76
+abstained / 1 incorrect / 0 modernised. **52 shipped VERIFIED at 0.808
+answered-accuracy; 196 of 248 routed to a person** (79.0 per 100).
+
+| rung | answered accuracy | what it did | tokens | p95 |
+|---|---|---|---|---|
+| 0 · bare LLM | 0.371 | 248 records | 164,897 | *cache-served* |
+| 1 · deterministic | 0.371 | ACCEPT 52 / BAND 195 / REJECT 1 | **0** | **0** |
+| 2 · self-correct | 0.371 | fired **once** | 548 | *cache-served* |
+| 3 · voting | **0.367** | 29 changed, 7 withheld, 27 not re-found | **425,355** | **152.2 s** |
+| 4 · LLM judge | 0.367 | pass 146 / fail 95 / 7 unjudged — **no effect** | 92,687 | 1.5 s |
+| 5 · abstention | ships 0.808 | errors/100 **63.3 → 4.03** | 0 | 0 |
+| 6 · human loop | — | **196 to a person** | 0 | 0 |
+
+683,487 tokens over 618 calls. Rung 0's and rung 2's latencies are cache-served
+and are not latency measurements — stated rather than quoted.
+
+Every audit finding reproduces live. The accuracy column does not move until
+rung 5, and then it moves by refusing. **Rung 3 is net negative at 2.6x rung
+0's token budget; rung 4 cannot move it at all.**
+
+And the new stamp caught the stale-verdict defect in production: `r3_r1_stale`
+on all **29** changed records — `BAND→ESCALATE` ×28 and **`ACCEPT→VERIFIED`
+×1**. That one is `LIPITOR.108#2`, span "stamina": ACCEPTed on an exact match
+to 248276000 |Stamina|, voted 2-1 to 248277009 |Lack of stamina| — which does
+not match — and shipped VERIFIED on the older code's warrant. Across three full
+runs the counts are 25, 30 and 29, with **exactly one false VERIFIED warrant in
+each**. It is what the rung does, not what one draw did.
+
 ## Flagged for your call, not fixed
 
 **`manifest.json` runs a rung 0 that is 5.9 exact points below the baseline the

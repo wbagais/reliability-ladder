@@ -535,6 +535,29 @@ footer{
       </div>
       <p>Both are real; only one is in the manifest, and it is not the one the decision log quotes. The general form: <strong>“off by default” is a safe policy for a behaviour and an unsafe one for a measurement</strong>, because the arm you measured and the arm you ship are then different arms and nothing in the repository knows which is which. If you gate changes behind flags, make the flag's value at measurement time part of the recorded result.</p>
 
+      <h3>The whole ladder, run again with the audit's eyes open</h3>
+      <div class="stat">
+        <span class="n warn">0.371 &rarr; 0.367</span>
+        <span class="lbl">answered accuracy across the three paid model rungs. Rung 3 is net negative at 2.6&times; rung 0's token budget; rung 4 cannot move it at all.</span>
+      </div>
+      <p>All seven rungs, in order, on 40 dev documents, one run id (<code>audit-full-dev-1</code>), with the stale-verdict arm left OFF because this is the ladder as it ships. Shipped <strong>F1 exact 0.182 [0.124&ndash;0.244], overlap 0.187</strong>; 52 records shipped VERIFIED at 0.808 answered-accuracy; <strong>196 of 248 routed to a person</strong>.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Rung</th><th class="num">Answered accuracy</th><th>What it did</th><th class="num">Tokens</th><th class="num">p95 latency</th></tr></thead>
+          <tbody>
+            <tr><td>0 · bare LLM</td><td class="num">0.371</td><td>248 records</td><td class="num">164,897</td><td class="num"><em>cache-served</em></td></tr>
+            <tr><td>1 · deterministic</td><td class="num">0.371</td><td>ACCEPT 52 / BAND 195 / REJECT 1</td><td class="num ok">0</td><td class="num ok">0</td></tr>
+            <tr><td>2 · self-correct</td><td class="num">0.371</td><td>fired <strong>once</strong> — one correctable rejection existed</td><td class="num">548</td><td class="num"><em>cache-served</em></td></tr>
+            <tr><td>3 · voting</td><td class="num hi">0.367</td><td>29 changed, 7 withheld, 27 not re-found</td><td class="num hi">425,355</td><td class="num hi">152.2 s</td></tr>
+            <tr><td>4 · LLM judge</td><td class="num">0.367</td><td>pass 146 / fail 95 / 7 unjudged — <strong>no downstream effect</strong></td><td class="num">92,687</td><td class="num">1.5 s</td></tr>
+            <tr><td>5 · abstention</td><td class="num ok">ships 0.808</td><td>coverage 1.00 &rarr; 0.21; errors/100 <strong>63.3 &rarr; 4.03</strong></td><td class="num ok">0</td><td class="num ok">0</td></tr>
+            <tr><td>6 · human loop</td><td class="num">—</td><td><strong>196 records to a person</strong> · 79.0 per 100</td><td class="num">0</td><td class="num">0</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Three cost measures, never fused: 683,487 tokens over 618 calls; a 152-second p95 on the voting rung; 79 reviews per 100 records. Rung 0's and rung 2's latencies are cache-served and are <em>not</em> latency measurements — said rather than quoted.</p>
+      <p>Read down the accuracy column. It does not move until rung 5, and then it moves by <em>refusing</em>. <strong>Every point of the fall from 63.3 to 4.03 errors per 100 is rung 1's free lexical verdict, acted on by rung 5, and paid for in coverage.</strong> The stale-verdict defect fired again too — for the third independent time, now caught in production by the new stamp: <code>r3_r1_stale</code> on all 29 changed records, 28 already heading to a person and <strong>one shipped VERIFIED</strong>. This time the span was “stamina”, ACCEPTed on an exact match to |Stamina| and then voted 2&ndash;1 to |Lack of stamina|, which does not match. Across three full runs: 25, 30 and 29 stale verdicts, and exactly one false VERIFIED warrant in each. It is not an artefact of a draw; it is what the rung does.</p>
+
       <h3>What this band is evidence for</h3>
       <p>The ladder's premise is that stacking reliability layers buys reliability. Six of the seven rungs are now audited, and the honest summary is that <strong>the ladder made errors visible rather than fewer</strong>. That is worth something — every finding here exists because the harness records what each rung did — but it is not what the layers were bought for. What survives is small and specific: one free deterministic check that out-separates a paid judge, an abstention mechanism whose bill is a countable number of records, and a person. The paid model rungs, in composition, moved nothing they could not also have broken.</p>
 
