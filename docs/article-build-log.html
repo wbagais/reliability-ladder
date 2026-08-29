@@ -265,11 +265,11 @@ footer{
 <header class="hero">
   <div class="wrap">
     <div class="band-row">
-      <div class="rail"><b>Build log</b>2026-08-26</div>
+      <div class="rail"><b>Build log</b>2026-08-28</div>
       <div class="col">
         <p class="eyebrow">The Reliability Ladder · article raw material</p>
-        <h1>The ladder, measured to the top</h1>
-        <p class="standfirst">Seven reliability layers — validation, self-correction, voting, a judge, abstention, a human queue — measured one rung at a time, then run cold, once, on held-out data. This is the layer underneath the article: the numbers worth quoting, and how they were arrived at.</p>
+        <h1>The ladder, measured to the top &mdash; then audited</h1>
+        <p class="standfirst">Seven reliability layers &mdash; validation, self-correction, voting, a judge, abstention, a human queue &mdash; measured one rung at a time, then run cold, once, on held-out data. Then audited as a stack, which is where the strongest results turned out to be: three of the paid rungs are wired to nothing, and the metric cannot see the bug. This is the layer underneath the article &mdash; the numbers worth quoting, and how they were arrived at.</p>
         <div class="meta">
           <span><b>Corpus</b> CADEC v3 · 1,250 posts · 9,111 gold mentions</span>
           <span><b>Vocabulary</b> SNOMED CT AU1000036_20260731 · local-rf2</span>
@@ -288,7 +288,7 @@ footer{
     <div class="rail"><b>01</b>Thesis</div>
     <div class="col">
       <h2>The thesis, in one paragraph</h2>
-      <p class="lede">Every LLM agent is roughly 10% model and 90% harness, and that harness gets built by intuition: teams stack retries, validators, judges, voting and human review because each one sounds like it should help. The seven layers are known. What nobody publishes is the <strong>measured trade-off per layer</strong> — what each buys, in which currency, and where it stops being worth paying for. That curve is the contribution; everything else exists to keep it clean.</p>
+      <p class="lede">Every LLM agent is roughly 10% model and 90% harness, and that harness gets built by intuition: teams stack retries, validators, judges, voting and human review because each one sounds like it should help. The seven layers are known. What nobody publishes is the <strong>measured trade-off per layer</strong> — what each buys, in which currency, and where it stops being worth paying for. That curve is the contribution; everything else exists to keep it clean. Having measured it, the answer is not the one the premise expects: <strong>the ladder made errors visible, not fewer</strong>. The layers that survive are the free deterministic check and the person; the paid model rungs, in composition, moved nothing they could not also have broken — and two of them turned out not to be wired to anything at all.</p>
       <p>Everything here is measured on <strong>CADEC</strong> — patient-reported adverse-event posts, normalised to SNOMED CT. The deterministic gate was characterised first, against the gold standard and planted errors, before a single model call; the model-facing rungs were then measured through five dev phases; and on 2026-08-26 the whole ladder ran cold, in order, on the 60 held-out test documents, under a frozen configuration, <strong>exactly once</strong>. Nothing was re-run after the numbers were seen. The cost curve this page once listed as “still to come” is now its first finding.</p>
     </div>
   </div>
@@ -415,7 +415,136 @@ footer{
 
 <section>
   <div class="band-row">
-    <div class="rail"><b>03</b>Iterations<div class="note">The differentiator. Most measurement pieces present the finished number; the value is in the corrections.</div></div>
+    <div class="rail"><b>03</b>Audit<div class="note">Rungs 1-6, audited on 2026-08-28. Everything here is dev-side: the test split was spent once and is not re-opened.</div></div>
+    <div class="col">
+      <h2>Ask what reads what</h2>
+      <p class="lede">Everything above measures a rung. This band measures the <strong>composition</strong>, and it is where the strongest negative results are. Each finding was demonstrated on real run artifacts before a line of code was changed.</p>
+
+      <h3>Every deferral in the ladder terminates in a field nothing reads</h3>
+      <div class="stat">
+        <span class="n warn">3 &rarr; 0</span>
+        <span class="lbl">three rungs defer their action to rung 5. Rung 5 reads <strong>none</strong> of their fields.</span>
+      </div>
+      <p>Rungs 2, 3 and 4 each decline to act on their own evidence, on an argument this project made loudly and correctly: a rung that routes confounds every rung above it, so a rung should record its judgement and let the rung that owns coverage act. Each names rung 5, in its own docstring.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Rung</th><th>Writes</th><th>Says</th></tr></thead>
+          <tbody>
+            <tr><td>2 · self-correction</td><td><code>checks["r2_declined"]</code></td><td>“rung 5 owns abstention and reads <code>checks['r2_declined']</code>”</td></tr>
+            <tr><td>3 · voting</td><td><code>checks["r3_unanimous_none"]</code></td><td>“EVIDENCE for rung 5, not an action here”</td></tr>
+            <tr><td>4 · LLM judge</td><td><code>checks["r4_verdict"]</code></td><td>“record … and let rung 5 act”</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p><code>r5.decide()</code> reads the zone, <code>r1_verdict</code>, <code>r1_reason</code> and <code>rec.confidence</code>. Its entire configuration is <code>{tau, abstain_zones, abstain_on_reject}</code>. A repo-wide search finds no consumer for any of the three fields outside the rungs that write them and one diagnostic script. <strong>In composition the ladder is one rung</strong>: rung 5 routes on rung 1's free lexical verdict and nothing else.</p>
+      <p>No test could have caught this, because every rung does exactly what its own docstring promises. Each was reviewed, tested and measured alone; the hole is <em>between</em> them. It is only visible if you stop asking “does this rung work” and start asking “what reads this rung's output” — a question with no unit-test shape. For every field your pipeline writes, grep for its readers, and treat a field with no reader as a rung that is not in your pipeline no matter what it costs to run.</p>
+
+      <h3>A fix three rungs down silently disabled two rungs up</h3>
+      <div class="stat">
+        <span class="n">5.1% &rarr; 0.4%</span>
+        <span class="lbl">rung 1's rejection rate, after an accuracy fix at rung 0. Rung 2's trigger set went with it.</span>
+      </div>
+      <p>Rung 1 rejected 5.1% on the held-out test run, every one <code>schema_invalid</code> — rung 0 emitting an unlocated <code>(-1,-1)</code> span for a quote it could not find. Rung 2 fires on a rejection that yields a statable fact; <code>schema_invalid</code> yields none, so rung 2 fired zero times in the whole run. Then rung 0 got better: a later span filter drops exactly those records at rung 0. Rung 1 now rejects <strong>1 of 248</strong>, and rung 2's trigger set holds <strong>1</strong>.</p>
+      <p>Nothing is broken. Both rungs still pass every test, still log every row, still report honestly. Their <em>input</em> was removed from underneath them, and no per-rung test and no per-rung report could show it — a rung with nothing to do and a rung doing nothing look identical from inside. If you tune the bottom of a pipeline, re-measure the top; the layers you are proudest of are the ones most likely to have quietly become no-ops.</p>
+
+      <h3>The check a validation layer was built for can become unreachable</h3>
+      <div class="stat">
+        <span class="n warn">0 of 248</span>
+        <span class="lbl">times rung 1's headline check — “does this code exist?” — fires. <code>label_verified</code> is true <strong>232 of 232</strong>.</span>
+      </div>
+      <p>The existence check was tuned in 2026-08-22 against a rung 0 that recalled codes from its weights, where 164 of 176 emitted codes did not exist at all. It is the reason the rung exists. It now fires zero times — confirmed through the unmasked reason table, so this is not the first-failure ordering bias. The cause is architectural: rung 0's shipped step picks from a dense-retrieved menu of real SNOMED codes and resolves names through the same table, so <strong>the model can no longer emit a code that does not exist</strong>.</p>
+      <p>Two more went with it: <code>sct_active</code> is true for all 232 coded records and <code>sct_outdated</code> false for all 235. And <code>label_verified</code> — “did the model name the concept it coded?”, added because <code>82249009</code> is real, active, and means |California chicken| — is true 232 of 232, because the retrieval menu shows the code and its vocabulary label <em>together</em>. The model's label is the vocabulary's own label by construction. A validation layer is calibrated against a <em>generator</em>; when the generator's failure mode moves, the layer does not follow it, it just keeps passing.</p>
+
+      <h3>The free check separates better than the paid judge</h3>
+      <div class="stat">
+        <span class="n ok">83.7% vs 35.9%</span>
+        <span class="lbl">coding accuracy inside rung 1's free ACCEPT lane versus BAND — against 27.0% vs 21.9% for the judge, at one model call per record.</span>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Signal</th><th>n</th><th>Coding accuracy</th></tr></thead>
+          <tbody>
+            <tr><td><span class="dot z-accept"></span>rung 1 ACCEPT — deterministic, zero calls</td><td>49</td><td class="ok"><strong>83.7%</strong></td></tr>
+            <tr><td><span class="dot z-band"></span>rung 1 BAND</td><td>131</td><td>35.9%</td></tr>
+            <tr><td>rung 4 judge <code>pass</code> — one call per record, dev</td><td>105</td><td>21.0%</td></tr>
+            <tr><td>rung 4 judge <code>fail</code>, dev</td><td>63</td><td>12.7%</td></tr>
+            <tr><td>rung 4 judge <code>pass</code>, held-out test</td><td>163</td><td>27.0%</td></tr>
+            <tr><td>rung 4 judge <code>fail</code>, held-out test</td><td>73</td><td>21.9%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>A 2.3&times; separation for free, against 1.65&times; on dev falling to 1.23&times; out of sample — on the only axis a judge is for. The judge is a 2B model grading a 20B one, which is stated wherever its numbers appear. But the comparison that matters is not judge-versus-better-judge: a string comparison against a controlled vocabulary, costing nothing, out-separates the LLM judge, and it does so because it is the only checker in the stack that knows something the extractor does not.</p>
+
+      <h3>A rung that asks the model to check itself is a coin flip</h3>
+      <div class="stat">
+        <span class="n">+5, then 0</span>
+        <span class="lbl">rung 3's net correct records: fixed 5 / broke 0 on dev, fixed 2 / broke 2 out of sample.</span>
+      </div>
+      <p>Rungs 2, 3 and 4 all run on the extractor's own model, so they inherit its errors. The rung 0 work measured this in a different shape: an LLM reranker promoted gold to rank 0 for 50% of the mentions the pick already got right, and 16.7% of the ones it got wrong — it ranked well and converted nothing, because reranker and picker were the same model making the same judgement.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Split</th><th>Scorable changes</th><th>Fixed</th><th>Broke</th><th>Net</th></tr></thead>
+          <tbody>
+            <tr><td>dev</td><td>18</td><td>5</td><td>0</td><td class="ok"><strong>+5</strong></td></tr>
+            <tr><td>held-out test</td><td>21</td><td>2</td><td>2</td><td class="hi"><strong>0</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>On dev it looked like a rung that works — but three of those five “fixes” are <em>no code &rarr; a correct code</em>, rung 3 filling a gap rather than correcting an error. Out of sample it destroyed two correct codes while rescuing two others. A 5–0 on 18 trials is what a coin flip looks like sometimes. Rung 3 costs 2.6&times; rung 0's entire token budget to move zero correct records out of sample. <strong>Rung 6 is the exception, and the reason is not subtle: it is a person, so it is the only rung that adds information</strong> — its oracle ceiling lifts exact F1 from 0.131 to 0.444 and coding accuracy from 0.291 to 0.990.</p>
+
+      <h3>The headline metric is blind to the defect the ladder exists to prevent</h3>
+      <div class="stat">
+        <span class="n">0.0000</span>
+        <span class="lbl">change in F1 from fixing a record that shipped marked <strong>VERIFIED</strong> on a warrant for a code it no longer had.</span>
+      </div>
+      <p>Rung 3 adopted a majority code by overwriting the record's code and stopping — but rung 5 routes on rung 1's verdict, computed against the code rung 3 had just replaced. Across the two archived full-ladder runs the vote changed 25 and 30 codes, and <strong>all 55 carried a verdict about a superseded code</strong>. One shipped: a record quoting “Chronic pain”, coded |Chronic pain| and ACCEPTed on an exact lexical match, was voted 3–0 to |Chronic musculoskeletal pain| and shipped VERIFIED. The new code does not match; the configured rung 1 would have banded it and rung 5 would have sent it to a person.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Arm</th><th>exact</th><th>overlap</th><th>shipped</th><th>routed to a person</th></tr></thead>
+          <tbody>
+            <tr><td>dev, as built</td><td>0.153</td><td>0.170</td><td>37</td><td>208</td></tr>
+            <tr><td>dev, re-validated</td><td>0.153</td><td>0.170</td><td>36</td><td>209</td></tr>
+            <tr><td>test, as built <em>(= the reported run)</em></td><td>0.204</td><td>0.215</td><td>72</td><td>242</td></tr>
+            <tr><td>test, re-validated <em>(counterfactual)</em></td><td>0.204</td><td>0.218</td><td>72</td><td>242</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Of course it does not move. A record that was wrong scores the same whether it ships wrong or is withdrawn — precision and recall cannot distinguish an answer that is <em>unwarranted</em> from one that is merely <em>incorrect</em>. <strong>The metric the ladder is optimised against is structurally blind to the failure the ladder was built to prevent</strong>, which is a reason to be suspicious of any reliability layer justified on F1 — including every layer in this project.</p>
+
+      <h3>A dial nobody could have turned</h3>
+      <div class="stat">
+        <span class="n warn">{1.0, 0.99}</span>
+        <span class="lbl">every value rung 0's self-reported confidence takes on dev. Rung 5's <code>tau</code> has been 0.0 for the life of the project.</span>
+      </div>
+      <p>Rung 5 has a confidence threshold, a risk-coverage sweep written to tune it, a manifest note recording that it is tuned on dev, and a declared abstention reason <code>low_confidence</code>. It had to be 0.0: any threshold at or below 0.9 abstains nothing, and any threshold above it abstains 80–98% of the set on a number the model emits as boilerplate. <code>low_confidence</code> is unreachable and the sweep has nothing to sweep. An unelicited “confidence” field from an instruct model is not a measurement; it is a token the model has learned to end JSON with.</p>
+
+      <h3>“Which configuration produced this number” needs one answer, twice over</h3>
+      <div class="stat">
+        <span class="n">5.9 points</span>
+        <span class="lbl">by which <code>manifest.json</code>'s rung 0 sits below the baseline every recent measurement is compared against.</span>
+      </div>
+      <p>This project already learned this once: a model default in code and a model name in configuration disagreed, so “which model produced this number” had two answers, and the fix was to make the resolver raise rather than fall back. The same failure recurred one layer down — a set of rung 0 accuracy arms was measured, accepted, and shipped <em>as code with their defaults off</em>, and the manifest was never appended to.</p>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Configuration</th><th>exact F1</th><th>overlap F1</th><th>detection F1</th></tr></thead>
+          <tbody>
+            <tr><td><code>manifest.json</code> as shipped</td><td>0.340</td><td>0.449</td><td>0.449 / 0.745</td></tr>
+            <tr><td>the baseline every recent measurement uses</td><td><strong>0.399</strong></td><td><strong>0.469</strong></td><td>0.516 / 0.785</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Both are real; only one is in the manifest, and it is not the one the decision log quotes. The general form: <strong>“off by default” is a safe policy for a behaviour and an unsafe one for a measurement</strong>, because the arm you measured and the arm you ship are then different arms and nothing in the repository knows which is which. If you gate changes behind flags, make the flag's value at measurement time part of the recorded result.</p>
+
+      <h3>What this band is evidence for</h3>
+      <p>The ladder's premise is that stacking reliability layers buys reliability. Six of the seven rungs are now audited, and the honest summary is that <strong>the ladder made errors visible rather than fewer</strong>. That is worth something — every finding here exists because the harness records what each rung did — but it is not what the layers were bought for. What survives is small and specific: one free deterministic check that out-separates a paid judge, an abstention mechanism whose bill is a countable number of records, and a person. The paid model rungs, in composition, moved nothing they could not also have broken.</p>
+
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>04</b>Iterations<div class="note">The differentiator. Most measurement pieces present the finished number; the value is in the corrections.</div></div>
     <div class="col">
       <h2>What we changed, and why</h2>
       <p class="lede">Rung 1 as the plan specifies it rejected <strong>9.3% of the gold standard</strong>. A validation gate with a 9% false-positive rate does not measure a model — it manufactures errors, and every rung above inherits them. Three causes, all fixed. Then three more: rung 1 stopped filtering, one vocabulary turned out to be the answer key wearing a hat, and a second one disagreed with the first about a quarter of the corpus.</p>
@@ -602,7 +731,7 @@ footer{
 
 <section>
   <div class="band-row">
-    <div class="rail"><b>04</b>Structure<div class="note">Seven beats, practitioner voice.</div></div>
+    <div class="rail"><b>05</b>Structure<div class="note">Seven beats, practitioner voice.</div></div>
     <div class="col">
       <h2>Suggested article structure</h2>
       <p>The ladder is measured end to end now, so the piece leads with the curve and spends its middle on why each number can be trusted — the measurement discipline is the story.</p>
@@ -621,7 +750,7 @@ footer{
 
 <section>
   <div class="band-row">
-    <div class="rail"><b>05</b>Figures<div class="note">If you can't write the caption, the result isn't clear yet.</div></div>
+    <div class="rail"><b>06</b>Figures<div class="note">If you can't write the caption, the result isn't clear yet.</div></div>
     <div class="col">
       <h2>Figures, with captions written now</h2>
       <ul class="figs">
@@ -639,9 +768,13 @@ footer{
 
 <section>
   <div class="band-row">
-    <div class="rail"><b>06</b>Limits</div>
+    <div class="rail"><b>07</b>Limits</div>
     <div class="col">
       <h2>Limitations to state plainly</h2>
+      <p><strong>Everything in band 03 is dev-side and unvalidatable.</strong> The test split was spent on 2026-08-26 and this repo has no held-out data left. The audit's numbers come from 40 dev documents and from read-only replays of two archived runs; where a test-split artifact is used it is a labelled counterfactual, and the reported test numbers in band 02 are unchanged by any of it.</p>
+      <p><strong>Two of the audit's cleanest results rest on small counts.</strong> Rung 3's fix/break tally is 18 and 21 scorable changes; the record that shipped on a stale warrant is one record. They are existence proofs of a mechanism, not rates — and the mechanism is the claim.</p>
+      <p><strong>A single-draw confidence interval that excludes zero is not a result.</strong> Three independent draws killed the one rung 0 arm that a single draw plus a paired bootstrap had called significant: +0.0217 with a CI of [+0.0000, +0.0433], then +0.0087, then &minus;0.0089. The paired bootstrap resamples the documents of <em>one</em> draw, so it prices the corpus sample and nothing else. Three draws plus the bootstrap, never one alone — and never ten-document subsets, which overstate both effect size and variance.</p>
+      <p><strong>Exact F1 above ~0.70 is unreachable here for any system, including a perfect one.</strong> The answer key's own span-boundary convention is only ~67% deterministic: over 25,002 boundary decisions, 66.9% fall at tokens gold treats one way &ge;95% of the time, 20% lean, and 13% are genuinely mixed — “terrible” is kept inside a span 52% of the time, “very” 70%, “in” 40%. A perfect learner of that convention gets ~0.92 per boundary and a span needs two, capping the exact-span rate near 0.85; composed with the measured detection and retrieval ceilings that gives <strong>F1 ~0.68 with every component at its best</strong>. Every 0.70-class claim here is therefore stated on <strong>overlap</strong>, with exact reported beside it as the stricter, capped number.</p>
       <ul>
         <li><strong>The test split was spent exactly once, so its CIs are the claim.</strong> 60 documents, 290 scorable mentions: F1 0.204 lives in [0.150–0.260]. Nothing was tuned on test and nothing re-run — which also means no second draw exists to average with. Report the interval, not the point.</li>
         <li><strong>Test above dev is partly split luck.</strong> Shipped F1 0.131 (dev) vs 0.204 (test), CIs barely overlapping, no test tuning anywhere in the pipeline. Generalisation is the honest first-order read; the second-order read is that the 40-document dev set was the harder draw. Say both.</li>
@@ -661,7 +794,7 @@ footer{
 
 <section>
   <div class="band-row">
-    <div class="rail"><b>07</b>Reproduce</div>
+    <div class="rail"><b>08</b>Reproduce</div>
     <div class="col">
       <h2>Every number here, reproduced</h2>
       <pre><code>python -m ladder.registry --build --release data/SnomedCT_Release_&lt;yours&gt;
