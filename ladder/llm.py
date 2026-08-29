@@ -294,6 +294,7 @@ class Caller:
         self.latencies: list[float] = []
         self.fenced = 0
         self.unclosed = 0
+        self.prosed = 0
         if not self.client.info.local and os.environ.get("LADDER_ALLOW_REMOTE") != "1":
             raise SystemExit(
                 f"{spec} is a hosted provider, and rung prompts contain CADEC post\n"
@@ -324,6 +325,51 @@ class Caller:
             return raw
         self.unclosed += 1
         return raw + "}"
+
+    def _unwrap(self, raw: str) -> str:
+        """Lift a JSON object or array out of the prose a model wrapped it in.
+
+        Added 2026-08-28 for the open-weight extractor comparison, where
+        `llama3.1:8b` answered the FIND prompt CORRECTLY and scored zero:
+        "Here are the adverse reactions extracted from the post:", then a
+        fence, then the right JSON with the right mentions, then a trailing
+        remark. `_unfence` anchors its match at the start of the reply, so a
+        fence with prose in front of it is not a fence, and a good answer was
+        counted as a parse failure.
+
+        Scoring that as a MODEL failure would measure which model the harness
+        was built around — gpt-oss:20b emits bare JSON because these prompts
+        were tuned against it — rather than which model can do the task. So
+        this is the same class of repair as `_unfence` and `_reclose`, under
+        the same rules: it fires only when the reply does not already parse,
+        it is applied identically to every model, it NEVER fabricates, and it
+        is COUNTED in `prosed`, so a model's chattiness is reported as a
+        compliance cost instead of disappearing into a zero.
+        """
+        try:
+            json.loads(raw)
+            return raw
+        except json.JSONDecodeError:
+            pass
+        best = None
+        for opener, closer in (("{", "}"), ("[", "]")):
+            i, j = raw.find(opener), raw.rfind(closer)
+            if i < 0 or j <= i:
+                continue
+            try:
+                parsed = json.loads(raw[i:j + 1])
+            except json.JSONDecodeError:
+                continue
+            # Same guard as _reclose: an empty result is not a repair, it is a
+            # fabricated answer standing in for one the model did not give.
+            if not parsed:
+                continue
+            if best is None or (j - i) > (best[1] - best[0]):
+                best = (i, j)
+        if best is None:
+            return raw
+        self.prosed += 1
+        return raw[best[0]:best[1] + 1]
 
     def _unfence(self, raw: str) -> str:
         m = _FENCE.match(raw)
@@ -365,7 +411,7 @@ class Caller:
             # nothing downstream can tell a cut-off reply from a bad one.
             "truncated": resp.truncated,
         }
-        return self._reclose(self._unfence(resp.text)), usage
+        return self._reclose(self._unwrap(self._unfence(resp.text))), usage
 
     def sampler(self, temperature: float):
         """A callable that draws a DIFFERENT sample each time it is called.
