@@ -309,7 +309,7 @@ def run_ladder(
                 out = mod.apply(records, sources, cfg)
             _txt = _buf.getvalue()
             if _txt.strip():
-                _MON.add_report(rung, _txt)
+                _MON.add_report(n, _txt)
         else:
             out = mod.apply(records, sources, cfg)
         # Two return conventions live in ladder/rungs: r1 and r5 return the
