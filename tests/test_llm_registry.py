@@ -662,9 +662,18 @@ def test_timeout_comes_from_the_registry():
 
 
 def test_a_model_with_no_entry_gets_the_default():
+    """The FALLBACK is under test, so the model name must be one that can
+    never acquire an entry.
+
+    This used to name granite4:micro-h, which was unregistered at the time.
+    Registering it for the 2026-08-28 open-weight comparison broke this test
+    — correctly, but for a reason that has nothing to do with the mechanism.
+    A test of "what happens with no entry" must not depend on a real model
+    staying unregistered.
+    """
     from ladder.llm import DEFAULT_TIMEOUT_S
 
-    assert ModelInfo("ollama/ibm/granite4:micro-h").timeout_s == DEFAULT_TIMEOUT_S
+    assert ModelInfo("ollama/no-such-model:0b").timeout_s == DEFAULT_TIMEOUT_S
 
 
 def test_the_timeout_reaches_the_request(tmp_path):

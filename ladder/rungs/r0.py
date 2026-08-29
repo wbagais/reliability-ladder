@@ -1001,8 +1001,11 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
     meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
     meta["api_calls"] += 1
-    parsed = _parse(raw, meta)
+    parsed = _normalise_reply(_parse(raw, meta), meta)
     if parsed is None:
+        # Either the JSON did not parse, or it parsed to a shape this step
+        # cannot read. Both cost one document; neither may raise.
+        meta["parse_failed"] = True
         return []
 
     search, retrieval = _retriever(cfg)
@@ -1324,6 +1327,38 @@ def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
         agg["trimmed"] += 1
 
 
+def _normalise_reply(parsed, meta: dict):
+    """The reply's SHAPE, reduced to {"mentions": [...]} or refused.
+
+    Added 2026-08-28 for the open-weight extractor comparison. `llama3.1:8b`
+    answers the FIND prompt with a bare JSON array of mention objects rather
+    than the requested wrapper. The content is unambiguously what was asked
+    for; only the wrapper is missing, and the incumbent model emits the
+    wrapper because these prompts were tuned against it — so refusing the
+    bare list would score formatting luck rather than capability.
+
+    THE LINE, stated so this does not keep loosening until every model
+    passes: a reply is accepted when its CONTENT is unambiguously the
+    requested content, and every accommodation is COUNTED. Nothing is
+    invented, guessed or repaired. A list of mention OBJECTS qualifies. A
+    list of bare strings does not — "which field is this" would be a guess.
+
+    Returns None for anything else, which the caller counts as a parse
+    failure for that document. It must never raise: a reply shape nobody
+    anticipated costs ONE DOCUMENT, not the run, which is the same rule the
+    call timeout follows.
+    """
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, list):
+        if all(isinstance(m, dict) for m in parsed):
+            if parsed:
+                meta["shape_coerced"] = True
+            return {"mentions": parsed}
+        return None
+    return None
+
+
 def _parse(raw: str, meta: dict):
     """JSON or nothing. A parse failure is rung 0's counter-metric, not a bug
     to repair — repairing it here would delete the measurement."""
@@ -1463,6 +1498,11 @@ def apply(
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
+        # Replies whose CONTENT was right and whose SHAPE was not — a bare
+        # list where {"mentions": [...]} was asked for. Counted, never
+        # silent: it is a per-model compliance cost, and hiding it would let
+        # the harness's tolerance pass for a model's capability.
+        "shape_coerced": 0,
         "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
         "trimmed": 0, "pick_fallback": 0, "split": 0,
         "dropped_ungrounded": 0, "dropped_fragment": 0, "dropped_duplicate": 0,
@@ -1476,6 +1516,7 @@ def apply(
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
         agg["pick_parse_failed"] += int(meta.get("pick_parse_failed", False))
+        agg["shape_coerced"] += int(meta.get("shape_coerced", False))
         # Counted SEPARATELY, and it overlaps parse_failed on purpose: a
         # truncated reply IS unusable, but "the harness cut it off" and "the
         # model cannot emit JSON" are different findings and must not share a
