@@ -1,7 +1,11 @@
 # InfoQ article — the build log
 
-> A typeset version of this document, for reading away from the terminal, is
-> `docs/article-build-log.html` (published privately as a Claude artifact).
+> This is the BUILD LOG. Since 2026-08-30 the published artifact serves the
+> ARTICLE (`docs/article.html`), not this document — the ladder-framed
+> typeset build log was archived as
+> `docs/versions/article-build-log-v2-2026-08-28.html`. The article itself
+> lives in `docs/article.md` (canonical) and `docs/article_v3.md` (the
+> current revision).
 
 Raw material for the article, organised the way the piece needs it rather than
 the way the work happened. `decisions.md` is the chronological log; this is the

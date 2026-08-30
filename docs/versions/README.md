@@ -12,6 +12,10 @@ it exists to show exactly what the document looked like.
 |---|---|
 | `article-iterations-v1-2026-08-22.md` | The article raw-material doc as it stood before the 2026-08-26 full-ladder rewrite — the deterministic-gate era ("model-facing rungs not yet characterised"; cost curve "still to come"). |
 | `article-build-log-v1-2026-08-22.html` | The typeset build log matching it, same era, before the same rewrite. |
+| `article-build-log-v2-2026-08-28.html` | The typeset BUILD LOG as it stood when the published artifact stopped being a build log. On 2026-08-30 the artifact URL was re-pointed at `docs/article.html` — the article itself, framed around the visibility question — so this is the last version of the ladder-framed page that was ever live. |
 
-The canonical copies remain `docs/article-iterations.md` and
-`docs/article-build-log.html`.
+The canonical copies are `docs/article-iterations.md` (the build-log prose,
+still maintained) and `docs/article.html` (the typeset ARTICLE, which is what
+the published artifact now serves). `docs/article-build-log.html` no longer
+exists as a living document: the artifact it fed was re-pointed at the article
+on 2026-08-30 and its last live version is archived here as v2.
