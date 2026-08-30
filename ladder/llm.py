@@ -468,6 +468,82 @@ def resolve(role: str, manifest: dict | None = None, override: str | None = None
     return spec
 
 
+def provider_models(provider: str = "ollama", timeout: float = 5.0) -> list[str] | None:
+    """Model names the provider actually has, or None if it cannot be asked.
+
+    None is NOT an empty list: "the server did not answer" and "the server has
+    no models" must not produce the same refusal, or an offline check becomes a
+    hard stop on a run that would have worked.
+    """
+    reg = (yaml.safe_load(REGISTRY_PATH.read_text())["providers"]
+           .get(provider) or {})
+    base = (reg.get("base_url") or "").rstrip("/")
+    if not base:
+        return None
+    try:
+        import json as _json
+        import urllib.request
+
+        url = base[: -len("/v1")] + "/api/tags" if base.endswith("/v1") else base + "/api/tags"
+        with urllib.request.urlopen(url, timeout=timeout) as fh:
+            return [m["name"] for m in _json.load(fh).get("models", [])]
+    except Exception:
+        return None
+
+
+def check_models(manifest: dict, rungs, available: list[str] | None = None) -> list[str]:
+    """Every model THIS run will need, checked before the run starts.
+
+    Models are resolved lazily, one rung at a time, so a bad name surfaces at
+    the rung that needs it. Measured 2026-08-29: the first full FiNER run spent
+    2,035 s in rung 0 and 5,948 s in rung 3 — 133 minutes — and then died at
+    rung 4 because `manifest.finer.json` said `ollama/granite4:micro-h` and the
+    installed model is `ollama/ibm/granite4:micro-h`. The ladder was fine; it
+    just learned the name was wrong as late as it possibly could. The CADEC arm
+    never caught it because its own judge name is right, which is exactly how a
+    second corpus earns its keep.
+
+    Same rule the timeout and the reply-shape repairs already follow: one bad
+    thing costs one thing, not the run. Returns a list of human-readable
+    problems, empty when there is nothing to report. Only the rungs actually
+    running are checked — `--rungs 0,1` must not fail on a judge it never calls.
+    """
+    rung_cfg = (manifest or {}).get("rungs") or {}
+    roles: dict[str, list[int]] = {}
+    for n in rungs:
+        role = ROLE_BY_RUNG.get(n)
+        if not role:
+            continue
+        # A rung disabled in the manifest needs no model. `enabled: false` is a
+        # recorded run state, and a preflight that ignored it would turn a
+        # deliberate configuration into a hard failure.
+        if (rung_cfg.get(str(n)) or {}).get("enabled", True) is False:
+            continue
+        roles.setdefault(role, []).append(n)
+
+    problems: list[str] = []
+    for role, ns in sorted(roles.items()):
+        try:
+            spec = resolve(role, manifest)
+        except SystemExit as exc:
+            problems.append(f"rung(s) {ns} need model.{role}: {exc}")
+            continue
+        provider, _, name = spec.partition("/")
+        have = available
+        if have is None:
+            have = provider_models(provider)
+        if have is None:          # provider unreachable — not a verdict
+            continue
+        if name not in have:
+            near = [m for m in have if m.endswith("/" + name) or name.endswith("/" + m)]
+            hint = f" Did you mean {provider}/{near[0]!r}?" if near else ""
+            problems.append(
+                f"rung(s) {ns} need model.{role} = {spec!r}, which {provider} "
+                f"does not have.{hint} Available: {sorted(have)}"
+            )
+    return problems
+
+
 def for_rung(n: int, manifest: dict | None = None, override: str | None = None) -> Caller | None:
     """The Caller a rung should be handed, or None if that rung needs no model."""
     role = ROLE_BY_RUNG.get(n)

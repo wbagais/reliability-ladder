@@ -236,6 +236,19 @@ def run_ladder(
     aggregates: dict[int, dict] = {}
     missing: list[int] = []
 
+    # Every model this run needs, checked BEFORE rung 0 spends anything.
+    # Lazily resolving per rung meant a bad name surfaced at the rung that
+    # needed it: the first full FiNER run burned 133 minutes in rungs 0 and 3
+    # and then died at rung 4 on a mistyped judge. One bad thing costs one
+    # thing, not the run.
+    problems = llm_mod.check_models(man, order)
+    if problems:
+        raise SystemExit(
+            "[run] refusing to start — a model this run needs is unavailable:\n  "
+            + "\n  ".join(problems)
+            + "\n\nFix the name in manifest.model, install the model, or pass "
+              "--rungs to skip the rung that needs it."
+        )
     print(f"[run] {run_id}  split={split}  records={len(records)}  order={order}")
     for n in order:
         mod = load_rung(n)

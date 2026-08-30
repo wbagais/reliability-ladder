@@ -324,3 +324,73 @@ def test_cadec_still_gets_its_exclusions_by_default():
 
     got = clean.exclusions_for({"corpus": {"cadec_root": "data/cadec"}})
     assert len(got) == len(clean.load_exclusions()) > 0
+
+
+# ---------------- defect 5: a model typo costs the whole run, two hours in
+def test_every_model_the_run_needs_is_checked_before_rung_0():
+    """Models are resolved lazily per rung, so a bad name surfaces last.
+
+    Measured: the first full FiNER run spent 2,035 s in rung 0 and 5,948 s in
+    rung 3 — 133 minutes — and then died at rung 4 because
+    `manifest.finer.json` said `ollama/granite4:micro-h` where the installed
+    model is `ollama/ibm/granite4:micro-h`. Nothing was wrong with the ladder;
+    the run simply learned the name was bad as late as it possibly could.
+
+    Same principle the timeout and the reply-shape repairs already apply: one
+    bad thing must cost one thing, not the run.
+    """
+    from ladder import llm as llm_mod
+
+    man = {"model": {"extractor": "ollama/gpt-oss:20b",
+                     "judge": "ollama/nope-not-a-model:1b"}}
+    problems = llm_mod.check_models(man, [0, 1, 2, 3, 4], available=[
+        "gpt-oss:20b", "ibm/granite4:micro-h"])
+    assert problems, "an unavailable judge must be reported"
+    joined = " ".join(problems)
+    assert "judge" in joined and "nope-not-a-model" in joined
+    assert "4" in joined, "the failing rung must be named"
+
+
+def test_check_models_passes_when_every_name_resolves():
+    from ladder import llm as llm_mod
+
+    man = {"model": {"extractor": "ollama/gpt-oss:20b",
+                     "judge": "ollama/ibm/granite4:micro-h"}}
+    assert llm_mod.check_models(man, [0, 1, 2, 3, 4], available=[
+        "gpt-oss:20b", "ibm/granite4:micro-h"]) == []
+
+
+def test_check_models_only_checks_the_rungs_actually_running():
+    """`--rungs 0,1` must not fail on a judge it will never call."""
+    from ladder import llm as llm_mod
+
+    man = {"model": {"extractor": "ollama/gpt-oss:20b",
+                     "judge": "ollama/nope-not-a-model:1b"}}
+    assert llm_mod.check_models(man, [0, 1], available=["gpt-oss:20b"]) == []
+
+
+def test_both_shipped_manifests_name_models_that_exist():
+    """The typo itself, and the reason it survived: only CADEC was ever run."""
+    import json
+
+    from ladder import llm as llm_mod
+
+    available = ["gpt-oss:20b", "ibm/granite4:micro-h", "llama3.1:8b",
+                 "mistral:7b-instruct", "qwen3:8b", "biomistral:7b-q5_k_m"]
+    for name in ("manifest.json", "manifest.finer.json"):
+        man = json.load(open(_ROOT / name))
+        assert llm_mod.check_models(man, man["rung_order"], available) == [], name
+
+
+def test_check_models_skips_rungs_disabled_in_the_manifest():
+    """A rung switched off in the manifest needs no model, so a missing or
+    mistyped name for it must not stop the run — `enabled: false` is already a
+    recorded run state, and the preflight has to respect it or it turns a
+    deliberate configuration into a hard failure. Caught by
+    tests/test_r3_repair.py when the preflight was first wired in."""
+    from ladder import llm as llm_mod
+
+    man = {"model": {"extractor": "ollama/gpt-oss:20b"},
+           "rungs": {"3": {"enabled": False}, "4": {"enabled": False}}}
+    assert llm_mod.check_models(man, [0, 1, 2, 3, 4],
+                                available=["gpt-oss:20b"]) == []
