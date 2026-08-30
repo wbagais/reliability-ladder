@@ -1,0 +1,32 @@
+digraph precondition {
+  rankdir=LR; bgcolor="white";
+  node [shape=none fontname="Helvetica" fontsize=13];
+  graph [nodesep=0.3 ranksep=0.7];
+
+  subgraph cluster_finer {
+    label="FiNER-139 · ACCEPT 0 of 704";
+    fontname="Helvetica"; fontsize=14; color="#a33333"; penwidth=2; fontcolor="#a33333";
+    style=rounded; margin=16;
+    fs [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8">
+        <TR><TD BGCOLOR="#f7f7f7"><FONT POINT-SIZE="11">the span</FONT></TD></TR>
+        <TR><TD BGCOLOR="#ffffff"><B>47.6</B></TD></TR></TABLE>>];
+    fv [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8">
+        <TR><TD BGCOLOR="#f7f7f7"><FONT POINT-SIZE="11">the code's name</FONT></TD></TR>
+        <TR><TD BGCOLOR="#ffffff"><B>EffectiveIncomeTax</B><BR/><B>RateContinuingOperations</B></TD></TR></TABLE>>];
+    fs -> fv [label="  no shared token,  \lby construction  \l" color="#a33333" penwidth=2.5
+              style=dashed fontcolor="#a33333" fontsize=12];
+  }
+
+  subgraph cluster_cadec {
+    label="CADEC · ACCEPT 72 of 314";
+    fontname="Helvetica"; fontsize=14; color="#2d6a4f"; penwidth=2; fontcolor="#2d6a4f";
+    style=rounded; margin=16;
+    cs [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8">
+        <TR><TD BGCOLOR="#f7f7f7"><FONT POINT-SIZE="11">the span</FONT></TD></TR>
+        <TR><TD BGCOLOR="#ffffff"><B>chronic pain</B></TD></TR></TABLE>>];
+    cv [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8">
+        <TR><TD BGCOLOR="#f7f7f7"><FONT POINT-SIZE="11">the code's name</FONT></TD></TR>
+        <TR><TD BGCOLOR="#ffffff"><B>Chronic pain</B></TD></TR></TABLE>>];
+    cs -> cv [label="  same words  " color="#2d6a4f" penwidth=2.5 fontcolor="#2d6a4f" fontsize=12];
+  }
+}

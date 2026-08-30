@@ -1,0 +1,36 @@
+digraph wiring {
+  rankdir=TB;
+  bgcolor="white";
+  node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=13 margin="0.22,0.14"];
+  edge [fontname="Helvetica" fontsize=11 color="#555555"];
+  graph [nodesep=0.5 ranksep=0.45];
+
+  R0 [label="0 · extract   ·   bare model   ·   164,897 tokens" fillcolor="#ffffff" color="#444444"];
+  R1 [label="1 · check   ·   vocabulary   ·   0 tokens" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+  R2 [label="2 · self-correct   ·   fired 1 of 248" fillcolor="#fdf0c8" color="#946c00"];
+  R3 [label="3 · vote   ·   425,355 tokens   ·   152 s p95" fillcolor="#fdf0c8" color="#946c00"];
+  R4 [label="4 · judge   ·   92,687 tokens" fillcolor="#fdf0c8" color="#946c00"];
+  R5 [label="5 · refuse   ·   ships 21%" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+  R6 [label="6 · person   ·   196 of 248" fillcolor="#ffffff" color="#444444"];
+
+  R0 -> R1 -> R2 -> R3 -> R4 -> R5 -> R6;
+
+  F2 [label="r2_declined" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
+  F3 [label="r3_unanimous_none" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
+  F4 [label="r4_verdict" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
+  NR [label="read by nothing" fillcolor="#fbe4e4" color="#a33333" penwidth=2.5 fontsize=13];
+
+  { rank=same; R2; F2; }
+  { rank=same; R3; F3; }
+  { rank=same; R4; F4; }
+
+  R2 -> F2 [style=dashed color="#aaaaaa" label="writes"];
+  R3 -> F3 [style=dashed color="#aaaaaa" label="writes"];
+  R4 -> F4 [style=dashed color="#aaaaaa" label="writes"];
+  F2 -> NR [color="#a33333"];
+  F3 -> NR [color="#a33333"];
+  F4 -> NR [color="#a33333"];
+
+  R1 -> R5 [color="#2d6a4f" penwidth=3 constraint=false
+            label="  the only verdict\l  rung 5 reads\l" fontcolor="#2d6a4f" fontsize=12];
+}
