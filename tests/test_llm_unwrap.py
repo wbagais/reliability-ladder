@@ -40,13 +40,22 @@ from ladder.llm import Caller
 class _Bare(Caller):
     """A Caller with no network and no provider lookup — repairs only."""
 
+    #: Repair counters, read off ladder/llm.py rather than listed by hand.
+    #: This stub broke on the merge that added `preambled`, and a hand-kept
+    #: list breaks again on the next counter someone adds.
+    _COUNTERS = tuple(sorted({
+        ln.split("self.", 1)[1].split(" =")[0]
+        for ln in (pathlib.Path(__file__).resolve().parent.parent
+                   / "ladder" / "llm.py").read_text().splitlines()
+        if ln.strip().startswith("self.") and ln.strip().endswith("= 0")
+    }))
+
     def __init__(self):
         self.spec = "test/none"
         self.role = "extractor"
         self.latencies = []
-        self.fenced = 0
-        self.unclosed = 0
-        self.prosed = 0
+        for name in self._COUNTERS:
+            setattr(self, name, 0)
 
 
 LLAMA = (
@@ -112,7 +121,31 @@ def test_prose_repair_runs_in_the_call_path_after_unfence():
     c = _Bare()
     got = c._reclose(c._unwrap(c._unfence(LLAMA)))
     assert json.loads(got)["mentions"]
-    assert (c.fenced, c.prosed, c.unclosed) == (0, 1, 0), (
-        "an anchored fence match does not fire on a fence preceded by prose; "
-        "the prose repair is what recovers this reply"
+    # CHANGED BY THE 2026-08-30 MERGE, and the change is correct. main
+    # extended _unfence with a NON-ANCHORED fence search (counted in
+    # `preambled`), which recovers this reply before the prose repair is
+    # reached — measured there on FiNER, where llama3.1:8b put a sentence
+    # before the fence on 60 of 60 documents. Two independent fixes for the
+    # same failure, and the earlier one in the chain wins. The prose repair is
+    # NOT redundant: it is the only thing that handles prose around
+    # UNFENCED JSON, which the next test pins.
+    assert (c.fenced, c.preambled, c.prosed, c.unclosed) == (1, 1, 0, 0), (
+        "the loose fence search now recovers a fence preceded by prose"
+    )
+
+
+def test_the_prose_repair_still_earns_its_place_on_unfenced_json():
+    """What the loose fence CANNOT do: prose around JSON with no fence at all.
+
+    Without this case the prose repair would be dead code after the merge, and
+    a repair nothing exercises is one nobody has shown to work.
+    """
+    c = _Bare()
+    raw = ('Sure! Here is what I found in the post:\n'
+           '{"mentions": [{"span_text": "rectal bleed", "negated": false}]}\n'
+           'Let me know if you need anything else.')
+    got = c._reclose(c._unwrap(c._unfence(raw)))
+    assert json.loads(got)["mentions"][0]["span_text"] == "rectal bleed"
+    assert (c.fenced, c.preambled, c.prosed) == (0, 0, 1), (
+        "no fence to find, so only the prose repair can recover this"
     )

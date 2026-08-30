@@ -540,3 +540,33 @@ def test_drop_datelike_does_not_touch_a_year_inside_a_longer_span():
                    spans=[(0, 13)], sct="X", zone=ZONE_NEW, record_id="D1#0")]
     kept, counts = r0.filter_spans(recs, {"rung0_drop_datelike": True})
     assert len(kept) == 1 and counts["dropped_datelike"] == 0
+
+
+# ---- merge interaction: a bare array must be wrapped under the RIGHT key
+def test_a_bare_array_from_a_pick_call_is_not_wrapped_as_mentions():
+    """Two independently-correct fixes that break each other on contact.
+
+    This branch made `_decide_batch` tolerate a bare array (granite answers
+    `[{"reaction":0,"choice":3}]`). main added `_unwrap_array` at the TRANSPORT
+    layer, which wraps any bare array as `{"mentions": [...]}` — correct for a
+    FIND reply and wrong for a PICK one, where `.get("picks")` then returns []
+    and the picks are silently dropped. Main's fix turns this branch's crash
+    into a silent no-op, which is worse: a crash is visible.
+
+    The wrap therefore has to use the key the CALL expects, and `mode` is in
+    scope where it happens.
+    """
+    from ladder.llm import Caller
+
+    c = Caller.__new__(Caller)
+    c.unwrapped = 0
+    assert c._unwrap_array('[{"span_text":"x"}]', "find") == '{"mentions": [{"span_text":"x"}]}'
+    # the pick call passes f"{step}-pick", which is what production sends
+    assert c._unwrap_array('[{"reaction":0,"choice":3}]', "S2-pick") == \
+        '{"picks": [{"reaction":0,"choice":3}]}'
+    # S0/S1/S2 are extraction steps and take the mentions envelope
+    assert c._unwrap_array('[{"a":1}]', "S2").startswith('{"mentions"')
+    # anything already an object, or not a list, is untouched
+    assert c._unwrap_array('{"picks": []}', "S2-pick") == '{"picks": []}'
+    assert c._unwrap_array('[1,2,3]', "S2-pick") == '[1,2,3]'
+    assert c.unwrapped == 3

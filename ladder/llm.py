@@ -267,6 +267,10 @@ ROLE_BY_RUNG = {0: "extractor", 2: "extractor", 3: "extractor", 4: "judge"}
 # missing entry raises.
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*\n(.*?)\n\s*```\s*$", re.S)
+#: The same fence with a preamble in front of it. Kept SEPARATE from
+#: _FENCE, which is anchored deliberately: an anchored match is the strict
+#: reading and this is the fallback, so the two cases stay countable apart.
+_FENCE_LOOSE = re.compile(r"```(?:json)?\s*\n(.*?)\n\s*```", re.S)
 
 
 class Caller:
@@ -293,6 +297,8 @@ class Caller:
         self.client = LLMClient(spec, cache_dir=cache_dir)
         self.latencies: list[float] = []
         self.fenced = 0
+        self.preambled = 0
+        self.unwrapped = 0
         self.unclosed = 0
         self.prosed = 0
         if not self.client.info.local and os.environ.get("LADDER_ALLOW_REMOTE") != "1":
@@ -374,9 +380,47 @@ class Caller:
     def _unfence(self, raw: str) -> str:
         m = _FENCE.match(raw)
         if not m:
-            return raw
+            # SEARCH rather than MATCH: some models put a sentence before the
+            # fence ("Here are the reported financial facts:"). Measured on
+            # FiNER: llama3.1:8b did this on 60 of 60 documents, and every one
+            # of the 60 contained a CORRECT extraction that the parser
+            # rejected on presentation. An anchored match makes the parse rate
+            # a measure of one model's output conventions rather than of
+            # extraction, which is the opposite of what it is for.
+            m = _FENCE_LOOSE.search(raw)
+            if not m:
+                return raw
+            self.preambled += 1
         self.fenced += 1
         return m.group(1)
+
+    def _unwrap_array(self, raw: str, mode: str = "find") -> str:
+        """A bare JSON array where an object was expected.
+
+        Same class as the fence and the missing brace: a transport convention,
+        not a modelling failure. llama3.1:8b returns [{...}] where the schema
+        asks for {"mentions": [{...}]} — the CONTENT is right and the envelope
+        is not. Wrapped, counted in `unwrapped`, and only ever when the parse
+        would otherwise fail and the payload is genuinely a list.
+        """
+        t = raw.strip()
+        if not (t.startswith("[") and t.endswith("]")):
+            return raw
+        try:
+            import json as _j
+            payload = _j.loads(t)
+            if not isinstance(payload, list) or not payload:
+                return raw
+            if not all(isinstance(x, dict) for x in payload):
+                # wrapping a list of scalars turns unparseable garbage into a
+                # parseable EMPTY result, which deletes the parse-failure
+                # signal. Same rule as the parse-layer coercions.
+                return raw
+        except Exception:
+            return raw
+        self.unwrapped += 1
+        key = "picks" if "pick" in (mode or "") else "mentions"
+        return "{\"%s\": %s}" % (key, t)
 
     def __call__(
         self,
@@ -411,7 +455,12 @@ class Caller:
             # nothing downstream can tell a cut-off reply from a bad one.
             "truncated": resp.truncated,
         }
-        return self._reclose(self._unwrap(self._unfence(resp.text))), usage
+        # Both normalisations, in the only order that composes: strip the
+        # fence, close a missing brace, lift the JSON out of surrounding prose
+        # (this branch), and only then wrap a bare array in the envelope the
+        # CALL expects (main). A model can do all four at once.
+        return (self._unwrap_array(
+            self._reclose(self._unwrap(self._unfence(resp.text))), mode), usage)
 
     def sampler(self, temperature: float):
         """A callable that draws a DIFFERENT sample each time it is called.
