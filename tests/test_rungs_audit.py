@@ -447,3 +447,52 @@ def test_granite_style_pick_reply_survives_a_real_decide_batch():
                      llm, r0.prepare({"llm": llm}), meta, "S2")
     assert rec.sct == "271782001", "the pick must be applied, not dropped"
     assert meta.get("shape_coerced") is True
+
+
+# ------- defect 7: the declared configuration was not the measured one
+MEASURED_R0_ARMS = {
+    "rung0_split": True,
+    "rung0_drop_ungrounded": True,
+    "rung0_drop_fragments": True,
+    "rung0_drop_duplicate_spans": True,
+    "rung0_cut_rate": 0.06,
+}
+
+
+def test_manifest_declares_every_measured_rung_0_arm_explicitly():
+    """`manifest.json` must not rely on a code default for anything measured.
+
+    The five arms below were measured and accepted on 2026-08-27/28, shipped as
+    code with `r0.DEFAULTS` off, and never appended to the manifest. So the
+    tracked configuration scored exact 0.340 while every number in the decision
+    log and the article came from a configuration scoring 0.399 — a 5.9-point
+    gap, and two answers to "which configuration produced this number". That is
+    the same failure the `manifest.model` note exists for, one layer down.
+
+    Explicitly, not just correctly: a manifest that happens to agree with
+    `r0.DEFAULTS` still breaks the moment a default moves, and the default is
+    the thing that moved last time.
+    """
+    import json
+
+    man = json.load(open(_ROOT / "manifest.json"))
+    declared = man["rungs"]["0"]
+    for arm, want in MEASURED_R0_ARMS.items():
+        assert arm in declared, (
+            f"{arm} is measured and accepted but absent from manifest.json, so "
+            f"the run silently takes r0.DEFAULTS[{arm!r}] instead"
+        )
+        assert declared[arm] == want, f"{arm}: manifest {declared[arm]!r} != measured {want!r}"
+
+
+def test_the_measured_arms_are_not_the_code_defaults():
+    """If they were, the test above could pass while proving nothing."""
+    from ladder.rungs import r0
+
+    differs = [a for a, want in MEASURED_R0_ARMS.items()
+               if r0.DEFAULTS.get(a) != want]
+    assert differs, (
+        "every measured arm now matches r0.DEFAULTS, so the manifest could be "
+        "empty and still 'agree' — re-point this test at whatever the declared "
+        "configuration actually depends on"
+    )
