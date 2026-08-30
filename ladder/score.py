@@ -379,40 +379,137 @@ def bootstrap_ci(
     "n_boot": ..., "seed": ...}. Deterministic under a seed.
     """
     doc_ids = sorted({r.doc_id for r in records} | {g.doc_id for g in golds})
-    per_doc = {}
-    for d in doc_ids:
-        s = score_run(
-            [r for r in records if r.doc_id == d],
-            [g for g in golds if g.doc_id == d],
-            span_match=span_match,
-            exclude=exclude,
-            vocab=vocab,
-        )
-        per_doc[d] = (
-            s["n_pred"], s["n_gold"], s["correct"], s["detection"]["n_matched"]
-        )
+    per_doc = _per_doc_stats(records, golds, doc_ids, span_match, exclude, vocab)
 
     rng = random.Random(seed)
     draws: dict[str, list[float]] = {"f1": [], "detection_f1": [], "coding_accuracy": []}
     for _ in range(n_boot):
-        n_pred = n_gold = correct = matched = 0
+        acc = [0, 0, 0, 0]
         for d in rng.choices(doc_ids, k=len(doc_ids)):
-            p, g, c, m = per_doc[d]
-            n_pred += p; n_gold += g; correct += c; matched += m
-        prec = correct / n_pred if n_pred else 0.0
-        rec_ = correct / n_gold if n_gold else 0.0
-        draws["f1"].append(2 * prec * rec_ / (prec + rec_) if prec + rec_ else 0.0)
-        dp = matched / n_pred if n_pred else 0.0
-        dr = matched / n_gold if n_gold else 0.0
-        draws["detection_f1"].append(2 * dp * dr / (dp + dr) if dp + dr else 0.0)
-        draws["coding_accuracy"].append(correct / matched if matched else 0.0)
-
-    def pct(xs: list[float], q: float) -> float:
-        xs = sorted(xs)
-        i = min(int(q * len(xs)), len(xs) - 1)
-        return xs[i]
+            for i, v in enumerate(per_doc[d]):
+                acc[i] += v
+        for k, v in _layers(tuple(acc)).items():
+            draws[k].append(v)
 
     out: dict[str, Any] = {"n_boot": n_boot, "seed": seed, "span_match": span_match}
     for k, xs in draws.items():
-        out[k] = {"lo": pct(xs, alpha / 2), "hi": pct(xs, 1 - alpha / 2)}
+        out[k] = {"lo": _pct(xs, alpha / 2), "hi": _pct(xs, 1 - alpha / 2)}
+    return out
+
+
+def _per_doc_stats(
+    records: list[Record],
+    golds: list["GoldMention"],
+    doc_ids: list[str],
+    span_match: str,
+    exclude: set[str] | None,
+    vocab: Any,
+) -> dict[str, tuple[int, int, int, int]]:
+    """(n_pred, n_gold, correct, n_matched) per document.
+
+    Pairing is within-document by construction (span keys carry doc_id), so a
+    document's counts are computed ONCE and every resample sums them — 1000
+    draws cost arithmetic, not 1000 scoring passes.
+    """
+    out = {}
+    by_rec: dict[str, list[Record]] = {d: [] for d in doc_ids}
+    by_gold: dict[str, list] = {d: [] for d in doc_ids}
+    for r in records:
+        by_rec.setdefault(r.doc_id, []).append(r)
+    for g in golds:
+        by_gold.setdefault(g.doc_id, []).append(g)
+    for d in doc_ids:
+        s = score_run(
+            by_rec.get(d, []), by_gold.get(d, []),
+            span_match=span_match, exclude=exclude, vocab=vocab,
+        )
+        out[d] = (s["n_pred"], s["n_gold"], s["correct"], s["detection"]["n_matched"])
+    return out
+
+
+def _layers(totals: tuple[int, int, int, int]) -> dict[str, float]:
+    """The three reported layers from summed counts, one place."""
+    n_pred, n_gold, correct, matched = totals
+    prec = correct / n_pred if n_pred else 0.0
+    rec_ = correct / n_gold if n_gold else 0.0
+    dp = matched / n_pred if n_pred else 0.0
+    dr = matched / n_gold if n_gold else 0.0
+    return {
+        "f1": 2 * prec * rec_ / (prec + rec_) if prec + rec_ else 0.0,
+        "detection_f1": 2 * dp * dr / (dp + dr) if dp + dr else 0.0,
+        "coding_accuracy": correct / matched if matched else 0.0,
+    }
+
+
+def _pct(xs: list[float], q: float) -> float:
+    xs = sorted(xs)
+    i = min(int(q * len(xs)), len(xs) - 1)
+    return xs[i]
+
+
+def paired_bootstrap(
+    records_a: list[Record],
+    records_b: list[Record],
+    golds: list["GoldMention"],
+    span_match: str = "exact",
+    exclude: set[str] | None = None,
+    vocab: Any = None,
+    n_boot: int = 1000,
+    seed: int = 0,
+    alpha: float = 0.05,
+) -> dict[str, Any]:
+    """The DIFFERENCE between two arms, resampled over documents, PAIRED.
+
+    `bootstrap_ci` prices one arm's corpus sample; two of its intervals cannot
+    be compared, because they do not use the same resampled documents and the
+    pairing is what makes a 40-document split usable. Here each draw scores
+    BOTH arms over the SAME documents and reports `a - b`.
+
+    Documents are drawn WITH REPLACEMENT and their multiplicity is kept. The
+    scratch harness that measured every rung 0 arm before 2026-08-30 resampled
+    with `set(random.choices(...))`, which collapses those duplicates and
+    leaves a ~63% subsample — a different, wider estimator wearing a
+    bootstrap's name.
+
+    Returns {layer: {point, mean, lo, hi}} for `f1`, `detection_f1` and
+    `coding_accuracy`, plus `n_boot`, `seed` and `span_match`. `point` is the
+    observed delta over every document, not a bootstrap statistic.
+    """
+    doc_ids = sorted(
+        {r.doc_id for r in records_a}
+        | {r.doc_id for r in records_b}
+        | {g.doc_id for g in golds}
+    )
+    kw = dict(span_match=span_match, exclude=exclude, vocab=vocab)
+    stats_a = _per_doc_stats(records_a, golds, doc_ids, **kw)
+    stats_b = _per_doc_stats(records_b, golds, doc_ids, **kw)
+
+    def totals(stats, picks):
+        acc = [0, 0, 0, 0]
+        for d in picks:
+            for i, v in enumerate(stats[d]):
+                acc[i] += v
+        return tuple(acc)
+
+    point = {
+        k: _layers(totals(stats_a, doc_ids))[k] - _layers(totals(stats_b, doc_ids))[k]
+        for k in ("f1", "detection_f1", "coding_accuracy")
+    }
+    rng = random.Random(seed)
+    draws: dict[str, list[float]] = {k: [] for k in point}
+    for _ in range(n_boot):
+        picks = rng.choices(doc_ids, k=len(doc_ids))
+        la = _layers(totals(stats_a, picks))
+        lb = _layers(totals(stats_b, picks))
+        for k in draws:
+            draws[k].append(la[k] - lb[k])
+
+    out: dict[str, Any] = {"n_boot": n_boot, "seed": seed, "span_match": span_match}
+    for k, xs in draws.items():
+        out[k] = {
+            "point": point[k],
+            "mean": sum(xs) / len(xs) if xs else 0.0,
+            "lo": _pct(xs, alpha / 2),
+            "hi": _pct(xs, 1 - alpha / 2),
+        }
     return out

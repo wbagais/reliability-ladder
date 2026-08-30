@@ -586,3 +586,84 @@ def test_score_run_counts_modernised_apart_from_correct():
     assert r["correct"] == 1
     assert r["modernised"] == 1
     assert r["precision"] == 0.5, "modernised must not be credited as correct"
+
+
+# --- the paired bootstrap (2026-08-30) ---------------------------------------
+#
+# `bootstrap_ci` prices ONE arm's corpus sample. Comparing two arms needs the
+# DIFFERENCE resampled, with both arms scored over the SAME resampled documents
+# — an unpaired comparison of two intervals throws away the pairing that makes
+# a 40-document dev split usable at all.
+#
+# The scratch harness that measured every rung 0 arm to date resampled with
+# `set(random.choices(...))`, which collapses the duplicates a bootstrap draw
+# is made of and leaves a ~63% SUBSAMPLE, not a bootstrap. This is the
+# production version: documents drawn with replacement, multiplicity kept, and
+# the same per-document sufficient statistics `bootstrap_ci` already uses.
+
+
+def test_paired_bootstrap_brackets_the_observed_delta():
+    from ladder.score import paired_bootstrap
+    golds = [gold(doc_id=f"D{i}") for i in range(10)]
+    # arm A is right on every document; arm B is right on half of them.
+    a = [rec(doc_id=f"D{i}") for i in range(10)]
+    b = [rec(doc_id=f"D{i}", sct="999999" if i % 2 else None) for i in range(10)]
+    observed = score_run(a, golds)["f1"] - score_run(b, golds)["f1"]
+    out = paired_bootstrap(a, b, golds, n_boot=300, seed=1)
+    assert out["f1"]["lo"] <= observed <= out["f1"]["hi"]
+    assert out["f1"]["point"] == observed
+    assert out["n_boot"] == 300
+
+
+def test_paired_bootstrap_separates_a_real_difference_from_zero():
+    from ladder.score import paired_bootstrap
+    golds = [gold(doc_id=f"D{i}") for i in range(12)]
+    a = [rec(doc_id=f"D{i}") for i in range(12)]
+    b = [rec(doc_id=f"D{i}", sct="999999") for i in range(12)]
+    out = paired_bootstrap(a, b, golds, n_boot=300, seed=1)
+    assert out["f1"]["lo"] > 0.0
+
+
+def test_paired_bootstrap_of_an_arm_against_itself_is_exactly_zero():
+    from ladder.score import paired_bootstrap
+    golds = [gold(doc_id=f"D{i}") for i in range(8)]
+    a = [rec(doc_id=f"D{i}") for i in range(8)]
+    out = paired_bootstrap(a, list(a), golds, n_boot=100, seed=5)
+    assert out["f1"] == {"point": 0.0, "lo": 0.0, "hi": 0.0, "mean": 0.0}
+
+
+def test_paired_bootstrap_resamples_with_replacement_not_as_a_subset():
+    """The defect in the scratch harness, pinned. A draw of k documents from k
+    must be able to hold the SAME document twice; if duplicates are collapsed
+    the draw is a subsample and every interval is wider than it should be."""
+    from ladder.score import paired_bootstrap
+    # One document carries all the signal. Under a with-replacement draw its
+    # multiplicity varies, so the delta distribution has mass ABOVE the point
+    # estimate; under a set-collapsed draw it can only be present or absent.
+    golds = [gold(doc_id=f"D{i}") for i in range(4)]
+    a = [rec(doc_id=f"D{i}", sct="271782001" if i == 0 else "999999")
+         for i in range(4)]
+    b = [rec(doc_id=f"D{i}", sct="999999") for i in range(4)]
+    out = paired_bootstrap(a, b, golds, n_boot=500, seed=2)
+    assert out["f1"]["hi"] > out["f1"]["point"]
+
+
+def test_paired_bootstrap_is_deterministic_under_a_seed():
+    from ladder.score import paired_bootstrap
+    golds = [gold(doc_id=f"D{i}") for i in range(6)]
+    a = [rec(doc_id=f"D{i}") for i in range(6)]
+    b = [rec(doc_id=f"D{i}", sct="999999") for i in range(6)]
+    assert (paired_bootstrap(a, b, golds, n_boot=80, seed=3)
+            == paired_bootstrap(a, b, golds, n_boot=80, seed=3))
+
+
+def test_paired_bootstrap_reports_all_three_layers():
+    from ladder.score import paired_bootstrap
+    golds = [gold(doc_id=f"D{i}") for i in range(6)]
+    a = [rec(doc_id=f"D{i}") for i in range(6)]
+    b = [rec(doc_id=f"D{i}", sct="999999") for i in range(6)]
+    out = paired_bootstrap(a, b, golds, n_boot=80, seed=3)
+    assert set(out) >= {"f1", "detection_f1", "coding_accuracy"}
+    # detection is identical here — same spans, different codes.
+    assert out["detection_f1"]["point"] == 0.0
+    assert out["coding_accuracy"]["point"] > 0.0
