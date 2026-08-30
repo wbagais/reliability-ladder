@@ -150,6 +150,17 @@ DEFAULTS: dict[str, Any] = {
     "rung0_drop_ungrounded": False,
     "rung0_drop_fragments": False,
     "rung0_drop_duplicate_spans": False,
+    #: `drop_datelike` — the span IS a bare year ("2018") or a clock time
+    #: ("2:45 p.m."). A date is not a reported quantity, and neither class
+    #: costs a gold mention: measured on the FiNER dev run, 22 years and 4
+    #: times among 238 false positives, 0 of 165 gold. Only a span that IS a
+    #: date is dropped, never one that merely contains one ("2018 revenues"
+    #: survives). Written for the numeric corpus, where the span carries no
+    #: words to judge; harmless on CADEC, where no gold span is a bare year.
+    #: A third candidate — drop any span with NO DIGIT — was measured and
+    #: REJECTED: 14 predictions cut but 7 gold destroyed, because FiNER spells
+    #: small counts out ("two" -> NumberOfOperatingSegments).
+    "rung0_drop_datelike": False,
     #: Split a coordinated quote into the DISCONTINUOUS mentions gold keeps
     #: ("muscle and joint pain" -> ['muscle' … 'pain'], ['joint' … 'pain']).
     #: See ladder/split.py. Runs before retrieval so each half gets its own
@@ -1422,7 +1433,8 @@ def filter_spans(records: list[Record], cfg: dict[str, Any]) -> tuple[list[Recor
     Order matters only for the counts: a record is charged to the FIRST rule
     that rejects it, so the three numbers sum to the records removed.
     """
-    counts = {"dropped_ungrounded": 0, "dropped_fragment": 0, "dropped_duplicate": 0}
+    counts = {"dropped_ungrounded": 0, "dropped_fragment": 0,
+              "dropped_duplicate": 0, "dropped_datelike": 0}
     out: list[Record] = []
     seen: set = set()
     for rec in records:
@@ -1439,6 +1451,9 @@ def filter_spans(records: list[Record], cfg: dict[str, Any]) -> tuple[list[Recor
             if not words or all(w in _FUNCTION_WORDS for w in words):
                 counts["dropped_fragment"] += 1
                 continue
+        if cfg.get("rung0_drop_datelike") and _DATELIKE.fullmatch((rec.text or "").strip()):
+            counts["dropped_datelike"] += 1
+            continue
         if cfg.get("rung0_drop_duplicate_spans"):
             key = (rec.doc_id, tuple(tuple(s) for s in rec.spans),
                    (rec.text or "").strip().lower())
@@ -1448,6 +1463,13 @@ def filter_spans(records: list[Record], cfg: dict[str, Any]) -> tuple[list[Recor
             seen.add(key)
         out.append(rec)
     return out, counts
+
+
+#: A span that IS a date: a bare 4-digit year, or a clock time with optional
+#: am/pm. FULLMATCH, deliberately — "2018 revenues" is a quantity that mentions
+#: a year and must survive.
+_DATELIKE = re.compile(
+    r"(?:(?:19|20)\d\d|\d{1,2}:\d\d(?:\s*[ap]\.?m\.?)?)", re.IGNORECASE)
 
 
 def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
@@ -1682,6 +1704,7 @@ def apply(
         "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
         "trimmed": 0, "pick_fallback": 0, "split": 0,
         "dropped_ungrounded": 0, "dropped_fragment": 0, "dropped_duplicate": 0,
+        "dropped_datelike": 0,
         "t0": time.time(),
     }
     out: list[Record] = []

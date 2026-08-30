@@ -496,3 +496,47 @@ def test_the_measured_arms_are_not_the_code_defaults():
         "empty and still 'agree' — re-point this test at whatever the declared "
         "configuration actually depends on"
     )
+
+
+# --------- improvement: date-like spans are never a tagged quantity (FiNER)
+def test_drop_datelike_removes_years_and_clock_times_only():
+    """A bare year or a clock time is a date, not a reported quantity.
+
+    Measured on the FiNER dev run: of 238 false-positive spans, 22 are 4-digit
+    years ("2018", "2011") and 4 are times of day ("2:45 p.m."), and **neither
+    class costs a single gold mention** — 0 of 165. A third candidate, "drop
+    any span with no digit", was measured and REJECTED: it cuts 14 predictions
+    but destroys 7 gold, because FiNER gold spells small counts out ("two" ->
+    NumberOfOperatingSegments). Free filters ship; the one with a
+    false-rejection cost does not.
+    """
+    from ladder.rungs import r0
+    from ladder.schema import REACTION, Record
+
+    def rec(text, i=0):
+        return Record(doc_id="D1", entity_type=REACTION, text=text,
+                      spans=[(i, i + len(text))], sct="X", zone=ZONE_NEW,
+                      record_id=f"D1#{i}")
+
+    recs = [rec("2018", 0), rec("2:45 p.m.", 10), rec("19.5", 30),
+            rec("two", 40), rec("1998", 50), rec("12 months", 60)]
+    kept, counts = r0.filter_spans(recs, {"rung0_drop_datelike": True})
+    kept_text = [r.text for r in kept]
+    assert kept_text == ["19.5", "two", "12 months"], kept_text
+    assert counts["dropped_datelike"] == 3
+
+    # off by default, like every other span filter
+    kept2, counts2 = r0.filter_spans(recs, {})
+    assert len(kept2) == 6 and counts2.get("dropped_datelike", 0) == 0
+    assert r0.DEFAULTS["rung0_drop_datelike"] is False
+
+
+def test_drop_datelike_does_not_touch_a_year_inside_a_longer_span():
+    """Only a span that IS a date, never one that merely contains one."""
+    from ladder.rungs import r0
+    from ladder.schema import REACTION, Record
+
+    recs = [Record(doc_id="D1", entity_type=REACTION, text="2018 revenues",
+                   spans=[(0, 13)], sct="X", zone=ZONE_NEW, record_id="D1#0")]
+    kept, counts = r0.filter_spans(recs, {"rung0_drop_datelike": True})
+    assert len(kept) == 1 and counts["dropped_datelike"] == 0
