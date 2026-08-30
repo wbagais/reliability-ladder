@@ -227,11 +227,11 @@ port cost sixteen one-line harness edits and zero changes to rung logic.
 The result is not a worse score. It is no score:
 
 ```
-rung 1   ACCEPT 0 / BAND 350 / REJECT 1
-         lexical_match  False on all 328 records carrying a tag
-         sct_exists     True  on all 328
+rung 1   ACCEPT 0 / BAND 291 / REJECT 1
+         lexical_match  False on every record carrying a tag
+         sct_exists     True  on every one of them
 rung 5   coverage 1.0 → 0.0
-rung 6   351 of 351 records routed to a person
+rung 6   292 of 292 records routed to a person
 ```
 
 **The identical system that ships 21% of its answers on CADEC ships 0% here.**
