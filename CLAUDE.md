@@ -394,6 +394,16 @@ column, never folded into correct — headline denominators unchanged;
    `docs/article_v3.md` is the article revision (article.md + the four results
    above). New material is marked in the typeset page.
 
+**Where this session's artifacts live.** `out/` is gitignored, so every run and
+every harness script cited above sits in the worktree
+`.claude/worktrees/phase-e-rung-6-human-loop-64ce8e/out/` — new this session:
+`harness/debt.sh`, `debtpaired.py`, `judgearmcmp.py`, `finerrecall.py`,
+`finerctx.py`, `finerarm.py`, `finerctxdiag.py`, `finerrefusal.py`, plus
+`out/judgearm/` and `out/finer/arm-finer{base,ctx}-d0.*`. Per the standing
+convention (`out/harness/README.md`) the scripts are scratch and
+`docs/decisions.md` is the durable record; the FiNER data is symlinked from the
+`agitated-lewin-346b03` worktree.
+
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.
 - `manifest.json` is append-only and edited jointly.
