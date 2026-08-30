@@ -204,7 +204,7 @@ check that has nothing to compare. On CADEC it matches `"chronic pain"` against
 `|EffectiveIncomeTaxRateContinuingOperations|`, and a number shares no tokens with
 a name by construction.
 
-![Figure 1](fig4-precondition.png)
+![Figure 1](figures/fig4-precondition.png)
 
 *Fig. 1: The lexical check compares the extracted span against the code's own
 name. On one corpus they are drawn from the same language; on the other they
@@ -263,7 +263,7 @@ coverage falls 100% → **21%.**
 Every point of that fall is the free check from section 3, acted on, and paid for
 in a third currency — human attention.
 
-![Figure 2](fig2-flat.png)
+![Figure 2](figures/fig2-flat.png)
 
 *Fig. 2: Accuracy on answered records is flat through four layers and falls at
 the voting step; it rises only when the system stops answering. Token cost below.
@@ -303,7 +303,7 @@ one that would act. Self-correction wrote `r2_declined`, voting wrote
 of the three.** No test could have caught it, because every layer does exactly
 what its own documentation promises. The hole is *between* them.
 
-![Figure 3](fig1-wiring.png)
+![Figure 3](figures/fig1-wiring.png)
 
 *Fig. 3: Where each layer's verdict goes. Self-correction, voting and the judge
 each write a field; the refusal step reads none of them. Source: author-created
@@ -330,7 +330,7 @@ None of the layers above announced that it had stopped working. Each ran,
 returned, wrote its field and passed its tests. What surfaced them was a loop we
 fell into rather than designed, and it is the transferable part of this project.
 
-![Figure 4](fig3-loop.png)
+![Figure 4](figures/fig3-loop.png)
 
 *Fig. 4: The measurement loop. Every dead layer in this article was found on it.
 Source: author-created with Graphviz.*
