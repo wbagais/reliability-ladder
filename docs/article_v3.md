@@ -313,6 +313,47 @@ A single number said "find more"; the decomposition says "choose better". If
 you report one recall figure for a pipeline that both finds and classifies, you
 will spend your effort on the wrong half.
 
+### So we tried to choose better, and made it worse
+
+The menu here is all 139 tags in alphabetical order — no ranking at all,
+because a bare number carries no words to rank on. But the *sentence* does:
+"conversion price of $ 11.16 per share" is exactly the evidence a person uses.
+An offline probe agreed, putting the correct tag at **median rank 7 of 139**
+when the 139 tag names are ranked against the text around the number.
+
+So we reordered the menu by that ranking, dropping nothing — menu recall stays
+1.000 and detection is byte-identical by construction. Coding accuracy went
+**0.393 → 0.304.**
+
+The artifacts say why, and it is not that the ranking was bad:
+
+| | alphabetical menu | context-ranked menu |
+|---|---|---|
+| pick lands on slot 0 | 20.4% | **50.2%** |
+| median picked slot | 30 | **0** |
+| accuracy when slot 0 is picked | 0.087 | **0.373** |
+| accuracy when any other slot is picked | **0.457** | 0.245 |
+
+Read the last two rows together. The ranking *is* informative — its top slot is
+four times better than the alphabetical top slot. The model plainly *follows*
+it — slot-0 selection more than doubles. And it still loses, because the thing
+it displaced was better: the model's own unaided reading of an unranked menu
+scores **0.457**, and the ranker's top slot scores 0.373.
+
+> A ranking can carry real signal, visibly move the model, and still make the
+> system worse — because what it displaces was better than it.
+
+That completes a pair. On the medical corpus, *destroying* a good menu order
+cost 10–12 points. Here, *imposing* a mediocre one costs 8.9. The pick is
+exquisitely sensitive to order in both directions, which means menu order is not
+a presentation detail you can leave to whatever your vocabulary enumerates in.
+
+(Stated plainly: this is **one draw**, and by our own rule that is not a
+measurement. We report it as a rejection on an effect roughly seven times the
+run-to-run spread plus a mechanism read off the artifacts, not as a separated
+result. Making it a three-draw finding needs four more runs at ~78 minutes each,
+because a paired comparison needs both sides at the same draw.)
+
 ### One document, refused, cost 12.7% of the answer key
 
 Fifty-two gold mentions were never touched by any prediction, and **21 of them
@@ -340,6 +381,30 @@ whole documents, so per-record error rates hide them completely. And the
 detector had to be written against the apostrophe the model actually types:
 *I’m* with U+2019, not *I'm*. A refusal detector written against the ASCII form
 passes every test you would think to write and never fires once on real output.
+
+### The refusal is not the document. It is not even the model. It is the draw.
+
+We put the same document back to the same model, same prompt, temperature 0:
+
+| | draw 0 | draw 1 | draw 2 |
+|---|---|---|---|
+| `gpt-oss:20b` | **refused** | 33 mentions | 33 mentions |
+
+And to the other families, one draw each, because four of the five are
+bit-reproducible and three identical draws of a bit-reproducible model are three
+copies of one measurement: `llama3.1:8b` 38 mentions, `mistral:7b-instruct` 22,
+`granite4:micro-h` 9. Nobody else declined.
+
+This is what section 1's nondeterminism actually costs, and the 1.3-point
+average badly understates it:
+
+> The variance is not spread evenly over records. It concentrates into
+> **whole-document, all-or-nothing outcomes** — and one of them here is 12.7% of
+> the corpus's answer key, decided by which draw you got.
+
+A bit-reproducible model can be wrong, but it cannot answer on Tuesday and
+refuse on Wednesday. That is a second price on the same model-selection choice,
+and it is the one an operator would feel.
 
 ---
 
@@ -643,9 +708,12 @@ What survived:
    and re-testing them killed a claim on one of the two scoring layers.
    While you are there, read the bootstrap helper itself — ours had been
    collapsing its resamples into a set for a month.
-4. **Reproducibility is a model choice.** Four of five models were bit-identical
-   across runs. The one that was not bought 6.5 points and cost a spread larger
-   than every gain we shipped.
+4. **Reproducibility is a model choice**, and its price is worse than the
+   average says. Four of five models were bit-identical across runs. The one
+   that was not bought 6.5 points and cost a 1.3-point spread — and, on one
+   document in forty, cost the whole document: it refused on one draw and
+   answered on the next two. Variance concentrates into all-or-nothing outcomes
+   that an averaged spread hides.
 5. **Test your free layer against your answer key first.** Every rejection there
    is false by construction, so you get its false-positive rate exactly, for
    nothing. Ours went from 9.3% to 0.13% — errors every paid layer above would
@@ -664,7 +732,9 @@ What survived:
    label, and only one of them is fixed by anything you can change in a prompt.
 10. **Decompose recall before you try to raise it.** Ours read as "the model
    proposes 30% of the answer key"; it actually reaches 68.5% and mis-codes what
-   it reaches.
+   it reaches. Then check that your fix is better than what it replaces: ranking
+   our candidate menu by real signal made the system worse, because the model
+   deferred to a ranking weaker than its own reading.
 11. **Re-measure the top when you change the bottom**, and **print coverage
     beside every error rate** — 4 errors per 100 and 0 errors per 100 mean very
     different things when the second is computed over nothing.
