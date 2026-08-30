@@ -346,6 +346,54 @@ the fifth outcome `modernised` (mirror of `outdated`, own `sct_modernised`
 column, never folded into correct — headline denominators unchanged;
 0 fired on dev, 6 possible there).
 
+## Session 2026-08-30 — four tasks, all landed (5 commits, 725 tests)
+1. **The three-draw debt is PAID and both arms survive** — nothing removed, no
+   CADEC number re-run. `rung0_split` exact +0.0389/+0.0345/+0.0579, pooled
+   **+0.0438 [+0.0012, +0.0937]** (separated); `rung0_cut_rate` exact
+   +0.0139/+0.0183/+0.0098, pooled +0.0140 [−0.0163, +0.0500] (consistent, and
+   SMALLER than the base's own 1.3pt spread). **The split buys EXACT ONLY** —
+   its overlap sign reverses. Both manifest notes amended. Runs
+   `out/arm-debt{base,nocut,nosplit}-d{0,1,2}-dev.*`.
+   **`ladder.score.paired_bootstrap` is now production code**, because
+   `out/harness/paired.py` resampled with `set(random.choices(...))` — a ~63%
+   subsample, not a bootstrap. `bootstrap_ci` refactored onto the shared
+   helpers, output byte-identical.
+2. **Rung 4 is WIRED and it stays OFF** (owner's call: wire-and-measure).
+   `rungs.5.abstain_on_judge_fail` (default false, declared in the manifest),
+   `R_JUDGE_FAIL`, `manifest.judgearm.json` = a test-pinned one-key diff.
+   Three draws: coverage 0.210/0.202/0.215 → 0.153/0.149/0.156; **yield
+   0.169/0.161/0.177 → 0.125/0.121/0.131**; to a person 196/198/186 →
+   210/211/200. Withdraws 14/13/14 to remove 3 errors — **3.7 correct destroyed
+   per error caught**, lift 1.11–1.21x against the free check's 3.03–3.15x.
+   Precision rose because abstaining always raises precision; yield is the
+   number that cannot be fooled. Runs `out/judgearm/`.
+3. **FiNER recall — the old premise was wrong.** 0.303 = detection **0.685** x
+   coding **0.446**; the model reaches two thirds of gold and mis-codes it, and
+   proposes 292 spans against 165 gold. **Recall work here is CODING work.**
+   - **A REFUSAL IS NOT A JSON FAILURE.** One document held 21 of 165 dev gold
+     (12.7%, 40% of the detection gap) and the extractor answered *"I'm sorry,
+     but I can't provide that."* New label ladder `timed_out > truncated >
+     refused > json_decode` (`r0.failure_reason`). The detector MUST read
+     U+2019 — an ASCII-apostrophe detector never fires on real output.
+   - **The refusal is the DRAW, not the document or the model**: same request,
+     d0 refused / d1 33 mentions / d2 33 mentions; all three other families
+     answered. So the 1.3pt spread understates the risk — variance concentrates
+     into whole-document, all-or-nothing outcomes.
+   - **REJECTED: `rung0_menu_order: "context"`** (`ladder/menuorder.py`, off in
+     both manifests, `manifest.finer.ctxmenu.json` a test-pinned one-key diff).
+     Detection byte-identical; coding 0.393 → 0.304. Mechanism confirmed on the
+     artifacts (`out/harness/finerctxdiag.py`): slot-0 picks 20.4% → 50.2%,
+     slot-0 accuracy 0.087 → 0.373, but the model's own unranked judgement
+     scores **0.457**. A ranking can carry real signal, move the model, and
+     still lose to what it displaced. **ONE DRAW** — three needs FOUR runs
+     (both sides at d1 and d2) at ~78 min each. FiNER's own run-to-run spread
+     has never been measured.
+4. **The published artifact is the ARTICLE now**, not the build log.
+   `docs/article.html` serves the existing URL; `docs/article-build-log.html`
+   is archived as `docs/versions/article-build-log-v2-2026-08-28.html`.
+   `docs/article_v3.md` is the article revision (article.md + the four results
+   above). New material is marked in the typeset page.
+
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.
 - `manifest.json` is append-only and edited jointly.
