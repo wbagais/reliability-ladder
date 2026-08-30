@@ -1274,7 +1274,7 @@ def _decide_batch(pairs, source, llm, cfg, meta, step) -> None:
     # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
     # 14 tokens of truncated JSON. Counting that as "saw the menu, chose
     # nothing" would report a transport failure as an abstention.
-    picked = _parse(raw, {})
+    picked = _as_picks(_parse(raw, {}), meta)
     pick_failed = picked is None
     if pick_failed:
         meta["pick_parse_failed"] = True
@@ -1502,6 +1502,27 @@ def _normalise_reply(parsed, meta: dict):
             if parsed:
                 meta["shape_coerced"] = True
             return {"mentions": parsed}
+        return None
+    return None
+
+
+def _as_picks(parsed, meta: dict):
+    """The pick reply, normalised to {"picks": [...]}, or None.
+
+    The FIND path has coerced a bare JSON array since it was hardened; this
+    call site was missed, and `picked.get("picks", [])` raised
+    `AttributeError: 'list' object has no attribute 'get'` on every
+    granite4:micro-h draw — the model answers with the array directly. Same
+    rule as _as_mentions and as the call timeout: a reply shape nobody
+    anticipated costs ONE DOCUMENT, not the run. The coercion is COUNTED, so
+    "the model used the other shape" never hides inside "it worked".
+    """
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, list):
+        if parsed and all(isinstance(p, dict) for p in parsed):
+            meta["shape_coerced"] = True
+            return {"picks": parsed}
         return None
     return None
 

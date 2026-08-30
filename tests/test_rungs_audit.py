@@ -394,3 +394,56 @@ def test_check_models_skips_rungs_disabled_in_the_manifest():
            "rungs": {"3": {"enabled": False}, "4": {"enabled": False}}}
     assert llm_mod.check_models(man, [0, 1, 2, 3, 4],
                                 available=["gpt-oss:20b"]) == []
+
+
+# ------- defect 6: the PICK path crashes on a reply shape the FIND path allows
+def test_a_bare_list_from_the_pick_call_costs_one_document_not_the_run():
+    """`_decide_batch` assumed the pick reply is always {"picks": [...]}.
+
+    Measured: all three granite4:micro-h draws died with
+    `AttributeError: 'list' object has no attribute 'get'` at r0.py:1283 —
+    the model answered with a bare JSON array, which the FIND path has coerced
+    since it was hardened and the PICK path never did. Same rule, same file,
+    one call site missed: a reply shape nobody anticipated costs ONE DOCUMENT,
+    not the run.
+    """
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._as_picks([{"reaction": 0, "choice": 3}], meta) == {
+        "picks": [{"reaction": 0, "choice": 3}]}
+    assert meta.get("shape_coerced") is True, "the coercion must be COUNTED"
+
+    meta2 = {}
+    assert r0._as_picks({"picks": [{"reaction": 1, "choice": 2}]}, meta2) == {
+        "picks": [{"reaction": 1, "choice": 2}]}
+    assert not meta2.get("shape_coerced"), "the expected shape is not a coercion"
+
+    # a shape that carries no picks is None, never an exception
+    assert r0._as_picks(["nope", 3], {}) is None
+    assert r0._as_picks("nope", {}) is None
+    assert r0._as_picks(None, {}) is None
+
+
+def test_granite_style_pick_reply_survives_a_real_decide_batch():
+    """End to end through _decide_batch, the function that actually crashed."""
+    from ladder.rungs import r0
+    from ladder.schema import REACTION, Record
+
+    rec = Record(doc_id="D1", entity_type=REACTION, text="rectal bleed",
+                 spans=[(17, 29)], sct=None, zone=ZONE_NEW, record_id="D1#0")
+    cands = [{"i": 0, "code": "271782001", "label": "rectal bleed",
+              "fsn": "rectal bleed", "score": 0.9, "via": "dense"},
+             {"i": 1, "code": "999", "label": "something else",
+              "fsn": "something else", "score": 0.4, "via": "dense"}]
+    meta = {"tokens_in": 0, "tokens_out": 0, "api_calls": 0}
+
+    def llm(prompt, text, mode):
+        # a bare array, exactly what granite4:micro-h returned
+        return (json.dumps([{"reaction": 0, "choice": 0}]),
+                {"in": 1, "out": 1, "usd": 0.0, "seconds": 0.0})
+
+    r0._decide_batch([(rec, cands)], "suffered extreme rectal bleed today",
+                     llm, r0.prepare({"llm": llm}), meta, "S2")
+    assert rec.sct == "271782001", "the pick must be applied, not dropped"
+    assert meta.get("shape_coerced") is True
