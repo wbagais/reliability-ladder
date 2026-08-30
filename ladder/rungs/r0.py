@@ -41,12 +41,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
+from dataclasses import replace
 from typing import Any
 
 from ladder import vocab
 from ladder.ledger import Ledger
 from ladder.rungs import r1
+from ladder import rerank
 from ladder.schema import (
     CONCEPT_LESS,
     REACTION,
@@ -108,6 +111,86 @@ DEFAULTS: dict[str, Any] = {
     #: re-sorts the same candidates alphabetically: if F1 holds, the pick
     #: reads content; if it drops, position was doing work. An arm.
     "rung0_menu_order": "score",  # "score" | "alpha"
+    #: How many reactions go into ONE pick call. Measured on the dev split
+    #: 2026-08-27 over three independent draws: `no_pick` — the reply simply
+    #: omits a reaction's number — runs 0.0% at 4-7 reactions per call and
+    #: 8-10% above 8, with no truncation anywhere (LIPITOR.761 answered
+    #: reactions 0-4 of 12 in 344 completion tokens against an 8000 cap).
+    #: The reply stops enumerating, so the enumeration is made shorter.
+    #: This is NOT a retry — a retry inside rung 0 is rung 2. It is the same
+    #: single pass, batched smaller, and it costs more CALLS: that lands in
+    #: the ledger rather than being pretended away. 0 disables batching.
+    "rung0_pick_batch": 7,
+    #: A record that leaves rung 0 with no code while its own retrieved menu
+    #: sits on the record has withheld an answer nobody asked it to withhold.
+    #: Abstention is rung 5's job and rung 5 cannot withdraw what rung 0 never
+    #: said. Falls back to menu position 0, flagged `pick_fallback` as "gap"
+    #: (the reply never answered) or "decline" (the model answered null), and
+    #: NEVER over CONCEPT_LESS, which is a positive claim the scorer grades.
+    #: Measured on dev, three draws: exact F1 +0.015 [+0.002, +0.025].
+    "rung0_pick_fallback": True,
+    #: Three span filters, all decidable WITHOUT gold — they only decline to
+    #: emit a record, never invent one. Measured stacked on dev 2026-08-28
+    #: against the four-fix arm: exact F1 0.386 -> 0.399, paired bootstrap
+    #: +0.0133 [+0.0033, +0.0214]. Off by default: each changes what rung 0
+    #: emits, so each is a declared arm like every other rung 0 choice.
+    #:
+    #: `drop_ungrounded` — locate() could not find the quote in the post, so
+    #: the model paraphrased rather than quoted. 11 such records on dev and
+    #: NONE of them matched a gold mention: false positives by construction.
+    #: `drop_fragments` — the span carries no content word ("because", "This",
+    #: "No"). A span of function words cannot name a clinical concept. Single
+    #: CONTENT words are never touched: 14 of 45 unproposed gold mentions on
+    #: dev are one word ("sore", "painful", "tingly").
+    #: `drop_duplicate_spans` — the same span key twice. Gold is claimed
+    #: one-to-one so the second can only be a false positive. This is NOT a
+    #: merge of OVERLAPPING spans, which was measured and LOST (-0.008): the
+    #: coordination splitter emits several records sharing a head span BY
+    #: DESIGN, and merging them undoes it.
+    "rung0_drop_ungrounded": False,
+    "rung0_drop_fragments": False,
+    "rung0_drop_duplicate_spans": False,
+    #: `drop_datelike` — the span IS a bare year ("2018") or a clock time
+    #: ("2:45 p.m."). A date is not a reported quantity, and neither class
+    #: costs a gold mention: measured on the FiNER dev run, 22 years and 4
+    #: times among 238 false positives, 0 of 165 gold. Only a span that IS a
+    #: date is dropped, never one that merely contains one ("2018 revenues"
+    #: survives). Written for the numeric corpus, where the span carries no
+    #: words to judge; harmless on CADEC, where no gold span is a bare year.
+    #: A third candidate — drop any span with NO DIGIT — was measured and
+    #: REJECTED: 14 predictions cut but 7 gold destroyed, because FiNER spells
+    #: small counts out ("two" -> NumberOfOperatingSegments).
+    "rung0_drop_datelike": False,
+    #: Split a coordinated quote into the DISCONTINUOUS mentions gold keeps
+    #: ("muscle and joint pain" -> ['muscle' … 'pain'], ['joint' … 'pain']).
+    #: See ladder/split.py. Runs before retrieval so each half gets its own
+    #: menu and its own pick — the halves carry different codes. Measured on
+    #: dev 2026-08-27: 39 of 226 gold mentions (17.3%) are discontinuous and
+    #: rung 0 emitted 0, which caps perfect-boundary exact F1 at 0.383
+    #: against 0.423. An arm, off by default.
+    "rung0_split": False,
+    #: The interior clause cut's inside_rate threshold (ladder/trim.py).
+    #: None keeps trim.DEFAULT_CUT_MAX_RATE (0.02), frozen on the Phase B
+    #: sweep. The tokens that open the trailing clauses rung 0 still keeps
+    #: sit just above it on pool — "so" 0.053, "with" 0.054, "has" 0.043 —
+    #: and Phase B rejected relaxing it because a looser rate also swallowed
+    #: "and" (0.049), truncating coordinations. `CUT_NEVER` holds the
+    #: coordinators out unconditionally now, so the relaxation and the
+    #: splitter are one change measured together, not two.
+    "rung0_cut_rate": None,
+    #: THE RERANK STAGE — retrieve deep, reorder, hand the pick a short menu.
+    #: See ladder/rerank.py for the measurement it exists for: the pick
+    #: converts a gold code at menu rank 0 at 94.5% and at rank 1-19 at 42.3%,
+    #: while retrieval puts gold at rank 0 only 52.3% of the time and inside
+    #: its top 200 for 91.4%. `rung0_rerank_deep` is what retrieval is asked
+    #: for and `rung0_rerank_k` is what the pick is shown; the stage is
+    #: pointless unless they differ. "llm" COSTS A CALL PER BATCH and it goes
+    #: to the ledger. Off by default, like every other rung 0 choice.
+    "rung0_rerank": None,  # None | "polarity" | "llm"
+    "rung0_rerank_deep": 50,
+    "rung0_rerank_k": 15,
+    "rung0_rerank_batch": 5,
+    "rung0_rerank_weight": None,
     "embed_prefix": "ladder/cache/keywords",
     #: Where S1's names are turned into codes. `data/keywords.csv` — findings
     #: and disorders only, built from the SNOMED release by
@@ -1034,6 +1117,39 @@ def _order_menu(cands: list[dict], which: str) -> list[dict]:
     return cands
 
 
+
+def _split_record(rec, source: str, cfg, meta) -> list[Record]:
+    """One record, or the several mentions a coordinated quote really holds.
+
+    Off unless `rung0_split`. Only grounded, single-segment spans are eligible
+    — a (-1, -1) span has no offsets to divide, and a record that is already
+    discontinuous has been split once. The original quote survives on every
+    piece as `split_from`, the same posture as `span_untrimmed`: the
+    transformation is auditable and the untransformed number recomputable.
+    """
+    if not cfg.get("rung0_split") or not rec.text or len(rec.spans) != 1:
+        return [rec]
+    start, end = rec.spans[0]
+    if not (isinstance(start, int) and start >= 0):
+        return [rec]
+    from ladder.split import split_coordination
+
+    groups = split_coordination(rec.text, (start, end))
+    if not groups:
+        return [rec]
+    out = []
+    for segs in groups:
+        piece = replace(
+            rec,
+            text=" ".join(source[a:b] for a, b in segs),
+            spans=[tuple(x) for x in segs],
+            checks={**rec.checks, "split_from": rec.text},
+        )
+        out.append(piece)
+    meta["split"] = meta.get("split", 0) + 1
+    return out
+
+
 def _step_pick(doc_id, source, llm, cfg, meta, step):
     """S2: find the mentions, then choose from a shortlist retrieved for each."""
     raw, usage = llm(_extraction_prompt(find_prompt(cfg.get("prompt_slots")), cfg), source, step)
@@ -1043,14 +1159,23 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
     meta["truncated"] = meta.get("truncated", False) or bool(usage.get("truncated"))
     meta["timed_out"] = meta.get("timed_out", False) or bool(usage.get("timed_out"))
     meta["api_calls"] += 1
-    parsed = _parse(raw, meta)
+    parsed = _normalise_reply(_parse(raw, meta), meta)
     if parsed is None:
+        # Either the JSON did not parse, or it parsed to a shape this step
+        # cannot read. Both cost one document; neither may raise.
+        meta["parse_failed"] = True
         return []
 
     search, retrieval = _retriever(cfg)
     pairs = []
+    built = []
     for i, m in enumerate(parsed.get("mentions", [])):
         rec = _mention_record(doc_id, i, m, source, step)
+        # The split precedes retrieval on purpose: the halves of a
+        # coordination carry DIFFERENT gold codes, so each needs its own menu.
+        built.extend((r, m) for r in _split_record(rec, source, cfg, meta))
+    for i, (rec, m) in enumerate(built):
+        rec.record_id = f"{doc_id}#{i}"
         labels = m.get("sct_label") or []
         if isinstance(labels, str):
             labels = [labels]
@@ -1058,12 +1183,25 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
                     if x is not None and str(x).strip()
                     and str(x).strip().upper() != CONCEPT_LESS]
         menu_order = cfg.get("rung0_menu_order", DEFAULTS["rung0_menu_order"])
+        # How deep retrieval goes is the RERANKER's business, not the menu's.
+        # Without one the two are the same number and always were: sorting a
+        # deep pool by the cosine returns the cosine's top k, so raising
+        # rung0_shortlist_k alone only lengthens the menu (measured 2026-08-24,
+        # k=40 made picks worse).
+        depth = (cfg.get("rung0_rerank_deep", DEFAULTS["rung0_rerank_deep"])
+                 if cfg.get("rung0_rerank")
+                 else cfg.get("rung0_shortlist_k", 20))
         cands = _order_menu(
-            _merged_candidates(
-                search, rec.text, proposed, cfg.get("rung0_shortlist_k", 20)
-            ),
+            _merged_candidates(search, rec.text, proposed, depth),
             menu_order,
         )
+        # The free reranker runs per mention here; "llm" batches several
+        # mentions into one call and runs below, once the whole document's
+        # menus exist.
+        if cfg.get("rung0_rerank") and cfg["rung0_rerank"] != "llm":
+            cands, rr = rerank.rerank_menu(
+                rec.text, cands, cfg, meta, denied=bool(rec.checks.get("r0_negated")))
+            rec.checks.update(rr)
         rec.checks["candidates"] = cands
         rec.checks["rung0_menu_order"] = menu_order
         # WHAT the model offered, same as S0/S1 — it is also what makes the
@@ -1078,12 +1216,45 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
 
     if not pairs:
         return []
+    if cfg.get("rung0_rerank") == "llm":
+        menus, _ = rerank.rerank_llm(
+            [(rec.text, cands, bool(rec.checks.get("r0_negated")))
+             for rec, cands in pairs],
+            source, llm, cfg, meta)
+        for (rec, cands), menu in zip(pairs, menus):
+            rec.checks["rung0_rerank"] = "llm"
+            rec.checks["candidates_preranked"] = [c["code"] for c in cands]
+            rec.checks["rerank_moved"] = (
+                [c["code"] for c in menu] != [c["code"] for c in cands[:len(menu)]])
+            rec.checks["candidates"] = menu
+        pairs = [(rec, menu) for (rec, _), menu in zip(pairs, menus)]
     _decide(pairs, source, llm, cfg, meta, step)
     return [rec for rec, _ in pairs]
 
 
 def _decide(pairs, source, llm, cfg, meta, step) -> None:
-    """THE DECIDE STEP. One call, one menu, the ORIGINAL text beside each menu.
+    """THE DECIDE STEP, in batches of `rung0_pick_batch`.
+
+    One call over every reaction in a document was the original shape, and it
+    under-covers: measured on dev 2026-08-27 across three draws, `no_pick`
+    (the reply omits a reaction's number outright) is 0.0% at 4-7 reactions
+    per call and 8-10% above 8, with zero truncations in the run. The reply
+    stops enumerating, so the enumeration is kept short.
+
+    Batching is NOT a retry — nothing is re-asked, and a retry inside rung 0
+    would be rung 2. It is the same single pass over the same menus, split.
+    Each batch renumbers its reactions from 0, because menu position is the
+    answer key for the call it appears in; carrying document-wide numbering
+    into a later call would assign one mention's pick to another. It costs
+    more api_calls, and those go to the ledger.
+    """
+    size = cfg.get("rung0_pick_batch") or len(pairs)
+    for i in range(0, len(pairs), size):
+        _decide_batch(pairs[i:i + size], source, llm, cfg, meta, step)
+
+
+def _decide_batch(pairs, source, llm, cfg, meta, step) -> None:
+    """One pick call, one menu, the ORIGINAL text beside each menu.
 
     Shared by S1 and S2, and that is the point rather than an economy. Getting
     several candidate concepts is only half the job; the other half is saying
@@ -1103,7 +1274,14 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
     answer key here, and padding it with entries the model was not shown would
     assign one mention's pick to another.
     """
-    raw, usage = llm(pick_prompt(cfg.get("prompt_slots")).format(blocks=_blocks(pairs)), source, step)
+    # `f"{step}-pick"`, not `step`: the FIND and PICK calls of one step used
+    # the SAME mode string, so the transport layer could not tell them apart
+    # and wrapped a bare-array pick reply in the mentions envelope, yielding
+    # no picks silently. mode is NOT in the cache key (model, messages,
+    # temperature, sample_index, max_tokens, reasoning_effort), so this costs
+    # no cached call, and it makes the ledger say which call it was.
+    raw, usage = llm(pick_prompt(cfg.get("prompt_slots")).format(blocks=_blocks(pairs)),
+                     source, f"{step}-pick")
     meta["tokens_in"] += usage["in"]
     meta["tokens_out"] += usage["out"]
     meta["usd"] = meta.get("usd", 0.0) + usage.get("usd", 0.0)
@@ -1114,7 +1292,7 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
     # the retired S3: 666 candidates cost 16.9k prompt tokens and came back as
     # 14 tokens of truncated JSON. Counting that as "saw the menu, chose
     # nothing" would report a transport failure as an abstention.
-    picked = _parse(raw, {})
+    picked = _as_picks(_parse(raw, {}), meta)
     pick_failed = picked is None
     if pick_failed:
         meta["pick_parse_failed"] = True
@@ -1208,6 +1386,104 @@ def _decide(pairs, source, llm, cfg, meta, step) -> None:
             _resolve_labels(rec, [label], cfg, rec.checks["label_source"])
             rec.checks["candidates"] = cands
 
+    _fill_from_menu(pairs, cfg, meta)
+
+
+def _fill_from_menu(pairs, cfg, meta) -> None:
+    """A record with a menu does not leave rung 0 without a code.
+
+    Two ways it used to: the reply never answered that reaction (`no_pick`,
+    `pick_parse_failed`, `bad_pick`) — a GAP, with no judgement to respect —
+    and the model answered `null` (`declined_shortlist`), a DECLINE meaning
+    "none of THESE". Both left `sct = None` on a record already carrying the
+    20 candidates rung 0 paid two calls to retrieve.
+
+    Neither is rung 0's call to make. Abstention is rung 5's, and rung 5
+    cannot withdraw an answer rung 0 never gave. Measured on dev across three
+    draws: falling back to menu position 0 is exact F1 +0.015 [+0.002,
+    +0.025] and overlap +0.021 [+0.006, +0.034]. It cannot cost a correct
+    answer — under the scorer an abstention and a wrong code are both
+    not-CORRECT and both already sit in n_pred — so the only movement is
+    upward; on one draw it turned 4 abstentions correct and lost none.
+
+    CONCEPT_LESS is left alone: that is a positive claim the scorer grades
+    against concept-less gold, not the absence of an answer. The original
+    state stays on the record — `pick_fallback` says which gap was filled and
+    the `no_pick` / `declined_shortlist` flag it fired on is untouched — so
+    the fallback is never invisible in an artifact.
+    """
+    if not cfg.get("rung0_pick_fallback", True):
+        return
+    for rec, cands in pairs:
+        if rec.sct is not None or not cands:
+            continue
+        why = "decline" if rec.checks.get("declined_shortlist") else "gap"
+        top = cands[0]
+        if not top.get("code"):
+            continue
+        rec.sct = top["code"]
+        rec.sct_label = top.get("fsn") or top.get("label")
+        rec.checks["pick_fallback"] = why
+        rec.checks["label_unresolved"] = False
+        meta["pick_fallback"] = meta.get("pick_fallback", 0) + 1
+
+
+#: Words that cannot carry a clinical concept on their own. Deliberately a
+#: closed list of function words rather than a frequency threshold: a learned
+#: cutoff would eventually reach "pain".
+_FUNCTION_WORDS = frozenset(
+    "i me my mine we our us you your he she it they them their the a an and or "
+    "but if because so that this that these those of to in on at for with from "
+    "as is are was were be been being do does did done not no nor can cant "
+    "cannot will would could should have has had am been there here then than "
+    "when what which who whom how why all any some more most very just".split()
+)
+
+
+def filter_spans(records: list[Record], cfg: dict[str, Any]) -> tuple[list[Record], dict]:
+    """Drop records rung 0 should not have emitted. Gold is never consulted.
+
+    Order matters only for the counts: a record is charged to the FIRST rule
+    that rejects it, so the three numbers sum to the records removed.
+    """
+    counts = {"dropped_ungrounded": 0, "dropped_fragment": 0,
+              "dropped_duplicate": 0, "dropped_datelike": 0}
+    out: list[Record] = []
+    seen: set = set()
+    for rec in records:
+        if rec.entity_type != REACTION:
+            out.append(rec)
+            continue
+        if cfg.get("rung0_drop_ungrounded") and (
+            not rec.spans or not isinstance(rec.spans[0][0], int) or rec.spans[0][0] < 0
+        ):
+            counts["dropped_ungrounded"] += 1
+            continue
+        if cfg.get("rung0_drop_fragments"):
+            words = re.findall(r"[a-z']+", (rec.text or "").lower())
+            if not words or all(w in _FUNCTION_WORDS for w in words):
+                counts["dropped_fragment"] += 1
+                continue
+        if cfg.get("rung0_drop_datelike") and _DATELIKE.fullmatch((rec.text or "").strip()):
+            counts["dropped_datelike"] += 1
+            continue
+        if cfg.get("rung0_drop_duplicate_spans"):
+            key = (rec.doc_id, tuple(tuple(s) for s in rec.spans),
+                   (rec.text or "").strip().lower())
+            if key in seen:
+                counts["dropped_duplicate"] += 1
+                continue
+            seen.add(key)
+        out.append(rec)
+    return out, counts
+
+
+#: A span that IS a date: a bare 4-digit year, or a clock time with optional
+#: am/pm. FULLMATCH, deliberately — "2018 revenues" is a quantity that mentions
+#: a year and must survive.
+_DATELIKE = re.compile(
+    r"(?:(?:19|20)\d\d|\d{1,2}:\d\d(?:\s*[ap]\.?m\.?)?)", re.IGNORECASE)
+
 
 def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
     """Boundary-convention trim, in place, after locate().
@@ -1231,6 +1507,59 @@ def _trim_records(records: list[Record], trimmer, agg: dict) -> None:
         rec.text = text
         rec.spans = [span]
         agg["trimmed"] += 1
+
+
+def _normalise_reply(parsed, meta: dict):
+    """The reply's SHAPE, reduced to {"mentions": [...]} or refused.
+
+    Added 2026-08-28 for the open-weight extractor comparison. `llama3.1:8b`
+    answers the FIND prompt with a bare JSON array of mention objects rather
+    than the requested wrapper. The content is unambiguously what was asked
+    for; only the wrapper is missing, and the incumbent model emits the
+    wrapper because these prompts were tuned against it — so refusing the
+    bare list would score formatting luck rather than capability.
+
+    THE LINE, stated so this does not keep loosening until every model
+    passes: a reply is accepted when its CONTENT is unambiguously the
+    requested content, and every accommodation is COUNTED. Nothing is
+    invented, guessed or repaired. A list of mention OBJECTS qualifies. A
+    list of bare strings does not — "which field is this" would be a guess.
+
+    Returns None for anything else, which the caller counts as a parse
+    failure for that document. It must never raise: a reply shape nobody
+    anticipated costs ONE DOCUMENT, not the run, which is the same rule the
+    call timeout follows.
+    """
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, list):
+        if all(isinstance(m, dict) for m in parsed):
+            if parsed:
+                meta["shape_coerced"] = True
+            return {"mentions": parsed}
+        return None
+    return None
+
+
+def _as_picks(parsed, meta: dict):
+    """The pick reply, normalised to {"picks": [...]}, or None.
+
+    The FIND path has coerced a bare JSON array since it was hardened; this
+    call site was missed, and `picked.get("picks", [])` raised
+    `AttributeError: 'list' object has no attribute 'get'` on every
+    granite4:micro-h draw — the model answers with the array directly. Same
+    rule as _as_mentions and as the call timeout: a reply shape nobody
+    anticipated costs ONE DOCUMENT, not the run. The coercion is COUNTED, so
+    "the model used the other shape" never hides inside "it worked".
+    """
+    if isinstance(parsed, dict):
+        return parsed
+    if isinstance(parsed, list):
+        if parsed and all(isinstance(p, dict) for p in parsed):
+            meta["shape_coerced"] = True
+            return {"picks": parsed}
+        return None
+    return None
 
 
 def _parse(raw: str, meta: dict):
@@ -1314,7 +1643,17 @@ def prepare(cfg: dict[str, Any] | None) -> dict[str, Any]:
     if cfg.get("rung0_trim") and cfg.get("trimmer") is None:
         from ladder.trim import pool_trimmer
 
-        cfg["trimmer"] = pool_trimmer(cfg["manifest"], loader=cfg.get("corpus_loader"))
+        # Both halves of this are load-bearing and neither supersedes the
+        # other: `cut_max_rate` is the one free parameter of the trim rules
+        # (an arm compared against a baseline built at a different threshold
+        # is comparing two trimmers), and `loader` is what lets a second
+        # corpus learn its own rules instead of CADEC's.
+        thresholds = {}
+        if cfg.get("rung0_cut_rate") is not None:
+            thresholds["cut_max_rate"] = cfg["rung0_cut_rate"]
+        cfg["trimmer"] = pool_trimmer(
+            cfg["manifest"], loader=cfg.get("corpus_loader"), **thresholds
+        )
     return cfg
 
 
@@ -1334,6 +1673,10 @@ def extract_document(doc_id: str, text: str, llm, cfg: dict[str, Any]) -> tuple[
         counts = {"trimmed": 0}
         _trim_records(got, cfg["trimmer"], counts)
         meta["trimmed"] = counts["trimmed"]
+    # LAST, after locate() and after the trim: a filter that ran earlier would
+    # judge spans the trimmer had not yet corrected.
+    got, dropped = filter_spans(got, cfg)
+    meta.update(dropped)
     return got, meta
 
 
@@ -1366,8 +1709,15 @@ def apply(
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
+        # Replies whose CONTENT was right and whose SHAPE was not — a bare
+        # list where {"mentions": [...]} was asked for. Counted, never
+        # silent: it is a per-model compliance cost, and hiding it would let
+        # the harness's tolerance pass for a model's capability.
+        "shape_coerced": 0,
         "code_unknown": 0, "no_pick": 0, "bad_pick": 0, "declined_shortlist": 0,
-        "trimmed": 0,
+        "trimmed": 0, "pick_fallback": 0, "split": 0,
+        "dropped_ungrounded": 0, "dropped_fragment": 0, "dropped_duplicate": 0,
+        "dropped_datelike": 0,
         "t0": time.time(),
     }
     out: list[Record] = []
@@ -1378,6 +1728,7 @@ def apply(
         agg["documents"] += 1
         agg["parse_failed"] += int(meta.get("parse_failed", False))
         agg["pick_parse_failed"] += int(meta.get("pick_parse_failed", False))
+        agg["shape_coerced"] += int(meta.get("shape_coerced", False))
         # Counted SEPARATELY, and it overlaps parse_failed on purpose: a
         # truncated reply IS unusable, but "the harness cut it off" and "the
         # model cannot emit JSON" are different findings and must not share a
@@ -1390,7 +1741,9 @@ def apply(
         # S0 only: the model named a concept but did not recall its id.
         agg["code_unknown"] += meta.get("code_unknown", 0)
         # S1/S2 pick outcomes that are failures or declines, not choices.
-        for k in ("no_pick", "bad_pick", "declined_shortlist"):
+        for k in ("no_pick", "bad_pick", "declined_shortlist", "pick_fallback",
+                  "split", "dropped_ungrounded", "dropped_fragment",
+                  "dropped_duplicate"):
             agg[k] += meta.get(k, 0)
         for k in ("tokens_in", "tokens_out", "tool_calls", "api_calls", "usd"):
             agg[k] += meta.get(k, 0)

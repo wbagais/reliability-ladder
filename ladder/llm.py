@@ -300,6 +300,7 @@ class Caller:
         self.preambled = 0
         self.unwrapped = 0
         self.unclosed = 0
+        self.prosed = 0
         if not self.client.info.local and os.environ.get("LADDER_ALLOW_REMOTE") != "1":
             raise SystemExit(
                 f"{spec} is a hosted provider, and rung prompts contain CADEC post\n"
@@ -331,6 +332,51 @@ class Caller:
         self.unclosed += 1
         return raw + "}"
 
+    def _unwrap(self, raw: str) -> str:
+        """Lift a JSON object or array out of the prose a model wrapped it in.
+
+        Added 2026-08-28 for the open-weight extractor comparison, where
+        `llama3.1:8b` answered the FIND prompt CORRECTLY and scored zero:
+        "Here are the adverse reactions extracted from the post:", then a
+        fence, then the right JSON with the right mentions, then a trailing
+        remark. `_unfence` anchors its match at the start of the reply, so a
+        fence with prose in front of it is not a fence, and a good answer was
+        counted as a parse failure.
+
+        Scoring that as a MODEL failure would measure which model the harness
+        was built around — gpt-oss:20b emits bare JSON because these prompts
+        were tuned against it — rather than which model can do the task. So
+        this is the same class of repair as `_unfence` and `_reclose`, under
+        the same rules: it fires only when the reply does not already parse,
+        it is applied identically to every model, it NEVER fabricates, and it
+        is COUNTED in `prosed`, so a model's chattiness is reported as a
+        compliance cost instead of disappearing into a zero.
+        """
+        try:
+            json.loads(raw)
+            return raw
+        except json.JSONDecodeError:
+            pass
+        best = None
+        for opener, closer in (("{", "}"), ("[", "]")):
+            i, j = raw.find(opener), raw.rfind(closer)
+            if i < 0 or j <= i:
+                continue
+            try:
+                parsed = json.loads(raw[i:j + 1])
+            except json.JSONDecodeError:
+                continue
+            # Same guard as _reclose: an empty result is not a repair, it is a
+            # fabricated answer standing in for one the model did not give.
+            if not parsed:
+                continue
+            if best is None or (j - i) > (best[1] - best[0]):
+                best = (i, j)
+        if best is None:
+            return raw
+        self.prosed += 1
+        return raw[best[0]:best[1] + 1]
+
     def _unfence(self, raw: str) -> str:
         m = _FENCE.match(raw)
         if not m:
@@ -348,7 +394,7 @@ class Caller:
         self.fenced += 1
         return m.group(1)
 
-    def _unwrap_array(self, raw: str) -> str:
+    def _unwrap_array(self, raw: str, mode: str = "find") -> str:
         """A bare JSON array where an object was expected.
 
         Same class as the fence and the missing brace: a transport convention,
@@ -362,12 +408,19 @@ class Caller:
             return raw
         try:
             import json as _j
-            if not isinstance(_j.loads(t), list):
+            payload = _j.loads(t)
+            if not isinstance(payload, list) or not payload:
+                return raw
+            if not all(isinstance(x, dict) for x in payload):
+                # wrapping a list of scalars turns unparseable garbage into a
+                # parseable EMPTY result, which deletes the parse-failure
+                # signal. Same rule as the parse-layer coercions.
                 return raw
         except Exception:
             return raw
         self.unwrapped += 1
-        return '{"mentions": ' + t + "}"
+        key = "picks" if "pick" in (mode or "") else "mentions"
+        return "{\"%s\": %s}" % (key, t)
 
     def __call__(
         self,
@@ -402,7 +455,12 @@ class Caller:
             # nothing downstream can tell a cut-off reply from a bad one.
             "truncated": resp.truncated,
         }
-        return self._unwrap_array(self._reclose(self._unfence(resp.text))), usage
+        # Both normalisations, in the only order that composes: strip the
+        # fence, close a missing brace, lift the JSON out of surrounding prose
+        # (this branch), and only then wrap a bare array in the envelope the
+        # CALL expects (main). A model can do all four at once.
+        return (self._unwrap_array(
+            self._reclose(self._unwrap(self._unfence(resp.text))), mode), usage)
 
     def sampler(self, temperature: float):
         """A callable that draws a DIFFERENT sample each time it is called.
@@ -457,6 +515,82 @@ def resolve(role: str, manifest: dict | None = None, override: str | None = None
             "ladder/llm.py:for_rung."
         )
     return spec
+
+
+def provider_models(provider: str = "ollama", timeout: float = 5.0) -> list[str] | None:
+    """Model names the provider actually has, or None if it cannot be asked.
+
+    None is NOT an empty list: "the server did not answer" and "the server has
+    no models" must not produce the same refusal, or an offline check becomes a
+    hard stop on a run that would have worked.
+    """
+    reg = (yaml.safe_load(REGISTRY_PATH.read_text())["providers"]
+           .get(provider) or {})
+    base = (reg.get("base_url") or "").rstrip("/")
+    if not base:
+        return None
+    try:
+        import json as _json
+        import urllib.request
+
+        url = base[: -len("/v1")] + "/api/tags" if base.endswith("/v1") else base + "/api/tags"
+        with urllib.request.urlopen(url, timeout=timeout) as fh:
+            return [m["name"] for m in _json.load(fh).get("models", [])]
+    except Exception:
+        return None
+
+
+def check_models(manifest: dict, rungs, available: list[str] | None = None) -> list[str]:
+    """Every model THIS run will need, checked before the run starts.
+
+    Models are resolved lazily, one rung at a time, so a bad name surfaces at
+    the rung that needs it. Measured 2026-08-29: the first full FiNER run spent
+    2,035 s in rung 0 and 5,948 s in rung 3 — 133 minutes — and then died at
+    rung 4 because `manifest.finer.json` said `ollama/granite4:micro-h` and the
+    installed model is `ollama/ibm/granite4:micro-h`. The ladder was fine; it
+    just learned the name was wrong as late as it possibly could. The CADEC arm
+    never caught it because its own judge name is right, which is exactly how a
+    second corpus earns its keep.
+
+    Same rule the timeout and the reply-shape repairs already follow: one bad
+    thing costs one thing, not the run. Returns a list of human-readable
+    problems, empty when there is nothing to report. Only the rungs actually
+    running are checked — `--rungs 0,1` must not fail on a judge it never calls.
+    """
+    rung_cfg = (manifest or {}).get("rungs") or {}
+    roles: dict[str, list[int]] = {}
+    for n in rungs:
+        role = ROLE_BY_RUNG.get(n)
+        if not role:
+            continue
+        # A rung disabled in the manifest needs no model. `enabled: false` is a
+        # recorded run state, and a preflight that ignored it would turn a
+        # deliberate configuration into a hard failure.
+        if (rung_cfg.get(str(n)) or {}).get("enabled", True) is False:
+            continue
+        roles.setdefault(role, []).append(n)
+
+    problems: list[str] = []
+    for role, ns in sorted(roles.items()):
+        try:
+            spec = resolve(role, manifest)
+        except SystemExit as exc:
+            problems.append(f"rung(s) {ns} need model.{role}: {exc}")
+            continue
+        provider, _, name = spec.partition("/")
+        have = available
+        if have is None:
+            have = provider_models(provider)
+        if have is None:          # provider unreachable — not a verdict
+            continue
+        if name not in have:
+            near = [m for m in have if m.endswith("/" + name) or name.endswith("/" + m)]
+            hint = f" Did you mean {provider}/{near[0]!r}?" if near else ""
+            problems.append(
+                f"rung(s) {ns} need model.{role} = {spec!r}, which {provider} "
+                f"does not have.{hint} Available: {sorted(have)}"
+            )
+    return problems
 
 
 def for_rung(n: int, manifest: dict | None = None, override: str | None = None) -> Caller | None:

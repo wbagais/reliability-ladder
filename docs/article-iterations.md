@@ -37,6 +37,14 @@ nobody publishes is the **measured trade-off per layer** — what each one buys,
 what currency, and where it stops being worth paying for. That curve is the
 contribution. Everything else in the project exists to keep it clean.
 
+Having measured it, the answer is not the one the premise expects. The ladder
+made errors **visible**, not fewer. The layers that survive measurement are the
+free deterministic check and the person; the paid model rungs, in composition,
+moved nothing they could not also have broken — and two of them turned out not
+to be wired to anything at all (§2C). That is the finding, and it is a negative
+one. A build log that only reported the layers that worked would be the exact
+artefact this project exists to argue against.
+
 ---
 
 ## 2. The strongest findings, ranked
@@ -254,6 +262,300 @@ only interpretable next to the other.
 
 ---
 
+## 2C. The audit of rungs 1-6 — ask what reads what
+
+Everything in §2 measures a rung. This section measures the **composition**, and
+it is where the strongest negative results are. All of it is dev-side: Phase F
+spent the test split on 2026-08-26 and this repo has no held-out data left, so
+§2.4's numbers stand exactly as reported and nothing here re-opens them. Where a
+Phase F artifact appears below it is a read-only counterfactual, labelled.
+
+### 2C.1 Every deferral in the ladder terminates in a field nothing reads
+
+**The number: three rungs defer to rung 5; rung 5 reads none of them.**
+
+Rungs 2, 3 and 4 each decline to act on their own evidence, on an argument that
+is correct and that this project made loudly: a rung which routes confounds
+every rung above it, so a rung should record its judgement and let the rung that
+owns coverage act. Each names rung 5, in its own docstring:
+
+| rung | writes | says |
+|---|---|---|
+| 2 self-correction | `checks["r2_declined"]` | "rung 5 owns abstention and reads `checks['r2_declined']`" |
+| 3 voting | `checks["r3_unanimous_none"]` | "EVIDENCE for rung 5, not an action here" |
+| 4 LLM judge | `checks["r4_verdict"]` | "record ... and let rung 5 act" |
+
+`r5.decide()` reads the zone, `r1_verdict`, `r1_reason` and `rec.confidence`.
+Its entire configuration is `{tau, abstain_zones, abstain_on_reject}`. A
+repo-wide search finds no consumer for any of the three fields outside the rungs
+that write them and one diagnostic script.
+
+So in composition the ladder is one rung. Rung 5 routes on rung 1's free lexical
+verdict and on nothing else; rungs 2, 3 and 4 can affect a shipped number only
+by mutating `rec.sct` in passing, which only rung 3 does — and that turned out
+to be a defect (§2C.4).
+
+The uncomfortable part is that **no test could have caught this, because every
+rung does exactly what its own docstring promises.** Each was reviewed, tested
+and measured alone. The hole is between them, and it is only visible if you stop
+asking "does this rung work" and start asking "what reads this rung's output".
+That question has no unit-test shape. For a practitioner the takeaway is
+concrete: for every field your pipeline writes, grep for its readers, and treat
+a field with no reader as a rung that is not in your pipeline no matter how much
+it costs to run.
+
+### 2C.2 A fix three rungs down silently disabled two rungs up
+
+**The number: rung 1's rejection rate went 5.1% → 0.4%, and rung 2's trigger
+set went with it.**
+
+Rung 1 rejected 5.1% of records on the held-out test run, every one of them
+`schema_invalid` — rung 0 emitting an unlocated `(-1, -1)` span for a quote it
+could not find in the post. Rung 2 fires on a rung 1 rejection whose reason
+yields a statable fact; `schema_invalid` yields none, so rung 2 fired zero times
+in the whole test run.
+
+Then rung 0 got better. A span filter shipped in a later accuracy pass
+(`rung0_drop_ungrounded`) drops exactly those unlocated records at rung 0. On
+the current baseline rung 1 rejects **1 record of 248**, and rung 2's trigger
+set holds **1**.
+
+Nothing is broken. Rung 1 and rung 2 still pass every test they have, still log
+every row, still report honestly. Their **input** was removed from underneath
+them by a change three rungs below, and no test and no per-rung report could
+show it — a rung with nothing to do and a rung doing nothing look identical from
+inside. It is only visible by replaying the whole stack against a changed lower
+rung. If you tune the bottom of a pipeline, re-measure the top; the layers you
+are proudest of are the ones most likely to have quietly become no-ops.
+
+### 2C.3 The check a validation layer was built for can become unreachable
+
+**The number: `code_unknown` fires 0 times in 248 records. `label_verified` is
+true 232 times out of 232.**
+
+Rung 1's headline check asks whether the code the model produced exists in
+SNOMED CT. It was tuned in 2026-08-22 against a rung 0 that recalled codes from
+its weights, where 164 of 176 emitted codes did not exist at all. It is the
+reason the rung exists.
+
+It now fires zero times — confirmed through the unmasked reason table, so this
+is not the first-failure ordering bias the audit pass was written to expose. The
+cause is architectural: rung 0's shipped step picks its code from a
+dense-retrieved menu built from a keyword table and resolves names through that
+same table, and both contain only real SNOMED codes. **The model can no longer
+emit a code that does not exist**, so the check written to catch that cannot
+fire.
+
+Two more went with it. `sct_active` is true for all 232 coded records and
+`sct_outdated` false for all 235, so the retirement machinery has nothing to act
+on. And `label_verified` — "did the model name the concept it coded?", the check
+added because `82249009` is real, active, and means |California chicken| — is
+true for 232 of 232, because the retrieval menu shows the code and its
+vocabulary label *together*. The model's label is the vocabulary's own label by
+construction. The check asks a question retrieval already answered.
+
+Three vocabulary lookups per record that cannot vary. A validation layer is
+calibrated against a *generator*, and when the generator's failure mode moves,
+the layer does not follow it — it just keeps passing.
+
+### 2C.4 The free check separates better than the paid judge
+
+**The numbers: 83.7% vs 35.9% for free; 27.0% vs 21.9% for a call per record.**
+
+One rung 1 check survives: the lexical match between the span text and the
+vocabulary's words for the chosen code, which splits the pass state into ACCEPT
+("the vocabulary uses these very words") and BAND ("plausible, unverifiable").
+It is the only signal rung 5 routes on. Scored against gold — coding accuracy on
+matched spans, overlap:
+
+| | n | coding accuracy |
+|---|---|---|
+| rung 1 ACCEPT — deterministic, zero model calls | 49 | **83.7%** |
+| rung 1 BAND | 131 | 35.9% |
+| rung 4 judge `pass` — one call per record, dev | 105 | 21.0% |
+| rung 4 judge `fail`, dev | 63 | 12.7% |
+| rung 4 judge `pass`, held-out test | 163 | 27.0% |
+| rung 4 judge `fail`, held-out test | 73 | 21.9% |
+
+A 2.3x separation for free, against 1.65x on dev falling to 1.23x out of
+sample — on the only axis a judge is for. The free side survives this
+project's own three-draw test, the one that killed the reranker arm: over
+three independent draws the ACCEPT lane reads 83.7 / 83.0 / 87.2 and BAND
+35.9 / 36.8 / 36.2, a ratio of 2.33 / 2.26 / 2.41, and under a different
+rung 0 entirely it is 85.7 vs 30.1. It is conditional on a deterministic
+property of the record rather than on the run, which is why it is steadier
+than the headline F1 it sits inside. Rung 4's separation is one draw per
+split, and carries that caveat. The judge here is a 2B model grading a
+20B one, which is the wrong way round and is stated wherever its numbers are;
+the domain-adapted 7B brought in to fix that was measured and rejected. But the
+comparison that matters is not judge-vs-better-judge. It is that a string
+comparison against a controlled vocabulary, costing nothing, out-separates the
+LLM judge — and it does so because it is the only checker in the stack that
+knows something the extractor does not.
+
+### 2C.5 A rung that asks the model to check itself is a coin flip
+
+**The numbers: fixed 5 broke 0 on dev; fixed 2 broke 2 out of sample.**
+
+Rungs 2, 3 and 4 all run on the extractor's own model, so they inherit its
+errors. The rung 0 work measured this directly in a different shape: an LLM
+reranker over the retrieved menu promoted gold to rank 0 for 50% of the mentions
+the pick already got right, and 16.7% of the ones it got wrong. It ranked well
+and converted nothing, because the reranker and the picker were the same model
+making the same judgement.
+
+Rung 3 is the same claim at the level of a whole rung. Scoring each record whose
+code the vote changed, against gold, before and after:
+
+| | scorable changes | fixed | broke | net |
+|---|---|---|---|---|
+| dev | 18 | 5 | 0 | **+5** |
+| held-out test | 21 | 2 | 2 | **0** |
+
+On dev it looked like a rung that works. Three of those five "fixes" are
+`no code` → a correct code — rung 3 filling a gap rather than correcting an
+error. Out of sample it destroyed two correct codes (|Severe pain|, and a
+correct coding of "chest muscle soreness") while rescuing two others. A 5-0 on
+18 trials is what a coin flip looks like sometimes; this is the single-draw
+lesson again, in a rung instead of a metric. Rung 3 costs 2.6x rung 0's entire
+token budget to move zero correct records out of sample.
+
+Rung 6 is the exception, and the reason is not subtle: **it is a person, so it
+is the only rung that adds information.** Its oracle ceiling lifts exact F1 from
+0.131 to 0.444 and coding accuracy on matched spans from 0.291 to 0.990.
+
+### 2C.6 The headline metric is blind to the defect the ladder exists to prevent
+
+**The number: the fix moves F1 by 0.0000 and withdraws a false warrant.**
+
+Rung 3 adopted a majority code by overwriting the record's code and stopping
+there — but rung 5 routes on rung 1's verdict, which was computed against the
+code rung 3 had just replaced. On the two full-ladder runs in the archive, the
+vote changed 25 and 30 codes respectively, and **all 55 records carried a
+verdict about a superseded code.**
+
+One of them shipped. A record quoting "Chronic pain" was coded |Chronic pain|
+and ACCEPTed by rung 1 on an exact lexical match; rung 3 voted 3-0 to replace it
+with |Chronic musculoskeletal pain|; the record then shipped to the user marked
+VERIFIED — on a lexical match to a code it no longer had. Re-checked, the new
+code does not match. The configured rung 1 would have banded it and rung 5 would
+have sent it to a person.
+
+Fixing it changes the headline by nothing:
+
+| | exact | overlap | shipped | routed to a person |
+|---|---|---|---|---|
+| dev, as built | 0.153 | 0.170 | 37 | 208 |
+| dev, re-validated | 0.153 | 0.170 | 36 | 209 |
+| test, as built *(= the reported run)* | 0.204 | 0.215 | 72 | 242 |
+| test, re-validated *(counterfactual)* | 0.204 | 0.218 | 72 | 242 |
+
+Of course it does. A record that was wrong scores the same whether it ships
+wrong or is withdrawn — precision and recall cannot see the difference between
+an answer that is unwarranted and an answer that is merely incorrect. **The
+metric the ladder is optimised against is structurally blind to the failure the
+ladder was built to prevent**, which is a reason to be suspicious of any
+reliability layer justified on F1, including every layer in this project.
+
+### 2C.7 A dial nobody could have turned
+
+**The number: rung 0's confidence is `{1.0: 204, 0.99: 44}`.**
+
+Rung 5 has a confidence threshold, `tau`, with a risk-coverage sweep written to
+tune it, a manifest note recording that it is tuned on dev, and a declared
+abstention reason `low_confidence`. `tau` has been 0.0 for the life of the
+project.
+
+It had to be. The extractor's self-reported confidence takes two values on the
+dev baseline, both at or above 0.99. There is no operating point: any threshold
+at or below 0.9 abstains nothing, and any threshold above it abstains 80-98% of
+the set on a number the model emits as boilerplate. `low_confidence` — one of
+three declared abstention reasons — is unreachable, and the risk-coverage curve
+has nothing to sweep. An unelicited "confidence" field from an instruct model is
+not a measurement; it is a token the model has learned to end JSON with.
+
+### 2C.8 "Which configuration produced this number" needs one answer, twice over
+
+**The number: `manifest.json` runs a rung 0 that is 5.9 exact points below the
+baseline it is compared against.**
+
+This project already learned this lesson once: a model default in code and a
+model name in configuration disagreed, so "which model produced this number" had
+two answers depending on whether a manifest reached the call, and the fix was to
+make the resolver raise rather than fall back (§4.13).
+
+The same failure recurred one layer down. A set of rung 0 accuracy arms —
+a coordination splitter, three span filters, a trim threshold — were measured,
+accepted, and shipped **as code with their defaults off**, and the manifest was
+never appended to. Measured on the same documents from the same cache:
+
+| | exact F1 | overlap F1 | detection F1 |
+|---|---|---|---|
+| `manifest.json` as shipped | 0.340 | 0.449 | 0.449/0.745 |
+| the baseline every recent measurement uses | **0.399** | **0.469** | 0.516/0.785 |
+
+Both are real. Only one is in the manifest, and it is not the one the decision
+log quotes. The general form: **"off by default" is a safe policy for a
+behaviour and an unsafe one for a measurement**, because the arm you measured
+and the arm you ship are then different arms, and nothing in the repository
+knows which is which. If you gate changes behind flags, make the flag's value at
+measurement time part of the recorded result.
+
+### 2C.9 The whole ladder, run again with the audit's eyes open
+
+**The numbers: rung 3 net negative, rung 4 moves nothing, and rung 1 plus
+rung 5 do all of the work.**
+
+All seven rungs, in order, on 40 dev documents, one run id
+(`audit-full-dev-1`), with the stale-verdict arm left OFF because this is the
+ladder as it ships. Shipped **F1 exact 0.182 [0.124–0.244], overlap 0.187**;
+52 records shipped VERIFIED at 0.808 answered-accuracy; **196 of 248 routed to
+a person.**
+
+| rung | answered accuracy | what it did | tokens | p95 latency |
+|---|---|---|---|---|
+| 0 · bare LLM | 0.371 | 248 records | 164,897 | *cache-served* |
+| 1 · deterministic | 0.371 | ACCEPT 52 / BAND 195 / REJECT 1 | **0** | **0** |
+| 2 · self-correct | 0.371 | fired **once** — one correctable rejection existed | 548 | *cache-served* |
+| 3 · voting | **0.367** | 29 changed, 7 withheld, 27 not re-found | **425,355** | **152.2 s** |
+| 4 · LLM judge | 0.367 | pass 146 / fail 95 / 7 unjudged — **no downstream effect** | 92,687 | 1.5 s |
+| 5 · abstention | ships 0.808 | coverage 1.00 → 0.21; errors/100 **63.3 → 4.03** | 0 | 0 |
+| 6 · human loop | — | **196 records to a person** · 79.0 per 100 | 0 | 0 |
+
+Three cost measures, never fused: 683,487 tokens over 618 calls; a 152-second
+p95 on the voting rung; 79 reviews per 100 records. Rung 0's and rung 2's
+latencies are cache-served and are *not* latency measurements — said rather
+than quoted.
+
+Read down the accuracy column. It does not move until rung 5, and then it
+moves by refusing. **Rung 3 is net negative on this draw at 2.6x rung 0's
+entire token budget; rung 4 cannot move it at all, because nothing reads its
+verdict.** Every point of the fall from 63.3 to 4.03 errors per 100 is rung
+1's free lexical verdict, acted on by rung 5, paid for in coverage.
+
+The stale-verdict defect also fired again, for the third independent time, and
+the new stamp caught it in production: `r3_r1_stale` on all 29 changed
+records — 28 already heading to a person, and **one shipped VERIFIED**. This
+time it was the span "stamina", ACCEPTed on an exact match to |Stamina| and
+then voted 2-1 to |Lack of stamina|, which does not match. Across three full
+runs: 25, 30 and 29 stale verdicts, and **exactly one false VERIFIED warrant
+in each**. It is not an artefact of a draw; it is what the rung does.
+
+### 2C.10 What this section is evidence for
+
+The ladder's premise is that stacking reliability layers buys reliability. Six
+of the seven rungs are now measured, and the honest summary is that **the ladder
+made errors visible rather than fewer.** That is worth something — every finding
+in §2C exists because the harness records what each rung did — but it is not
+what the layers were bought for.
+
+What survives is small and specific: one free deterministic check that
+out-separates a paid judge, an abstention mechanism whose bill is a countable
+number of records, and a person. The paid model rungs, in composition, moved
+nothing they could not also have broken.
+
+---
+
 ## 3. Suggested structure
 
 Seven beats, practitioner voice. The ladder is measured end to end now, so the
@@ -286,7 +588,20 @@ trusted — the measurement discipline IS the story.
    conversion; the queue holds 45 answers that were already right; and the
    oracle ceiling proves the residual gap is span boundaries — which tells
    you the next rung to build, which is the real use of a ceiling.
-7. **Decision rules.** Measure the permissive setting's false-vouch rate
+6b. **Then audit the composition, and find that there isn't one.** §2C — the
+   turn the piece needs, and the strongest material in it. Three rungs defer
+   their action to rung 5; rung 5 reads none of their fields. A rung 0
+   accuracy fix silently emptied rung 1's rejection class and with it rung 2's
+   trigger. Rung 1's headline check now fires zero times because retrieval
+   made hallucinated codes impossible, while the one check that survives
+   out-separates the paid judge 2.3x to 1.23x. And the fix for a record that
+   shipped VERIFIED on a stale warrant moves F1 by exactly nothing, because
+   precision cannot tell an unwarranted answer from an incorrect one. Every
+   one of these is invisible to a per-rung test and to a per-rung report.
+7. **Decision rules.** Grep for the readers of every field your pipeline
+   writes; a field with no reader is a rung you are paying for and not
+   running. Re-measure the top of a stack after you tune the bottom of it.
+   Measure the permissive setting's false-vouch rate
    before shipping it (§2.1). Pin your vocabulary release — §4.7's 23.9%.
    Don't let a validation layer filter the input to the layers you are
    measuring (§4.5). Check whether your reference list came from your answer
@@ -294,7 +609,9 @@ trusted — the measurement discipline IS the story.
    (§2.5, §2.7). Cite the run id on any sampled rung (§2.6). And spend your
    test split once.
 
-Beats 2–6 are the article. Beat 7 is what a reader takes to work on Monday.
+Beats 2–6b are the article, and 6b is its turn: everything before it measures
+rungs, and it measures whether they add up. Beat 7 is what a reader takes to
+work on Monday.
 
 ## 4. Implementation iterations — what we changed, and why
 
@@ -668,8 +985,48 @@ result is not clear yet.
    detection unchanged: after a perfect code-picker, the whole remaining gap
    is span boundaries."*
 
+9. **The composition, audited (§2C.1).**
+   *"Rung 2 writes `r2_declined` 'for rung 5'. Rung 3 writes
+   `r3_unanimous_none` 'for rung 5'. Rung 4 writes `r4_verdict` and says 'let
+   rung 5 act'. Rung 5 reads none of them. Three rungs were paid for, ran
+   correctly, passed their tests, and were wired to nothing."*
+10. **The metric cannot see the bug (§2C.6).**
+   *"A record shipped marked VERIFIED on a lexical match to a code it no
+   longer had. Fixing that moves exact F1 by 0.0000 — precision cannot
+   distinguish an unwarranted answer from a merely incorrect one. Be
+   suspicious of any reliability layer justified on F1."*
+
 ## 6. Limitations to state plainly
 
+- **Everything in §2C is dev-side and unvalidatable.** The test split was spent
+  on 2026-08-26 and this repo has no held-out data left. The audit's numbers
+  come from 40 dev documents and from read-only replays of two archived runs;
+  where a Phase F artifact is used it is a labelled counterfactual, and §2.4's
+  reported numbers are unchanged by anything in §2C.
+- **Two of the audit's cleanest results rest on small counts.** Rung 3's
+  fix/break tally is 18 and 21 scorable changes; the single record that shipped
+  on a stale warrant is one record. They are reported as what they are —
+  existence proofs of a mechanism, not rates — and the mechanism is the claim.
+- **A single-draw confidence interval that excludes zero is not a result.** Three
+  independent draws killed the one rung 0 arm a single draw plus a paired
+  bootstrap had called significant (+0.0215 [+0.0000, +0.0433], then -0.0089 on
+  the third draw). Dev's real spread across draws is 1.3 points exact and 0.6
+  overlap, and the nondeterminism enters at one call, all-or-nothing per run.
+  Three draws plus the paired bootstrap, never one alone — and never
+  ten-document subsets, which overstate both effect size and variance.
+- **Exact F1 above ~0.70 is unreachable here for any system, including a
+  perfect one.** The answer key's own span-boundary convention is only ~67%
+  deterministic: over 25,002 boundary decisions on the learnable split, 66.9%
+  fall at tokens gold treats one way >=95% of the time, 20% lean, and 13% are
+  genuinely mixed — "terrible" is kept inside a span 52% of the time, "very"
+  70%, "in" 40%. A perfect learner of that convention gets ~0.92 per boundary
+  and a span needs two, capping the exact-span rate near 0.85; composed with
+  the measured detection and retrieval ceilings that gives **F1 ~0.68 with
+  every component at its best**, and a perfect reranker over the top 200 plus
+  perfect spans measures 0.667 exact on dev. Exact match scores a boundary
+  disagreement as both a false positive and a false negative, so every
+  0.70-class claim in this project is stated on **overlap**, with exact
+  reported beside it as the stricter, capped number.
 - **The MedDRA check cannot be trusted as configured.** Its reference table is
   derived from the answer key. It is reported, not scored, and any number from
   it carries the caveat.

@@ -44,6 +44,24 @@ providers:
       # completion tokens), so the budget is small and explicit. No
       # reasoning_effort — the model has no such parameter.
       biomistral:7b-q5_k_m: { max_tokens: 512, timeout_s: 120 }
+      # ---- the open-weight extractor comparison (2026-08-28) ----
+      # Budgets are per-model registry data, not guesses. qwen3 is a REASONING
+      # model in the gpt-oss sense: it deliberates in <think> before answering,
+      # so at the 2000-token default it spent the ENTIRE budget thinking and
+      # returned truncated=True with EMPTY content on a 166-character post.
+      # 8000 matches gpt-oss:20b, which is the only budget in this file that
+      # has been shown to let a reasoning model finish.
+      qwen3:8b: { max_tokens: 8000, timeout_s: 300 }
+      # Non-reasoning instruct models: the answer is one JSON object, and the
+      # measured replies are 200-400 completion tokens. 2000 is ample; the
+      # timeout is what bounds a runaway.
+      llama3.1:8b: { max_tokens: 2000, timeout_s: 180 }
+      mistral:7b-instruct: { max_tokens: 2000, timeout_s: 180 }
+      # The rung-4 judge, and now also an extractor arm. 3.2B. It failed the
+      # RECALL-based extraction path in 2026-08-24 (it answered "AFTERPROMPT");
+      # the comparison asks whether retrieve-and-pick, which turns coding into
+      # a multiple-choice question, is enough to rescue a model this size.
+      ibm/granite4:micro-h: { max_tokens: 2000, timeout_s: 180 }
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
     api_key_env: GEMINI_API_KEY

@@ -236,6 +236,19 @@ def run_ladder(
     aggregates: dict[int, dict] = {}
     missing: list[int] = []
 
+    # Every model this run needs, checked BEFORE rung 0 spends anything.
+    # Lazily resolving per rung meant a bad name surfaced at the rung that
+    # needed it: the first full FiNER run burned 133 minutes in rungs 0 and 3
+    # and then died at rung 4 on a mistyped judge. One bad thing costs one
+    # thing, not the run.
+    problems = llm_mod.check_models(man, order)
+    if problems:
+        raise SystemExit(
+            "[run] refusing to start — a model this run needs is unavailable:\n  "
+            + "\n  ".join(problems)
+            + "\n\nFix the name in manifest.model, install the model, or pass "
+              "--rungs to skip the rung that needs it."
+        )
     print(f"[run] {run_id}  split={split}  records={len(records)}  order={order}")
     for n in order:
         mod = load_rung(n)
@@ -628,14 +641,14 @@ def cmd_ladder(a) -> int:
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
     # only invalid codes, 4 quote text that is not at their offsets). They are
     # excluded and counted, never corrected.
-    excluded = clean_mod.load_exclusions()
+    excluded = clean_mod.exclusions_for(man)
     gold = {
         m.record_id: m
         for d in doc_ids for m in docs[d].mentions
         if m.record_id not in excluded
     }
     if excluded:
-        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
+        print(f"[run] gold exclusions applied: {len(excluded)}")
     scorer = load_scorer(a.scorer)
     rows = results_rows(
         result, is_correct=scorer, gold=gold,
@@ -699,14 +712,14 @@ def cmd_ablate(a) -> int:
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
     # only invalid codes, 4 quote text that is not at their offsets). They are
     # excluded and counted, never corrected.
-    excluded = clean_mod.load_exclusions()
+    excluded = clean_mod.exclusions_for(man)
     gold = {
         m.record_id: m
         for d in doc_ids for m in docs[d].mentions
         if m.record_id not in excluded
     }
     if excluded:
-        print(f"[run] gold exclusions applied: {len(excluded)} (see data/exclusions.csv)")
+        print(f"[run] gold exclusions applied: {len(excluded)}")
     scorer = load_scorer(a.scorer)
     outcome_fn = load_outcome()
     rows = [

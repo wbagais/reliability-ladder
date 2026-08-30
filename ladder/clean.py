@@ -37,11 +37,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
+from collections import defaultdict
 from pathlib import Path
 
 EXCLUDE_INVALID_CODE = "invalid_code"
 EXCLUDE_SPAN_MISMATCH = "span_text_offset_mismatch"
 EXCLUDE_RETIRED_CODE = "retired_code"
+EXCLUDE_INCONSISTENT_GOLD = "inconsistent_gold"
 
 DEFAULT_OUT = Path("data/exclusions.csv")
 
@@ -124,6 +127,64 @@ def build_exclusions(mentions, sources: dict[str, str], vocab=None) -> list[dict
     return rows
 
 
+def _keyword(text: str) -> str:
+    """The annotation's surface form, normalised only for case and spacing."""
+    return re.sub(r"\s+", " ", (text or "").strip().lower())
+
+
+def inconsistent_gold(mentions, entity_type: str = "reaction") -> list[dict]:
+    """Documents whose annotation contradicts the corpus's own coding of the
+    same span text. GOLD ONLY — no prediction is involved, and nothing is
+    corrected; this is the same posture as every other rule in this module.
+
+    An annotation text occurring more than once, anywhere in the corpus, is
+    compared against its other occurrences. Occurrences sharing NO code
+    disagree; a SUPERSET does not, because the gold rule already credits any
+    code in the set — 'joint pain' is 57676002 seventy-eight times and
+    57676002+68962001 once, and treating that as a contradiction would cost
+    40% of dev's gold to fix nothing.
+
+    The unit of exclusion is the DOCUMENT, not the mention: an annotator who
+    coded one span two ways is not evidence for the rest of that file either.
+
+    Measured over CADEC 2026-08-28: 16 texts, 109 mentions, 93 of 1250
+    documents (pool 89, dev 2, test 2). The full list is small enough to read
+    and every entry is a real disagreement — 'leg cramps' 449917004 x36 vs
+    449918009 x3, 'tendonitis' 34840004 x9 vs 21545007 x1, 'high blood
+    pressure' three ways.
+    """
+    groups: dict = defaultdict(list)
+    for m in mentions:
+        if getattr(m, "entity_type", entity_type) != entity_type:
+            continue
+        codes = frozenset(str(c) for c in (getattr(m, "sct", None) or []))
+        # CONCEPT_LESS is an ANSWER, not a contradiction — same skip the
+        # invalid-code rule makes.
+        if not codes:
+            continue
+        key = _keyword(getattr(m, "text", ""))
+        if key:
+            groups[key].append((m, codes))
+    bad_docs: dict = {}
+    for key, seen in groups.items():
+        if len(seen) < 2:
+            continue
+        if set.intersection(*[set(c) for _, c in seen]):
+            continue
+        detail = f"{key!r}: " + " | ".join(
+            sorted({"+".join(sorted(c)) for _, c in seen})
+        )
+        for mention, _ in seen:
+            bad_docs.setdefault(mention.doc_id, detail)
+    return [
+        {"record_id": m.record_id, "doc_id": m.doc_id,
+         "reason": EXCLUDE_INCONSISTENT_GOLD, "detail": bad_docs[m.doc_id]}
+        for m in mentions
+        if getattr(m, "entity_type", entity_type) == entity_type
+        and m.doc_id in bad_docs
+    ]
+
+
 def write_exclusions(rows: list[dict], path: str | Path = DEFAULT_OUT) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -146,10 +207,46 @@ def load_exclusions(path: str | Path = DEFAULT_OUT) -> set[str]:
         return {r["record_id"] for r in csv.DictReader(fh) if r.get("record_id")}
 
 
+def exclusions_for(man: dict) -> set[str]:
+    """The excluded record_ids for THE CORPUS THIS MANIFEST DESCRIBES.
+
+    `load_exclusions()` defaults to `data/exclusions.csv`, which is CADEC's —
+    a list of CADEC gold mentions that cannot be answered. Every caller called
+    it with no argument, so a FiNER run loaded 414 CADEC ids and printed
+    "gold exclusions applied: 414". Nothing was dropped, because no FINER id
+    collides with an ARTHROTEC or LIPITOR one, but the exclusion list is a
+    claim about ONE answer key and applying it to another corpus's gold is a
+    category error that a single colliding id would turn into silent data loss.
+
+    Resolution, in order:
+      manifest.corpus.exclusions is a path  -> that file
+      manifest.corpus.exclusions is null    -> nothing, explicitly declared
+      absent, and the corpus is CADEC       -> CADEC's default file
+      absent, and the corpus is NOT CADEC   -> nothing
+
+    The last rule is the fix: a second corpus has to OPT IN to an exclusion
+    list, because it cannot inherit a judgement made about someone else's gold.
+    """
+    corpus = (man or {}).get("corpus") or {}
+    if "exclusions" in corpus:
+        declared = corpus["exclusions"]
+        return load_exclusions(declared) if declared else set()
+    adapter = corpus.get("adapter", "cadec")
+    return load_exclusions() if adapter == "cadec" else set()
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--out", default=str(DEFAULT_OUT))
+    ap.add_argument(
+        "--inconsistent-gold", action="store_true",
+        help="also exclude every DOCUMENT whose annotation of a span text "
+             "contradicts the corpus's own coding of the same text elsewhere "
+             "(no shared code). Measured: 16 texts, 109 mentions, 93 of 1250 "
+             "documents. OPT-IN, because it changes the denominator — numbers "
+             "produced with it are not comparable to numbers produced without.",
+    )
     a = ap.parse_args(argv)
     if not a.build:
         ap.error("nothing to do — pass --build")
@@ -170,6 +267,12 @@ def main(argv: list[str] | None = None) -> int:
     except FileNotFoundError:
         print("  no vocabulary index — retired codes not checked")
     rows = build_exclusions(mentions, sources, vocab=vocab)
+    if a.inconsistent_gold:
+        already = {r["record_id"] for r in rows}
+        extra = [r for r in inconsistent_gold(mentions) if r["record_id"] not in already]
+        print(f"  inconsistent gold: +{len(extra)} mentions across "
+              f"{len({r['doc_id'] for r in extra})} documents")
+        rows += extra
     path = write_exclusions(rows, a.out)
 
     by = {}

@@ -48,6 +48,7 @@ import time
 from collections import Counter
 from typing import Any
 
+from ladder.rungs import r1
 from ladder.schema import Record
 
 RUNG = 3
@@ -57,6 +58,9 @@ DEFAULTS = {
     "k": 3,
     "temperature": 0.7,
     "tie": "unchanged",     # unchanged | first — never "null", see module docstring
+    # OFF BY DEFAULT, and the default is the measured state, not the safe-looking
+    # one. See revalidate() below for what the arm does and what it costs.
+    "revalidate": False,
 }
 
 # NO PROMPT HERE, DELIBERATELY — AND NO PATH EITHER.
@@ -165,6 +169,58 @@ def match_votes(recs: list, sample: list) -> dict[str, Any]:
 
 
 
+def revalidate(rec: Record, source: str, win, cfg: dict) -> None:
+    """Adopt rung 3's winning code, and settle what rung 1's verdict now means.
+
+    THE DEFECT THIS EXISTS FOR (measured 2026-08-28, on the shipped artifacts).
+    Rung 3 overwrote `rec.sct` and stopped there, but `checks["r1_verdict"]`
+    stayed on the record — computed against the code rung 3 had just replaced —
+    and rung 5 routes on exactly that field. phaseD-r3-2 changed 25 codes and
+    phaseF-test-1 changed 30; all 55 carried a verdict about a superseded code.
+    LIPITOR.739#0 is the one that reached a user: "Chronic pain" coded
+    82423001 |Chronic pain| and ACCEPTed by rung 1 on an exact lexical match,
+    voted 3-0 to 762452003 |Chronic musculoskeletal pain|, and SHIPPED as
+    VERIFIED — on a lexical match to a code it no longer had. Re-checked, the
+    new code does not match, so the configured rung 1 would have banded it and
+    rung 5 would have abstained it.
+
+    Two behaviours, and only the second is an arm:
+
+    ALWAYS — the staleness is labelled. `checks["r3_r1_stale"]` marks a verdict
+    that is about a replaced code, so no rung above can mistake it for a
+    verdict about this one. That is bookkeeping about a fact, not a routing
+    change, and leaving it out is what made the defect invisible.
+
+    ARM `revalidate` (default FALSE) — re-judge through `r1.zone`, the ONE
+    measured rung 1, under `manifest.rungs.1` rather than r1.DEFAULTS, and
+    replace the verdict. This MOVES COVERAGE: a re-banded record is abstained
+    by rung 5 and routed to a person, so it is a declared trade and has to be
+    measured as one, not switched on because it reads as more correct.
+    """
+    before = {"sct": rec.sct,
+              "r1_verdict": rec.checks.get("r1_verdict"),
+              "r1_reason": rec.checks.get("r1_reason")}
+    rec.sct = win
+    rec.checks["r3_r1_before"] = before
+
+    man = cfg.get("manifest") or {}
+    params = {k: v for k, v in ((man.get("rungs") or {}).get("1") or {}).items()
+              if k in r1.DEFAULTS}
+    if not cfg.get("revalidate", DEFAULTS["revalidate"]):
+        # The verdict stands, and is now known to be about the old code.
+        rec.checks["r3_r1_stale"] = True
+        return
+
+    verdict, reason, checks = r1.zone(
+        rec, source, cfg.get("registry"), params, cfg.get("meddra")
+    )
+    rec.checks.update(checks)
+    rec.checks["r1_verdict"] = verdict
+    rec.checks["r1_reason"] = reason
+    rec.checks["r3_revalidated"] = True
+    rec.checks["r3_r1_stale"] = False
+
+
 def _stamp(ledger, rung: int, sizes: dict[str, int]) -> None:
     """Write each denominator's SIZE onto the rows that carry its name.
 
@@ -215,6 +271,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
            "unanimous": 0, "split": 0, "tie": 0, "changed": 0,
            "single_sample": 0,
            "unanimous_none": 0, "not_resampled": 0, "parse_failed": 0,
+           # How many changed records were re-judged, and how many were left
+           # carrying a verdict about the code they no longer have.
+           "revalidated": 0, "stale_verdict": 0,
            "spread": Counter(), "t0": time.time()}
 
     # k samples of each DOCUMENT, each through rung 0's configured path, then
@@ -330,7 +389,10 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
             else:
                 agg["changed"] += 1
                 rec.checks["r3"]["changed"] = True
-                rec.sct = win
+                # NOT `rec.sct = win`. Changing the code invalidates rung 1's
+                # verdict, and rung 5 routes on that verdict.
+                revalidate(rec, sources.get(rec.doc_id, ""), win, cfg)
+                agg["revalidated" if rec.checks.get("r3_revalidated") else "stale_verdict"] += 1
                 rec.mark(RUNG, rec.zone, None)
 
         if ledger:

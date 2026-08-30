@@ -45,6 +45,16 @@ DEFAULT_OUTSIDE_RATIO = 0.95
 DEFAULT_CUT_MIN_TOTAL = 50
 DEFAULT_CUT_MAX_RATE = 0.02
 
+#: NEVER a cut token, at any rate. A coordinator ends a LIST ITEM, not a
+#: clause: since ladder/split.py, "muscle and joint pain" is two mentions
+#: sharing a head, and a cut at "and" truncates the phrase before the
+#: splitter can see it. Measured on pool 2026-08-27, "and" has inside_rate
+#: 0.049 — inside the range that opens up if the cut rate is relaxed to reach
+#: the trailing-clause tokens ("so" 0.053, "with" 0.054, "has" 0.043), which
+#: is exactly why the exclusion is explicit rather than implied by a
+#: threshold.
+CUT_NEVER = frozenset({"and", "or", "&", "+", ","})
+
 
 def boundary_counts(docs) -> dict[str, Counter]:
     """How gold treats each token at span boundaries.
@@ -141,7 +151,8 @@ class SpanTrimmer:
             trail_drop=side(c["after"], c["last"]),
             cut_drop=frozenset(
                 w for w in total
-                if total[w] >= cut_min_total
+                if w not in CUT_NEVER
+                and total[w] >= cut_min_total
                 and inside[w] / total[w] <= cut_max_rate
             ),
         )
@@ -178,7 +189,7 @@ class SpanTrimmer:
         return text[a:b], (start + a, start + b)
 
 
-def pool_trimmer(man: dict, split: str = "pool", loader=None) -> SpanTrimmer:
+def pool_trimmer(man: dict, split: str = "pool", loader=None, **thresholds) -> SpanTrimmer:
     """A SpanTrimmer learned from the POOL split's gold, read from data/ at
     runtime — the corpus is non-transferable, so the rules are derived on the
     licensed machine and never tracked.
@@ -197,7 +208,9 @@ def pool_trimmer(man: dict, split: str = "pool", loader=None) -> SpanTrimmer:
     _c = man.get("corpus") or {}
     docs = (loader or corpus_mod.load_corpus)(_c.get("root") or _c["cadec_root"])
     ids = corpus_mod.read_split(man["corpus"]["splits_dir"], split)
-    excluded = clean.load_exclusions()
+    # Corpus-scoped: the trim rules are learned from THIS corpus's pool gold,
+    # so the exclusion list has to be this corpus's too.
+    excluded = clean.exclusions_for(man)
     data = []
     for d in ids:
         doc = docs[d]
@@ -208,4 +221,4 @@ def pool_trimmer(man: dict, split: str = "pool", loader=None) -> SpanTrimmer:
             for seg in m.spans
         ]
         data.append((doc.text, spans))
-    return SpanTrimmer.learn(data)
+    return SpanTrimmer.learn(data, **thresholds)
