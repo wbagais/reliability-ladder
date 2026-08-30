@@ -328,6 +328,31 @@ human code-picker, the entire remaining gap is span boundaries, which a
 code-picking reviewer cannot fix. That is what a ceiling is for: not comfort,
 but finding out which layer the headroom is in.
 
+### We removed all three and measured what happened
+
+The per-rung numbers above are an argument. The ablation is the measurement:
+run the same corpus through `[0, 1, 5]` — the deterministic spine, with
+self-correction, voting and the judge deleted — holding rung 0 **identical** on
+both sides.
+
+| stack | F1 exact | overlap | correct | shipped | to a person | tokens |
+|---|---|---|---|---|---|---|
+| full `[0..6]` | 0.182 | 0.187 | 43 | 52 | 196 | **683,488** |
+| spine `[0, 1, 5]` | 0.182 | 0.182 | 42 | 52 | 196 | **164,898** |
+
+Identical exact F1, identical coverage, identical error rate, identical records
+routed to a person. **The entire contribution of the three paid model rungs is
+one overlap-matched correct answer out of 43, for 518,590 tokens and a
+152-second p95 latency.**
+
+On FiNER both stacks ship nothing, and the spine costs 25% of 3.5M tokens.
+
+(One trap worth naming, because it nearly reversed the reading: the spine
+configs predated a set of rung 0 improvements, so running them as they stood
+would have compared a spine on a *worse* rung 0 against a full stack on a
+better one, and charged the difference to the rungs being dropped. An ablation
+that does not hold its base fixed is two experiments wearing one name.)
+
 ### All of it, end to end
 
 | layer | answered accuracy | tokens | p95 |
