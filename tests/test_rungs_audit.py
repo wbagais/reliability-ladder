@@ -695,3 +695,75 @@ def test_the_shipped_manifest_declares_the_judge_arm_off_explicitly():
     man = json.load(open(_ROOT / "manifest.json"))
     assert man["rungs"]["5"]["abstain_on_judge_fail"] is False
     assert "abstain_on_judge_fail" in r5.DEFAULTS
+
+
+# --- a refusal is not a JSON failure (2026-08-30) -----------------------------
+#
+# FiNER's recall gap is 52 gold mentions and 21 of them - 12.7% of the whole
+# dev gold - are in ONE document the extractor REFUSED: 2,153 reasoning tokens
+# and then "I'm sorry, but I can't provide that." The ledger recorded it as
+# `json_decode`, i.e. as a model that cannot emit JSON.
+#
+# That is the same mislabelling `timed_out` > `truncated` > `json_decode` was
+# introduced to stop, one class further out. A refusal is a MODEL POLICY
+# decision about the content; a JSON failure is a formatting failure. They cost
+# the same record and they mean completely different things, and only one of
+# them is fixed by anything to do with schemas or token caps.
+
+
+def test_a_refusal_is_labelled_refused_not_json_decode():
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._parse("I'm sorry, but I can't provide that.", meta) is None
+    assert meta["parse_failed"] is True
+    assert meta["refused"] is True
+
+
+def test_ordinary_malformed_json_is_not_called_a_refusal():
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._parse('{"mentions": [', meta) is None
+    assert meta["parse_failed"] is True
+    assert not meta.get("refused")
+
+
+def test_a_valid_reply_that_merely_mentions_sorry_is_not_a_refusal():
+    """The detector reads a reply the parser has ALREADY rejected, so a
+    well-formed answer quoting a patient saying 'sorry I cannot remember' can
+    never reach it. Pinned because a substring test on model output is exactly
+    the kind of check that quietly starts firing on real data."""
+    from ladder.rungs import r0
+
+    meta = {}
+    got = r0._parse('{"mentions": [{"span_text": "sorry I cannot sleep"}]}', meta)
+    assert got is not None
+    assert not meta.get("refused") and not meta.get("parse_failed")
+
+
+def test_the_reason_ladder_puts_refused_above_json_decode():
+    """Most specific first, the same rule as timed_out > truncated. A refusal
+    that a timeout also cut off is still reported as the timeout, because the
+    timeout is a property of THIS MACHINE and outranks everything."""
+    from ladder.rungs import r0
+
+    assert r0.failure_reason({"parse_failed": True}) == "json_decode"
+    assert r0.failure_reason({"parse_failed": True, "refused": True}) == "refused"
+    assert r0.failure_reason({"parse_failed": True, "refused": True,
+                              "truncated": True}) == "truncated"
+    assert r0.failure_reason({"parse_failed": True, "refused": True,
+                              "truncated": True, "timed_out": True}) == "timed_out"
+    assert r0.failure_reason({}) is None
+
+
+def test_the_refusal_detector_reads_the_apostrophe_the_model_actually_types():
+    """The reply that cost 21 gold mentions is `I’m sorry, but I can’t provide
+    that.` with U+2019, not the ASCII apostrophe. A detector written against
+    the ASCII form passes its own tests and never fires on the corpus."""
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._parse("I’m sorry, but I can’t provide that.", meta) is None
+    assert meta.get("refused") is True
+    assert r0.failure_reason(meta) == "refused"
