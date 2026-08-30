@@ -1,84 +1,42 @@
-# We Built Seven Reliability Layers Around an LLM. One of Them Worked.
+# Which answers can you trust?
 
-## What each layer taught us about making a nondeterministic model's errors visible
-
----
-
-## Key Takeaways
-
-- **Run-to-run variance was larger than every improvement we had shipped.** Three identical runs of a frozen configuration spread 1.3 F1 points. Every gain we had measured up to that point was smaller than that.
-- **A bootstrap confidence interval that excluded zero certified an effect whose sign reversed on the third draw.** The bootstrap resamples your documents, not your generator, so with one generation per arm it cannot see the dominant noise term.
-- **The cheapest layer outperformed the expensive ones.** A string comparison against a controlled vocabulary separated correct from incorrect answers 2.3x, holding across three draws. An LLM judge, at one model call per record, managed 1.23x out of sample.
-- **Asking the same model to check itself bought nothing.** A voting layer cost 2.6x the extraction budget and moved the correct-answer count by zero on held-out data — because the voter and the answerer share their errors.
-- **Three of our layers were wired to nothing for months.** Each wrote its verdict into a field and deferred the action to a later layer. That layer read none of them. Every layer passed its own tests.
-- **The metric could not see the bug we most cared about.** Fixing a record that shipped marked *verified* on a stale warrant moved F1 by 0.0000, because precision cannot distinguish an unwarranted answer from an incorrect one.
+*Building a system that tells you which of its own outputs to believe — and
+measuring, over five months and five open-weight models, how little of what we
+built actually did that.*
 
 ---
 
-**Scope, up front.** CADEC, 1,250 patient forum posts about medications with
-9,111 human-annotated adverse-reaction mentions normalised to SNOMED CT. A
-40-document tuning split and a 60-document held-out split. Open-weight models
-running locally — `gpt-oss:20b` extracting, `granite4:micro-h` judging — because
-the corpus licence is non-transferable and the text does not leave the machine.
-The held-out split was spent exactly once and everything measured afterwards is
-tuning-side and labelled as such. The instrumentation findings generalise. The
-specific accuracy numbers do not, and we say so again where it matters.
+## The problem, and the number that states it
+
+Read a patient's forum post about a drug. Find every adverse reaction the
+writer says they had. Assign each one a SNOMED CT code. There is a real answer
+key — CADEC, 1,250 posts, 9,111 annotated mentions — and the task is the shape
+of a great many production pipelines: pull structured records out of prose,
+normalise them against a controlled vocabulary, be prepared to defend each one.
+
+"Be prepared to defend each one" is not the same problem as accuracy, and it is
+the harder one. A system that is 80% right and cannot tell you *which* 80% is
+unusable anywhere a wrong answer costs something. You do not need a better
+average. You need to know, per record, whether this particular answer is one you
+can stand behind.
+
+Here is what we ended up with, stated before any of the reasoning that produced
+it:
+
+> The system ships **21%** of its answers. On those it makes **4.0 errors per
+> 100**, against **62.9** for the bare model and **63.3** for everything the
+> paid layers could do to it. It sends the other **196 of every 248 records to
+> a person.**
+
+That is not a good result. It is, we think, an honest one, and most of this
+article is about the things we built that did not contribute to it.
 
 ---
 
-## The task, and why it makes a good probe
+## 1. The ground moves, and it moves further than any of our improvements
 
-Read a patient's forum post about a drug, find every adverse reaction the writer
-says they experienced, and assign each one a SNOMED CT code.
-
-Most LLM reliability work is done on tasks where the only available grader is
-another language model. Summarisation, question answering, code explanation —
-you can measure fluency, and you can ask a bigger model whether it liked the
-answer, but there is no fact of the matter outside the system.
-
-This task has one. Whether `41456009` exists in the release, whether it is
-active, and whether it descends from Clinical Finding are three lookups against
-a SQLite index built from the official distribution. They take microseconds and
-they have no opinions. The corpus also ships 9,111 human annotations, so there
-is a ground truth for what the right answer was.
-
-That combination — a decidable floor plus a real answer key — is what lets you
-measure reliability *layers* rather than model quality. When a layer reports an
-improvement, you can check.
-
-## What we set out to build
-
-The plan was a stack, each layer added on top of the last, each measured for
-what it buys and what it costs.
-
-```mermaid
-flowchart TD
-    R0["**0 · Extract**<br/>bare model"] --> R1
-    R1["**1 · Validate**<br/>deterministic lookup<br/>zero model calls"] --> R2
-    R2["**2 · Self-correct**<br/>state the failure as a fact"] --> R3
-    R3["**3 · Vote**<br/>k samples, majority code"] --> R4
-    R4["**4 · Judge**<br/>a second model scores it"] --> R5
-    R5["**5 · Abstain**<br/>withdraw what cannot<br/>be verified"] --> R6
-    R6["**6 · Triage**<br/>route to a person"]
-
-    style R1 fill:#2d4f2d,color:#fff
-    style R5 fill:#2d4f2d,color:#fff
-    style R6 fill:#2d4f2d,color:#fff
-```
-
-We expected a staircase: each layer buying some accuracy, at some cost, with a
-visible point where the cost stopped being worth paying. That curve was the
-contribution we thought we were producing.
-
-It is not what we got. Here is the order we found things out in, because the
-order is the useful part.
-
----
-
-## First: the ground was moving
-
-Before comparing layers we checked something we had been assuming — that a run
-is reproducible. Three fresh draws of a frozen configuration, same 40 documents,
+Before trying to make a model's output trustworthy, it is worth checking whether
+it is even stable. Three draws of one frozen configuration, same 40 documents,
 same machine, same hour:
 
 | | draw 0 | draw 1 | draw 2 | spread |
@@ -86,576 +44,503 @@ same machine, same hour:
 | F1, exact span | 0.395 | 0.408 | 0.401 | **1.3 pt** |
 | F1, overlap span | 0.469 | 0.475 | 0.471 | 0.6 pt |
 
-Every accuracy improvement we had measured up to that point was smaller than
-1.3 points.
+A 1.3-point spread is unremarkable until you notice that **every rung-0
+improvement this project ever shipped was smaller than that.** Prompt changes,
+span filters, a reranking stage — all of them lived inside the noise band of the
+thing producing them.
 
-Two properties mattered more than the size. The variance is **all-or-nothing per
-run** — it enters at one call, the extraction step, and then propagates
-deterministically through everything downstream. A run is not 40 independent
-document draws; it is closer to one draw with 40 correlated parts. And it is
-**not something you can average away cheaply**, because each draw costs a full
-run.
+We tried to suppress it and failed. A system message, three prompt
+interventions, a role clause: each moved *where* errors landed without reducing
+them, and restating an instruction the model already ignored produced compliance
+three times out of three — zero.
 
-**What this taught us:** measure your generator's variance before you measure
-anything else, because it sets the resolution of every comparison you are about
-to make. We had been reporting differences below our own noise floor for weeks.
+Then we ran the same experiment across five open-weight models, and the premise
+turned out to be wrong.
 
-## Second: we tried to make the model repeatable, and could not
+| model | distinct outputs over 3 identical draws |
+|---|---|
+| `llama3.1:8b` | **1** |
+| `mistral:7b-instruct` | **1** |
+| `qwen3:8b` | **1** |
+| `granite4:micro-h` | **1** |
+| `gpt-oss:20b` | **3** |
 
-The obvious response is to reduce the variance rather than live with it. We
-tried three interventions.
+Four of five are **bit-reproducible** — identical output files, byte for byte,
+across three independent runs. Only one varies, and it is the only
+Mixture-of-Experts model in the set. `qwen3` is a reasoning model and `granite4`
+is a Mamba/transformer hybrid, so neither deliberation nor architectural novelty
+is the variable. Sparsity is the one property that separates them, which fits
+the known mechanism — which experts fire depends on what else is in the batch,
+while a dense forward pass at temperature 0 does not.
 
-A **system message** pinning the model's role, on the theory that constraining
-the persona would tighten the output distribution. A set of **added prompt
-rules** for the cases we saw it getting wrong — lab values, single-word
-mentions. A **scope clause** restating that only the writer's own reactions
-count.
+**Said at its real strength: four dense models against one sparse one.** A
+single MoE model cannot establish a mechanism. But the practical consequence
+does not depend on the mechanism being right:
 
-All three were measured across draws, and all three showed the same pattern:
-they traded exact-span F1 for overlap-span F1 without moving the number of
-answers that were actually correct. They changed *where the boundaries landed*,
-not whether the model understood the task.
+> Run-to-run reproducibility is a **model-selection choice with a measurable
+> price.** `gpt-oss:20b` buys 6.5 exact points over `llama3.1:8b` and pays a
+> 1.3-point run-to-run spread for them — a spread larger than every improvement
+> we ever shipped.
 
-The scope clause is the sharpest case. It was written to attack the largest
-category of misses, and the model had already been given essentially that
-instruction in an earlier revision — and was already ignoring it. Restating an
-instruction a model ignores does not make it comply. We tried that three times,
-on three different instructions, with the same result each time.
+Nobody told us that trade existed. We found it by accident, four months in,
+because we had only ever run one model.
 
-**What this taught us:** prompt-level pressure moves where the errors land, not
-how many there are. You are not going to make the model repeatable, so the
-question has to change from *how do we stop it moving* to *what can we say about
-its answers that does not move when it does*.
+---
 
-## Third: our significance test was lying to us
+## 2. The significance test that certified noise
 
-This one nearly cost us a published result, and it is the most transferable
-thing in the study.
+One methodological detour, because it nearly cost us a published result.
 
-We had a paired bootstrap, built carefully. It resamples **documents**, not
+We built a bootstrap confidence interval properly: resampling **documents**, not
 mentions, because mentions inside one post share an author, a topic and a model
-call — resampling mentions would pretend to roughly six times more independent
-observations than exist and report a band far too tight. That reasoning is
-correct and we still recommend it.
+call, and resampling mentions would claim roughly six times more independent
+observations than exist. That part is right and we still recommend it.
 
-We used it to evaluate a reranking stage over retrieved candidates:
+Then we measured a reranking stage and got:
 
-> draw 0: **+0.0217 overlap F1**, paired bootstrap **+0.0215 [+0.0000, +0.0433]**
+> **+0.0217 overlap F1, paired bootstrap +0.0215 [+0.0000, +0.0433]**
 
-An interval excluding zero. In most write-ups that is where the analysis ends.
+An interval excluding zero. In most write-ups that is where the analysis stops.
 
 We ran it twice more:
 
-| | draw 0 | draw 1 | draw 2 | mean |
-|---|---|---|---|---|
-| overlap F1 delta | +0.0217 | +0.0087 | **−0.0089** | +0.0072 |
-| exact F1 delta | +0.0000 | +0.0087 | −0.0044 | +0.0014 |
+| | draw 0 | draw 1 | draw 2 |
+|---|---|---|---|
+| overlap F1 delta | **+0.0217** | +0.0087 | **−0.0089** |
 
-The sign reverses. There is no effect.
+The sign reverses. The effect is not there.
 
-The bootstrap was not broken — it was answering a different question than we
-were asking. It resamples the documents of **one** run, so every replicate is
-drawn from the same fixed set of model outputs. The run-to-run variance from the
-first section is completely invisible to it. Given a single generation per arm,
-it will certify noise, confidently, with a tight interval.
+The bootstrap was not broken — it was answering a different question. **It
+resamples the documents of a single run, so it prices the corpus sample and
+nothing else.** The run-to-run variance from section 1 is invisible to it,
+because every replicate is drawn from one fixed set of model outputs. Given one
+draw, it will certify noise, confidently, with a tight interval.
 
-**What this taught us:** three independent draws, plus the paired bootstrap,
-never one alone. And not ten-document subsets, which we also tried — they
-overstate both the effect size and the variance, and we have a decision-log entry
-recording an arm we ran whose hypothesis the sample could not test.
+**If your significance test only ever sees one generation per configuration, it
+cannot see the dominant noise term.** Three draws minimum, plus the bootstrap.
+And not ten-document subsets, which overstate both effect size and variance.
 
-## Fourth: attaching evidence that does not resample
+---
 
-If the answer will not hold still, attach something to it that will. The
-controlled vocabulary is the obvious candidate, because SNOMED CT is a fixed
-artefact.
+## 3. What a free deterministic check can and cannot see
 
-Six checks, all free, no model calls: does the code exist, is it active, is it
-the right kind of concept, does the quoted text actually appear where the model
-said it does, does the model's own concept name match the vocabulary's words for
-the code it chose.
+If the output will not hold still, attach something to it that will. The
+controlled vocabulary is the obvious candidate: SNOMED CT does not resample.
 
-We measured what those checks can catch by planting each error class into an
-otherwise-perfect answer set, 8,666 records per class:
+We measured what six such checks catch by planting each error class into an
+otherwise-perfect answer set, 8,666 records at a time:
 
 | planted error | caught |
 |---|---|
-| code that exists in no release | 1.000 |
-| span shifted two characters | 1.000 |
-| fabricated quote | 1.000 |
-| real code, wrong branch of the hierarchy | 1.000 |
+| code that exists in no release | **1.000** |
+| span shifted two characters | **1.000** |
+| fabricated quote | **1.000** |
+| real code, wrong branch of the hierarchy | **1.000** |
 | random plausible clinical finding | **0.000** |
 | near-miss finding sharing a head word | **0.001** |
 
-The top half is better than "helpful": on the classes they are designed for,
-deterministic checks are *exact*, at zero cost. Not 95%.
+The top half is better than "useful": on the classes they are built for, these
+checks are **exact**, at zero cost, with no model call.
 
-The bottom half is why the rest of the system exists. Give it a real, active,
-correctly-typed clinical finding that is simply the wrong one and every check
-passes. This is not a gap to close with better rules — the right code is not
-present in the source text, so nothing mechanical can put it there.
+The bottom half is why the rest of this article exists. Give the system a real,
+active, correctly-typed clinical finding that is simply the *wrong* one and
+every check passes it. **The right code is not in the source text, so nothing
+mechanical can put it there.** The failure mode that matters most is invisible
+to the cheapest layer, permanently.
 
 So the vocabulary cannot tell you an answer is right. What it can do is sort
-answers into three states:
+answers into three states — REJECT (provably wrong), ACCEPT (the vocabulary uses
+these very words), BAND (plausible, unverifiable) — and **57% of even a perfect
+answer set lands in BAND.** That number is knowable before you spend a token. It
+is the fraction free checks will never settle: the bill everything expensive has
+to work through.
 
-- **REJECT** — provably wrong
-- **ACCEPT** — the vocabulary uses these very words for this code
-- **BAND** — plausible, and unverifiable by string comparison
+### The knob that turns a gate into an endorsement machine
 
-Three states, not two. Two cannot express BAND, and **BAND is where 57% of a
-perfect answer set lands.** You can compute that number before spending a single
-token: it is the fraction of your output free checks will never settle, which is
-the bill everything expensive has to work through.
-
-**What this taught us:** run your deterministic layer over your answer key
-first. Every rejection there is false by construction, so you get the layer's
-false-positive rate exactly, before any model output exists. Ours started at
-9.3% — three separate faults, each of which would have shipped as a plausible
-rejection rate that every paid layer above would have inherited — and three
-fixes took it to 0.13%.
-
-### The setting that turns a gate into an endorsement machine
-
-The ACCEPT/BAND divider is a string comparison with one obvious knob: exact
+The ACCEPT/BAND divider is a string comparison with one obvious setting: exact
 equality, or token containment.
 
 Containment is the intuitive choice. Patients write "bit drowsy" where the
 vocabulary says "Drowsy"; strictness looks pedantic, and leniency lifts the
 share of a perfect answer set settled for free from 43.1% to 54.5%.
 
-Then we planted **near-miss codes** — real, active findings sharing a head word
-with the correct one, which is the confusion this kind of model actually makes:
+Then we planted **near-miss codes** — a real, active finding sharing its head
+word with the correct one, which is the confusion this kind of model actually
+makes:
 
-| setting | near-misses caught | near-misses placed in **ACCEPT** | ACCEPT lane on gold |
+| setting | near-misses caught | near-misses placed in **ACCEPT** | free coverage |
 |---|---|---|---|
 | `contained` | 0.1% | **19.0%** | 54.5% |
-| `exact` | 0.1% | 0.1% | 43.1% |
+| `exact` | 0.1% | **0.1%** | 43.1% |
 
-Neither setting catches near-misses. But the lenient one actively vouches for
-one in five of them, because the patient's phrase is a subset of the wrong
+Neither catches near-misses. But the lenient setting **actively vouches for one
+in five of them**, because the patient's phrase is a subset of the wrong
 concept's name. It does not fail to protect you; it hands you false confidence,
-which is worse, because you act on it.
-
-We took the strict setting and paid the eleven points.
-
-**What this taught us:** before shipping the permissive setting of a validation
-gate, measure its false-vouch rate on planted near-misses. "Be lenient with
-colloquial input" is a reasonable instinct that converts a gate into an
-endorsement machine.
-
-### The one number that held still
-
-Here is what the free layer bought, and it is the study's main positive result.
-
-The ACCEPT/BAND split predicts correctness:
-
-| | n | coding accuracy |
-|---|---|---|
-| **ACCEPT** — free, deterministic | 49 | **83.7%** |
-| **BAND** | 131 | 35.9% |
-
-A 2.3x separation over 21% of the output, at zero model cost. And, given the
-first section, the part that matters — it barely moves between draws:
-
-| | draw 0 | draw 1 | draw 2 | spread |
-|---|---|---|---|---|
-| ACCEPT lane | 83.7% | 83.0% | 87.2% | 4.2 pt |
-| BAND lane | 35.9% | 36.8% | 36.2% | **0.9 pt** |
-| ratio | 2.33 | 2.26 | 2.41 | 0.15 |
-
-The BAND lane moves 0.9 points across the same three runs whose headline F1
-moves 1.3. It also holds under a completely different upstream configuration:
-85.7% versus 30.1%.
-
-The reason is structural. The quantity is conditional on a deterministic
-property of the record rather than on the run. "Given that the vocabulary uses
-these exact words for this code, how often is the code right?" is a question
-about the vocabulary and the record; resampling moves *which* records land in
-each lane without much moving what each lane *means*.
-
-**What this taught us:** you cannot make the model repeatable, but you can make
-your knowledge about it repeatable, by conditioning it on something that does
-not resample. Ours was a controlled vocabulary. Yours might be a schema, a unit
-check, a database lookup, a compiler.
+which is worse, because you act on it. We took the strict setting and paid the
+eleven points.
 
 ---
 
-## Then we spent money on the residue
+## 4. The one thing that worked
 
-With 57% unsettled, the plan was to buy the rest with model calls. We built
-three resolvers. This is the part we expected to be the staircase.
+The ACCEPT/BAND split is strongly predictive of correctness — and, unlike the
+headline number, it barely moves between draws.
 
-### Self-correction: state the failure as a fact
+Across **five open-weight model families, three draws each, fifteen runs**:
 
-When a deterministic check rejects a record, tell the model what was wrong —
-"the code 41456009 does not exist in SNOMED CT" — as a fact, never as a
-question. A question invites the model to re-derive the answer it already gave.
-A fact gives it something it did not have.
+| model | exact F1 | **ACCEPT lane** | BAND lane | ratio |
+|---|---|---|---|---|
+| `gpt-oss:20b` | 0.401 ±0.007 | **84.6%** | 35.9% | 2.36× |
+| `llama3.1:8b` | 0.336 ±0.000 | **80.4%** | 28.8% | 2.79× |
+| `mistral:7b-instruct` | 0.206 ±0.000 | **83.3%** | 14.6% | 5.70× |
+| `granite4:micro-h` | 0.185 ±0.000 | **89.3%** | 14.6% | 6.12× |
+| `qwen3:8b` | 0.141 ±0.000 | **83.3%** | 30.3% | 2.75× |
 
-We think the mechanism is sound. We cannot tell you whether it works, because
-**it fired once in 248 records**, for a reason covered in the audit section
-below. That is an honest null, not a negative result.
+Headline F1 ranges **0.141 to 0.401** — a factor of 2.8. The ACCEPT lane ranges
+**80.4 to 89.3**, and its ordering has no relationship to model quality: the
+*worst* model by F1 has the *highest* ACCEPT lane. The BAND lane, meanwhile,
+tracks model quality directly.
 
-### Voting: ask again and take the majority
+> The check does not merely correlate with correctness. It identifies a subset
+> of answers that are **~85% correct regardless of which model produced them**,
+> and it earns **more** the worse the model is.
 
-Resample each document at temperature, match the answers back to the originals,
-take the majority code. This is the intervention people reach for first against
-nondeterminism.
+The reason is structural and it generalises. The quantity is conditional on a
+**deterministic property of the record** — "given that the vocabulary uses these
+exact words for this code, how often is the code right?" — rather than on the
+run. Resampling moves which records land in each lane without much moving what
+each lane means.
 
-Its first build was actively destructive, and the failure is instructive.
-Answers were matched to records by an exact span key — but spans shift between
-samples ("extreme rectal bleed" versus "rectal bleed"), so 206 of 240 records
-received no vote at all. Where matching did succeed, the sampler was calling a
-*different extraction path* than the one that produced the answers, so the votes
-came from a different distribution, and 9 of 32 vocabulary-verified answers were
-overwritten with recalled hallucinations. One of them was a "majority" of one.
+That is the answer to the question this article opens with. You cannot make the
+model repeatable. **You can make your knowledge about it repeatable**, by
+conditioning it on something that does not resample.
 
-Three repairs, each test-first: match by span overlap, one-to-one; draw every
-sample through the extractor's own configured path; and require at least two
-sightings before changing anything.
+---
 
-After repair, scored per changed record against the answer key:
+## 5. And here is the corpus where it does not work at all
+
+Everything above is one corpus. So we ported the whole system to a second one:
+**FiNER-139** — SEC filings, where the task is to find numeric facts and tag
+them with one of 139 US-GAAP XBRL tags. Same code, same rungs, same models. The
+port cost sixteen one-line harness edits and zero changes to rung logic.
+
+The result is not a worse score. It is no score:
+
+```
+rung 1   ACCEPT 0 / BAND 350 / REJECT 1
+         lexical_match  False on all 328 records carrying a tag
+         sct_exists     True  on all 328
+rung 5   coverage 1.0 → 0.0
+rung 6   351 of 351 records routed to a person
+```
+
+**The identical system that ships 21% of its answers on CADEC ships 0% here.**
+
+The vocabulary check works perfectly — every tag exists. It is the *lexical*
+check that has nothing to compare. On CADEC it matches `"chronic pain"` against
+`|Chronic pain|`. On FiNER it must match `"47.6"` against
+`|EffectiveIncomeTaxRateContinuingOperations|`, and a number shares no tokens
+with a name by construction. The one signal carrying the entire system has zero
+coverage.
+
+So the honest scope of section 4's claim is:
+
+> Deterministic evidence of this kind is available when the vocabulary's words
+> and the source's words are drawn from the same language. It is unavailable
+> when the span is a bare quantity.
+
+That is the method's **precondition**, not a weakness — but it was invisible for
+five phases because the project had one corpus.
+
+The most alarming part is how it fails. `err_per_100` at the abstention step is
+**0.0**: a perfect error rate, over an empty output. A system whose safety
+property is "abstain unless corroborated" degrades to "abstain always" the
+moment corroboration is inapplicable, and it does so **silently, reporting
+flawless numbers**. Print coverage beside every error rate, always.
+
+---
+
+## 6. What the four paid resolvers bought
+
+With a free layer that is exact on some classes, blind on the important one, and
+leaves 57% unsettled, the obvious move is to spend money on the residue. We
+built four resolvers. We expected a staircase.
+
+**Ask the model to fix what the checks caught.** State the failure back as a
+fact — "the code 41456009 does not exist in SNOMED CT" — never as a question.
+The mechanism is sound and it fired **once in 248 records**, for a reason that
+is section 7's subject.
+
+**Ask the model again and take the majority.** This is what people reach for
+first against nondeterminism. It cost 2.6× the entire extraction token budget
+and a 152-second p95 latency, and scored per changed record against gold:
 
 | | changes scored | fixed | broke | net |
 |---|---|---|---|---|
 | tuning set | 18 | 5 | 0 | **+5** |
-| held-out | 21 | 2 | 2 | **0** |
+| held-out | 21 | 2 | **2** | **0** |
 
-On the tuning set it looked like a layer that works — until you notice three of
-those five "fixes" were *no code → a correct code*, filling a gap rather than
-correcting an error. Out of sample it destroyed two correct answers while
-rescuing two others.
+On the tuning set it looked like a win — until you notice three of the five
+"fixes" were *no code → a correct code*, filling a gap rather than correcting an
+error. Out of sample it is a coin flip. **The voter and the answerer are the
+same model, so the vote carries no information the original answer lacked.** We
+measured this directly elsewhere: a reranking stage promoted the right answer
+for 50% of the cases the picker already got right, and 16.7% of the ones it got
+wrong.
 
-Cost: 2.6x the entire extraction token budget, and a 152-second p95 latency.
-
-**What this taught us:** the voter and the answerer are the same model, so the
-vote carries no information the original answer lacked. We measured this
-directly in a cleaner setting — a reranking stage promoted the correct candidate
-to the top slot for 50% of the cases the picker already got right, and 16.7% of
-the ones it got wrong. It ranked well and converted nothing, because the ranker
-and the picker were the same model making the same judgement.
-
-### A judge: use a different model
-
-If self-consistency is the problem, use a second model family. Our
-implementation enforces this rather than advising it: if judge and extractor are
-the same model, the code raises, because a self-judge measures self-consistency
-and reports it under a heading that says correctness.
-
-The judge separates — weakly, and less where it counts:
+**Ask a different model.** A second family as judge — enforced, not advised: if
+judge and extractor match, the code raises. It separates, weakly, and less where
+it counts:
 
 | | pass | fail | ratio |
 |---|---|---|---|
-| tuning set | 21.0% | 12.7% | 1.65x |
-| held-out | 27.0% | 21.9% | **1.23x** |
+| tuning set | 21.0% | 12.7% | 1.65× |
+| held-out | 27.0% | 21.9% | **1.23×** |
 
-Set that beside the free check's 2.3x holding across three draws. **A string
+Set that against the free check's 2.36–6.12× across five models. **A string
 comparison against a controlled vocabulary out-separates the LLM judge on the
-only axis a judge is for** — and not because the judge is bad, but because the
-vocabulary knows something neither model does.
+only axis a judge is for**, at zero marginal cost.
 
-We also learned something uncomfortable about the judge's signal. When we
-repaired an *accidental* defect in its prompt — the source post had been pasted
-in twice — its pass/fail separation collapsed from 28.0/15.6 to 25.4/23.6. Part
-of the signal had been living in the duplication.
+There is a caveat that turned into a finding. Our judge is a 3.2B model grading
+a 20B one, and on CADEC it engaged with spans and said nothing useful about
+codes — which we read as a limit of a small model. On FiNER, with the prompt
+corrected, the *same* model adjudicates codes fine (fail 299 / pass 48, both
+sub-verdicts splitting genuinely). The difference is that 139 tags fit in its
+context and 129,675 SNOMED concepts do not. **A judge cannot adjudicate a
+vocabulary it cannot see** — a property of the task, not the model.
 
-**What this taught us:** for small models, prompt form is part of the
-measurement, not a detail of it. Separately, we found that alphabetising the
-candidate menu — changing nothing but the order — cost 10 to 12 points of coding
-accuracy at byte-identical detection. Presentation is load-bearing, and a result
-that survives only under one presentation is not a result.
+**Refuse.** The last resolver resolves nothing. It withdraws every answer the
+stack could not corroborate, preserves it rather than deleting it, and routes
+the record to a person. Errors per 100 **63.3 → 4.03** — 63.3 being the rate
+after every paid layer has had its turn, against 62.9 for the bare model, which
+is the more damning pair. Coverage 100% → **21%.** Records to a person:
+**196 of 248.**
 
-### Refusal: the layer that worked
+Every point of that fall is the free check from section 4, acted on, and paid
+for entirely in a third currency — human attention. We never collapse cost into
+one figure: tokens, latency and human referrals are three axes, and a system
+that looks cheap on two can be ruinous on the third.
 
-The last resolver resolves nothing. It withdraws every answer the stack could
-not corroborate, preserves it rather than deleting it, and routes the record to
-a person.
+How much is on the other side of that referral? An oracle desk — gold-derived,
+labelled on every row — takes shipped F1 from 0.131 to **0.444** and coding
+accuracy from 0.291 to **0.990, with detection unchanged.** After a perfect
+human code-picker, the entire remaining gap is span boundaries, which a
+code-picking reviewer cannot fix. That is what a ceiling is for: not comfort,
+but finding out which layer the headroom is in.
 
-- Errors per 100 records: **63.3 → 4.03**
-- Coverage: 100% → **21%**
-- Records routed to a person: **196 of 248**
+### All of it, end to end
 
-Every point of that fall is the free deterministic verdict, acted on. And it is
-paid for entirely in a third currency — a person's attention — which is why we
-never collapse cost into one figure. Tokens, latency and human referrals are
-three axes, and a system that looks cheap on two can be ruinous on the third.
-
-How much is on the other side of that referral? We measured the ceiling with an
-oracle desk: gold-derived resolutions, labelled on every row, refused on
-held-out data by construction. A perfect reviewer takes shipped F1 from 0.131 to
-**0.444**, and coding accuracy on matched answers from 0.291 to **0.990 — with
-detection unchanged**.
-
-**What this taught us:** read that pair carefully, because it names the next
-thing to build. After a perfect human code-picker, the entire remaining gap is
-*span boundaries*, which no code-picking reviewer can fix. That is the real use
-of a ceiling — not to admire the headroom, but to find out which layer it is in.
-
-### The whole thing, end to end
-
-All layers, in order, one run, 248 records:
-
-| layer | answered accuracy | tokens | p95 latency |
+| layer | answered accuracy | tokens | p95 |
 |---|---|---|---|
-| bare model | 0.371 | 164,897 | *cache-served* |
+| bare model | 0.371 | 164,897 | *cached* |
 | deterministic checks | 0.371 | **0** | **0** |
-| self-correction | 0.371 | 548 | *cache-served* |
+| self-correction | 0.371 | 548 | *cached* |
 | voting | **0.367** | **425,355** | **152.2 s** |
-| judge | 0.367 | 92,687 | 1.5 s |
+| second-model judge | 0.367 | 92,687 | 1.5 s |
 | refusal | ships **0.808** | 0 | 0 |
 | person | — | **196 records** | — |
 
-683,487 tokens over 618 calls. Two of those latencies were served from a call
-cache and are not latency measurements; we say so rather than quoting them.
-
-Read down the accuracy column. It does not move until the refusal step, and then
-it moves by declining to answer. The two paid model resolvers cost 518,042
-tokens between them and moved the number backwards.
+Read down the accuracy column. **It does not move until the refusal step, and
+then it moves by declining to answer.** The two paid model resolvers cost
+518,042 tokens between them and moved the number backwards.
 
 ---
 
-## What we found when we audited the stack instead of the layers
+## 7. Three things no single-layer test could see
 
-Everything above measures one layer at a time. Late in the project we went back
-and asked a different question — not *does this layer work* but *what reads this
-layer's output* — and found three things that no per-layer test could have
-caught.
+These are what we found auditing the system as a whole rather than one layer at
+a time, and they are what we would most want another team to check for.
 
-### Every deferral terminated in a field nothing read
+**Every deferral terminated in a field nothing read.** Each paid resolver
+correctly declined to act on its own evidence — a layer that both judges and
+routes contaminates every measurement above it — and each named the refusal step
+as the one that would act. Self-correction wrote `r2_declined`, voting wrote
+`r3_unanimous_none`, the judge wrote `r4_verdict`. **The refusal step reads none
+of the three.** It reads the deterministic verdict and nothing else. Three
+layers ran, cost money, passed their tests, and were wired to nothing. No test
+could have caught it, because every layer does exactly what its own
+documentation promises. The hole is *between* them.
 
-Each paid resolver correctly declined to act on its own evidence. The argument
-is good: a layer that both judges and routes contaminates every measurement
-above it, because the next layer is then graded on a set this one pre-filtered.
-So each wrote its verdict into a field and named the refusal step as the layer
-that would act.
+**A fix three layers down silently disabled two layers up.** The checks used to
+reject 5.1% of records, nearly all for an unlocatable span. Then extraction
+improved: a span filter now drops those at source. The rejection rate fell to
+**1 record in 248**, and self-correction's trigger set went with it — which is
+why it fired once. Nothing broke. Both layers still pass every test and report
+honestly. Their *input* was removed by a change three layers below, and a layer
+with nothing to do is indistinguishable from inside from a layer doing nothing.
+The same mechanism hollowed out the checks themselves: the existence check now
+fires **0 times in 248**, because the model picks from a retrieved menu of real
+codes and can no longer invent one.
 
-- self-correction wrote `r2_declined` — *"the refusal step owns abstention and reads this"*
-- voting wrote `r3_unanimous_none` — *"EVIDENCE for the refusal step, not an action here"*
-- the judge wrote `r4_verdict` — *"record it, and let the refusal step act"*
-
-The refusal step reads none of the three. It reads the deterministic verdict and
-nothing else. A repository-wide search found no consumer for any of those fields
-outside the layers that write them.
-
-So the composition was never what the diagram said. Three layers ran, cost
-money, passed their tests, and were wired to nothing — the judge in particular
-pays one model call per record, in every run, and *cannot* change any shipped
-number.
-
-**What this taught us:** for every field your pipeline writes, grep for its
-readers. A field with no reader is a layer you are paying for and not running.
-No test caught this because every layer does exactly what its own documentation
-promises; the hole is between them.
-
-### A fix three layers down disabled two layers up
-
-The deterministic checks used to reject 5.1% of records, all for the same
-reason: the extractor emitting an unlocatable span for a quote it could not find
-in the post. Self-correction fires on a rejection that yields a statable fact,
-and that one yields none — so it fired zero times.
-
-Then extraction got better. A span filter added during an accuracy pass drops
-exactly those records at the source. The rejection rate fell to **1 in 248**,
-and the self-correction trigger set went with it.
-
-Nothing broke. Both layers still pass every test and log every row. Their
-*input* was removed from underneath them by a change three layers below, and a
-layer with nothing to do is indistinguishable from a layer doing nothing when
-you look at it from inside.
-
-The same mechanism hollowed out the checks themselves. The existence check —
-"is this a real code?", the check the whole validation layer was built around —
-now fires **0 times in 248 records**, because the extractor picks its code from
-a retrieved menu of real codes and can no longer emit one that does not exist.
-And the check asking "did the model name the concept it coded?" is true **232
-times out of 232**, because the same menu displays the code and its official
-name together, so the model's label *is* the vocabulary's label by construction.
-
-**What this taught us:** when you improve the bottom of a pipeline, re-measure
-the top. A validation layer is calibrated against a generator, and when the
-generator's failure mode moves, the layer does not follow it — it keeps passing.
-
-### The metric could not see the bug
-
-The voting layer adopted its majority code by overwriting the record's code and
-stopping there. But the refusal step routes on the deterministic verdict, which
-had been computed against the code voting had just replaced.
-
-Across three full runs, voting changed 25, 30 and 29 codes, and every one of
-those records carried a verdict about a code it no longer had. In each run
-exactly one of them shipped marked *verified*. In the most recent: the phrase
-"stamina", coded |Stamina| and ACCEPTed on an exact name match, then voted 2–1
-to |Lack of stamina| — which does not match — and shipped on the older code's
-warrant.
-
-We fixed it. Here is what the fix does to the headline:
-
-| | exact F1 | overlap F1 | shipped | routed to a person |
-|---|---|---|---|---|
-| as built | 0.204 | 0.215 | 72 | 242 |
-| re-validated | 0.204 | 0.218 | 72 | 242 |
-
-Nothing — and of course nothing. A record that was wrong scores identically
-whether it ships wrong or is withdrawn. Precision and recall cannot distinguish
-an answer that is *unwarranted* from one that is merely *incorrect*, and that
-distinction is the entire purpose of the system.
-
-**What this taught us:** be suspicious of any reliability layer justified on F1,
-including every layer in this project.
+**The headline metric could not see the bug it exists to prevent.** Voting
+overwrote a record's code and never re-validated — but the refusal step routes
+on a verdict computed against the *replaced* code. Across three full runs it
+changed 25, 30 and 29 codes, and every one carried a stale verdict; exactly one
+per run shipped to a user marked *verified*. In the most recent: the span
+"stamina", accepted on an exact match to `|Stamina|`, then voted to `|Lack of
+stamina|`, which does not match. We fixed it. Effect on the headline: exact F1
+**0.204 → 0.204**. Of course — a record that was wrong scores the same whether
+it ships wrong or is withdrawn. Precision and recall cannot distinguish an
+*unwarranted* answer from an *incorrect* one, which is the entire distinction
+the system exists to make.
 
 ---
 
-## Open-weight models: what we learned trying to swap them
+## 8. What open-weight models are actually short of
 
-*(Measurement in progress; this section reports completed runs only.)*
+Everything here ran locally, which was a licence constraint before it was a
+research one: CADEC is patient-reported medical text that cannot leave the
+machine.
 
-The whole system runs on open weights because the corpus licence is
-non-transferable. That constraint produced its own findings.
+**Instruction-following, not domain knowledge, is the binding constraint.** We
+imported **BioMistral-7B**, domain-adapted to medical text, specifically to
+improve the judge. It was rejected on measurement: 167 of 240 records unjudged,
+end-of-sequence emitted immediately after `{` on prompts past ~430 tokens, every
+parsed verdict `fail`, confidence flat 0.0.
 
-### The first result was our harness, not the models
+We then ran the **un-adapted** `mistral:7b-instruct`, which the original study
+never did — and it completes the full 40-document extraction cleanly. That
+closes the gap in our own earlier conclusion and sharpens it: the base family
+follows instructions here, so **domain adaptation cost instruction-following.**
+(Not a matched comparison — different role, prompt and quantization — so what
+transfers is the existence proof, not the magnitude.)
 
-We ran five open models through the extraction step. Two of them —
-`llama3.1:8b` and `qwen3:8b` — appeared to fail outright, producing nothing
-parseable on the first document.
+**Presentation is part of the measurement.** When we repaired an *accidental*
+prompt defect — the source post had been pasted in twice — the incumbent judge's
+pass/fail separation collapsed from 28.0/15.6 to 25.4/23.6. Its signal had been
+partly living in the duplication. Separately, alphabetising the candidate menu
+cost 10–12 points of accuracy at byte-identical detection. For small models,
+menu order and prompt form are load-bearing, and a result that survives only
+under one of them is not a result.
 
-Both were our fault.
+**Architecture can rescue a model that failed the task.** `granite4:micro-h`
+(3.2B) was unusable as an extractor when asked to *recall* codes — it answered
+`AFTERPROMPT`. Under retrieve-and-pick, where the answer is a menu selection, it
+runs the full corpus and posts the **highest ACCEPT lane of any model tested**
+(89.3%). The task got easier, not the model better.
 
-`qwen3:8b` is a reasoning model. It deliberates before answering, and we had
-never registered a token budget for it, so it inherited a 2,000-token default,
-spent all of it thinking, and returned an empty answer field with
-`truncated=True`. `llama3.1:8b` produced *correct* JSON with the *right*
-mentions — and wrapped it in conversational prose:
+**Report detection and coding separately, or you will rank models wrongly.**
+`qwen3:8b` is last by headline F1 (0.141) and **second-best at coding** (0.556,
+ahead of llama's 0.530 and mistral's 0.386) — because it emits 57 predictions
+against `gpt-oss`'s 232. It answers less and is right more often. A single
+number ranks it below two models it beats at the part everyone assumes is hard.
+It is also the most expensive by far: roughly two hours per draw against llama's
+fifteen minutes, for a quarter of the output.
 
-```
-Here are the adverse reactions extracted from the post:
-
-```
-{"mentions": [{"span_text": "extreme rectal bleed", ...
-```
-
-Note that "extremely sick" and "might not survive" are not specific medical
-```
-
-Our fence-stripper anchors its match at the start of the reply, so a fence with
-prose in front of it is not a fence, and a good answer was scored as a parse
-failure.
-
-Reporting that as a model failure would have measured **which model our harness
-was built around** — `gpt-oss:20b` emits bare JSON because the prompts were
-tuned against it — rather than which model can do the task. So we added one more
-repair, under the same rules as the two we already had: it fires only when the
-reply does not parse, it never fabricates, it applies identically to every
-model, and it is *counted*, so a model's chattiness appears as a compliance cost
-rather than disappearing into a zero.
-
-With budgets registered and the repair in place, all five models produce
-parseable output.
-
-**What this taught us, and it is the finding we would most want checked
-elsewhere:** a model comparison measures your harness until you prove otherwise.
-Ours would have published two false negatives. Before reporting that a model
-cannot do a task, read what it actually returned.
-
-### The prior we are testing
-
-An earlier experiment gives a strong prediction. Swapping a frontier hosted
-model into the extraction step alone (ten documents, one draw, both caveats
-stated) fixed detection outright — overlap detection recall 55/62 → **61/62** —
-and produced **identical** exactly-correct answers, 31 for both models, with
-coding accuracy drifting *down*.
-
-Both models pick their code from the same 20-candidate retrieved menu, so a
-better reader cannot beat the menu's recall. The extractor was never the binding
-constraint on the number we cared about.
-
-So we expect the open-model comparison to show large differences in *detection*
-and small ones in *coding*. Results below when the draws are in.
+**And a better model does not fix what you think.** Swapping a frontier hosted
+model into extraction (ten documents, one draw, both caveats stated) took
+detection recall from 55/62 to **61/62** and produced **31 exactly-correct
+answers against the local model's 31 — identical**, with coding accuracy
+drifting *down*. Both models pick from the same 20-candidate retrieved menu, and
+a better reader cannot beat the menu. Yet across our five local models coding
+accuracy spans **21.3 points**. The asymmetry is the finding: **retrieval is a
+ceiling, not a floor.** A better reader cannot beat the menu; a worse one can
+certainly fail to use it.
 
 ---
 
-## The ceiling nobody can cross
+## 9. A second corpus found bugs that more testing would not have
 
-One limit shapes every accuracy number here, and it applies to any span
-extraction task scored against human annotation.
+Three of the defects fixed while writing this had been invisible for five
+phases, and all three surfaced within hours of running a second dataset:
 
-**The answer key's own boundary convention is only about 67% deterministic.**
-Over 25,002 boundary decisions, 66.9% fall at tokens the annotators treat one
-way at least 95% of the time; 20% lean; 13% are genuinely mixed. "terrible" is
-kept inside a span 52% of the time. "very" 70%. "in" 40%.
+- the judge's prompt was never ported, so on FiNER a model grading SEC filings
+  was asked whether the span was *"really an adverse reaction the writer says
+  they experienced"*
+- CADEC's exclusion list — a claim about *one* answer key — was applied to every
+  corpus
+- models were resolved lazily per rung, so a mistyped judge name burned **133
+  minutes** of extraction and voting before failing at the rung that needed it
 
-A perfect learner of that convention gets roughly 0.92 per boundary decision,
-and a span needs two — capping the exact-span rate near 0.85. Composed with the
-measured detection and retrieval ceilings, that puts F1 at about **0.68 with
-every component at its best**, and a directly measured oracle lands at 0.667.
+A fourth came from a new *model* rather than a new corpus: the pick call crashed
+the entire run on a bare JSON array, a reply shape the find call had accepted
+for weeks. Same file, same rule, one call site missed.
 
-Exact F1 above 0.70 is not reachable on this task by any system, including a
-perfect one, and the binding constraint is the answer key rather than the model.
-Exact matching scores a boundary disagreement as both a false positive and a
-false negative — punishing it twice for a difference two humans also disagree
-about.
-
-Every number here is therefore reported on both layers, and any claim in the
-0.70 class is stated on overlap.
-
-**What this taught us:** if you are benchmarking span extraction against human
-annotation, measure your annotators' agreement with each other first. It is
-probably your ceiling, and it is probably lower than you think.
+None were subtle once a second thing was tried, and none would have been found
+by more tests against the original substrate. **Diversity in what you test
+against finds a class of bug that depth of testing does not.**
 
 ---
 
-## What we would do differently
+## 10. The ceiling, and why every number here appears twice
 
-The premise was that stacking reliability layers buys reliability. Measured end
-to end, the system ships about a fifth of its answers at roughly four errors per
-hundred instead of sixty-three, and hands the rest to a person. **The layers
-made the errors visible rather than fewer.** That is worth something. It is not
-what they were bought for.
+One limit shapes every accuracy figure and applies to any span task scored
+against human annotation. **The answer key's own boundary convention is ~67%
+deterministic.** Over 25,002 boundary decisions, 66.9% fall at tokens the
+annotators treat consistently; 13% are genuinely mixed. "terrible" is kept
+inside a span 52% of the time. "very", 70%.
 
-If we started again:
+A perfect learner of that convention gets ~0.92 per decision, and a span needs
+two — capping exact-span rate near 0.85. Composed with measured detection and
+retrieval ceilings, **F1 ≈ 0.68 with every component at its best**; a directly
+measured oracle lands at 0.667.
 
-**Measure the generator's variance first.** It sets the resolution of every
-comparison you will make, and ours was larger than everything we had shipped.
+So **exact F1 above 0.70 is unreachable on this task by any system, including a
+perfect one**, and the binding constraint is the answer key. Exact match scores
+a boundary disagreement as both a false positive and a false negative —
+punishing twice a difference two humans also disagree about. Every number here
+is reported on both layers. If you are benchmarking span extraction against one
+number, measure your annotators' agreement first. It is probably your ceiling.
 
-**Never accept a single-draw result.** Three draws and a paired bootstrap. Our
-bootstrap certified an effect that reversed sign on the third run.
+---
 
-**Build the free layer first, and measure it against the answer key.** Every
-rejection there is false by construction. Ours had a 9.3% false-positive rate
-that three fixes took to 0.13% — errors every paid layer above would have
-inherited and reported as model error.
+## What we would actually tell you
 
-**Spend the paid layers' budget on a person instead.** Self-correction never
-fired, voting moved zero correct answers out of sample at 2.6x the extraction
-budget, and the judge was not wired to anything. The oracle ceiling says a
-reviewer takes coding accuracy from 0.291 to 0.990.
+We set out believing that stacking reliability layers buys reliability. Measured
+end to end, **the layers made errors visible rather than fewer** — which is
+worth a great deal, and is not what they were bought for.
 
-**Audit the composition, not just the layers.** Grep for the readers of every
-field you write.
+What survived:
 
-The machinery that makes the four-fifths we cannot answer *legible* to the
-person who has to answer them turned out to be worth more than any of the layers
-that tried to answer them.
+1. **Condition your confidence on something that does not resample.** Ours was a
+   controlled vocabulary; yours might be a schema, a type check, a database
+   lookup, a compiler. It held at ~85% across five model families spanning a
+   factor of 2.8 in accuracy.
+2. **Know its precondition.** The same check has *zero* coverage on a corpus
+   where the span is a number. Check yours applies before you build on it.
+3. **Three draws, or you have not measured it.** A single-draw interval
+   excluding zero certified an effect whose sign reversed on the third run.
+4. **Reproducibility is a model choice.** Four of five models were bit-identical
+   across runs. The one that was not bought 6.5 points and cost a spread larger
+   than every gain we shipped.
+5. **Test your free layer against your answer key first.** Every rejection there
+   is false by construction, so you get its false-positive rate exactly, for
+   nothing. Ours went from 9.3% to 0.13% — errors every paid layer above would
+   have inherited and reported as model error.
+6. **Measure the lenient setting's false-vouch rate before shipping it.** 19%
+   versus 0.1% is the gap between a gate and an endorsement machine.
+7. **A model checking itself adds nothing.** A different family adds a little. A
+   fixed external artefact adds a lot more.
+8. **Grep for the readers of every field you write.** Three of our layers
+   deferred to a fourth that never read them.
+9. **Re-measure the top when you change the bottom**, and **print coverage
+   beside every error rate** — 4 errors per 100 and 0 errors per 100 mean very
+   different things when the second is computed over nothing.
+10. **Do not justify a reliability layer on F1.** The metric cannot tell an
+    unwarranted answer from an incorrect one.
+
+The system ships about a fifth of its answers, at four errors per hundred
+instead of sixty-three, and hands the rest to a person. That is not what we set
+out to build. But the machinery that makes the other four-fifths *legible* to
+that person turned out to be worth more than any of the layers that tried to
+answer them.
 
 ---
 
 ## Reproducing this
 
-Every figure comes from commands in the project's build log, and every decision
-from a dated entry in its decision log. The corpus is not redistributable —
-CADEC carries the CSIRO Data Licence, non-commercial and non-transferable — and
-the vocabulary needs an affiliate licence.
+CADEC is not redistributable (CSIRO licence, non-commercial, non-transferable)
+and SNOMED needs an affiliate licence. **FiNER-139 is CC-BY-SA-4.0** — that arm
+is reproducible from a clean checkout, and we rebuilt it from its own documented
+instructions to confirm.
 
-**Limitations, stated plainly.** The held-out split was spent exactly once, so
-its intervals are the claim and no second draw exists to average with;
-everything measured after that point is tuning-side and unvalidatable, and is
-labelled as such throughout. The voting layer's numbers are samples and carry
-their run id. The judge is a 3.2B model grading a 20B one — the wrong way round,
-and the domain-adapted 7B we imported to fix it failed to return parseable
-verdicts at all, which taught us that domain adaptation does not buy
-instruction-following. The oracle desk is a tuning-side ceiling, gold-derived
-and labelled on every row; no real reviewer session was ever timed, so human
-minutes appear only at a declared rate and the honest cost measure is the
-*count* of records routed. The near-miss corruption is synthetic. And the corpus
-is public and from 2015, so it is almost certainly in pretraining — which
-inflates the bare-model baseline and makes every gain reported here
-conservative.
+**Limitations.** The held-out split was spent once, so its intervals are the
+claim and no second draw exists to average with; everything after is
+tuning-side, and labelled. Voting numbers are samples and carry their run id.
+The judge is a 3.2B model grading a 20B one. The oracle desk is a gold-derived
+ceiling; no real reviewer session was ever timed, so human cost is reported as a
+**count** of records routed, never as minutes. The near-miss corruption is
+synthetic. The FiNER arm has one dev run and no tuning history, so it stands
+next to CADEC as a demonstration and not as a matched comparison. And CADEC is
+public and from 2015, so it is almost certainly in pretraining — which inflates
+the bare-model baseline and makes every gain here **conservative**.
