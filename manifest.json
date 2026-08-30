@@ -143,6 +143,8 @@
         "BAND"
       ],
       "abstain_on_reject": true,
+      "abstain_on_judge_fail": false,
+      "abstain_on_judge_fail_note": "OFF, and declared here rather than left to r5.DEFAULTS. Appended 2026-08-30 on the owner's call, as the arm that finally gives rung 4 a READER: the 2026-08-28 audit found that rungs 2, 3 and 4 each defer to rung 5 and that r5.decide() reads none of the three, so rung 4's ~93k tokens per run could not move a shipped number by construction. With this true, a record the free check would have SHIPPED is withdrawn when the second-family judge failed it, under its own reason `judge_fail` so the ledger can count what the judge adds OVER the free check. The arm can only SUBTRACT coverage - a record already heading for ABSTAIN keeps `unresolved`, which is the more specific fact - and a missing or unparsed verdict is never read as a failed one. OFF because every published CADEC number was produced with rung 4 wired to nothing. Measured 2026-08-30, three draws: see docs/decisions.md and manifest.judgearm.json.",
       "tau_tuned_on": "dev",
       "tau_note": "tau is swept on dev only and written here BEFORE the first test run. 0.0 means the confidence gate is off until a real rung-0 confidence distribution exists to calibrate against."
     },

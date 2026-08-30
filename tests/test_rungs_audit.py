@@ -570,3 +570,128 @@ def test_a_bare_array_from_a_pick_call_is_not_wrapped_as_mentions():
     assert c._unwrap_array('{"picks": []}', "S2-pick") == '{"picks": []}'
     assert c._unwrap_array('[1,2,3]', "S2-pick") == '[1,2,3]'
     assert c.unwrapped == 3
+
+
+# --- rung 4 wired into rung 5: an off-by-default arm (2026-08-30) -------------
+#
+# The audit's structural finding was that every deferral in the ladder ends in
+# a field nothing reads: rung 2 writes `r2_declined`, rung 3 writes
+# `r3_unanimous_none`, rung 4 writes `r4_verdict`, and `r5.decide()` reads none
+# of the three. The owner's call on rung 4 was to WIRE IT AS AN ARM and measure
+# whether it adds anything, rather than to disable it or leave it a diagnostic.
+#
+# `abstain_on_judge_fail` defaults to False, so the shipped configuration is
+# byte-for-byte the one every published CADEC number was produced under.
+
+from ladder.rungs import r5 as _r5
+from ladder.schema import (
+    Record as _Record,
+    R_JUDGE_FAIL as _R_JUDGE_FAIL,
+    ZONE_ABSTAIN as _ABSTAIN,
+    ZONE_ACCEPT as _ACCEPT,
+    ZONE_BAND as _BAND,
+    ZONE_VERIFIED as _VERIFIED,
+)
+
+
+def _jrec(verdict, zone=_ACCEPT, **kw):
+    base = dict(doc_id="D1", entity_type="reaction", text="bit drowsy",
+                spans=[(9, 19)], sct="271782001")
+    base.update(kw)
+    r = _Record(**base)
+    r.checks["r1_verdict"] = zone
+    if verdict is not None:
+        r.checks["r4_verdict"] = verdict
+    return r
+
+
+def test_the_judge_arm_is_off_by_default():
+    """Every published CADEC number was produced with rung 4 wired to nothing."""
+    assert _r5.DEFAULTS["abstain_on_judge_fail"] is False
+    r = _jrec("fail")
+    assert _r5.decide(r, {})[0] == _VERIFIED
+
+
+def test_the_judge_arm_abstains_an_accepted_record_the_judge_failed():
+    r = _jrec("fail")
+    zone, reason = _r5.decide(r, {"abstain_on_judge_fail": True})
+    assert (zone, reason) == (_ABSTAIN, _R_JUDGE_FAIL)
+
+
+def test_the_judge_arm_leaves_a_passed_record_alone():
+    r = _jrec("pass")
+    assert _r5.decide(r, {"abstain_on_judge_fail": True})[0] == _VERIFIED
+
+
+def test_a_record_the_judge_never_reached_is_not_abstained_for_it():
+    """`r4_verdict` is None on a parse failure and absent when rung 4 did not
+    run at all. Neither is evidence against the record, and treating a missing
+    judgement as a failed one would abstain the whole run the moment the judge
+    was disabled."""
+    for r in (_jrec(None), _jrec(None)):
+        assert _r5.decide(r, {"abstain_on_judge_fail": True})[0] == _VERIFIED
+    r = _jrec("fail")
+    r.checks["r4_verdict"] = None
+    assert _r5.decide(r, {"abstain_on_judge_fail": True})[0] == _VERIFIED
+
+
+def test_the_judge_arm_cannot_rescue_a_record_the_free_check_already_withheld():
+    """The arm may only SUBTRACT coverage. A BAND record stays abstained and
+    keeps its own reason, because `unresolved` is the more specific fact and
+    the judge agreeing with it adds nothing."""
+    r = _jrec("fail", zone=_BAND)
+    zone, reason = _r5.decide(r, {"abstain_on_judge_fail": True})
+    assert zone == _ABSTAIN and reason != _R_JUDGE_FAIL
+    r2 = _jrec("pass", zone=_BAND)
+    assert _r5.decide(r2, {"abstain_on_judge_fail": True})[0] == _ABSTAIN
+
+
+def test_the_judge_arm_withdraws_the_answer_and_keeps_it(tmp_path):
+    from ladder.ledger import Ledger
+    r = _jrec("fail")
+    ledger = Ledger(tmp_path / "l.jsonl", run_id="t")
+    _r5.apply([r], {"D1": "she was bit drowsy"},
+              {"ledger": ledger, **_r5.DEFAULTS, "abstain_on_judge_fail": True})
+    ledger.close()
+    assert r.zone == _ABSTAIN and r.reason == _R_JUDGE_FAIL
+    assert r.sct is None
+    assert r.checks["withheld"]["sct"] == "271782001"
+
+
+def test_the_judge_arm_manifest_differs_from_the_shipped_one_by_exactly_one_key():
+    """An ablation manifest is only an ablation if it holds everything else fixed.
+
+    The spine ablation on 2026-08-30 nearly shipped a 5.9-point rung 0
+    difference charged to the rungs being dropped, because its manifests had
+    been written before rung 0 changed. `manifest.judgearm.json` exists to
+    isolate ONE flag, so this asserts that it does — key by key, not by
+    eyeball.
+    """
+    import json
+
+    a = json.load(open(_ROOT / "manifest.json"))
+    b = json.load(open(_ROOT / "manifest.judgearm.json"))
+    b.pop("_judgearm_note", None)
+
+    def walk(x, y, path=""):
+        if isinstance(x, dict) and isinstance(y, dict):
+            for k in sorted(set(x) | set(y)):
+                yield from walk(x.get(k), y.get(k), f"{path}.{k}")
+        elif x != y:
+            yield path
+
+    assert list(walk(a, b)) == [".rungs.5.abstain_on_judge_fail"]
+    assert a["rungs"]["5"]["abstain_on_judge_fail"] is False
+    assert b["rungs"]["5"]["abstain_on_judge_fail"] is True
+
+
+def test_the_shipped_manifest_declares_the_judge_arm_off_explicitly():
+    """Same rule as the rung 0 arms: the declared configuration must be the
+    measured one, and must not lean on a code default that can move."""
+    import json
+
+    from ladder.rungs import r5
+
+    man = json.load(open(_ROOT / "manifest.json"))
+    assert man["rungs"]["5"]["abstain_on_judge_fail"] is False
+    assert "abstain_on_judge_fail" in r5.DEFAULTS
