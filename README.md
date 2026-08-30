@@ -1,3 +1,25 @@
+<!-- Paste at the very top of README.md, above the existing title. -->
+<!-- Requires docs/figures/fig0-hero.png, which is already in the repo. -->
+
+<p align="center">
+  <img src="docs/figures/fig0-hero.png" width="820"
+       alt="Seven ladder rungs rendered as beads, coloured by what each layer bought: two paid for themselves, two cost tokens and changed nothing, three had no measured effect.">
+</p>
+
+<h1 align="center">The AI Reliability Ladder</h1>
+
+<p align="center">
+  <i>Seven reliability layers around a language model, measured one at a time
+  on a task with a real answer key — what each one bought, and what it charged.</i>
+</p>
+
+<p align="center">
+  <a href="docs/article-v2.md">the article</a> ·
+  <a href="docs/decisions.md">the decision log</a> ·
+  <a href="docs/figures/">figure sources</a>
+</p>
+
+---
 # The Reliability Ladder
 
 Measure what each reliability layer wrapped around an LLM actually buys — and
