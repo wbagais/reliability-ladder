@@ -135,7 +135,8 @@ in the vocabulary come from the same language.
 
 ## 2. The ground moves more than our improvements do
 
-Three draws of one frozen configuration — same documents, same machine, same hour:
+Three draws of one frozen configuration — same documents, same machine, same
+hour, extraction step alone over 40 development documents:
 
 | | draw 0 | draw 1 | draw 2 | spread |
 |---|---|---|---|---|
@@ -292,7 +293,8 @@ wrong. It is saying it has no evidence either way.
 We ported everything to FiNER-139. Sixteen one-line harness edits, no changes to
 rung logic.
 
-The result is not a worse score. It is no score: **ACCEPT 0, BAND 291, REJECT 1.**
+The result is not a worse score. It is no score — full stack, 292 records:
+**ACCEPT 0, BAND 291, REJECT 1.**
 Coverage 1.0 → 0.0. Every record routed to a person. The system that ships 21% of
 its answers on CADEC ships **0%** here.
 
@@ -320,14 +322,25 @@ corroboration is inapplicable, and reports flawless numbers while doing it.
 ### Two things the second corpus told us about the first
 
 FiNER's recall is 0.303, which reads as *the model never proposes 70% of gold*. It
-does not. That number is **detection 0.685 × coding 0.446**: the model reaches two
-thirds of the spans and mis-codes most of what it reaches. **One recall number for
+does not. That number is a product — **detection recall × coding accuracy on the
+spans it did reach** — and both halves are measurable separately:
+
+| | detection recall | coding accuracy | = recall |
+|---|---|---|---|
+| full stack, one run | 0.685 | 0.446 | 0.303 |
+| extraction alone, three draws | 0.679 / 0.691 / 0.691 | 0.393 / 0.421 / 0.421 | 0.267 / 0.291 / 0.291 |
+
+Either way the shape is the same: the model reaches roughly two thirds of the
+spans and mis-codes most of what it reaches. **One recall number for
 a pipeline that both finds and classifies sends your effort to the wrong half.**
 
 Decomposing the mis-codes, one tag stopped looking like the others:
 
 > `AccrualForEnvironmentalLossContingencies` is predicted **57 times in 292
 > records.** The answer key uses it **twice.**
+>
+> *(extraction alone, draw 0. The other draws and the full stack agree: 63 of
+> 303, 64 of 292 — between 19.5% and 21.9% of all predictions.)*
 
 It is menu slot 0 — our menu is alphabetical and that tag is first. An arm that
 re-orders the menu by sentence relevance moves it off slot 0, which makes a clean
@@ -339,8 +352,8 @@ natural experiment:
 | times predicted | **57** | **3** |
 | …taken while sitting at slot 0 | 57 | 3 |
 
-**The model picks it if and only if it is first.** That is 19.5% of every
-prediction on this corpus going to line one of a list. On a real sentence:
+**The model picks it if and only if it is first.** That is roughly **one
+prediction in five** on this corpus going to line one of a list. On a real sentence:
 
 > *"…trade accounts receivable are all due in **12 months** or less."*
 > → `AccrualForEnvironmentalLossContingencies`
@@ -351,8 +364,9 @@ lists is documented and we are rediscovering it; what is ours is the setting —
 options in a production pipeline, not four in a benchmark.
 
 It also cost us the arm. Re-ordering *killed* the attractor and still made the
-system worse — coding accuracy 0.393 → 0.304, 0.421 → 0.263, 0.421 → 0.263 across
-three draws — because it *amplified* the positional prior — moving mass off the
+system worse — coding accuracy **0.393 → 0.304, 0.421 → 0.263, 0.421 → 0.263**
+across three draws of the extraction step — because it *amplified* the positional
+prior — moving mass off the
 model's own reading and onto the ranker's top slot. **A ranking can carry real
 signal, visibly move the model, and still lose to what it displaced.**
 
