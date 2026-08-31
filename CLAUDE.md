@@ -391,8 +391,12 @@ column, never folded into correct — headline denominators unchanged;
 4. **The published artifact is the ARTICLE now**, not the build log.
    `docs/article.html` serves the existing URL; `docs/article-build-log.html`
    is archived as `docs/versions/article-build-log-v2-2026-08-28.html`.
-   `docs/article_v3.md` is the article revision (article.md + the four results
-   above). New material is marked in the typeset page.
+   **`docs/article.md` is the article, and it is canonical** — the 2026-08-30
+   revision (the four results above) was promoted into it and the version it
+   replaced is `docs/versions/article-v2-2026-08-28.md`. There is no
+   `article_vN.md` beside it: one file, one answer to "which article is this".
+   New material is marked in the typeset page so a reader who saw revision 2
+   can find what changed.
 
 **Where this session's artifacts live.** `out/` is gitignored, so every run and
 every harness script cited above sits in the worktree

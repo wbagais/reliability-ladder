@@ -120,6 +120,43 @@ draw, it will certify noise, confidently, with a tight interval.
 cannot see the dominant noise term.** Three draws minimum, plus the bootstrap.
 And not ten-document subsets, which overstate both effect size and variance.
 
+### Then we went and paid the same debt on our own configuration
+
+Adopting a rule and having complied with it are different things. Our shipped
+extraction config declared five improvements, and two of them — a coordination
+splitter and one threshold on a span trimmer — had been accepted on **exactly
+the protocol we had just condemned**: one draw, one bootstrap. They had been
+sitting in the manifest for three days with a note saying so.
+
+Nine runs later — each improvement removed from the shipped config in turn,
+three draws each, paired bootstrap over documents:
+
+| removed | F1 exact, three draws | pooled |
+|---|---|---|
+| coordination splitter | +0.0389 / +0.0345 / +0.0579 | **+0.0438 [+0.0012, +0.0937]** |
+| trimmer threshold | +0.0139 / +0.0183 / +0.0098 | +0.0140 [−0.0163, +0.0500] |
+
+Both survive, on different strengths, and we now say which is which: the
+splitter is separated; the threshold is *consistent and small* — six
+sign-consistent comparisons out of six, every interval containing zero, and an
+effect smaller than the 1.3-point spread the same three draws show in the
+baseline itself.
+
+The one claim that did **not** survive is one the original measurement had
+never explicitly made. The splitter buys **exact span match only**: on overlap
+its sign reverses (+0.0000 / −0.0047 / +0.0229). That is what its mechanism
+predicts — cutting a coordinated quote into pieces turns one already
+overlap-matched blob into several exactly-matched spans, so overlap has nothing
+to gain — and the single-draw headline had quietly implied otherwise.
+
+One more thing fell out of this, and it is the least glamorous finding in the
+article. The paired bootstrap every one of our arms had been measured with
+resampled documents as `set(random.choices(ids, k=len(ids)))`. **The `set()`
+collapses the duplicates a bootstrap draw is made of**, leaving a ~63%
+subsample — a different, wider estimator wearing a bootstrap's name. Nobody
+noticed for a month because it produced plausible intervals. If you have a
+statistics helper you wrote once and have trusted since, go and read it.
+
 ---
 
 ## 3. What a free deterministic check can and cannot see
@@ -258,6 +295,117 @@ property is "abstain unless corroborated" degrades to "abstain always" the
 moment corroboration is inapplicable, and it does so **silently, reporting
 flawless numbers**. Print coverage beside every error rate, always.
 
+### What the second corpus is short of, and it is not what the headline says
+
+FiNER's recall is 0.303, which reads as "the model never proposes 70% of the
+answer key". It does not. Decomposed:
+
+> detection recall **0.685** × coding accuracy on matched spans **0.446** =
+> recall 0.303
+
+The model reaches more than two thirds of the gold spans and **mis-codes most
+of what it reaches**. It also proposes 292 spans against 165 gold, so it is not
+under-extracting — the miss is *which* numbers, not how many. On a corpus where
+the whole 139-tag vocabulary fits in the prompt and the correct tag is
+therefore *always on the menu*, recall work is coding work.
+
+A single number said "find more"; the decomposition says "choose better". If
+you report one recall figure for a pipeline that both finds and classifies, you
+will spend your effort on the wrong half.
+
+### So we tried to choose better, and made it worse
+
+The menu here is all 139 tags in alphabetical order — no ranking at all,
+because a bare number carries no words to rank on. But the *sentence* does:
+"conversion price of $ 11.16 per share" is exactly the evidence a person uses.
+An offline probe agreed, putting the correct tag at **median rank 7 of 139**
+when the 139 tag names are ranked against the text around the number.
+
+So we reordered the menu by that ranking, dropping nothing — menu recall stays
+1.000 and detection is byte-identical by construction. Coding accuracy went
+**0.393 → 0.304.**
+
+The artifacts say why, and it is not that the ranking was bad:
+
+| | alphabetical menu | context-ranked menu |
+|---|---|---|
+| pick lands on slot 0 | 20.4% | **50.2%** |
+| median picked slot | 30 | **0** |
+| accuracy when slot 0 is picked | 0.087 | **0.373** |
+| accuracy when any other slot is picked | **0.457** | 0.245 |
+
+Read the last two rows together. The ranking *is* informative — its top slot is
+four times better than the alphabetical top slot. The model plainly *follows*
+it — slot-0 selection more than doubles. And it still loses, because the thing
+it displaced was better: the model's own unaided reading of an unranked menu
+scores **0.457**, and the ranker's top slot scores 0.373.
+
+> A ranking can carry real signal, visibly move the model, and still make the
+> system worse — because what it displaces was better than it.
+
+That completes a pair. On the medical corpus, *destroying* a good menu order
+cost 10–12 points. Here, *imposing* a mediocre one costs 8.9. The pick is
+exquisitely sensitive to order in both directions, which means menu order is not
+a presentation detail you can leave to whatever your vocabulary enumerates in.
+
+(Stated plainly: this is **one draw**, and by our own rule that is not a
+measurement. We report it as a rejection on an effect roughly seven times the
+run-to-run spread plus a mechanism read off the artifacts, not as a separated
+result. Making it a three-draw finding needs four more runs at ~78 minutes each,
+because a paired comparison needs both sides at the same draw.)
+
+### One document, refused, cost 12.7% of the answer key
+
+Fifty-two gold mentions were never touched by any prediction, and **21 of them
+— 12.7% of the entire dev gold — were in a single document**. Not a hard one: a
+paragraph about convertible notes. The extractor spent 2,153 reasoning tokens
+on it and answered
+
+> *"I'm sorry, but I can't provide that."*
+
+An SEC filing, in a public dataset, under a CC-BY-SA licence. There is no
+plausible reading in which this is unsafe content; the refusal is simply what
+the model did.
+
+Our ledger recorded it as `json_decode` — as a **model that cannot emit JSON**.
+That is the same mislabelling we had already fixed once, a class further out:
+we had learned to keep `timed_out` and `truncated` apart from `json_decode`,
+because "the harness cut it off" and "the model cannot format" are different
+findings. A refusal is a third thing again, and it is the only one of the four
+that no schema, token cap or retry touches. It now has its own label, ranked
+most-specific-first: `timed_out > truncated > refused > json_decode`.
+
+Two details worth stealing. The failure was **1 document in 40 and 40% of the
+whole detection gap** — content refusals do not distribute evenly, they land on
+whole documents, so per-record error rates hide them completely. And the
+detector had to be written against the apostrophe the model actually types:
+*I’m* with U+2019, not *I'm*. A refusal detector written against the ASCII form
+passes every test you would think to write and never fires once on real output.
+
+### The refusal is not the document. It is not even the model. It is the draw.
+
+We put the same document back to the same model, same prompt, temperature 0:
+
+| | draw 0 | draw 1 | draw 2 |
+|---|---|---|---|
+| `gpt-oss:20b` | **refused** | 33 mentions | 33 mentions |
+
+And to the other families, one draw each, because four of the five are
+bit-reproducible and three identical draws of a bit-reproducible model are three
+copies of one measurement: `llama3.1:8b` 38 mentions, `mistral:7b-instruct` 22,
+`granite4:micro-h` 9. Nobody else declined.
+
+This is what section 1's nondeterminism actually costs, and the 1.3-point
+average badly understates it:
+
+> The variance is not spread evenly over records. It concentrates into
+> **whole-document, all-or-nothing outcomes** — and one of them here is 12.7% of
+> the corpus's answer key, decided by which draw you got.
+
+A bit-reproducible model can be wrong, but it cannot answer on Tuesday and
+refuse on Wednesday. That is a second price on the same model-selection choice,
+and it is the one an operator would feel.
+
 ---
 
 ## 6. What the four paid resolvers bought
@@ -300,6 +448,28 @@ it counts:
 Set that against the free check's 2.36–6.12× across five models. **A string
 comparison against a controlled vocabulary out-separates the LLM judge on the
 only axis a judge is for**, at zero marginal cost.
+
+We later found the judge was wired to nothing at all (§7) and, rather than
+delete it, wired it to the refusal step as an off-by-default arm and ran it —
+because "it would have helped if it had been connected" is a hypothesis, not a
+result. Three draws, the arm withdrawing any shipped answer the judge failed:
+
+| | off | on |
+|---|---|---|
+| coverage | 0.210 / 0.202 / 0.215 | 0.153 / 0.149 / 0.156 |
+| precision on answered | 0.808 / 0.800 / 0.824 | 0.816 / 0.811 / 0.838 |
+| **yield** (correct ÷ all) | 0.169 / 0.161 / 0.177 | **0.125 / 0.121 / 0.131** |
+| records to a person | 196 / 198 / 186 | 210 / 211 / 200 |
+
+It withdraws 14, 13 and 14 shipped answers to remove **3 errors each time** —
+roughly **3.7 correct answers destroyed per error caught** — and the records it
+withdraws are only 1.11–1.21× more likely to be wrong than the ones it keeps.
+The same free check, on the same records, separates 3.03–3.15×.
+
+Precision went up, which is the trap: **abstaining always raises precision.**
+Yield is the number that cannot be fooled by abstaining, and it fell 26%. The
+arm stays off. The judge was not being wasted by a wiring mistake; the wiring
+was the only thing keeping its cost from becoming a loss.
 
 There is a caveat that turned into a finding. Our judge is a 3.2B model grading
 a 20B one, and on CADEC it engaged with spans and said nothing useful about
@@ -385,6 +555,13 @@ of the three.** It reads the deterministic verdict and nothing else. Three
 layers ran, cost money, passed their tests, and were wired to nothing. No test
 could have caught it, because every layer does exactly what its own
 documentation promises. The hole is *between* them.
+
+The obvious next move is to connect them and watch the number go up. We did
+connect one — the judge — and the number went **down** (§6). Which is the more
+useful version of this finding: the wiring hole hid a layer that was not
+carrying anything, and three months of "the judge will pay off once rung 5 acts
+on it" was an argument nobody had priced. **Grep for the readers of every field
+you write — and when you find an orphan, measure it before you adopt it.**
 
 **A fix three layers down silently disabled two layers up.** The checks used to
 reject 5.1% of records, nearly all for an unlocatable span. Then extraction
@@ -472,6 +649,8 @@ phases, and all three surfaced within hours of running a second dataset:
 - the judge's prompt was never ported, so on FiNER a model grading SEC filings
   was asked whether the span was *"really an adverse reaction the writer says
   they experienced"*
+- a **content refusal** on one document was being counted as a JSON parse
+  failure, and it was holding 12.7% of that corpus's gold (§5)
 - CADEC's exclusion list — a claim about *one* answer key — was applied to every
   corpus
 - models were resolved lazily per rung, so a mistyped judge name burned **133
@@ -524,10 +703,17 @@ What survived:
 2. **Know its precondition.** The same check has *zero* coverage on a corpus
    where the span is a number. Check yours applies before you build on it.
 3. **Three draws, or you have not measured it.** A single-draw interval
-   excluding zero certified an effect whose sign reversed on the third run.
-4. **Reproducibility is a model choice.** Four of five models were bit-identical
-   across runs. The one that was not bought 6.5 points and cost a spread larger
-   than every gain we shipped.
+   excluding zero certified an effect whose sign reversed on the third run. And
+   then check whether your *own shipped config* complies: two of ours did not,
+   and re-testing them killed a claim on one of the two scoring layers.
+   While you are there, read the bootstrap helper itself — ours had been
+   collapsing its resamples into a set for a month.
+4. **Reproducibility is a model choice**, and its price is worse than the
+   average says. Four of five models were bit-identical across runs. The one
+   that was not bought 6.5 points and cost a 1.3-point spread — and, on one
+   document in forty, cost the whole document: it refused on one draw and
+   answered on the next two. Variance concentrates into all-or-nothing outcomes
+   that an averaged spread hides.
 5. **Test your free layer against your answer key first.** Every rejection there
    is false by construction, so you get its false-positive rate exactly, for
    nothing. Ours went from 9.3% to 0.13% — errors every paid layer above would
@@ -535,13 +721,24 @@ What survived:
 6. **Measure the lenient setting's false-vouch rate before shipping it.** 19%
    versus 0.1% is the gap between a gate and an endorsement machine.
 7. **A model checking itself adds nothing.** A different family adds a little. A
-   fixed external artefact adds a lot more.
-8. **Grep for the readers of every field you write.** Three of our layers
-   deferred to a fourth that never read them.
-9. **Re-measure the top when you change the bottom**, and **print coverage
-   beside every error rate** — 4 errors per 100 and 0 errors per 100 mean very
-   different things when the second is computed over nothing.
-10. **Do not justify a reliability layer on F1.** The metric cannot tell an
+   fixed external artefact adds a lot more. When we finally connected the
+   different-family judge to something that could act on it, it destroyed 3.7
+   correct answers per error it caught.
+8. **Grep for the readers of every field you write** — then measure the orphan
+   before you adopt it. Three of our layers deferred to a fourth that never read
+   them; connecting one moved the honest metric *down*.
+9. **Name failures at the grain that changes what you would do.** Timed out,
+   truncated, refused and malformed are four different problems wearing one
+   label, and only one of them is fixed by anything you can change in a prompt.
+10. **Decompose recall before you try to raise it.** Ours read as "the model
+   proposes 30% of the answer key"; it actually reaches 68.5% and mis-codes what
+   it reaches. Then check that your fix is better than what it replaces: ranking
+   our candidate menu by real signal made the system worse, because the model
+   deferred to a ranking weaker than its own reading.
+11. **Re-measure the top when you change the bottom**, and **print coverage
+    beside every error rate** — 4 errors per 100 and 0 errors per 100 mean very
+    different things when the second is computed over nothing.
+12. **Do not justify a reliability layer on F1.** The metric cannot tell an
     unwarranted answer from an incorrect one.
 
 The system ships about a fifth of its answers, at four errors per hundred
@@ -561,7 +758,10 @@ instructions to confirm.
 
 **Limitations.** The held-out split was spent once, so its intervals are the
 claim and no second draw exists to average with; everything after is
-tuning-side, and labelled. Voting numbers are samples and carry their run id.
+tuning-side, and labelled — including every number added in this revision (the
+three-draw re-test of our own two arms, the judge arm, and the FiNER recall
+decomposition). None of it is validated against held-out data and none of it
+re-opens the held-out numbers. Voting numbers are samples and carry their run id.
 The judge is a 3.2B model grading a 20B one. The oracle desk is a gold-derived
 ceiling; no real reviewer session was ever timed, so human cost is reported as a
 **count** of records routed, never as minutes. The near-miss corruption is

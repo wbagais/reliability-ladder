@@ -4,8 +4,8 @@
 > ARTICLE (`docs/article.html`), not this document — the ladder-framed
 > typeset build log was archived as
 > `docs/versions/article-build-log-v2-2026-08-28.html`. The article itself
-> lives in `docs/article.md` (canonical) and `docs/article_v3.md` (the
-> current revision).
+> lives in `docs/article.md`, which is canonical; superseded revisions are
+> archived under `docs/versions/`.
 
 Raw material for the article, organised the way the piece needs it rather than
 the way the work happened. `decisions.md` is the chronological log; this is the
