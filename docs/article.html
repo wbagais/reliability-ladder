@@ -530,6 +530,25 @@ rung 6   292 of 292 records routed to a person</code></pre>
       <p>That completes a pair. On the medical corpus, <em>destroying</em> a good menu order cost 10&ndash;12 points. Here, <em>imposing</em> a mediocre one costs 8.9. The pick is exquisitely sensitive to order in both directions, which means menu order is not a presentation detail you can leave to whatever your vocabulary happens to enumerate in.</p>
       <p style="font-size:15px;color:var(--muted)">Stated plainly: this is <strong>one draw</strong>, and by our own rule that is not a measurement. We report it as a rejection on an effect roughly seven times the run-to-run spread plus a mechanism read off the artifacts, not as a separated result. Making it a three-draw finding needs four more runs at ~78 minutes each, because a paired comparison needs both sides at the same draw.</p>
 
+      <h3>Then we found what the pick was actually doing, and it is worse than a bad ranking<span class="tag new">new</span></h3>
+      <p>Decomposing the 68 mis-coded spans the other way &mdash; the mirror of the false-positive analysis &mdash; turned up something we had been staring past. The wrong tags are not near-misses: 79% share no leading word with gold, 65% have <em>disjoint</em> token sets, and the confusions are a long tail of 46 distinct pairs. But one tag is not in the tail:</p>
+      <blockquote><p><code>AccrualForEnvironmentalLossContingencies</code> is predicted <strong>57 times in 292 records.</strong> The answer key uses it <strong>twice.</strong></p></blockquote>
+      <p>It is menu slot 0. Our menu is <code>sorted(set(tags))</code>, and that tag is alphabetically first.</p>
+      <p>The context-ranked arm turned out to be exactly the experiment that separates position from meaning, because it moves the tag off slot 0:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">alphabetical menu</th><th class="num">context-ranked menu</th></tr></thead>
+        <tbody>
+          <tr><td>its median menu slot</td><td class="num hi">0</td><td class="num">92</td></tr>
+          <tr><td>times predicted</td><td class="num hi">57</td><td class="num ok">3</td></tr>
+          <tr><td>&hellip;of those, taken while sitting at slot 0</td><td class="num">57</td><td class="num">3</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>The model picks it if and only if it is first.</strong> Not usually &mdash; always. That is 19.5% of every prediction on this corpus going to the first line of a list.</p>
+      <p>Which turns the arm's failure into two real effects pulling opposite ways. It <em>fixed</em> something: the attractor collapsed, 57 spurious predictions to 3. And it <em>amplified</em> something: slot-0 selection went 20.4% &rarr; 50.2%, moving mass off the model's own reading of the menu (0.457) and onto the ranker's top slot (0.373). Net negative &mdash; but &ldquo;the ranking was bad&rdquo; was never the story.</p>
+      <p>It also names the next thing to try, and it is not a better ranker: <strong>break the position prior instead of feeding it</strong> &mdash; a slot 0 that is never a valid answer, or a per-mention permutation with a fixed seed.</p>
+      <p>And it composes with the medical corpus rather than contradicting it. There the menu is ordered by retrieval score, so the same positional prior lands on the <em>best</em> candidate and is aligned with quality &mdash; which is exactly why alphabetising that menu cost 10&ndash;12 points. One prior, two corpora, opposite consequences, decided entirely by what your ordering happens to put first.</p>
+      <blockquote><p>If your model picks from a list, measure how often it takes line one. Ours took line one a fifth of the time, on a corpus where line one was almost never the answer, and no accuracy metric we had would ever have said so.</p></blockquote>
+
       <h3>One document, refused, cost 12.7% of the answer key<span class="tag new">new</span></h3>
       <p>Fifty-two gold mentions were never touched by any prediction, and <strong>21 of them &mdash; 12.7% of the entire dev gold &mdash; were in a single document</strong>. Not a hard one: a paragraph about convertible notes. The extractor spent 2,153 reasoning tokens on it and answered</p>
       <blockquote><p><em>&ldquo;I'm sorry, but I can't provide that.&rdquo;</em></p></blockquote>
@@ -724,6 +743,7 @@ rung 6   292 of 292 records routed to a person</code></pre>
         <li><strong>A model checking itself adds nothing.</strong> A different family adds a little. A fixed external artefact adds a lot more. When we finally connected the different-family judge to something that could act on it, it destroyed 3.7 correct answers per error it caught.<span class="tag new">new</span></li>
         <li><strong>Grep for the readers of every field you write</strong> &mdash; then measure the orphan before you adopt it. Three of our layers deferred to a fourth that never read them; connecting one moved the honest metric <em>down</em>.</li>
         <li><strong>Name failures at the grain that changes what you would do.</strong> Timed out, truncated, refused and malformed are four different problems wearing one label, and only one of them is fixed by anything you can change in a prompt.<span class="tag new">new</span></li>
+        <li><strong>If your model picks from a list, measure how often it takes line one.</strong> Ours took the alphabetically-first tag 19.5% of the time and the answer key used it twice &mdash; and it took that tag if and only if it was first. No accuracy metric would have told us.<span class="tag new">new</span></li>
         <li><strong>Decompose recall before you try to raise it</strong>, then check that your fix is better than what it replaces. Ours read as &ldquo;the model proposes 30% of the answer key&rdquo;; it actually reaches 68.5% and mis-codes what it reaches. And ranking the candidate menu by real signal made the system <em>worse</em>, because the model deferred to a ranking weaker than its own reading.<span class="tag new">new</span></li>
         <li><strong>Re-measure the top when you change the bottom</strong>, and <strong>print coverage beside every error rate</strong> &mdash; 4 errors per 100 and 0 errors per 100 mean very different things when the second is computed over nothing.</li>
         <li><strong>Do not justify a reliability layer on F1.</strong> The metric cannot tell an unwarranted answer from an incorrect one.</li>

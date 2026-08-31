@@ -388,6 +388,24 @@ column, never folded into correct — headline denominators unchanged;
      still lose to what it displaced. **ONE DRAW** — three needs FOUR runs
      (both sides at d1 and d2) at ~78 min each. FiNER's own run-to-run spread
      has never been measured.
+   - **THE SLOT-0 ATTRACTOR, and it is the session's sharpest result.**
+     `AccrualForEnvironmentalLossContingencies` is **menu slot 0** (the menu is
+     `sorted(set(tags))`) and is predicted **57 of 292** times against **2 in
+     gold** — **19.5% of all predictions are the list's first line.** The
+     context arm is the free position-vs-semantics discriminator: it moves the
+     tag to median slot 92 and the prediction count falls **57 → 3**, and in
+     BOTH arms every single one of those predictions was taken while the tag
+     sat at slot 0. The model takes it **iff** it is first. So the context arm
+     is TWO effects, not one failure: it killed the attractor (a real fix) and
+     amplified the positional prior (20.4% → 50.2% slot-0 picks), net negative.
+     **NEXT EXPERIMENT, and it is not a better ranker: break the position prior
+     — a slot 0 that is never a valid answer, or a per-mention permutation with
+     a fixed seed.** Composes with CADEC rather than contradicting it: there the
+     menu is retrieval-score-ordered, so the same prior lands on the BEST
+     candidate, which is why alphabetising it cost 10-12pt.
+     `out/harness/finermiscode.py`. Also: of 113 matched spans 68 are miscoded
+     and **0 are abstentions**, 79.4% of wrong tags share no leading word with
+     gold, and 13 predictions are CONCEPT_LESS against 0 in gold.
 4. **The published artifact is the ARTICLE now**, not the build log.
    `docs/article.html` serves the existing URL; `docs/article-build-log.html`
    is archived as `docs/versions/article-build-log-v2-2026-08-28.html`.

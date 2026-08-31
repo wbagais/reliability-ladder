@@ -354,6 +354,52 @@ run-to-run spread plus a mechanism read off the artifacts, not as a separated
 result. Making it a three-draw finding needs four more runs at ~78 minutes each,
 because a paired comparison needs both sides at the same draw.)
 
+### Then we found what the pick was actually doing, and it is worse than a bad ranking
+
+Decomposing the 68 mis-coded spans the other way — the mirror of the
+false-positive analysis — turned up something we had been staring past. The
+wrong tags are not near-misses: 79% share no leading word with gold, 65% have
+*disjoint* token sets, and the confusions are a long tail of 46 distinct pairs.
+But one tag is not in the tail:
+
+> `AccrualForEnvironmentalLossContingencies` is predicted **57 times in 292
+> records.** The answer key uses it **twice.**
+
+It is menu slot 0. Our menu is `sorted(set(tags))`, and that tag is
+alphabetically first.
+
+The context-ranked arm turned out to be exactly the experiment that separates
+position from meaning, because it moves the tag off slot 0:
+
+| | alphabetical menu | context-ranked menu |
+|---|---|---|
+| its median slot | **0** | 92 |
+| times predicted | **57** | **3** |
+| …of those, taken while sitting at slot 0 | 57 | 3 |
+
+**The model picks it if and only if it is first.** Not usually — always. That is
+19.5% of every prediction on this corpus going to the first line of a list.
+
+Which turns the arm's failure into two real effects pulling opposite ways. It
+*fixed* something: the attractor collapsed, 57 spurious predictions to 3. And it
+*amplified* something: slot-0 selection went 20.4% → 50.2%, moving mass off the
+model's own reading of the menu (0.457) and onto the ranker's top slot (0.373).
+Net negative — but "the ranking was bad" was never the story.
+
+It also names the next thing to try, and it is not a better ranker: **break the
+position prior instead of feeding it** — a slot 0 that is never a valid answer,
+or a per-mention permutation with a fixed seed.
+
+And it composes with the medical corpus rather than contradicting it. There the
+menu is ordered by retrieval score, so the same positional prior lands on the
+*best* candidate and is aligned with quality — which is exactly why
+alphabetising that menu cost 10–12 points. One prior, two corpora, opposite
+consequences, decided entirely by what your ordering happens to put first.
+
+> If your model picks from a list, measure how often it takes line one. Ours
+> took line one a fifth of the time, on a corpus where line one was almost never
+> the answer, and no accuracy metric we had would ever have said so.
+
 ### One document, refused, cost 12.7% of the answer key
 
 Fifty-two gold mentions were never touched by any prediction, and **21 of them
