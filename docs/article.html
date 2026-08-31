@@ -1,0 +1,797 @@
+<title>Which Answers Can You Trust?</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,500;0,600;1,6..72,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+:root{
+  --ground:#F4F6F7;
+  --surface:#FFFFFF;
+  --surface-2:#EDF1F2;
+  --ink:#121A1E;
+  --ink-2:#31434B;
+  --muted:#61757D;
+  --rule:#D8E0E3;
+  --rule-soft:#E6ECEE;
+  --accent:#0C6469;
+  --accent-soft:#0C646914;
+  --reject:#9E3B2A;
+  --band:#8C6210;
+  --accept:#2C6349;
+  --on-zone:#FFFFFF;
+  --shadow:0 1px 2px rgba(18,26,30,.05), 0 8px 24px -16px rgba(18,26,30,.22);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#0E1418;
+    --surface:#141D22;
+    --surface-2:#1A252B;
+    --ink:#E7EEF0;
+    --ink-2:#B7C7CD;
+    --muted:#8A9DA5;
+    --rule:#26343B;
+    --rule-soft:#1E2A31;
+    --accent:#54BFC3;
+    --accent-soft:#54bfc31f;
+    --reject:#E08976;
+    --band:#D6A947;
+    --accept:#77BE9C;
+    --on-zone:#0E1418;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0E1418;
+  --surface:#141D22;
+  --surface-2:#1A252B;
+  --ink:#E7EEF0;
+  --ink-2:#B7C7CD;
+  --muted:#8A9DA5;
+  --rule:#26343B;
+  --rule-soft:#1E2A31;
+  --accent:#54BFC3;
+  --accent-soft:#54bfc31f;
+  --reject:#E08976;
+  --band:#D6A947;
+  --accept:#77BE9C;
+  --on-zone:#0E1418;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -16px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:"Public Sans","Helvetica Neue",Arial,sans-serif;
+  font-size:16.5px;
+  line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- layout ---------- */
+.wrap{max-width:900px;margin:0 auto;padding:0 24px}
+main{display:block}
+.band-row{
+  display:grid;
+  grid-template-columns:168px minmax(0,68ch);
+  gap:0 40px;
+  align-items:start;
+  justify-content:center;
+}
+@media (max-width:900px){
+  .band-row{grid-template-columns:minmax(0,1fr);gap:0}
+  .rail{margin-bottom:10px}
+}
+.rail{
+  font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11.5px;
+  line-height:1.55;
+  letter-spacing:.02em;
+  color:var(--muted);
+  padding-top:.55em;
+  text-transform:uppercase;
+}
+.rail b{display:block;color:var(--accent);font-weight:500}
+.rail .note{text-transform:none;letter-spacing:0;font-family:"Public Sans",sans-serif;font-size:13px;margin-top:.7em;color:var(--muted)}
+.col{min-width:0}
+
+/* ---------- header ---------- */
+header.hero{
+  border-bottom:1px solid var(--rule);
+  background:var(--surface);
+  padding:64px 0 44px;
+}
+.eyebrow{
+  font-family:"JetBrains Mono",monospace;
+  font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--accent);margin:0 0 20px;
+}
+h1{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:500;
+  font-size:clamp(38px,6vw,62px);
+  line-height:1.04;
+  letter-spacing:-.018em;
+  margin:0 0 22px;
+  text-wrap:balance;
+  max-width:16ch;
+}
+.standfirst{
+  font-family:"Newsreader",Georgia,serif;
+  font-size:clamp(18px,2.2vw,21px);
+  line-height:1.5;
+  color:var(--ink-2);
+  max-width:62ch;margin:0;
+}
+.meta{
+  margin-top:34px;display:flex;flex-wrap:wrap;gap:10px 28px;
+  font-family:"JetBrains Mono",monospace;font-size:12px;color:var(--muted);
+  letter-spacing:.03em;
+}
+.meta span b{color:var(--ink-2);font-weight:500}
+
+/* ---------- sections ---------- */
+section{padding:52px 0;border-bottom:1px solid var(--rule-soft)}
+section:last-of-type{border-bottom:0}
+h2{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:600;font-size:clamp(25px,3.4vw,33px);
+  line-height:1.15;letter-spacing:-.012em;
+  margin:0 0 8px;text-wrap:balance;
+}
+h3{
+  font-family:"Newsreader",Georgia,serif;
+  font-weight:600;font-size:20.5px;line-height:1.25;
+  margin:38px 0 6px;text-wrap:balance;
+}
+h3:first-of-type{margin-top:18px}
+h4{
+  font-family:"JetBrains Mono",monospace;
+  font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);font-weight:500;margin:30px 0 10px;
+}
+p{margin:0 0 1.05em}
+.col > p:last-child{margin-bottom:0}
+strong{font-weight:600;color:var(--ink)}
+em{font-style:italic}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
+a:hover{border-bottom-color:var(--accent)}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+code{
+  font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:.855em;
+  background:var(--surface-2);
+  padding:.14em .38em;border-radius:3px;
+  color:var(--ink-2);
+}
+ul,ol{margin:0 0 1.05em;padding-left:1.15em}
+li{margin-bottom:.5em}
+li::marker{color:var(--muted)}
+
+.lede{font-size:17.5px;color:var(--ink-2)}
+
+/* ---------- pull number ---------- */
+.stat{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--accent);
+  border-radius:3px;padding:20px 22px;margin:0 0 22px;
+  box-shadow:var(--shadow);
+}
+.stat .n{
+  font-family:"Newsreader",Georgia,serif;font-weight:600;
+  font-size:clamp(30px,5vw,42px);line-height:1;letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.stat .n.warn{color:var(--reject)}
+.stat .lbl{font-size:15px;color:var(--muted);flex:1 1 220px;min-width:0}
+
+/* ---------- tables ---------- */
+.scroll{overflow-x:auto;margin:0 0 22px;border:1px solid var(--rule);border-radius:4px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{
+  text-align:left;padding:9px 14px;
+  border-bottom:1px solid var(--rule-soft);vertical-align:top;
+}
+thead th{
+  font-family:"JetBrains Mono",monospace;font-size:10.5px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+  font-weight:500;background:var(--surface-2);
+  border-bottom:1px solid var(--rule);white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:"JetBrains Mono",monospace;font-variant-numeric:tabular-nums;white-space:nowrap}
+td.hi{color:var(--reject);font-weight:500}
+td.ok{color:var(--accept);font-weight:500}
+
+/* ---------- zone strip ---------- */
+figure{margin:0 0 24px}
+.strip{display:flex;height:38px;border-radius:3px;overflow:hidden;border:1px solid var(--rule)}
+.strip div{display:flex;align-items:center;justify-content:center;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.06em;color:var(--on-zone);font-weight:500}
+.z-accept{background:var(--accept)}
+.z-band{background:var(--band)}
+.z-reject{background:var(--reject);min-width:3px}
+.strip-key{
+  display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:10px;
+  font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--muted);
+}
+.strip-key span{display:flex;align-items:center;gap:7px}
+.dot{width:9px;height:9px;border-radius:2px;flex:0 0 auto}
+figcaption{font-size:14px;color:var(--muted);margin-top:12px;font-style:italic;max-width:60ch}
+
+/* ---------- iteration card ---------- */
+.iter{
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:22px 24px;margin:0 0 20px;box-shadow:var(--shadow);
+}
+.iter h3{margin:0 0 12px;font-size:19px}
+.iter dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:8px 16px;align-items:baseline}
+.iter dt{
+  font-family:"JetBrains Mono",monospace;font-size:10.5px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--muted);white-space:nowrap;padding-top:.32em;
+}
+.iter dd{margin:0}
+.iter dd:last-child{margin-bottom:0}
+@media (max-width:620px){
+  .iter dl{grid-template-columns:1fr;gap:2px}
+  .iter dt{padding-top:.6em}
+}
+
+/* ---------- caption list ---------- */
+.figs{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:18px}
+.figs li{
+  margin:0;padding-left:16px;border-left:2px solid var(--rule);
+}
+.figs .ftitle{font-weight:600;display:block;margin-bottom:4px}
+.figs .fcap{font-family:"Newsreader",Georgia,serif;font-style:italic;color:var(--ink-2);font-size:16.5px}
+
+/* ---------- code block ---------- */
+pre{
+  font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:13px;line-height:1.75;
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:16px 18px;overflow-x:auto;margin:0 0 20px;color:var(--ink-2);
+}
+pre code{background:none;padding:0;font-size:inherit}
+
+footer{
+  padding:40px 0 64px;color:var(--muted);font-size:14px;
+  border-top:1px solid var(--rule);
+}
+
+/* ---------- added for the article cut ---------- */
+.pull{
+  margin:0 0 24px;padding:20px 24px;
+  background:var(--surface);border:1px solid var(--rule);
+  border-left:3px solid var(--accent);border-radius:3px;
+  font-family:"Newsreader",Georgia,serif;font-size:19px;line-height:1.5;
+  color:var(--ink);box-shadow:var(--shadow);
+}
+.pull p{margin:0 0 .5em}
+.pull p:last-child{margin-bottom:0}
+.tag{
+  display:inline-block;font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  padding:2px 7px;border-radius:2px;border:1px solid currentColor;
+  vertical-align:.18em;margin-left:10px;font-weight:500;
+}
+.tag.new{color:var(--accent)}
+.tag.holds{color:var(--accept)}
+.tag.dead{color:var(--reject)}
+.rail .rev{
+  display:block;margin-top:.9em;color:var(--accent);
+  text-transform:none;letter-spacing:0;font-size:11px;
+}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin:0 0 22px}
+.card{
+  background:var(--surface);border:1px solid var(--rule);border-radius:4px;
+  padding:16px 18px;box-shadow:var(--shadow);
+}
+.card h4{margin:0 0 8px}
+.card p{margin:0;font-size:14.5px;color:var(--muted)}
+.card .big{
+  font-family:"Newsreader",Georgia,serif;font-weight:600;font-size:32px;
+  line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  display:block;margin-bottom:6px;color:var(--ink);
+}
+.card .big.warn{color:var(--reject)}
+.card .big.good{color:var(--accept)}
+blockquote{
+  margin:0 0 22px;padding-left:18px;border-left:2px solid var(--accent);
+  font-family:"Newsreader",Georgia,serif;font-size:18px;line-height:1.5;
+  color:var(--ink-2);
+}
+blockquote p{margin:0}
+i.dot{display:inline-block}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="band-row">
+      <div class="rail"><b>The article</b>2026-08-30<span class="rev">Revision 3 &mdash; new material is marked</span></div>
+      <div class="col">
+        <p class="eyebrow">The Reliability Ladder &middot; five months, seven layers, two corpora</p>
+        <h1>Which answers can you trust?</h1>
+        <p class="standfirst">Building a system that tells you which of its own outputs to believe &mdash; and measuring, over five months and five open-weight models, how little of what we built actually did that.</p>
+        <div class="meta">
+          <span><b>Task</b> adverse reactions &rarr; SNOMED CT, from patient forum posts</span>
+          <span><b>Answer key</b> CADEC v3 &middot; 1,250 posts &middot; 9,111 mentions</span>
+          <span><b>Second corpus</b> FiNER-139 &middot; SEC filings &middot; CC-BY-SA-4.0</span>
+          <span><b>Models</b> five open-weight families &middot; all local</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>00</b>The problem</div>
+    <div class="col">
+      <h2>The problem, and the number that states it</h2>
+      <p class="lede">Read a patient's forum post about a drug. Find every adverse reaction the writer says they had. Assign each one a SNOMED CT code. There is a real answer key, and the task is the shape of a great many production pipelines: pull structured records out of prose, normalise them against a controlled vocabulary, be prepared to defend each one.</p>
+      <p><em>Be prepared to defend each one</em> is not the same problem as accuracy, and it is the harder one. A system that is 80% right and cannot tell you <em>which</em> 80% is unusable anywhere a wrong answer costs something. You do not need a better average. You need to know, per record, whether this particular answer is one you can stand behind.</p>
+      <p>Here is what we ended up with, stated before any of the reasoning that produced it:</p>
+      <div class="pull">
+        <p>The system ships <strong>21%</strong> of its answers. On those it makes <strong>4.0 errors per 100</strong>, against <strong>62.9</strong> for the bare model and <strong>63.3</strong> for everything the paid layers could do to it. It sends the other <strong>196 of every 248 records to a person.</strong></p>
+      </div>
+      <p>That is not a good result. It is, we think, an honest one, and most of this article is about the things we built that did not contribute to it.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>01</b>Nondeterminism</div>
+    <div class="col">
+      <h2>The ground moves, further than any of our improvements</h2>
+      <p>Before trying to make a model's output trustworthy, it is worth checking whether it is even stable. Three draws of one frozen configuration, same 40 documents, same machine, same hour:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">draw 0</th><th class="num">draw 1</th><th class="num">draw 2</th><th class="num">spread</th></tr></thead>
+        <tbody>
+          <tr><td>F1, exact span</td><td class="num">0.395</td><td class="num">0.408</td><td class="num">0.401</td><td class="num hi">1.3&nbsp;pt</td></tr>
+          <tr><td>F1, overlap span</td><td class="num">0.469</td><td class="num">0.475</td><td class="num">0.471</td><td class="num">0.6&nbsp;pt</td></tr>
+        </tbody>
+      </table></div>
+      <p>A 1.3-point spread is unremarkable until you notice that <strong>every extraction improvement this project ever shipped was smaller than that.</strong> Prompt changes, span filters, a reranking stage &mdash; all of them lived inside the noise band of the thing producing them.</p>
+      <p>We tried to suppress it and failed. A system message, three prompt interventions, a role clause: each moved <em>where</em> errors landed without reducing them, and restating an instruction the model already ignored produced compliance three times out of three &mdash; zero.</p>
+      <p>Then we ran the same experiment across five open-weight models, and the premise turned out to be wrong.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>model</th><th class="num">distinct outputs over 3 identical draws</th></tr></thead>
+        <tbody>
+          <tr><td><code>llama3.1:8b</code></td><td class="num ok">1</td></tr>
+          <tr><td><code>mistral:7b-instruct</code></td><td class="num ok">1</td></tr>
+          <tr><td><code>qwen3:8b</code></td><td class="num ok">1</td></tr>
+          <tr><td><code>granite4:micro-h</code></td><td class="num ok">1</td></tr>
+          <tr><td><code>gpt-oss:20b</code></td><td class="num hi">3</td></tr>
+        </tbody>
+      </table></div>
+      <p>Four of five are <strong>bit-reproducible</strong> &mdash; identical output files, byte for byte, across three independent runs. Only one varies, and it is the only Mixture-of-Experts model in the set. <code>qwen3</code> is a reasoning model and <code>granite4</code> is a Mamba/transformer hybrid, so neither deliberation nor architectural novelty is the variable. Sparsity is the one property that separates them, which fits the known mechanism &mdash; which experts fire depends on what else is in the batch, while a dense forward pass at temperature 0 does not.</p>
+      <p><strong>Said at its real strength: four dense models against one sparse one.</strong> A single MoE model cannot establish a mechanism. But the practical consequence does not depend on the mechanism being right:</p>
+      <blockquote><p>Run-to-run reproducibility is a <strong>model-selection choice with a measurable price.</strong> <code>gpt-oss:20b</code> buys 6.5 exact points over <code>llama3.1:8b</code> and pays a 1.3-point run-to-run spread for them &mdash; a spread larger than every improvement we ever shipped.</p></blockquote>
+      <p>Nobody told us that trade existed. We found it by accident, four months in, because we had only ever run one model.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>02</b>Method<div class="note">The detour that nearly cost us a published result &mdash; and then cost us two of our own.</div></div>
+    <div class="col">
+      <h2>The significance test that certified noise</h2>
+      <p>We built a bootstrap confidence interval properly: resampling <strong>documents</strong>, not mentions, because mentions inside one post share an author, a topic and a model call, and resampling mentions would claim roughly six times more independent observations than exist. That part is right and we still recommend it.</p>
+      <p>Then we measured a reranking stage and got:</p>
+      <blockquote><p><strong>+0.0217 overlap F1, paired bootstrap +0.0215 [+0.0000, +0.0433]</strong></p></blockquote>
+      <p>An interval excluding zero. In most write-ups that is where the analysis stops. We ran it twice more:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">draw 0</th><th class="num">draw 1</th><th class="num">draw 2</th></tr></thead>
+        <tbody><tr><td>overlap F1 delta</td><td class="num">+0.0217</td><td class="num">+0.0087</td><td class="num hi">&minus;0.0089</td></tr></tbody>
+      </table></div>
+      <p>The sign reverses. The effect is not there. The bootstrap was not broken &mdash; it was answering a different question. <strong>It resamples the documents of a single run, so it prices the corpus sample and nothing else.</strong> The run-to-run variance from the section above is invisible to it, because every replicate is drawn from one fixed set of model outputs. Given one draw, it will certify noise, confidently, with a tight interval.</p>
+      <p><strong>If your significance test only ever sees one generation per configuration, it cannot see the dominant noise term.</strong> Three draws minimum, plus the bootstrap. And not ten-document subsets, which overstate both effect size and variance.</p>
+
+      <h3>Then we went and paid the same debt on our own configuration<span class="tag new">new</span></h3>
+      <p>Adopting a rule and having complied with it are different things. Our shipped extraction config declared five improvements, and two of them &mdash; a coordination splitter and one threshold on a span trimmer &mdash; had been accepted on <strong>exactly the protocol we had just condemned</strong>: one draw, one bootstrap. They had been sitting in the manifest for three days with a note saying so.</p>
+      <p>Nine runs later &mdash; each improvement removed from the shipped config in turn, three draws each, paired bootstrap over documents:</p>
+      <div class="scroll"><table>
+        <thead><tr><th>removed</th><th class="num">F1 exact, three draws</th><th class="num">pooled</th><th></th></tr></thead>
+        <tbody>
+          <tr><td>coordination splitter</td><td class="num">+0.0389 / +0.0345 / +0.0579</td><td class="num ok">+0.0438 [+0.0012, +0.0937]</td><td><span class="tag holds">separated</span></td></tr>
+          <tr><td>trimmer threshold</td><td class="num">+0.0139 / +0.0183 / +0.0098</td><td class="num">+0.0140 [&minus;0.0163, +0.0500]</td><td><span class="tag holds">consistent</span></td></tr>
+        </tbody>
+      </table></div>
+      <p>Both survive, on different strengths, and we now say which is which: the splitter is separated; the threshold is <em>consistent and small</em> &mdash; six sign-consistent comparisons out of six, every interval containing zero, and an effect smaller than the 1.3-point spread the same three draws show in the baseline itself.</p>
+      <p>The one claim that did <strong>not</strong> survive is one the original measurement had never explicitly made. The splitter buys <strong>exact span match only</strong>: on overlap its sign reverses (+0.0000 / &minus;0.0047 / +0.0229). That is what its mechanism predicts &mdash; cutting a coordinated quote into pieces turns one already overlap-matched blob into several exactly-matched spans, so overlap has nothing to gain &mdash; and the single-draw headline had quietly implied otherwise.</p>
+      <p>One more thing fell out of this, and it is the least glamorous finding in the article. The paired bootstrap every one of our arms had been measured with resampled documents as <code>set(random.choices(ids, k=len(ids)))</code>. <strong>The <code>set()</code> collapses the duplicates a bootstrap draw is made of</strong>, leaving a ~63% subsample &mdash; a different, wider estimator wearing a bootstrap's name. Nobody noticed for a month because it produced plausible intervals. If you have a statistics helper you wrote once and have trusted since, go and read it.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>03</b>The free layer</div>
+    <div class="col">
+      <h2>What a free deterministic check can and cannot see</h2>
+      <p>If the output will not hold still, attach something to it that will. The controlled vocabulary is the obvious candidate: SNOMED CT does not resample. We measured what six such checks catch by planting each error class into an otherwise-perfect answer set, 8,666 records at a time:</p>
+      <div class="scroll"><table>
+        <thead><tr><th>planted error</th><th class="num">caught</th></tr></thead>
+        <tbody>
+          <tr><td>code that exists in no release</td><td class="num ok">1.000</td></tr>
+          <tr><td>span shifted two characters</td><td class="num ok">1.000</td></tr>
+          <tr><td>fabricated quote</td><td class="num ok">1.000</td></tr>
+          <tr><td>real code, wrong branch of the hierarchy</td><td class="num ok">1.000</td></tr>
+          <tr><td>random plausible clinical finding</td><td class="num hi">0.000</td></tr>
+          <tr><td>near-miss finding sharing a head word</td><td class="num hi">0.001</td></tr>
+        </tbody>
+      </table></div>
+      <p>The top half is better than useful: on the classes they are built for, these checks are <strong>exact</strong>, at zero cost, with no model call.</p>
+      <p>The bottom half is why the rest of this article exists. Give the system a real, active, correctly-typed clinical finding that is simply the <em>wrong</em> one and every check passes it. <strong>The right code is not in the source text, so nothing mechanical can put it there.</strong> The failure mode that matters most is invisible to the cheapest layer, permanently.</p>
+      <p>So the vocabulary cannot tell you an answer is right. What it can do is sort answers into three states &mdash; REJECT (provably wrong), ACCEPT (the vocabulary uses these very words), BAND (plausible, unverifiable) &mdash; and <strong>57% of even a perfect answer set lands in BAND.</strong> That number is knowable before you spend a token. It is the fraction free checks will never settle: the bill everything expensive has to work through.</p>
+
+      <figure>
+        <div class="strip" role="img" aria-label="A perfect answer set, sorted by the free check: 43 percent ACCEPT, 57 percent BAND, a sliver REJECT.">
+          <div class="z-accept" style="flex:43.1">ACCEPT 43.1%</div>
+          <div class="z-band" style="flex:56.8">BAND 56.8%</div>
+          <div class="z-reject" style="flex:0.13"></div>
+        </div>
+        <div class="strip-key">
+          <span><i class="dot z-accept"></i>vocabulary uses these very words</span>
+          <span><i class="dot z-band"></i>plausible, unverifiable for free</span>
+          <span><i class="dot z-reject"></i>provably wrong &mdash; 0.13%</span>
+        </div>
+        <figcaption>A <em>perfect</em> answer set, sorted by the free check. The gate's own false-rejection rate is 0.13% &mdash; it was 9.3% until we replayed it over the answer key, where every rejection is false by construction.</figcaption>
+      </figure>
+
+      <h3>The knob that turns a gate into an endorsement machine</h3>
+      <p>The ACCEPT/BAND divider is a string comparison with one obvious setting: exact equality, or token containment. Containment is the intuitive choice. Patients write &ldquo;bit drowsy&rdquo; where the vocabulary says <code>|Drowsy|</code>; strictness looks pedantic, and leniency lifts the share of a perfect answer set settled for free from 43.1% to 54.5%.</p>
+      <p>Then we planted <strong>near-miss codes</strong> &mdash; a real, active finding sharing its head word with the correct one, which is the confusion this kind of model actually makes:</p>
+      <div class="scroll"><table>
+        <thead><tr><th>setting</th><th class="num">near-misses caught</th><th class="num">near-misses placed in ACCEPT</th><th class="num">free coverage</th></tr></thead>
+        <tbody>
+          <tr><td><code>contained</code></td><td class="num">0.1%</td><td class="num hi">19.0%</td><td class="num">54.5%</td></tr>
+          <tr><td><code>exact</code></td><td class="num">0.1%</td><td class="num ok">0.1%</td><td class="num">43.1%</td></tr>
+        </tbody>
+      </table></div>
+      <p>Neither catches near-misses. But the lenient setting <strong>actively vouches for one in five of them</strong>, because the patient's phrase is a subset of the wrong concept's name. It does not fail to protect you; it hands you false confidence, which is worse, because you act on it. We took the strict setting and paid the eleven points.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>04</b>What worked<div class="note">The one positive result, and the best-evidenced thing in the project.</div></div>
+    <div class="col">
+      <h2>The one thing that worked</h2>
+      <p>The ACCEPT/BAND split is strongly predictive of correctness &mdash; and, unlike the headline number, it barely moves between draws. Across <strong>five open-weight model families, three draws each, fifteen runs</strong>:</p>
+      <div class="scroll"><table>
+        <thead><tr><th>model</th><th class="num">exact F1</th><th class="num">ACCEPT lane</th><th class="num">BAND lane</th><th class="num">ratio</th></tr></thead>
+        <tbody>
+          <tr><td><code>gpt-oss:20b</code></td><td class="num">0.401 &plusmn;0.007</td><td class="num ok">84.6%</td><td class="num">35.9%</td><td class="num">2.36&times;</td></tr>
+          <tr><td><code>llama3.1:8b</code></td><td class="num">0.336 &plusmn;0.000</td><td class="num ok">80.4%</td><td class="num">28.8%</td><td class="num">2.79&times;</td></tr>
+          <tr><td><code>mistral:7b-instruct</code></td><td class="num">0.206 &plusmn;0.000</td><td class="num ok">83.3%</td><td class="num">14.6%</td><td class="num">5.70&times;</td></tr>
+          <tr><td><code>granite4:micro-h</code></td><td class="num">0.185 &plusmn;0.000</td><td class="num ok">89.3%</td><td class="num">14.6%</td><td class="num">6.12&times;</td></tr>
+          <tr><td><code>qwen3:8b</code></td><td class="num">0.141 &plusmn;0.000</td><td class="num ok">83.3%</td><td class="num">30.3%</td><td class="num">2.75&times;</td></tr>
+        </tbody>
+      </table></div>
+      <p>Headline F1 ranges <strong>0.141 to 0.401</strong> &mdash; a factor of 2.8. The ACCEPT lane ranges <strong>80.4 to 89.3</strong>, and its ordering has no relationship to model quality: the <em>worst</em> model by F1 has the <em>highest</em> ACCEPT lane. The BAND lane, meanwhile, tracks model quality directly.</p>
+      <blockquote><p>The check does not merely correlate with correctness. It identifies a subset of answers that are <strong>~85% correct regardless of which model produced them</strong>, and it earns <strong>more</strong> the worse the model is.</p></blockquote>
+      <p>The reason is structural and it generalises. The quantity is conditional on a <strong>deterministic property of the record</strong> &mdash; &ldquo;given that the vocabulary uses these exact words for this code, how often is the code right?&rdquo; &mdash; rather than on the run. Resampling moves which records land in each lane without much moving what each lane means.</p>
+      <p>That is the answer to the question this article opens with. You cannot make the model repeatable. <strong>You can make your knowledge about it repeatable</strong>, by conditioning it on something that does not resample.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>05</b>The precondition<div class="note">The boundary condition on everything above, found by running a second corpus.</div></div>
+    <div class="col">
+      <h2>And here is the corpus where it does not work at all</h2>
+      <p>Everything above is one corpus. So we ported the whole system to a second one: <strong>FiNER-139</strong> &mdash; SEC filings, where the task is to find numeric facts and tag them with one of 139 US-GAAP XBRL tags. Same code, same rungs, same models. The port cost sixteen one-line harness edits and zero changes to rung logic.</p>
+      <p>The result is not a worse score. It is no score:</p>
+<pre><code>rung 1   ACCEPT 0 / BAND 291 / REJECT 1
+         lexical_match  False on every record carrying a tag
+         sct_exists     True  on every one of them
+rung 5   coverage 1.0 &rarr; 0.0
+rung 6   292 of 292 records routed to a person</code></pre>
+      <p><strong>The identical system that ships 21% of its answers on CADEC ships 0% here.</strong></p>
+      <p>The vocabulary check works perfectly &mdash; every tag exists. It is the <em>lexical</em> check that has nothing to compare. On CADEC it matches <code>"chronic pain"</code> against <code>|Chronic pain|</code>. On FiNER it must match <code>"47.6"</code> against <code>|EffectiveIncomeTaxRateContinuingOperations|</code>, and a number shares no tokens with a name by construction. The one signal carrying the entire system has zero coverage.</p>
+      <blockquote><p>Deterministic evidence of this kind is available when the vocabulary's words and the source's words are drawn from the same language. It is unavailable when the span is a bare quantity.</p></blockquote>
+      <p>That is the method's <strong>precondition</strong>, not a weakness &mdash; but it was invisible for five phases because the project had one corpus.</p>
+      <p>The most alarming part is how it fails. <code>err_per_100</code> at the abstention step is <strong>0.0</strong>: a perfect error rate, over an empty output. A system whose safety property is &ldquo;abstain unless corroborated&rdquo; degrades to &ldquo;abstain always&rdquo; the moment corroboration is inapplicable, and it does so <strong>silently, reporting flawless numbers</strong>. Print coverage beside every error rate, always.</p>
+
+      <h3>What the second corpus is short of, and it is not what the headline says<span class="tag new">new</span></h3>
+      <p>FiNER's recall is 0.303, which reads as &ldquo;the model never proposes 70% of the answer key&rdquo;. It does not. Decomposed:</p>
+      <div class="two">
+        <div class="card"><h4>Detection recall</h4><span class="big">0.685</span><p>gold spans the model reaches at all</p></div>
+        <div class="card"><h4>Coding accuracy</h4><span class="big warn">0.446</span><p>of the spans it reaches, correctly tagged</p></div>
+        <div class="card"><h4>Product</h4><span class="big">0.303</span><p>the headline recall &mdash; and it is a product, not a detection number</p></div>
+      </div>
+      <p>The model reaches more than two thirds of the gold spans and <strong>mis-codes most of what it reaches</strong>. It also proposes 292 spans against 165 gold, so it is not under-extracting &mdash; the miss is <em>which</em> numbers, not how many. On a corpus where the whole 139-tag vocabulary fits in the prompt and the correct tag is therefore <em>always on the menu</em>, recall work is coding work.</p>
+      <p>A single number said &ldquo;find more&rdquo;; the decomposition says &ldquo;choose better&rdquo;. If you report one recall figure for a pipeline that both finds and classifies, you will spend your effort on the wrong half.</p>
+
+      <h3>So we tried to choose better, and made it worse<span class="tag new">new</span></h3>
+      <p>The menu here is all 139 tags in alphabetical order &mdash; no ranking at all, because a bare number carries no words to rank on. But the <em>sentence</em> does: &ldquo;conversion price of $ 11.16 per share&rdquo; is exactly the evidence a person uses. An offline probe agreed, putting the correct tag at <strong>median rank 7 of 139</strong> when the tag names are ranked against the text around the number.</p>
+      <p>So we reordered the menu by that ranking, dropping nothing &mdash; menu recall stays 1.000 and detection is byte-identical by construction. Coding accuracy went <strong>0.393 &rarr; 0.304</strong>. The artifacts say why, and it is not that the ranking was bad:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">alphabetical menu</th><th class="num">context-ranked menu</th></tr></thead>
+        <tbody>
+          <tr><td>pick lands on slot 0</td><td class="num">20.4%</td><td class="num hi">50.2%</td></tr>
+          <tr><td>median picked slot</td><td class="num">30</td><td class="num hi">0</td></tr>
+          <tr><td>accuracy when slot 0 is picked</td><td class="num">0.087</td><td class="num">0.373</td></tr>
+          <tr><td>accuracy when any other slot is picked</td><td class="num ok">0.457</td><td class="num">0.245</td></tr>
+        </tbody>
+      </table></div>
+      <p>Read the last two rows together. The ranking <em>is</em> informative &mdash; its top slot is four times better than the alphabetical top slot. The model plainly <em>follows</em> it &mdash; slot-0 selection more than doubles. And it still loses, because the thing it displaced was better: the model's own unaided reading of an unranked menu scores <strong>0.457</strong>, and the ranker's top slot scores 0.373.</p>
+      <blockquote><p>A ranking can carry real signal, visibly move the model, and still make the system worse &mdash; because what it displaces was better than it.</p></blockquote>
+      <p>That completes a pair. On the medical corpus, <em>destroying</em> a good menu order cost 10&ndash;12 points. Here, <em>imposing</em> a mediocre one costs 8.9. The pick is exquisitely sensitive to order in both directions, which means menu order is not a presentation detail you can leave to whatever your vocabulary happens to enumerate in.</p>
+      <p style="font-size:15px;color:var(--muted)">Stated plainly: this is <strong>one draw</strong>, and by our own rule that is not a measurement. We report it as a rejection on an effect roughly seven times the run-to-run spread plus a mechanism read off the artifacts, not as a separated result. Making it a three-draw finding needs four more runs at ~78 minutes each, because a paired comparison needs both sides at the same draw.</p>
+
+      <h3>Then we found what the pick was actually doing, and it is worse than a bad ranking<span class="tag new">new</span></h3>
+      <p>Decomposing the 68 mis-coded spans the other way &mdash; the mirror of the false-positive analysis &mdash; turned up something we had been staring past. The wrong tags are not near-misses: 79% share no leading word with gold, 65% have <em>disjoint</em> token sets, and the confusions are a long tail of 46 distinct pairs. But one tag is not in the tail:</p>
+      <blockquote><p><code>AccrualForEnvironmentalLossContingencies</code> is predicted <strong>57 times in 292 records.</strong> The answer key uses it <strong>twice.</strong></p></blockquote>
+      <p>It is menu slot 0. Our menu is <code>sorted(set(tags))</code>, and that tag is alphabetically first.</p>
+      <p>The context-ranked arm turned out to be exactly the experiment that separates position from meaning, because it moves the tag off slot 0:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">alphabetical menu</th><th class="num">context-ranked menu</th></tr></thead>
+        <tbody>
+          <tr><td>its median menu slot</td><td class="num hi">0</td><td class="num">92</td></tr>
+          <tr><td>times predicted</td><td class="num hi">57</td><td class="num ok">3</td></tr>
+          <tr><td>&hellip;of those, taken while sitting at slot 0</td><td class="num">57</td><td class="num">3</td></tr>
+        </tbody>
+      </table></div>
+      <p><strong>The model picks it if and only if it is first.</strong> Not usually &mdash; always. That is 19.5% of every prediction on this corpus going to the first line of a list.</p>
+      <p>Which turns the arm's failure into two real effects pulling opposite ways. It <em>fixed</em> something: the attractor collapsed, 57 spurious predictions to 3. And it <em>amplified</em> something: slot-0 selection went 20.4% &rarr; 50.2%, moving mass off the model's own reading of the menu (0.457) and onto the ranker's top slot (0.373). Net negative &mdash; but &ldquo;the ranking was bad&rdquo; was never the story.</p>
+      <p>It also names the next thing to try, and it is not a better ranker: <strong>break the position prior instead of feeding it</strong> &mdash; a slot 0 that is never a valid answer, or a per-mention permutation with a fixed seed.</p>
+      <p>And it composes with the medical corpus rather than contradicting it. There the menu is ordered by retrieval score, so the same positional prior lands on the <em>best</em> candidate and is aligned with quality &mdash; which is exactly why alphabetising that menu cost 10&ndash;12 points. One prior, two corpora, opposite consequences, decided entirely by what your ordering happens to put first.</p>
+      <blockquote><p>If your model picks from a list, measure how often it takes line one. Ours took line one a fifth of the time, on a corpus where line one was almost never the answer, and no accuracy metric we had would ever have said so.</p></blockquote>
+
+      <h3>One document, refused, cost 12.7% of the answer key<span class="tag new">new</span></h3>
+      <p>Fifty-two gold mentions were never touched by any prediction, and <strong>21 of them &mdash; 12.7% of the entire dev gold &mdash; were in a single document</strong>. Not a hard one: a paragraph about convertible notes. The extractor spent 2,153 reasoning tokens on it and answered</p>
+      <blockquote><p><em>&ldquo;I'm sorry, but I can't provide that.&rdquo;</em></p></blockquote>
+      <p>An SEC filing, in a public dataset, under a CC-BY-SA licence. There is no plausible reading in which this is unsafe content; the refusal is simply what the model did.</p>
+      <p>Our ledger recorded it as <code>json_decode</code> &mdash; as a <strong>model that cannot emit JSON</strong>. That is the same mislabelling we had already fixed once, a class further out: we had learned to keep <code>timed_out</code> and <code>truncated</code> apart from <code>json_decode</code>, because &ldquo;the harness cut it off&rdquo; and &ldquo;the model cannot format&rdquo; are different findings. A refusal is a third thing again, and it is the only one of the four that no schema, token cap or retry touches. It now has its own label, ranked most-specific-first:</p>
+<pre><code>timed_out  &gt;  truncated  &gt;  refused  &gt;  json_decode</code></pre>
+      <p>Two details worth stealing. The failure was <strong>1 document in 40 and 40% of the whole detection gap</strong> &mdash; content refusals do not distribute evenly, they land on whole documents, so per-record error rates hide them completely. And the detector had to be written against the apostrophe the model actually types: <em>I&rsquo;m</em> with U+2019, not <em>I'm</em>. A refusal detector written against the ASCII form passes every test you would think to write and never fires once on real output.</p>
+
+      <h3>The refusal is not the document. It is not even the model. It is the draw.<span class="tag new">new</span></h3>
+      <p>We put the same document back to the same model, same prompt, temperature 0:</p>
+      <div class="scroll"><table>
+        <thead><tr><th>model</th><th class="num">draw 0</th><th class="num">draw 1</th><th class="num">draw 2</th></tr></thead>
+        <tbody><tr><td><code>gpt-oss:20b</code></td><td class="num hi">refused</td><td class="num ok">33 mentions</td><td class="num ok">33 mentions</td></tr></tbody>
+      </table></div>
+      <p>And to the other families, one draw each, because four of the five are bit-reproducible and three identical draws of a bit-reproducible model are three copies of one measurement: <code>llama3.1:8b</code> 38 mentions, <code>mistral:7b-instruct</code> 22, <code>granite4:micro-h</code> 9. Nobody else declined.</p>
+      <p>This is what the nondeterminism of section 01 actually costs, and the 1.3-point average badly understates it:</p>
+      <blockquote><p>The variance is not spread evenly over records. It concentrates into <strong>whole-document, all-or-nothing outcomes</strong> &mdash; and one of them here is 12.7% of the corpus's answer key, decided by which draw you got.</p></blockquote>
+      <p>A bit-reproducible model can be wrong, but it cannot answer on Tuesday and refuse on Wednesday. That is a second price on the same model-selection choice, and it is the one an operator would feel.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>06</b>The paid layers<div class="note">Four resolvers. We expected a staircase.</div></div>
+    <div class="col">
+      <h2>What the four paid resolvers bought</h2>
+      <p>With a free layer that is exact on some classes, blind on the important one, and leaves 57% unsettled, the obvious move is to spend money on the residue. We built four resolvers.</p>
+
+      <h4>Ask the model to fix what the checks caught</h4>
+      <p>State the failure back as a fact &mdash; &ldquo;the code 41456009 does not exist in SNOMED CT&rdquo; &mdash; never as a question. The mechanism is sound and it fired <strong>once in 248 records</strong>, for a reason that is the audit's subject.</p>
+
+      <h4>Ask the model again and take the majority</h4>
+      <p>This is what people reach for first against nondeterminism. It cost 2.6&times; the entire extraction token budget and a 152-second p95 latency, and scored per changed record against gold:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">changes scored</th><th class="num">fixed</th><th class="num">broke</th><th class="num">net</th></tr></thead>
+        <tbody>
+          <tr><td>tuning set</td><td class="num">18</td><td class="num">5</td><td class="num">0</td><td class="num ok">+5</td></tr>
+          <tr><td>held-out</td><td class="num">21</td><td class="num">2</td><td class="num hi">2</td><td class="num">0</td></tr>
+        </tbody>
+      </table></div>
+      <p>On the tuning set it looked like a win &mdash; until you notice three of the five &ldquo;fixes&rdquo; were <em>no code &rarr; a correct code</em>, filling a gap rather than correcting an error. Out of sample it is a coin flip. <strong>The voter and the answerer are the same model, so the vote carries no information the original answer lacked.</strong></p>
+
+      <h4>Ask a different model</h4>
+      <p>A second family as judge &mdash; enforced, not advised: if judge and extractor match, the code raises. It separates, weakly, and less where it counts:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">pass</th><th class="num">fail</th><th class="num">ratio</th></tr></thead>
+        <tbody>
+          <tr><td>tuning set</td><td class="num">21.0%</td><td class="num">12.7%</td><td class="num">1.65&times;</td></tr>
+          <tr><td>held-out</td><td class="num">27.0%</td><td class="num">21.9%</td><td class="num hi">1.23&times;</td></tr>
+        </tbody>
+      </table></div>
+      <p>Set that against the free check's 2.36&ndash;6.12&times; across five models. <strong>A string comparison against a controlled vocabulary out-separates the LLM judge on the only axis a judge is for</strong>, at zero marginal cost.</p>
+      <p>There is a caveat that turned into a finding. Our judge is a 3.2B model grading a 20B one, and on CADEC it engaged with spans and said nothing useful about codes &mdash; which we read as a limit of a small model. On FiNER, with the prompt corrected, the <em>same</em> model adjudicates codes fine. The difference is that 139 tags fit in its context and 129,675 SNOMED concepts do not. <strong>A judge cannot adjudicate a vocabulary it cannot see</strong> &mdash; a property of the task, not the model.</p>
+
+      <h4>Refuse</h4>
+      <p>The last resolver resolves nothing. It withdraws every answer the stack could not corroborate, preserves it rather than deleting it, and routes the record to a person. Errors per 100 <strong>63.3 &rarr; 4.03</strong> &mdash; 63.3 being the rate after every paid layer has had its turn, against 62.9 for the bare model, which is the more damning pair. Coverage 100% &rarr; <strong>21%</strong>. Records to a person: <strong>196 of 248</strong>.</p>
+      <p>Every point of that fall is the free check, acted on, and paid for entirely in a third currency &mdash; human attention. We never collapse cost into one figure: tokens, latency and human referrals are three axes, and a system that looks cheap on two can be ruinous on the third.</p>
+      <p>How much is on the other side of that referral? An oracle desk &mdash; gold-derived, labelled on every row &mdash; takes shipped F1 from 0.131 to <strong>0.444</strong> and coding accuracy from 0.291 to <strong>0.990, with detection unchanged.</strong> After a perfect human code-picker, the entire remaining gap is span boundaries, which a code-picking reviewer cannot fix.</p>
+
+      <h3>We wired the judge to something that could act on it<span class="tag new">new</span></h3>
+      <p>We later found the judge was wired to nothing at all (below) and, rather than delete it, connected it to the refusal step as an off-by-default arm and ran it &mdash; because &ldquo;it would have helped if it had been connected&rdquo; is a hypothesis, not a result. Three draws, the arm withdrawing any shipped answer the judge failed:</p>
+      <div class="scroll"><table>
+        <thead><tr><th></th><th class="num">judge off</th><th class="num">judge on</th></tr></thead>
+        <tbody>
+          <tr><td>coverage</td><td class="num">0.210 / 0.202 / 0.215</td><td class="num">0.153 / 0.149 / 0.156</td></tr>
+          <tr><td>precision on answered</td><td class="num">0.808 / 0.800 / 0.824</td><td class="num">0.816 / 0.811 / 0.838</td></tr>
+          <tr><td><strong>yield</strong> (correct &divide; all)</td><td class="num">0.169 / 0.161 / 0.177</td><td class="num hi">0.125 / 0.121 / 0.131</td></tr>
+          <tr><td>records to a person</td><td class="num">196 / 198 / 186</td><td class="num hi">210 / 211 / 200</td></tr>
+        </tbody>
+      </table></div>
+      <p>It withdraws 14, 13 and 14 shipped answers to remove <strong>3 errors each time</strong> &mdash; roughly <strong>3.7 correct answers destroyed per error caught</strong> &mdash; and the records it withdraws are only 1.11&ndash;1.21&times; more likely to be wrong than the ones it keeps. The same free check, on the same records, separates 3.03&ndash;3.15&times;.</p>
+      <p>Precision went up, which is the trap: <strong>abstaining always raises precision.</strong> Yield is the number that cannot be fooled by abstaining, and it fell 26%. The arm stays off. The judge was not being wasted by a wiring mistake; the wiring was the only thing keeping its cost from becoming a loss.</p>
+
+      <h3>We removed all three and measured what happened</h3>
+      <p>The per-rung numbers above are an argument. The ablation is the measurement: run the same corpus through <code>[0, 1, 5]</code> &mdash; the deterministic spine, with self-correction, voting and the judge deleted &mdash; holding extraction <strong>identical</strong> on both sides.</p>
+      <div class="scroll"><table>
+        <thead><tr><th>stack</th><th class="num">F1 exact</th><th class="num">overlap</th><th class="num">correct</th><th class="num">shipped</th><th class="num">to a person</th><th class="num">tokens</th></tr></thead>
+        <tbody>
+          <tr><td>full <code>[0..6]</code></td><td class="num">0.182</td><td class="num">0.187</td><td class="num">43</td><td class="num">52</td><td class="num">196</td><td class="num hi">683,488</td></tr>
+          <tr><td>spine <code>[0, 1, 5]</code></td><td class="num">0.182</td><td class="num">0.182</td><td class="num">42</td><td class="num">52</td><td class="num">196</td><td class="num ok">164,898</td></tr>
+        </tbody>
+      </table></div>
+      <p>Identical exact F1, identical coverage, identical error rate, identical records routed to a person. <strong>The entire contribution of the three paid model rungs is one overlap-matched correct answer out of 43, for 518,590 tokens and a 152-second p95 latency.</strong> On FiNER both stacks ship nothing, and the spine costs 25% of 3.5M tokens.</p>
+      <p>One trap worth naming, because it nearly reversed the reading: the spine configs predated a set of extraction improvements, so running them as they stood would have compared a spine on a <em>worse</em> extractor against a full stack on a better one, and charged the difference to the rungs being dropped. <strong>An ablation that does not hold its base fixed is two experiments wearing one name.</strong></p>
+
+      <h3>All of it, end to end</h3>
+      <div class="scroll"><table>
+        <thead><tr><th>layer</th><th class="num">answered accuracy</th><th class="num">tokens</th><th class="num">p95</th></tr></thead>
+        <tbody>
+          <tr><td>bare model</td><td class="num">0.371</td><td class="num">164,897</td><td class="num">cached</td></tr>
+          <tr><td>deterministic checks</td><td class="num">0.371</td><td class="num ok">0</td><td class="num ok">0</td></tr>
+          <tr><td>self-correction</td><td class="num">0.371</td><td class="num">548</td><td class="num">cached</td></tr>
+          <tr><td>voting</td><td class="num hi">0.367</td><td class="num hi">425,355</td><td class="num hi">152.2 s</td></tr>
+          <tr><td>second-model judge</td><td class="num">0.367</td><td class="num">92,687</td><td class="num">1.5 s</td></tr>
+          <tr><td>refusal</td><td class="num ok">ships 0.808</td><td class="num ok">0</td><td class="num ok">0</td></tr>
+          <tr><td>person</td><td class="num">&mdash;</td><td class="num hi">196 records</td><td class="num">&mdash;</td></tr>
+        </tbody>
+      </table></div>
+      <p>Read down the accuracy column. <strong>It does not move until the refusal step, and then it moves by declining to answer.</strong> The two paid model resolvers cost 518,042 tokens between them and moved the number backwards.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>07</b>The audit<div class="note">Found by auditing the system as a stack, not one layer at a time.</div></div>
+    <div class="col">
+      <h2>Three things no single-layer test could see</h2>
+
+      <h3>Every deferral terminated in a field nothing read</h3>
+      <p>Each paid resolver correctly declined to act on its own evidence &mdash; a layer that both judges and routes contaminates every measurement above it &mdash; and each named the refusal step as the one that would act. Self-correction wrote <code>r2_declined</code>, voting wrote <code>r3_unanimous_none</code>, the judge wrote <code>r4_verdict</code>. <strong>The refusal step reads none of the three.</strong> It reads the deterministic verdict and nothing else. Three layers ran, cost money, passed their tests, and were wired to nothing. No test could have caught it, because every layer does exactly what its own documentation promises. The hole is <em>between</em> them.</p>
+      <p>The obvious next move is to connect them and watch the number go up. We did connect one &mdash; the judge &mdash; and the number went <strong>down</strong>. Which is the more useful version of this finding: the wiring hole hid a layer that was not carrying anything, and three months of &ldquo;the judge will pay off once the refusal step acts on it&rdquo; was an argument nobody had priced.<span class="tag new">new</span></p>
+
+      <h3>A fix three layers down silently disabled two layers up</h3>
+      <p>The checks used to reject 5.1% of records, nearly all for an unlocatable span. Then extraction improved: a span filter now drops those at source. The rejection rate fell to <strong>1 record in 248</strong>, and self-correction's trigger set went with it &mdash; which is why it fired once. Nothing broke. Both layers still pass every test and report honestly. Their <em>input</em> was removed by a change three layers below, and a layer with nothing to do is indistinguishable from inside from a layer doing nothing. The same mechanism hollowed out the checks themselves: the existence check now fires <strong>0 times in 248</strong>, because the model picks from a retrieved menu of real codes and can no longer invent one.</p>
+
+      <h3>The headline metric could not see the bug it exists to prevent</h3>
+      <p>Voting overwrote a record's code and never re-validated &mdash; but the refusal step routes on a verdict computed against the <em>replaced</em> code. Across three full runs it changed 25, 30 and 29 codes, and every one carried a stale verdict; exactly one per run shipped to a user marked <em>verified</em>. In the most recent: the span &ldquo;stamina&rdquo;, accepted on an exact match to <code>|Stamina|</code>, then voted to <code>|Lack of stamina|</code>, which does not match. We fixed it. Effect on the headline: exact F1 <strong>0.204 &rarr; 0.204</strong>. Of course &mdash; a record that was wrong scores the same whether it ships wrong or is withdrawn. <strong>Precision and recall cannot distinguish an <em>unwarranted</em> answer from an <em>incorrect</em> one</strong>, which is the entire distinction the system exists to make.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>08</b>Models</div>
+    <div class="col">
+      <h2>What open-weight models are actually short of</h2>
+      <p>Everything here ran locally, which was a licence constraint before it was a research one: CADEC is patient-reported medical text that cannot leave the machine.</p>
+
+      <h3>Instruction-following, not domain knowledge, is the binding constraint</h3>
+      <p>We imported <strong>BioMistral-7B</strong>, domain-adapted to medical text, specifically to improve the judge. It was rejected on measurement: 167 of 240 records unjudged, end-of-sequence emitted immediately after <code>{</code> on prompts past ~430 tokens, every parsed verdict <code>fail</code>, confidence flat 0.0. We then ran the <strong>un-adapted</strong> <code>mistral:7b-instruct</code>, which the original study never did &mdash; and it completes the full 40-document extraction cleanly. That closes the gap in our own earlier conclusion and sharpens it: the base family follows instructions here, so <strong>domain adaptation cost instruction-following.</strong> (Not a matched comparison &mdash; different role, prompt and quantization &mdash; so what transfers is the existence proof, not the magnitude.)</p>
+
+      <h3>Presentation is part of the measurement</h3>
+      <p>When we repaired an <em>accidental</em> prompt defect &mdash; the source post had been pasted in twice &mdash; the incumbent judge's pass/fail separation collapsed from 28.0/15.6 to 25.4/23.6. Its signal had been partly living in the duplication. Separately, alphabetising the candidate menu cost 10&ndash;12 points of accuracy at byte-identical detection. For small models, menu order and prompt form are load-bearing, and a result that survives only under one of them is not a result.</p>
+
+      <h3>Architecture can rescue a model that failed the task</h3>
+      <p><code>granite4:micro-h</code> (3.2B) was unusable as an extractor when asked to <em>recall</em> codes &mdash; it answered <code>AFTERPROMPT</code>. Under retrieve-and-pick, where the answer is a menu selection, it runs the full corpus and posts the <strong>highest ACCEPT lane of any model tested</strong> (89.3%). The task got easier, not the model better.</p>
+
+      <h3>Report detection and coding separately, or you will rank models wrongly</h3>
+      <p><code>qwen3:8b</code> is last by headline F1 (0.141) and <strong>second-best at coding</strong> (0.556, ahead of llama's 0.530 and mistral's 0.386) &mdash; because it emits 57 predictions against <code>gpt-oss</code>'s 232. It answers less and is right more often. A single number ranks it below two models it beats at the part everyone assumes is hard. It is also the most expensive by far: roughly two hours per draw against llama's fifteen minutes, for a quarter of the output.</p>
+
+      <h3>And a better model does not fix what you think</h3>
+      <p>Swapping a frontier hosted model into extraction (ten documents, one draw, both caveats stated) took detection recall from 55/62 to <strong>61/62</strong> and produced <strong>31 exactly-correct answers against the local model's 31 &mdash; identical</strong>, with coding accuracy drifting <em>down</em>. Both models pick from the same 20-candidate retrieved menu, and a better reader cannot beat the menu. Yet across our five local models coding accuracy spans <strong>21.3 points</strong>. The asymmetry is the finding: <strong>retrieval is a ceiling, not a floor.</strong> A better reader cannot beat the menu; a worse one can certainly fail to use it.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>09</b>Diversity</div>
+    <div class="col">
+      <h2>A second corpus found bugs that more testing would not have</h2>
+      <p>Four of the defects fixed while writing this had been invisible for five phases, and all four surfaced within hours of running a second dataset:</p>
+      <ul>
+        <li>the judge's prompt was never ported, so on FiNER a model grading SEC filings was asked whether the span was <em>&ldquo;really an adverse reaction the writer says they experienced&rdquo;</em></li>
+        <li>CADEC's exclusion list &mdash; a claim about <em>one</em> answer key &mdash; was applied to every corpus</li>
+        <li>models were resolved lazily per rung, so a mistyped judge name burned <strong>133 minutes</strong> of extraction and voting before failing at the rung that needed it</li>
+        <li>a <strong>content refusal</strong> on one document was being counted as a JSON parse failure, and it was holding 12.7% of that corpus's gold<span class="tag new">new</span></li>
+      </ul>
+      <p>A fifth came from a new <em>model</em> rather than a new corpus: the pick call crashed the entire run on a bare JSON array, a reply shape the find call had accepted for weeks. Same file, same rule, one call site missed.</p>
+      <p>None were subtle once a second thing was tried, and none would have been found by more tests against the original substrate. <strong>Diversity in what you test against finds a class of bug that depth of testing does not.</strong></p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>10</b>The ceiling</div>
+    <div class="col">
+      <h2>Why every number here appears twice</h2>
+      <p>One limit shapes every accuracy figure and applies to any span task scored against human annotation. <strong>The answer key's own boundary convention is ~67% deterministic.</strong> Over 25,002 boundary decisions, 66.9% fall at tokens the annotators treat consistently; 13% are genuinely mixed. &ldquo;terrible&rdquo; is kept inside a span 52% of the time. &ldquo;very&rdquo;, 70%.</p>
+      <p>A perfect learner of that convention gets ~0.92 per decision, and a span needs two &mdash; capping exact-span rate near 0.85. Composed with measured detection and retrieval ceilings, <strong>F1 &asymp; 0.68 with every component at its best</strong>; a directly measured oracle lands at 0.667.</p>
+      <p>So <strong>exact F1 above 0.70 is unreachable on this task by any system, including a perfect one</strong>, and the binding constraint is the answer key. Exact match scores a boundary disagreement as both a false positive and a false negative &mdash; punishing twice a difference two humans also disagree about. Every number here is reported on both layers. If you are benchmarking span extraction against one number, measure your annotators' agreement first. It is probably your ceiling.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>&mdash;</b>What we'd tell you<div class="note">Twelve things, in the order we wish we had known them.</div></div>
+    <div class="col">
+      <h2>What we would actually tell you</h2>
+      <p>We set out believing that stacking reliability layers buys reliability. Measured end to end, <strong>the layers made errors visible rather than fewer</strong> &mdash; which is worth a great deal, and is not what they were bought for.</p>
+      <ol>
+        <li><strong>Condition your confidence on something that does not resample.</strong> Ours was a controlled vocabulary; yours might be a schema, a type check, a database lookup, a compiler. It held at ~85% across five model families spanning a factor of 2.8 in accuracy.</li>
+        <li><strong>Know its precondition.</strong> The same check has <em>zero</em> coverage on a corpus where the span is a number. Check yours applies before you build on it.</li>
+        <li><strong>Three draws, or you have not measured it.</strong> A single-draw interval excluding zero certified an effect whose sign reversed on the third run. Then check whether your <em>own shipped config</em> complies: two of ours did not, and re-testing them killed a claim on one of the two scoring layers. While you are there, read the bootstrap helper itself &mdash; ours had been collapsing its resamples into a set for a month.<span class="tag new">new</span></li>
+        <li><strong>Reproducibility is a model choice</strong>, and its price is worse than the average says. Four of five models were bit-identical across runs. The one that was not bought 6.5 points and cost a 1.3-point spread &mdash; and, on one document in forty, cost the whole document: it refused on one draw and answered on the next two. Variance concentrates into all-or-nothing outcomes that an averaged spread hides.<span class="tag new">new</span></li>
+        <li><strong>Test your free layer against your answer key first.</strong> Every rejection there is false by construction, so you get its false-positive rate exactly, for nothing. Ours went from 9.3% to 0.13%.</li>
+        <li><strong>Measure the lenient setting's false-vouch rate before shipping it.</strong> 19% versus 0.1% is the gap between a gate and an endorsement machine.</li>
+        <li><strong>A model checking itself adds nothing.</strong> A different family adds a little. A fixed external artefact adds a lot more. When we finally connected the different-family judge to something that could act on it, it destroyed 3.7 correct answers per error it caught.<span class="tag new">new</span></li>
+        <li><strong>Grep for the readers of every field you write</strong> &mdash; then measure the orphan before you adopt it. Three of our layers deferred to a fourth that never read them; connecting one moved the honest metric <em>down</em>.</li>
+        <li><strong>Name failures at the grain that changes what you would do.</strong> Timed out, truncated, refused and malformed are four different problems wearing one label, and only one of them is fixed by anything you can change in a prompt.<span class="tag new">new</span></li>
+        <li><strong>If your model picks from a list, measure how often it takes line one.</strong> Ours took the alphabetically-first tag 19.5% of the time and the answer key used it twice &mdash; and it took that tag if and only if it was first. No accuracy metric would have told us.<span class="tag new">new</span></li>
+        <li><strong>Decompose recall before you try to raise it</strong>, then check that your fix is better than what it replaces. Ours read as &ldquo;the model proposes 30% of the answer key&rdquo;; it actually reaches 68.5% and mis-codes what it reaches. And ranking the candidate menu by real signal made the system <em>worse</em>, because the model deferred to a ranking weaker than its own reading.<span class="tag new">new</span></li>
+        <li><strong>Re-measure the top when you change the bottom</strong>, and <strong>print coverage beside every error rate</strong> &mdash; 4 errors per 100 and 0 errors per 100 mean very different things when the second is computed over nothing.</li>
+        <li><strong>Do not justify a reliability layer on F1.</strong> The metric cannot tell an unwarranted answer from an incorrect one.</li>
+      </ol>
+      <p>The system ships about a fifth of its answers, at four errors per hundred instead of sixty-three, and hands the rest to a person. That is not what we set out to build. But the machinery that makes the other four-fifths <em>legible</em> to that person turned out to be worth more than any of the layers that tried to answer them.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="band-row">
+    <div class="rail"><b>&mdash;</b>Reproducing</div>
+    <div class="col">
+      <h2>Reproducing this</h2>
+      <p>CADEC is not redistributable (CSIRO licence, non-commercial, non-transferable) and SNOMED needs an affiliate licence. <strong>FiNER-139 is CC-BY-SA-4.0</strong> &mdash; that arm is reproducible from a clean checkout, and we rebuilt it from its own documented instructions to confirm.</p>
+<pre><code>python -m ladder.registry --build --release data/SnomedCT_Release_&lt;yours&gt;
+python -m ladder.run init
+python -m ladder.run gate
+python -m ladder.calibrate --split all --sweep --json out/rung1_floor.json
+python -m ladder.probe     --split all           --json out/rung1_detection.json
+python -m ladder.probe     --split all --lexical-mode contained
+python -m ladder.run ladder --split test --source gold --run-id gold_control
+python -m ladder.vocab_crosscheck --live 40
+
+# The model-facing ladder (Ollama: gpt-oss:20b + granite4:micro-h).
+# Dev replays from the call cache; the test run below is THE run,
+# executed once and archived with every baseline beside it.
+python -m ladder.run ladder --split dev  --run-id &lt;your-dev-run&gt;
+python -m ladder.run ladder --split test --run-id phaseF-test-1
+
+# The second corpus, and the ablation that settles what the paid layers bought.
+python -m ladder.run --manifest manifest.finer.json       ladder --split dev
+python -m ladder.run --manifest manifest.spine.cadec.json ladder --split dev</code></pre>
+      <p>Every figure above comes from these commands; nothing is quoted from a pipeline that is no longer in the repository.</p>
+      <h4>Limitations</h4>
+      <p>The held-out split was spent once, so its intervals are the claim and no second draw exists to average with; everything after is tuning-side, and labelled &mdash; including every number added in this revision (the three-draw re-test of our own two arms, the judge arm, and the FiNER recall decomposition). None of it is validated against held-out data and none of it re-opens the held-out numbers.</p>
+      <p>Voting numbers are samples and carry their run id. The judge is a 3.2B model grading a 20B one. The oracle desk is a gold-derived ceiling; no real reviewer session was ever timed, so human cost is reported as a <strong>count</strong> of records routed, never as minutes. The near-miss corruption is synthetic. The FiNER arm has one dev run and no tuning history, so it stands next to CADEC as a demonstration and not as a matched comparison. And CADEC is public and from 2015, so it is almost certainly in pretraining &mdash; which inflates the bare-model baseline and makes every gain here <strong>conservative</strong>.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="wrap">
+  <div class="band-row">
+    <div class="rail"><b>Colophon</b></div>
+    <div class="col">
+      <p>The Reliability Ladder &mdash; revision 3, 2026-08-30. Every figure on this page is measured in the project repository and logged, with its run id, in the decisions log. Three cost measures &mdash; tokens, p95 latency, records routed to a person &mdash; are reported separately throughout and never fused into one currency.</p>
+    </div>
+  </div>
+</footer>

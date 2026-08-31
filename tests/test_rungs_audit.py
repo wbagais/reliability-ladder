@@ -318,12 +318,31 @@ def test_exclusions_for_reads_the_declared_file(tmp_path):
     assert clean.exclusions_for(man) == {"FINER.test.0001#0"}
 
 
-def test_cadec_still_gets_its_exclusions_by_default():
-    """The CADEC arm must not change: no `exclusions` key means its own file."""
+def test_cadec_still_gets_its_exclusions_by_default(tmp_path, monkeypatch):
+    """The CADEC arm must not change: no `exclusions` key means its own file.
+
+    Written against a tmp cwd, not against the repo's real
+    `data/exclusions.csv`: that file is a BUILD ARTIFACT (`data/` is
+    gitignored, `python -m ladder.clean --build` writes it), so a test that
+    asserts it is non-empty passes on a developer machine and fails in CI on
+    the environment rather than on the behaviour. This asserts the routing
+    itself — default path, real content, any machine.
+    """
     from ladder import clean
 
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "exclusions.csv").write_text(
+        "record_id,doc_id,reason,detail\n"
+        "ARTHROTEC.111#1,ARTHROTEC.111,retired_code,267052005\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
     got = clean.exclusions_for({"corpus": {"cadec_root": "data/cadec"}})
-    assert len(got) == len(clean.load_exclusions()) > 0
+    assert got == {"ARTHROTEC.111#1"}, (
+        "a manifest with no `exclusions` key on the CADEC arm must still read "
+        "CADEC's own default file"
+    )
 
 
 # ---------------- defect 5: a model typo costs the whole run, two hours in
@@ -570,3 +589,200 @@ def test_a_bare_array_from_a_pick_call_is_not_wrapped_as_mentions():
     assert c._unwrap_array('{"picks": []}', "S2-pick") == '{"picks": []}'
     assert c._unwrap_array('[1,2,3]', "S2-pick") == '[1,2,3]'
     assert c.unwrapped == 3
+
+
+# --- rung 4 wired into rung 5: an off-by-default arm (2026-08-30) -------------
+#
+# The audit's structural finding was that every deferral in the ladder ends in
+# a field nothing reads: rung 2 writes `r2_declined`, rung 3 writes
+# `r3_unanimous_none`, rung 4 writes `r4_verdict`, and `r5.decide()` reads none
+# of the three. The owner's call on rung 4 was to WIRE IT AS AN ARM and measure
+# whether it adds anything, rather than to disable it or leave it a diagnostic.
+#
+# `abstain_on_judge_fail` defaults to False, so the shipped configuration is
+# byte-for-byte the one every published CADEC number was produced under.
+
+from ladder.rungs import r5 as _r5
+from ladder.schema import (
+    Record as _Record,
+    R_JUDGE_FAIL as _R_JUDGE_FAIL,
+    ZONE_ABSTAIN as _ABSTAIN,
+    ZONE_ACCEPT as _ACCEPT,
+    ZONE_BAND as _BAND,
+    ZONE_VERIFIED as _VERIFIED,
+)
+
+
+def _jrec(verdict, zone=_ACCEPT, **kw):
+    base = dict(doc_id="D1", entity_type="reaction", text="bit drowsy",
+                spans=[(9, 19)], sct="271782001")
+    base.update(kw)
+    r = _Record(**base)
+    r.checks["r1_verdict"] = zone
+    if verdict is not None:
+        r.checks["r4_verdict"] = verdict
+    return r
+
+
+def test_the_judge_arm_is_off_by_default():
+    """Every published CADEC number was produced with rung 4 wired to nothing."""
+    assert _r5.DEFAULTS["abstain_on_judge_fail"] is False
+    r = _jrec("fail")
+    assert _r5.decide(r, {})[0] == _VERIFIED
+
+
+def test_the_judge_arm_abstains_an_accepted_record_the_judge_failed():
+    r = _jrec("fail")
+    zone, reason = _r5.decide(r, {"abstain_on_judge_fail": True})
+    assert (zone, reason) == (_ABSTAIN, _R_JUDGE_FAIL)
+
+
+def test_the_judge_arm_leaves_a_passed_record_alone():
+    r = _jrec("pass")
+    assert _r5.decide(r, {"abstain_on_judge_fail": True})[0] == _VERIFIED
+
+
+def test_a_record_the_judge_never_reached_is_not_abstained_for_it():
+    """`r4_verdict` is None on a parse failure and absent when rung 4 did not
+    run at all. Neither is evidence against the record, and treating a missing
+    judgement as a failed one would abstain the whole run the moment the judge
+    was disabled."""
+    for r in (_jrec(None), _jrec(None)):
+        assert _r5.decide(r, {"abstain_on_judge_fail": True})[0] == _VERIFIED
+    r = _jrec("fail")
+    r.checks["r4_verdict"] = None
+    assert _r5.decide(r, {"abstain_on_judge_fail": True})[0] == _VERIFIED
+
+
+def test_the_judge_arm_cannot_rescue_a_record_the_free_check_already_withheld():
+    """The arm may only SUBTRACT coverage. A BAND record stays abstained and
+    keeps its own reason, because `unresolved` is the more specific fact and
+    the judge agreeing with it adds nothing."""
+    r = _jrec("fail", zone=_BAND)
+    zone, reason = _r5.decide(r, {"abstain_on_judge_fail": True})
+    assert zone == _ABSTAIN and reason != _R_JUDGE_FAIL
+    r2 = _jrec("pass", zone=_BAND)
+    assert _r5.decide(r2, {"abstain_on_judge_fail": True})[0] == _ABSTAIN
+
+
+def test_the_judge_arm_withdraws_the_answer_and_keeps_it(tmp_path):
+    from ladder.ledger import Ledger
+    r = _jrec("fail")
+    ledger = Ledger(tmp_path / "l.jsonl", run_id="t")
+    _r5.apply([r], {"D1": "she was bit drowsy"},
+              {"ledger": ledger, **_r5.DEFAULTS, "abstain_on_judge_fail": True})
+    ledger.close()
+    assert r.zone == _ABSTAIN and r.reason == _R_JUDGE_FAIL
+    assert r.sct is None
+    assert r.checks["withheld"]["sct"] == "271782001"
+
+
+def test_the_judge_arm_manifest_differs_from_the_shipped_one_by_exactly_one_key():
+    """An ablation manifest is only an ablation if it holds everything else fixed.
+
+    The spine ablation on 2026-08-30 nearly shipped a 5.9-point rung 0
+    difference charged to the rungs being dropped, because its manifests had
+    been written before rung 0 changed. `manifest.judgearm.json` exists to
+    isolate ONE flag, so this asserts that it does — key by key, not by
+    eyeball.
+    """
+    import json
+
+    a = json.load(open(_ROOT / "manifest.json"))
+    b = json.load(open(_ROOT / "manifest.judgearm.json"))
+    b.pop("_judgearm_note", None)
+
+    def walk(x, y, path=""):
+        if isinstance(x, dict) and isinstance(y, dict):
+            for k in sorted(set(x) | set(y)):
+                yield from walk(x.get(k), y.get(k), f"{path}.{k}")
+        elif x != y:
+            yield path
+
+    assert list(walk(a, b)) == [".rungs.5.abstain_on_judge_fail"]
+    assert a["rungs"]["5"]["abstain_on_judge_fail"] is False
+    assert b["rungs"]["5"]["abstain_on_judge_fail"] is True
+
+
+def test_the_shipped_manifest_declares_the_judge_arm_off_explicitly():
+    """Same rule as the rung 0 arms: the declared configuration must be the
+    measured one, and must not lean on a code default that can move."""
+    import json
+
+    from ladder.rungs import r5
+
+    man = json.load(open(_ROOT / "manifest.json"))
+    assert man["rungs"]["5"]["abstain_on_judge_fail"] is False
+    assert "abstain_on_judge_fail" in r5.DEFAULTS
+
+
+# --- a refusal is not a JSON failure (2026-08-30) -----------------------------
+#
+# FiNER's recall gap is 52 gold mentions and 21 of them - 12.7% of the whole
+# dev gold - are in ONE document the extractor REFUSED: 2,153 reasoning tokens
+# and then "I'm sorry, but I can't provide that." The ledger recorded it as
+# `json_decode`, i.e. as a model that cannot emit JSON.
+#
+# That is the same mislabelling `timed_out` > `truncated` > `json_decode` was
+# introduced to stop, one class further out. A refusal is a MODEL POLICY
+# decision about the content; a JSON failure is a formatting failure. They cost
+# the same record and they mean completely different things, and only one of
+# them is fixed by anything to do with schemas or token caps.
+
+
+def test_a_refusal_is_labelled_refused_not_json_decode():
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._parse("I'm sorry, but I can't provide that.", meta) is None
+    assert meta["parse_failed"] is True
+    assert meta["refused"] is True
+
+
+def test_ordinary_malformed_json_is_not_called_a_refusal():
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._parse('{"mentions": [', meta) is None
+    assert meta["parse_failed"] is True
+    assert not meta.get("refused")
+
+
+def test_a_valid_reply_that_merely_mentions_sorry_is_not_a_refusal():
+    """The detector reads a reply the parser has ALREADY rejected, so a
+    well-formed answer quoting a patient saying 'sorry I cannot remember' can
+    never reach it. Pinned because a substring test on model output is exactly
+    the kind of check that quietly starts firing on real data."""
+    from ladder.rungs import r0
+
+    meta = {}
+    got = r0._parse('{"mentions": [{"span_text": "sorry I cannot sleep"}]}', meta)
+    assert got is not None
+    assert not meta.get("refused") and not meta.get("parse_failed")
+
+
+def test_the_reason_ladder_puts_refused_above_json_decode():
+    """Most specific first, the same rule as timed_out > truncated. A refusal
+    that a timeout also cut off is still reported as the timeout, because the
+    timeout is a property of THIS MACHINE and outranks everything."""
+    from ladder.rungs import r0
+
+    assert r0.failure_reason({"parse_failed": True}) == "json_decode"
+    assert r0.failure_reason({"parse_failed": True, "refused": True}) == "refused"
+    assert r0.failure_reason({"parse_failed": True, "refused": True,
+                              "truncated": True}) == "truncated"
+    assert r0.failure_reason({"parse_failed": True, "refused": True,
+                              "truncated": True, "timed_out": True}) == "timed_out"
+    assert r0.failure_reason({}) is None
+
+
+def test_the_refusal_detector_reads_the_apostrophe_the_model_actually_types():
+    """The reply that cost 21 gold mentions is `I’m sorry, but I can’t provide
+    that.` with U+2019, not the ASCII apostrophe. A detector written against
+    the ASCII form passes its own tests and never fires on the corpus."""
+    from ladder.rungs import r0
+
+    meta = {}
+    assert r0._parse("I’m sorry, but I can’t provide that.", meta) is None
+    assert meta.get("refused") is True
+    assert r0.failure_reason(meta) == "refused"

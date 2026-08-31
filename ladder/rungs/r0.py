@@ -1097,12 +1097,41 @@ def _merged_candidates(search, span: str, labels: list[str], k: int) -> list[dic
     return out
 
 
-MENU_ORDERS = ("score", "alpha")
+MENU_ORDERS = ("score", "alpha", "context")
+
+# How much of the document either side of the span the `context` order reads.
+# Not a sentence: a FiNER document is ten concatenated sentences and the
+# tokeniser's boundaries are not in the text the scorer works over.
+CONTEXT_WINDOW = 120
 
 
-def _order_menu(cands: list[dict], which: str) -> list[dict]:
+def _span_context(source: str, spans, window: int = CONTEXT_WINDOW) -> str:
+    """The characters around a mention. "" when there is nothing to read.
+
+    An ungrounded (-1, -1) span has no offsets to read around; so does an empty
+    document. Both return "" rather than raising, because `context_ranked`
+    treats no context as "leave the menu alone" and an ordering must never cost
+    a document.
+    """
+    if not source or not spans:
+        return ""
+    starts = [a for a, _ in spans if isinstance(a, int) and a >= 0]
+    ends = [b for _, b in spans if isinstance(b, int) and b >= 0]
+    if not starts or not ends:
+        return ""
+    return source[max(0, min(starts) - window): max(ends) + window]
+
+
+def _order_menu(cands: list[dict], which: str, context: str | None = None,
+                embed=None) -> list[dict]:
     """The menu in its declared order, renumbered. S2 only — S1's menus are
-    the model's own names' codes, typically two or three lines."""
+    the model's own names' codes, typically two or three lines.
+
+    `context` / `embed` are read only by the `context` order (2026-08-30, off
+    by default). Without an embedder that order is a no-op rather than an
+    error: the arm is per-mention and inside the document loop, so a missing
+    dependency must cost the ORDER, not the run.
+    """
     if which not in MENU_ORDERS:
         raise ValueError(
             f"rung0_menu_order={which!r} is not one of {MENU_ORDERS}. An order "
@@ -1114,6 +1143,12 @@ def _order_menu(cands: list[dict], which: str) -> list[dict]:
             cands, key=lambda c: str(c.get("fsn") or c.get("label") or "").lower()
         )
         cands = [{**c, "i": n} for n, c in enumerate(cands)]
+    elif which == "context":
+        if embed is None:
+            return cands
+        from ladder.menuorder import context_ranked
+
+        cands = context_ranked(cands, context, embed)
     return cands
 
 
@@ -1194,6 +1229,9 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
         cands = _order_menu(
             _merged_candidates(search, rec.text, proposed, depth),
             menu_order,
+            # The span carries no query on a numeric corpus; the sentence does.
+            context=_span_context(source, rec.spans) if menu_order == "context" else None,
+            embed=cfg.get("menu_embedder") if menu_order == "context" else None,
         )
         # The free reranker runs per mention here; "llm" batches several
         # mentions into one call and runs below, once the whole document's
@@ -1562,13 +1600,62 @@ def _as_picks(parsed, meta: dict):
     return None
 
 
+# A model declining the task, in the shapes it actually declines in. Matched
+# ONLY against a reply the JSON parser has already rejected, so a well-formed
+# answer that quotes a patient saying "sorry" can never reach it.
+# `_APOS` is load-bearing, not tidiness: the reply that cost 21 FiNER gold
+# mentions is "I’m sorry, but I can’t provide that." with U+2019. A detector
+# written against the ASCII apostrophe passes every test anyone would think to
+# write and never fires on the corpus.
+_APOS = "['\u2019\u02bc]?"
+_REFUSAL = re.compile(
+    rf"\b(i{_APOS}m sorry|i am sorry|i apologi[sz]e|sorry,?)\b.{{0,80}}?"
+    rf"\b(can{_APOS}t|cannot|can not|unable to|won{_APOS}t|not able to)\b"
+    rf"|\bi (can{_APOS}t|cannot|am unable to|won{_APOS}t) "
+    rf"(help|assist|provide|comply|do that)\b"
+    r"|\bas an ai\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def failure_reason(meta: dict) -> str | None:
+    """The ONE place a rung 0 document failure is named. Most specific first.
+
+        timed_out > truncated > refused > json_decode
+
+    `timed_out` and `truncated` stay on top because they are properties of THIS
+    MACHINE and this token cap — a reply the harness cut off tells you nothing
+    about what the model would have said. Below them, `refused` outranks
+    `json_decode` for the same reason `truncated` does: a model DECLINING the
+    task and a model unable to emit JSON cost the same record and mean entirely
+    different things, and only one of them is touched by schemas or caps.
+    Measured 2026-08-30: one refused FiNER document held 21 of 165 dev gold
+    mentions, 12.7% of the corpus's gold, filed as a JSON failure.
+    """
+    if meta.get("timed_out"):
+        return "timed_out"
+    if meta.get("truncated"):
+        return "truncated"
+    if meta.get("refused"):
+        return "refused"
+    if meta.get("parse_failed"):
+        return "json_decode"
+    return None
+
+
 def _parse(raw: str, meta: dict):
     """JSON or nothing. A parse failure is rung 0's counter-metric, not a bug
-    to repair — repairing it here would delete the measurement."""
+    to repair — repairing it here would delete the measurement.
+
+    A REFUSAL is flagged as well as counted. It is still a parse failure (there
+    is no JSON in it), but it is a different failure and `failure_reason` says
+    which."""
     try:
         return json.loads(raw)
     except (json.JSONDecodeError, TypeError):
         meta["parse_failed"] = True
+        if isinstance(raw, str) and _REFUSAL.search(raw):
+            meta["refused"] = True
         return None
 
 
@@ -1640,6 +1727,28 @@ def prepare(cfg: dict[str, Any] | None) -> dict[str, Any]:
             cfg["manifest"], cfg["rung0_fewshot_docs"],
             loader=cfg.get("corpus_loader"),
         )
+    if (cfg.get("rung0_menu_order") == "context"
+            and cfg.get("menu_embedder") is None):
+        # Built HERE and not per mention: the 139 tag names are the same on
+        # every call and the context is the only thing that changes, so an
+        # un-memoised embedder would recompute the whole menu's vectors ~292
+        # times for one FiNER run. Built ONLY when the arm is on, so a CADEC
+        # run never touches an embedding server it does not use.
+        base = cfg.get("embedder")
+        if base is None:
+            from ladder.embed import ollama_embedder
+
+            base = ollama_embedder()
+        seen: dict[str, Any] = {}
+
+        def _memoised(texts, _base=base, _seen=seen):
+            fresh = [t for t in texts if t not in _seen]
+            if fresh:
+                for t, v in zip(fresh, _base(fresh)):
+                    _seen[t] = v
+            return [_seen[t] for t in texts]
+
+        cfg["menu_embedder"] = _memoised
     if cfg.get("rung0_trim") and cfg.get("trimmer") is None:
         from ladder.trim import pool_trimmer
 
@@ -1709,6 +1818,7 @@ def apply(
         "documents": 0, "records": 0, "tokens_in": 0, "tokens_out": 0,
         "tool_calls": 0, "api_calls": 0, "parse_failed": 0, "usd": 0.0,
         "pick_parse_failed": 0, "truncated": 0, "multi_code": 0, "timed_out": 0,
+        "refused": 0,
         # Replies whose CONTENT was right and whose SHAPE was not — a bare
         # list where {"mentions": [...]} was asked for. Counted, never
         # silent: it is a per-model compliance cost, and hiding it would let
@@ -1735,6 +1845,10 @@ def apply(
         # label. Raising max_tokens moves this, it does not remove it.
         agg["truncated"] += int(meta.get("truncated", False))
         agg["timed_out"] += int(meta.get("timed_out", False))
+        # A model DECLINING the document. Counted apart from parse_failed for
+        # the same reason truncated is: it is not a formatting failure and no
+        # schema or token cap moves it.
+        agg["refused"] += int(meta.get("refused", False))
         # S0 only: mentions where the model answered with several codes where
         # the prompt asked for one.
         agg["multi_code"] += meta.get("multi_code", 0)
@@ -1759,12 +1873,7 @@ def apply(
                 record_id=doc_id,
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
-                reason=(
-                    "timed_out" if meta.get("timed_out")
-                    else "truncated" if meta.get("truncated")
-                    else "json_decode" if meta.get("parse_failed")
-                    else None
-                ),
+                reason=failure_reason(meta),
                 tokens_in=meta["tokens_in"],
                 tokens_out=meta["tokens_out"],
                 api_calls=meta.get("api_calls", 1),
@@ -1835,12 +1944,7 @@ def run(items, mode, llm, cfg=None):
                 record_id=it["doc_id"],
                 zone="NEW",
                 outcome="parse_failed" if meta.get("parse_failed") else "extracted",
-                reason=(
-                    "timed_out" if meta.get("timed_out")
-                    else "truncated" if meta.get("truncated")
-                    else "json_decode" if meta.get("parse_failed")
-                    else None
-                ),
+                reason=failure_reason(meta),
                 tokens_in=meta.get("tokens_in", 0),
                 tokens_out=meta.get("tokens_out", 0),
                 api_calls=1,

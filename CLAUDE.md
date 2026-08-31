@@ -346,6 +346,161 @@ the fifth outcome `modernised` (mirror of `outdated`, own `sct_modernised`
 column, never folded into correct — headline denominators unchanged;
 0 fired on dev, 6 possible there).
 
+## Session 2026-08-30/31 — four tasks plus the article (14 commits, 725 tests)
+1. **The three-draw debt is PAID and both arms survive** — nothing removed, no
+   CADEC number re-run. `rung0_split` exact +0.0389/+0.0345/+0.0579, pooled
+   **+0.0438 [+0.0012, +0.0937]** (separated); `rung0_cut_rate` exact
+   +0.0139/+0.0183/+0.0098, pooled +0.0140 [−0.0163, +0.0500] (consistent, and
+   SMALLER than the base's own 1.3pt spread). **The split buys EXACT ONLY** —
+   its overlap sign reverses. Both manifest notes amended. Runs
+   `out/arm-debt{base,nocut,nosplit}-d{0,1,2}-dev.*`.
+   **`ladder.score.paired_bootstrap` is now production code**, because
+   `out/harness/paired.py` resampled with `set(random.choices(...))` — a ~63%
+   subsample, not a bootstrap. `bootstrap_ci` refactored onto the shared
+   helpers, output byte-identical.
+2. **Rung 4 is WIRED and it stays OFF** (owner's call: wire-and-measure).
+   `rungs.5.abstain_on_judge_fail` (default false, declared in the manifest),
+   `R_JUDGE_FAIL`, `manifest.judgearm.json` = a test-pinned one-key diff.
+   Three draws: coverage 0.210/0.202/0.215 → 0.153/0.149/0.156; **yield
+   0.169/0.161/0.177 → 0.125/0.121/0.131**; to a person 196/198/186 →
+   210/211/200. Withdraws 14/13/14 to remove 3 errors — **3.7 correct destroyed
+   per error caught**, lift 1.11–1.21x against the free check's 3.03–3.15x.
+   Precision rose because abstaining always raises precision; yield is the
+   number that cannot be fooled. Runs `out/judgearm/`.
+3. **FiNER recall — the old premise was wrong.** 0.303 = detection **0.685** x
+   coding **0.446**; the model reaches two thirds of gold and mis-codes it, and
+   proposes 292 spans against 165 gold. **Recall work here is CODING work.**
+   - **A REFUSAL IS NOT A JSON FAILURE.** One document held 21 of 165 dev gold
+     (12.7%, 40% of the detection gap) and the extractor answered *"I'm sorry,
+     but I can't provide that."* New label ladder `timed_out > truncated >
+     refused > json_decode` (`r0.failure_reason`). The detector MUST read
+     U+2019 — an ASCII-apostrophe detector never fires on real output.
+   - **The refusal is the DRAW, not the document or the model**: same request,
+     d0 refused / d1 33 mentions / d2 33 mentions; all three other families
+     answered. So the 1.3pt spread understates the risk — variance concentrates
+     into whole-document, all-or-nothing outcomes.
+   - **REJECTED: `rung0_menu_order: "context"`** (`ladder/menuorder.py`, off in
+     both manifests, `manifest.finer.ctxmenu.json` a test-pinned one-key diff).
+     Detection byte-identical; coding 0.393 → 0.304. Mechanism confirmed on the
+     artifacts (`out/harness/finerctxdiag.py`): slot-0 picks 20.4% → 50.2%,
+     slot-0 accuracy 0.087 → 0.373, but the model's own unranked judgement
+     scores **0.457**. A ranking can carry real signal, move the model, and
+     still lose to what it displaced. **ONE DRAW** — three needs FOUR runs
+     (both sides at d1 and d2) at ~78 min each. FiNER's own run-to-run spread
+     has never been measured.
+   - **THE SLOT-0 ATTRACTOR, and it is the session's sharpest result.**
+     `AccrualForEnvironmentalLossContingencies` is **menu slot 0** (the menu is
+     `sorted(set(tags))`) and is predicted **57 of 292** times against **2 in
+     gold** — **19.5% of all predictions are the list's first line.** The
+     context arm is the free position-vs-semantics discriminator: it moves the
+     tag to median slot 92 and the prediction count falls **57 → 3**, and in
+     BOTH arms every single one of those predictions was taken while the tag
+     sat at slot 0. The model takes it **iff** it is first. So the context arm
+     is TWO effects, not one failure: it killed the attractor (a real fix) and
+     amplified the positional prior (20.4% → 50.2% slot-0 picks), net negative.
+     **NEXT EXPERIMENT, and it is not a better ranker: break the position prior
+     — a slot 0 that is never a valid answer, or a per-mention permutation with
+     a fixed seed.** Composes with CADEC rather than contradicting it: there the
+     menu is retrieval-score-ordered, so the same prior lands on the BEST
+     candidate, which is why alphabetising it cost 10-12pt.
+     `out/harness/finermiscode.py`. Also: of 113 matched spans 68 are miscoded
+     and **0 are abstentions**, 79.4% of wrong tags share no leading word with
+     gold, and 13 predictions are CONCEPT_LESS against 0 in gold.
+4. **The published artifact is the ARTICLE now**, not the build log.
+   `docs/article.html` serves the existing URL; `docs/article-build-log.html`
+   is archived as `docs/versions/article-build-log-v2-2026-08-28.html`.
+   **`docs/article.md` is the article, and it is canonical** — the 2026-08-30
+   revision (the four results above) was promoted into it and the version it
+   replaced is `docs/versions/article-v2-2026-08-28.md`. There is no
+   `article_vN.md` beside it: one file, one answer to "which article is this".
+   New material is marked in the typeset page so a reader who saw revision 2
+   can find what changed.
+
+**Where this session's artifacts live.** `out/` is gitignored, so every run and
+every harness script cited above sits in the worktree
+`.claude/worktrees/phase-e-rung-6-human-loop-64ce8e/out/` — new this session:
+`harness/debt.sh`, `debtpaired.py`, `judgearmcmp.py`, `finerrecall.py`,
+`finerctx.py`, `finerarm.py`, `finerctxdiag.py`, `finerrefusal.py`, plus
+`out/judgearm/` and `out/finer/arm-finer{base,ctx}-d0.*`. Per the standing
+convention (`out/harness/README.md`) the scripts are scratch and
+`docs/decisions.md` is the durable record; the FiNER data is symlinked from the
+`agitated-lewin-346b03` worktree.
+
+### Also this session — the article layer, and the FiNER draws
+5. **The FiNER three-draw debt is PAID and the context arm is REJECTED.**
+   base exact 0.193/0.205/0.205 vs ctx 0.149/0.128/0.128; coding
+   0.393/0.421/0.421 vs 0.304/0.263/0.263. **d1 and d2 are BYTE-IDENTICAL**
+   (same sha256, both arms) — so FiNER's whole run-to-run spread is ONE
+   REFUSED DOCUMENT, not a distribution. Say "one refused document", never
+   "±1.2 points". Runs `out/finer/arm-finer{base,ctx}-d{0,1,2}.*`.
+6. **`docs/article-v3.md` is the live article draft** — based on
+   `docs/article-v2.md` (the 3,579-word submission), NOT on `docs/article.md`
+   (the longform build report). It carries **four `[PENDING]` markers**, and
+   two of them can CHANGE a claim rather than add to it: the CONORM
+   comparison (our "exact F1 0.70 is unreachable by any system" may hold only
+   for ZERO-SHOT systems) and the retriever (our "retrieval is a ceiling" may
+   be our general-purpose 30M embedder). **Do not quote either claim
+   unqualified until those are closed.**
+7. **`docs/PLAN-next-sessions.md` is the work queue**, four sessions with a
+   paste-ready prompt for Session 1. Start there.
+8. **Figure 2 is the article's spine diagram** (`docs/figures/fig6-spine.dot`)
+   and every claim now carries a REAL example from the artifacts
+   (`out/harness/examples.py`, `out/harness/rungexamples.py`). **Licence rule
+   for examples: CADEC gives ANNOTATED SPANS and vocabulary labels only, never
+   a sentence of post prose.** FiNER is CC-BY-SA-4.0 and is quoted directly.
+9. **Naming, fixed:** `docs/article.md` = longform build report,
+   `docs/article-v2.md` = the previous submission, `docs/article-v3.md` = the
+   current draft, `docs/versions/article-longform-2026-08-28.md` = the
+   archived longform. There is no `article_vN.md`.
+
+## TODO — registered, not started
+
+- **BioMistral-7B AS THE RUNG 0 EXTRACTOR** (added 2026-08-30, owner's call, do
+  not start without asking). We rejected BioMistral on 2026-08-25 and the
+  article says **"domain adaptation cost instruction-following"** — but that
+  claim rests on ONE ROLE. It was only ever measured as the JUDGE, where it
+  answered instant-EOS after `{` on prompts past ~430 tokens and every parsed
+  verdict was `fail`. It has never run as an extractor, so the strongest
+  domain-knowledge question in the project ("is a domain-adapted model better
+  at the domain?") is currently answered from a role it never got to play.
+  - **The precedent that makes this worth doing.** `granite4:micro-h` was
+    unusable when asked to RECALL codes (it answered `AFTERPROMPT`) and runs
+    the whole corpus fine under S2's retrieve-and-pick, where the answer is a
+    menu selection — and it posts the HIGHEST ACCEPT lane of any model tested
+    (89.3%). The task got easier, not the model better. The same rescue may or
+    may not apply here, and that is the experiment.
+  - **The specific risk, stated in advance so a null is interpretable.** Rung
+    0's prompts are LONGER than rung 4's, not shorter — the S2 find prompt with
+    the few-shot block ran 2,711 prompt tokens on FiNER. If the ~430-token EOS
+    cliff is real, rung 0 is where it bites HARDEST and the run will fail at
+    step one. **That outcome is still a result**: it would separate "domain
+    adaptation cost instruction-following" (a claim about the model) from "our
+    judge harness was wrong" (a claim about us), which the current evidence
+    cannot do.
+  - **Protocol.** CADEC dev, three draws, `--extractor ollama/biomistral:7b-q5_k_m`,
+    everything else frozen; report detection and coding SEPARATELY (qwen3 is the
+    standing warning against a single F1); report the ACCEPT lane, since that is
+    the quantity the five-model table is built on. Register the prompt-token
+    distribution before the run so an EOS failure is diagnosable rather than
+    mysterious. It is already in `models.yaml`.
+  - **What it buys the article.** It closes the one gap a domain reviewer will
+    find on sight, and it either strengthens the instruction-following claim to
+    two roles or retracts it to one.
+
+- **SapBERT (or any domain-adapted encoder) as the S2 retriever** (added
+  2026-08-30, from the literature review). Dense retrieval currently runs
+  `granite-embedding:30m`, a GENERAL-PURPOSE 30M embedder, where the field
+  standard for biomedical entity linking is a domain-adapted encoder. Part of
+  the retrieval ceiling this project attributes to the TASK may be attributable
+  to that choice, and "retrieval is a ceiling" is a load-bearing claim. State it
+  as a limitation in the article regardless; measure it if there is time.
+
+- **Break the slot-0 position prior on FiNER** (added 2026-08-30, the highest
+  value untried FiNER experiment — see the slot-0 attractor entry in
+  `docs/decisions.md`). NOT a better ranker: a slot 0 that is never a valid
+  answer, or a per-mention permutation under a fixed seed. The model takes menu
+  line one iff it is line one, 19.5% of all predictions.
+
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.
 - `manifest.json` is append-only and edited jointly.

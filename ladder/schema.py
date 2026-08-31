@@ -91,6 +91,15 @@ R_LABEL_MISMATCH = "label_mismatch"  # model's own label does not match its code
 # exists so it is nameable and countable, not so it can reject.
 R_CODE_OUTDATED = "code_outdated"  # retired, and SNOMED records what replaced it
 
+# R_JUDGE_FAIL: rung 5 only, and only under `abstain_on_judge_fail`. Appended
+# 2026-08-30 when rung 4 was finally wired to a reader. It is NOT a REJECT
+# reason: a second model disagreeing is evidence to withhold on, never proof
+# the answer is wrong, and rung 1's REJECT_REASONS are the ones that carry a
+# proof. Distinct from R_UNRESOLVED so the ledger can say which layer withdrew
+# the answer — the whole point of the arm is to count what the judge adds over
+# the free check, and one shared reason would make that uncountable.
+R_JUDGE_FAIL = "judge_fail"
+
 REJECT_REASONS = (
     R_SCHEMA_INVALID,
     R_SPAN_UNGROUNDED,

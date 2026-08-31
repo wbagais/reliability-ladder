@@ -16,6 +16,8 @@ are different failures:
 
     unresolved       still in BAND after every resolver ran — plausible, but
                      nothing in the ladder could verify it
+    judge_fail       rung 4's second-family judge failed it, and the
+                     `abstain_on_judge_fail` arm is on (OFF by default)
     rejected         rung 1 said it was provably wrong and rung 2 never rescued
                      it. Abstaining is the honest end state; shipping it is not
     low_confidence   the model's own confidence sits below tau
@@ -42,6 +44,7 @@ import time
 from typing import Any, Callable
 
 from ladder.schema import (
+    R_JUDGE_FAIL,
     R_LOW_CONFIDENCE,
     R_UNRESOLVED,
     Record,
@@ -60,6 +63,13 @@ DEFAULTS = {
     "tau": 0.0,
     "abstain_zones": [ZONE_BAND],
     "abstain_on_reject": True,
+    # OFF. Appended 2026-08-30, on the owner's call, as the arm that finally
+    # gives rung 4 a reader — the audit's structural finding was that rungs 2,
+    # 3 and 4 each defer to a rung 5 that reads none of them. Off by default
+    # because every published CADEC number was produced with rung 4 wired to
+    # nothing, and an arm that changes the shipped configuration the day it
+    # lands cannot be compared against them.
+    "abstain_on_judge_fail": False,
 }
 
 
@@ -82,6 +92,16 @@ def decide(rec: Record, cfg: dict[str, Any] | None = None) -> tuple[str, str | N
         if cfg["abstain_on_reject"]:
             return ZONE_ABSTAIN, reason
         return rec.zone, reason
+    # The judge may only SUBTRACT coverage, and only from records the free
+    # check was willing to ship. A record already heading for ABSTAIN keeps
+    # its own reason: `unresolved` is the more specific fact, and a judge
+    # agreeing with it adds nothing that could be counted.
+    if (
+        cfg["abstain_on_judge_fail"]
+        and verdict not in cfg["abstain_zones"]
+        and rec.checks.get("r4_verdict") == "fail"
+    ):
+        return ZONE_ABSTAIN, R_JUDGE_FAIL
     tau = float(cfg["tau"] or 0.0)
     if tau > 0 and rec.confidence is not None and rec.confidence < tau:
         return ZONE_ABSTAIN, R_LOW_CONFIDENCE
