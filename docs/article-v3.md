@@ -9,7 +9,6 @@
 >
 > | gap | blocks | task |
 > |---|---|---|
-> | FiNER three-draw + first variance estimate | §6 arm claim, §2 refusal claim | **running now** |
 > | CONORM comparison unverified | §lit "behind", and the 0.70 ceiling claim | **A1** |
 > | No supervised baseline | §lit, §could-not-settle | B6 |
 > | Retriever is general-purpose, not domain-adapted | §9 "retrieval is a ceiling" | B2 |
@@ -168,8 +167,17 @@ We found it four months in, because we had only ever run one model.
 **And a per-record spread hides the shape of the risk.** On one FiNER document the
 extractor returned *"I'm sorry, but I can't provide that."* on draw 0 and 33
 mentions on draws 1 and 2 — same request, same model, same hour. That document
-held **21 of 165 gold mentions: 12.7% of the answer key.** Variance does not
-always arrive as a wobble. It can arrive as one whole document, all or nothing.
+held **21 of 165 gold mentions: 12.7% of the answer key.**
+
+We then ran that corpus three times end to end, and the result is sharper than a
+spread. **Draws 1 and 2 are byte-identical** — same sha256 on the output file —
+and only draw 0 differs. The entire run-to-run difference on this corpus is that
+one refusal: exact F1 **0.193 / 0.205 / 0.205**, where the low number is the
+draw that lost the document.
+
+> Variance does not always arrive as a wobble across records. It can arrive as
+> one whole document, all or nothing — and an average over records hides exactly
+> that shape.
 
 ---
 
@@ -343,8 +351,8 @@ lists is documented and we are rediscovering it; what is ours is the setting —
 options in a production pipeline, not four in a benchmark.
 
 It also cost us the arm. Re-ordering *killed* the attractor and still made the
-system worse **[PENDING: two of three draws in; draw 2 running]**, because it
-*amplified* the positional prior — moving mass off the
+system worse — coding accuracy 0.393 → 0.304, 0.421 → 0.263, 0.421 → 0.263 across
+three draws — because it *amplified* the positional prior — moving mass off the
 model's own reading and onto the ranker's top slot. **A ranking can carry real
 signal, visibly move the model, and still lose to what it displaced.**
 
@@ -363,17 +371,53 @@ class of bug that depth of testing does not.**
 
 We built four resolvers on the residue and expected a staircase.
 
-**Self-correction** states the failure back as a fact. Sound mechanism; fired
-**once in 248 records**. **Voting** asks again and takes the majority: 2.6× the
-extraction token budget, 152-second p95, **+5 on the tuning set and 0 out of
-sample.** The voter and the answerer are the same model, so the vote carries no
-information the original answer lacked. **The judge** is a different family,
-enforced in code — a model judging its own output measures self-consistency, not
-correctness. It separates 1.65× on tuning, **1.23×** held out, against the free
-check's 2.36–6.12×.
+Each is followed by what it actually did to a real record, from the full-ladder
+run behind every CADEC figure in this article.
 
-**Refusal** resolves nothing. It withdraws what the stack could not corroborate
-and routes the record to a person — and it is the only one that moves the number.
+**Rung 1, the free checks.** Three verdicts, three records:
+
+| verdict | record | |
+|---|---|---|
+| ACCEPT | `"spotting"` → \|Menstrual spotting\| | the vocabulary uses this very word |
+| BAND | `"extreme rectal bleed"` → \|Rectal hemorrhage\| | plausible, no lexical evidence |
+| REJECT | `"severe muscle pain in ankles"` | that text is **not in the post** — the model quoted something it invented |
+
+**Rung 2, self-correction.** States the failure back as a fact, never as a
+question. It fired **once in 248 records** — on that REJECT — and **declined**:
+the fact it was handed was `span_ungrounded`, and a model cannot re-ground a
+quote it made up. Sound mechanism, empty trigger set.
+
+**Rung 3, voting.** Asks again and takes the majority: 2.6× the extraction token
+budget, 152-second p95, **+5 on the tuning set and 0 out of sample.** The case
+that matters:
+
+> `"stamina"` — rung 1 **ACCEPT**ed `248276000` \|Stamina\| on an exact word
+> match. Rung 3 voted it to `248277009` \|Lack of stamina\|, **which is the right
+> answer** — and the record shipped still carrying rung 1's verdict, computed
+> against the code rung 3 had replaced.
+
+Voting improved the answer and invalidated the evidence for it in one step. The
+voter and the answerer are the same model, so the vote carries no information the
+original answer lacked; it just occasionally lands better.
+
+**Rung 4, the judge.** A different family, enforced in code — a model judging its
+own output measures self-consistency, not correctness. It separates 1.65× on
+tuning, **1.23×** held out, against the free check's 2.36–6.12×.
+
+**Rung 5, refusal.** Resolves nothing. It withdraws what the stack could not
+corroborate and routes the record to a person — and it is the only one that moves
+the number. It **withholds, it does not delete**: the proposed answer stays on
+the record so a reviewer can see what the system was going to say.
+
+**Rung 6, the person.** Three rows from the queue — what 196 of 248 records
+actually look like:
+
+> `"extreme rectal bleed"` → system proposed \|Rectal hemorrhage\| — *correct*
+> `"extremely sick"` → system proposed \|Illness\|
+> `"might not survive"` → system proposed \|Does not stand\| — *not close*
+
+The first is a right answer the system could not corroborate and threw away. The
+third is why it throws them away.
 
 ![Figure 4](figures/fig2-flat.png)
 
@@ -589,9 +633,6 @@ to be worth more than any layer that tried to answer them.
 
 ## What we could not settle
 
-- **[PENDING] FiNER has no run-to-run variance estimate at all.** Every FiNER
-  number here, including the coverage-0.0 headline, is a single draw. Four runs
-  are in flight to fix that.
 - **The reproducibility mechanism rests on one sparse model against four dense
   ones.** Suggestive, not a result. It wants more MoE models, and should fail on a
   dense model of similar size.
