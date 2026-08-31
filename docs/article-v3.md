@@ -60,6 +60,11 @@ rather than as preprocessing. So we built all seven and measured each.
 
 The staircase is not there.
 
+![Figure 2](figures/fig6-spine.png)
+
+*Fig. 2: How to read this article. One question, three sub-questions, one body of
+evidence under all three. Source: author-created with Graphviz.*
+
 ## The task, and the result
 
 Read a patient's forum post about a drug. Find every adverse reaction. Assign each
@@ -255,9 +260,9 @@ On FiNER it must match `"47.6"` against
 `|EffectiveIncomeTaxRateContinuingOperations|`, and a number shares no tokens with
 a name by construction.
 
-![Figure 2](figures/fig4-precondition.png)
+![Figure 3](figures/fig4-precondition.png)
 
-*Fig. 2: On one corpus the span and the code's name are drawn from the same
+*Fig. 3: On one corpus the span and the code's name are drawn from the same
 language; on the other they cannot overlap. Source: author-created with Graphviz.*
 
 > **Test this before you build:** deterministic evidence of this kind exists when
@@ -330,9 +335,9 @@ check's 2.36–6.12×.
 **Refusal** resolves nothing. It withdraws what the stack could not corroborate
 and routes the record to a person — and it is the only one that moves the number.
 
-![Figure 3](figures/fig2-flat.png)
+![Figure 4](figures/fig2-flat.png)
 
-*Fig. 3: Accuracy on answered records is flat through four layers and falls at
+*Fig. 4: Accuracy on answered records is flat through four layers and falls at
 voting. It rises only when the system stops answering. Source: author-created with
 Matplotlib.*
 
@@ -405,9 +410,9 @@ summary.**
 refusal step reads none of the three. No test could catch it, because every layer
 does exactly what its own documentation promises. The hole is *between* them.
 
-![Figure 4](figures/fig1-wiring.png)
+![Figure 5](figures/fig1-wiring.png)
 
-*Fig. 4: Three layers write a verdict; the refusal step reads none of them.
+*Fig. 5: Three layers write a verdict; the refusal step reads none of them.
 Source: author-created with Graphviz.*
 
 **A fix three layers down silently disabled two layers up.** The checks used to
@@ -475,9 +480,9 @@ The part another team can use tomorrow:
 No layer announced that it had stopped working. Each ran, returned, wrote its
 field, passed its tests.
 
-![Figure 5](figures/fig3-loop.png)
+![Figure 6](figures/fig3-loop.png)
 
-*Fig. 5: The measurement loop. Every dead layer here was found on it. Source:
+*Fig. 6: The measurement loop. Every dead layer here was found on it. Source:
 author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is
