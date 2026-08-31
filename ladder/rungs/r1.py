@@ -133,10 +133,15 @@ DEFAULTS = {
     # false-rejection floor has not been measured, and "rectal bleeding"
     # against |Rectal hemorrhage| is one concept in two wordings.
     "label_check": "flag",  # "off" | "flag" | "reject"
+    # Declared in manifest.rungs.1 since the outdated flag shipped, and read
+    # by nobody until 2026-08-31: the key was absent here and _record_history
+    # flagged unconditionally, so the "off" its own manifest note documents did
+    # not exist. "flag" is what every published number was produced with.
+    "outdated_check": "flag",  # "off" | "flag"
 }
 
 
-def _record_history(checks: dict, vocab, code) -> None:
+def _record_history(checks: dict, vocab, code, mode: str = "flag") -> None:
     """Is this code retired, and did SNOMED name what replaced it?
 
     A FLAG, always — the same posture as meddra_check, negation_action and
@@ -152,6 +157,11 @@ def _record_history(checks: dict, vocab, code) -> None:
     That reads as "no successor known", never as a crash: the 365 MB SQLite is
     built once and shared, so a mid-upgrade checkout is a normal state.
     """
+    if mode == "off":
+        # Nothing recorded at all, rather than a False. `sct_outdated: false`
+        # is a claim about the code; absence is a claim about the run, and
+        # ladder/score.py must not read "we did not look" as "not outdated".
+        return
     repl = getattr(vocab, "replacements", None)
     got = list(repl(code)) if callable(repl) else []
     checks["sct_replacement"] = got[0] if got else None
@@ -220,7 +230,7 @@ def zone(
         return ZONE_REJECT, R_CODE_UNKNOWN, checks
 
     checks["sct_active"] = vocab.is_active(rec.sct)
-    _record_history(checks, vocab, rec.sct)
+    _record_history(checks, vocab, rec.sct, cfg["outdated_check"])
     if not checks["sct_active"] and cfg["reject_inactive"]:
         return ZONE_REJECT, R_CODE_INACTIVE, checks
 
@@ -319,7 +329,7 @@ def all_reasons(rec, source, vocab, cfg=None, meddra=None) -> dict:
             reasons.append(R_CODE_UNKNOWN)
         else:
             checks["sct_active"] = vocab.is_active(rec.sct)
-            _record_history(checks, vocab, rec.sct)
+            _record_history(checks, vocab, rec.sct, cfg["outdated_check"])
             if not checks["sct_active"] and cfg["reject_inactive"]:
                 reasons.append(R_CODE_INACTIVE)
 

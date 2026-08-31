@@ -113,6 +113,24 @@
   fails if any manifest moves off 0.0: editing that key now CHANGES a run
   rather than relabelling one. Provenance stamps `temperature_declared`, since
   a declared 0 and a defaulted 0.0 are the same number and not the same fact.
+- **The same audit found FOUR more declared-and-never-read settings, now all
+  read** (2026-08-31, `tests/test_declarations_are_read.py`). None changed a
+  number; all four were inert at their declared value, which is how the
+  temperature key looked too. (a) `vocabulary.snomed_backend` — `run.py` was
+  hardwired to Registry, so `ols4` would have changed nothing while the
+  results file claimed it. `run.check_snomed_backend` now REFUSES `ols4`
+  rather than honouring it: `Ols4Vocabulary` serves rung 1 but has no
+  `replacements` and none of rung 0's `shortlist`/`resolve`, so running on it
+  is an unmeasured experiment, not a fix. (b) `vocabulary.meddra_mode` —
+  `answer_space` is refused, because it meant S3, dropped 2026-08-24. (c)
+  `rungs.1.outdated_check` — the `off` its own note documents did not exist;
+  `r1.DEFAULTS` now carries it and `_record_history` honours it. (d)
+  **`ladder/otel.py` was UNIMPORTED**, so the `LADDER_OTEL=1` in its own
+  docstring emitted nothing; `run.ledger_for` is the wiring, and OFF it
+  returns the same plain `Ledger` (asserted with `type() is`, not
+  `isinstance`). Spans need `opentelemetry-sdk`, which is NOT in
+  requirements.txt — without it the row is still written and the span is
+  dropped with a printed reason.
 - **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
   carries no default and `resolve()` RAISES on a missing entry — it used to
   fall back to `ollama/gpt-oss:20b` while the manifest said

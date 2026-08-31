@@ -61,7 +61,8 @@
   },
   "model": {
     "extractor": "ollama/llama3.1:8b",
-    "judge": "ollama/granite4:micro-h",
+    "judge": "ollama/ibm/granite4:micro-h",
+    "_judge_name_note": "Corrected 2026-08-31. This said 'ollama/granite4:micro-h', which ollama does not have \u2014 the name carries the ibm/ namespace. That exact name spent 133 minutes in rungs 0 and 3 of the first full FiNER run and then died at rung 4 (docs/decisions.md 2026-08-29); llm.check_models now catches it before rung 0 spends anything. No number moves: no run using this manifest ever reached rung 4 with the wrong name and produced a figure.",
     "temperature": 0,
     "temperature_note": "Declared 2026-08-31 so this corpus has the same one answer to \"which temperature produced this number\" that manifest.json now has. manifest.model.temperature became load-bearing that day (ladder/llm.py:temperature_for); undeclared, this ran on llm.GREEDY_TEMPERATURE, which is the same 0.0 and NOT the same fact. Zero changes no FiNER number: every run in out/finer/ was produced at an effective 0.0.",
     "_frozen": "Identical to manifest.json at phase F. NOT tuned for this corpus, deliberately. A model tuned per corpus would make the two arms incomparable, and the prompts were tuned on CADEC's dev split over five phases \u2014 so FiNER runs with prompts fitted to a different domain. State that as a limitation; do not fix it by tuning, which would forfeit the comparison."

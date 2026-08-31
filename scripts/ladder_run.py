@@ -9,18 +9,20 @@ Rung 5 pays the coverage cost, last, per docs/wiki/content/r2.md.
 
     LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
 """
-import json, pathlib, collections, inspect, time
+import json, os, pathlib, collections, inspect, time
 
 from ladder.registry import Registry
 from ladder.rungs.r0 import run
 from ladder.rungs import r1, r2, r3, r4, r5
 from ladder.ledger import Ledger
+from ladder.run import check_snomed_backend, ledger_for
 import argparse, contextlib, io, sys, select, shutil
 from ladder import stub_llm as S
 
 ORDER = [0, 1, 2, 3, 4, 5, 6]
 
 man = json.loads(pathlib.Path("manifest.json").read_text())
+check_snomed_backend(man)   # same blind spot as _vocab_for's, same check
 reg = Registry(man["vocabulary"]["snomed_db"])
 items = S.load_items(man["corpus"]["splits_dir"])
 src = {i["doc_id"]: i["text"] for i in items}
@@ -121,8 +123,13 @@ def emit(rung, fn, *a):
 
 
 RUN_ID = f"ladder-{int(time.time())}"
-LEDGER = Ledger("runs/ladder.ledger.jsonl",
-                run_id=RUN_ID)
+# Through ledger_for, not Ledger: ladder/otel.py names THIS script as the way
+# to switch tracing on (`LADDER_OTEL=1 ... scripts/ladder_run.py`) and nothing
+# imported it, so the documented command emitted no spans. Off, this is the
+# same plain Ledger it always was.
+LEDGER = ledger_for("runs/ladder.ledger.jsonl", run_id=RUN_ID, man=man,
+                    split=os.environ.get("LADDER_SPLIT", "dev"),
+                    order=ORDER, registry=reg)
 
 t_start = time.perf_counter()
 
