@@ -32,6 +32,11 @@ ladder/cache/
 
 # ── CACHES: large, and they contain document text ───────────────────
 .llm_cache
+# Per-draw cache directories. A DRAW is a run against a cold cache, so a
+# three-draw arm keeps three of these side by side and swaps the symlink
+# above between them (out/harness/bmdraws.sh). Same content, same reason
+# to stay out of git as the cache itself.
+.llm_cache.*
 cache/
 .vocab_cache/
 

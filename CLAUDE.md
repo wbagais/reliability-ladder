@@ -455,37 +455,38 @@ convention (`out/harness/README.md`) the scripts are scratch and
 
 ## TODO — registered, not started
 
-- **BioMistral-7B AS THE RUNG 0 EXTRACTOR** (added 2026-08-30, owner's call, do
-  not start without asking). We rejected BioMistral on 2026-08-25 and the
-  article says **"domain adaptation cost instruction-following"** — but that
-  claim rests on ONE ROLE. It was only ever measured as the JUDGE, where it
-  answered instant-EOS after `{` on prompts past ~430 tokens and every parsed
-  verdict was `fail`. It has never run as an extractor, so the strongest
-  domain-knowledge question in the project ("is a domain-adapted model better
-  at the domain?") is currently answered from a role it never got to play.
-  - **The precedent that makes this worth doing.** `granite4:micro-h` was
-    unusable when asked to RECALL codes (it answered `AFTERPROMPT`) and runs
-    the whole corpus fine under S2's retrieve-and-pick, where the answer is a
-    menu selection — and it posts the HIGHEST ACCEPT lane of any model tested
-    (89.3%). The task got easier, not the model better. The same rescue may or
-    may not apply here, and that is the experiment.
-  - **The specific risk, stated in advance so a null is interpretable.** Rung
-    0's prompts are LONGER than rung 4's, not shorter — the S2 find prompt with
-    the few-shot block ran 2,711 prompt tokens on FiNER. If the ~430-token EOS
-    cliff is real, rung 0 is where it bites HARDEST and the run will fail at
-    step one. **That outcome is still a result**: it would separate "domain
-    adaptation cost instruction-following" (a claim about the model) from "our
-    judge harness was wrong" (a claim about us), which the current evidence
-    cannot do.
-  - **Protocol.** CADEC dev, three draws, `--extractor ollama/biomistral:7b-q5_k_m`,
-    everything else frozen; report detection and coding SEPARATELY (qwen3 is the
-    standing warning against a single F1); report the ACCEPT lane, since that is
-    the quantity the five-model table is built on. Register the prompt-token
-    distribution before the run so an EOS failure is diagnosable rather than
-    mysterious. It is already in `models.yaml`.
-  - **What it buys the article.** It closes the one gap a domain reviewer will
-    find on sight, and it either strengthens the instruction-following claim to
-    two roles or retracts it to one.
+- **~~BioMistral-7B AS THE RUNG 0 EXTRACTOR~~ — DONE 2026-08-31, NEGATIVE, and the
+  claim now holds in TWO roles** (three decisions entries same date). Protocol run
+  exactly as registered: dev, 40 docs, frozen manifest, rungs 0-1,
+  `--extractor ollama/biomistral:7b-q5_k_m`, three cold-cache draws. **3 predictions
+  against 226 gold, F1 exact 0.0087, 36/40 documents `json_decode`, 621 completion
+  tokens for the whole split** — and all three draws BYTE-IDENTICAL (BioMistral is
+  bit-reproducible, like the four dense models). The reply is `" {"` then EOS, the
+  same string as the 2026-08-25 judge failure.
+  - **The prompt-token distribution was registered BEFORE the run** and that is what
+    makes the null readable: find 828-1134 (median 918), pick 520-2339 (median
+    1404), `over_430` = 100% on both. `out/biomistral-prompt-tokens.json`.
+  - **The mechanism is NOT what was registered.** All 40 prompts replayed through
+    raw httpx with no ladder code: same 4/40, `finish_reason: "stop"` on every one
+    (not truncation, not our transport). The cliff is real but sits at **~856**
+    tokens here, not ~430 — 0/31 above it answer, 4/9 at or below do — so a
+    threshold that doubles with the role is not a token count. Stripping the
+    few-shot block (520 tokens) does not rescue it; a 77-token bare ask answers.
+  - **It is GREEDY DECODING.** Same failing prompt: temp 0.0 EOSes, 0.7 answers 2/3,
+    1.0 answers 3/3. So an off-protocol temperature-1.0 arm was run (three draws,
+    scratch-injected, production untouched): documents answered 4 -> 6/8/15, F1
+    exact 0.0169/0.0504/0.0492 — **a factor of four below un-adapted
+    `mistral:7b-instruct` (0.206) on the same split at temperature 0.** The escape
+    is real and does not rescue the model.
+  - **The ACCEPT lane is NOT measurable on any of the six runs** (n = 1, 2, 2, 6).
+    The arm contributes NO row to the five-model table and must not be given one.
+  - Discharges the article's standing limitation "we tested a domain-adapted model
+    in one role only" (`docs/article-v3.md`). `models.yaml` resized 512/120 ->
+    2000/180 (TDD'd) so a truncation and an instant EOS are distinguishable.
+  - **INCIDENTAL, and it wants its own session: `manifest.model.temperature` is read
+    by NOTHING.** `Caller.__call__` defaults to 0.0 and only rung 3 passes one, from
+    `manifest.rungs.3.temperature`. Same shape as the `manifest.model` fallback
+    defect and the 5.9-point arms gap, one layer down.
 
 - **SapBERT (or any domain-adapted encoder) as the S2 retriever** (added
   2026-08-30, from the literature review). Dense retrieval currently runs
