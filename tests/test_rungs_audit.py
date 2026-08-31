@@ -318,12 +318,31 @@ def test_exclusions_for_reads_the_declared_file(tmp_path):
     assert clean.exclusions_for(man) == {"FINER.test.0001#0"}
 
 
-def test_cadec_still_gets_its_exclusions_by_default():
-    """The CADEC arm must not change: no `exclusions` key means its own file."""
+def test_cadec_still_gets_its_exclusions_by_default(tmp_path, monkeypatch):
+    """The CADEC arm must not change: no `exclusions` key means its own file.
+
+    Written against a tmp cwd, not against the repo's real
+    `data/exclusions.csv`: that file is a BUILD ARTIFACT (`data/` is
+    gitignored, `python -m ladder.clean --build` writes it), so a test that
+    asserts it is non-empty passes on a developer machine and fails in CI on
+    the environment rather than on the behaviour. This asserts the routing
+    itself — default path, real content, any machine.
+    """
     from ladder import clean
 
+    (tmp_path / "data").mkdir()
+    (tmp_path / "data" / "exclusions.csv").write_text(
+        "record_id,doc_id,reason,detail\n"
+        "ARTHROTEC.111#1,ARTHROTEC.111,retired_code,267052005\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
     got = clean.exclusions_for({"corpus": {"cadec_root": "data/cadec"}})
-    assert len(got) == len(clean.load_exclusions()) > 0
+    assert got == {"ARTHROTEC.111#1"}, (
+        "a manifest with no `exclusions` key on the CADEC arm must still read "
+        "CADEC's own default file"
+    )
 
 
 # ---------------- defect 5: a model typo costs the whole run, two hours in
