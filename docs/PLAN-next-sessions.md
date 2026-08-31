@@ -35,7 +35,16 @@ as you go. TDD, test first. Three draws plus the paired bootstrap, never one.
 3. Apply the results to `docs/article-v3.md`, clear those `[PENDING]` markers,
    and drop the DRAFT header if nothing else blocks.
 
-4. Housekeeping: one-line header on `docs/article.md` (longform build report)
+4. **`scripts/preflight_rungs.py` landed on main on 2026-08-31** — it is the
+   rung-precondition check the article calls "the obvious next experiment, and
+   we have not run it". Run it on both manifests and compare its predictions
+   against what each rung actually paid (the spine ablation and the judge arm
+   are the answer key). Then rewrite that bullet in
+   *What we could not settle* — the tool existing is not the same as its
+   predictions being validated, and the article must not claim either one
+   wrongly.
+
+5. Housekeeping: one-line header on `docs/article.md` (longform build report)
    and `docs/article-v2.md` (previous submission) saying which is which.
 
 **Done when:** A1 is logged with a decision, the FiNER draws are written up, and
