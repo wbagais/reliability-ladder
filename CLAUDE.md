@@ -426,6 +426,54 @@ convention (`out/harness/README.md`) the scripts are scratch and
 `docs/decisions.md` is the durable record; the FiNER data is symlinked from the
 `agitated-lewin-346b03` worktree.
 
+## TODO — registered, not started
+
+- **BioMistral-7B AS THE RUNG 0 EXTRACTOR** (added 2026-08-30, owner's call, do
+  not start without asking). We rejected BioMistral on 2026-08-25 and the
+  article says **"domain adaptation cost instruction-following"** — but that
+  claim rests on ONE ROLE. It was only ever measured as the JUDGE, where it
+  answered instant-EOS after `{` on prompts past ~430 tokens and every parsed
+  verdict was `fail`. It has never run as an extractor, so the strongest
+  domain-knowledge question in the project ("is a domain-adapted model better
+  at the domain?") is currently answered from a role it never got to play.
+  - **The precedent that makes this worth doing.** `granite4:micro-h` was
+    unusable when asked to RECALL codes (it answered `AFTERPROMPT`) and runs
+    the whole corpus fine under S2's retrieve-and-pick, where the answer is a
+    menu selection — and it posts the HIGHEST ACCEPT lane of any model tested
+    (89.3%). The task got easier, not the model better. The same rescue may or
+    may not apply here, and that is the experiment.
+  - **The specific risk, stated in advance so a null is interpretable.** Rung
+    0's prompts are LONGER than rung 4's, not shorter — the S2 find prompt with
+    the few-shot block ran 2,711 prompt tokens on FiNER. If the ~430-token EOS
+    cliff is real, rung 0 is where it bites HARDEST and the run will fail at
+    step one. **That outcome is still a result**: it would separate "domain
+    adaptation cost instruction-following" (a claim about the model) from "our
+    judge harness was wrong" (a claim about us), which the current evidence
+    cannot do.
+  - **Protocol.** CADEC dev, three draws, `--extractor ollama/biomistral:7b-q5_k_m`,
+    everything else frozen; report detection and coding SEPARATELY (qwen3 is the
+    standing warning against a single F1); report the ACCEPT lane, since that is
+    the quantity the five-model table is built on. Register the prompt-token
+    distribution before the run so an EOS failure is diagnosable rather than
+    mysterious. It is already in `models.yaml`.
+  - **What it buys the article.** It closes the one gap a domain reviewer will
+    find on sight, and it either strengthens the instruction-following claim to
+    two roles or retracts it to one.
+
+- **SapBERT (or any domain-adapted encoder) as the S2 retriever** (added
+  2026-08-30, from the literature review). Dense retrieval currently runs
+  `granite-embedding:30m`, a GENERAL-PURPOSE 30M embedder, where the field
+  standard for biomedical entity linking is a domain-adapted encoder. Part of
+  the retrieval ceiling this project attributes to the TASK may be attributable
+  to that choice, and "retrieval is a ceiling" is a load-bearing claim. State it
+  as a limitation in the article regardless; measure it if there is time.
+
+- **Break the slot-0 position prior on FiNER** (added 2026-08-30, the highest
+  value untried FiNER experiment — see the slot-0 attractor entry in
+  `docs/decisions.md`). NOT a better ranker: a slot 0 that is never a valid
+  answer, or a per-mention permutation under a fixed seed. The model takes menu
+  line one iff it is line one, 19.5% of all predictions.
+
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.
 - `manifest.json` is append-only and edited jointly.
