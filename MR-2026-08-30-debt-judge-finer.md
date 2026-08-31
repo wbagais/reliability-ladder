@@ -196,3 +196,39 @@ find what changed.
 - `out/` is gitignored, so the runs and the harness scripts cited throughout sit
   in the `phase-e-rung-6-human-loop-64ce8e` worktree. `docs/decisions.md` is the
   durable record, per the standing convention.
+
+---
+
+## Added after the first review pass
+
+**5. The FiNER draws finished, and the context arm is rejected on three.**
+base exact **0.193 / 0.205 / 0.205** against ctx **0.149 / 0.128 / 0.128**;
+coding **0.393 / 0.421 / 0.421** against **0.304 / 0.263 / 0.263**. Detection is
+byte-identical between arms at every draw, as designed.
+
+The second finding is the better one. **Draws 1 and 2 are byte-identical** —
+same sha256 on the records file, for both arms — and only draw 0 differs. So
+FiNER's entire run-to-run spread is **one refused document**, worth 21 of 165
+gold mentions. It is not a distribution and must not be reported as "±1.2
+points".
+
+**6. The article layer.** `docs/article-v3.md` (draft, four `[PENDING]`
+markers), `docs/article-v3-outline.md` (word budget and cut list, decided before
+writing), `docs/PLAN-next-sessions.md` (four sessions, paste-ready prompt for
+Session 1). Figure 2 is a new spine diagram with Graphviz source.
+
+**7. Every claim now carries a real example from the artifacts** — including one
+per rung, from `cadec-verify-1`. The sharpest is rung 3 on `"stamina"`: rung 1
+ACCEPTed |Stamina| on an exact word match, rung 3 voted it to |Lack of stamina|,
+**which is the right answer**, and the record shipped carrying a verdict computed
+against the code rung 3 replaced. It improved the answer and invalidated the
+evidence for it in one step.
+
+**Licence discipline on examples:** CADEC contributes annotated spans and
+vocabulary labels only — never a sentence of post prose, which is what the
+non-transferable licence covers and what preflight's corpus tells detect. FiNER
+is CC-BY-SA-4.0 and is quoted directly.
+
+**Two claims in the draft are still at risk and are declared as such in the
+article's own header:** the 0.70 ceiling (task A1) and "retrieval is a ceiling"
+(task B2).

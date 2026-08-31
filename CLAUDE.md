@@ -346,7 +346,7 @@ the fifth outcome `modernised` (mirror of `outdated`, own `sct_modernised`
 column, never folded into correct — headline denominators unchanged;
 0 fired on dev, 6 possible there).
 
-## Session 2026-08-30 — four tasks, all landed (5 commits, 725 tests)
+## Session 2026-08-30/31 — four tasks plus the article (14 commits, 725 tests)
 1. **The three-draw debt is PAID and both arms survive** — nothing removed, no
    CADEC number re-run. `rung0_split` exact +0.0389/+0.0345/+0.0579, pooled
    **+0.0438 [+0.0012, +0.0937]** (separated); `rung0_cut_rate` exact
@@ -425,6 +425,33 @@ every harness script cited above sits in the worktree
 convention (`out/harness/README.md`) the scripts are scratch and
 `docs/decisions.md` is the durable record; the FiNER data is symlinked from the
 `agitated-lewin-346b03` worktree.
+
+### Also this session — the article layer, and the FiNER draws
+5. **The FiNER three-draw debt is PAID and the context arm is REJECTED.**
+   base exact 0.193/0.205/0.205 vs ctx 0.149/0.128/0.128; coding
+   0.393/0.421/0.421 vs 0.304/0.263/0.263. **d1 and d2 are BYTE-IDENTICAL**
+   (same sha256, both arms) — so FiNER's whole run-to-run spread is ONE
+   REFUSED DOCUMENT, not a distribution. Say "one refused document", never
+   "±1.2 points". Runs `out/finer/arm-finer{base,ctx}-d{0,1,2}.*`.
+6. **`docs/article-v3.md` is the live article draft** — based on
+   `docs/article-v2.md` (the 3,579-word submission), NOT on `docs/article.md`
+   (the longform build report). It carries **four `[PENDING]` markers**, and
+   two of them can CHANGE a claim rather than add to it: the CONORM
+   comparison (our "exact F1 0.70 is unreachable by any system" may hold only
+   for ZERO-SHOT systems) and the retriever (our "retrieval is a ceiling" may
+   be our general-purpose 30M embedder). **Do not quote either claim
+   unqualified until those are closed.**
+7. **`docs/PLAN-next-sessions.md` is the work queue**, four sessions with a
+   paste-ready prompt for Session 1. Start there.
+8. **Figure 2 is the article's spine diagram** (`docs/figures/fig6-spine.dot`)
+   and every claim now carries a REAL example from the artifacts
+   (`out/harness/examples.py`, `out/harness/rungexamples.py`). **Licence rule
+   for examples: CADEC gives ANNOTATED SPANS and vocabulary labels only, never
+   a sentence of post prose.** FiNER is CC-BY-SA-4.0 and is quoted directly.
+9. **Naming, fixed:** `docs/article.md` = longform build report,
+   `docs/article-v2.md` = the previous submission, `docs/article-v3.md` = the
+   current draft, `docs/versions/article-longform-2026-08-28.md` = the
+   archived longform. There is no `article_vN.md`.
 
 ## TODO — registered, not started
 
