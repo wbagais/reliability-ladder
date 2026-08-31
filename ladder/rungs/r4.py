@@ -59,7 +59,12 @@ RUNG = 4
 NAME = "llm-as-judge"
 
 DEFAULTS = {
-    "temperature": 0,
+    # NO TEMPERATURE HERE. It used to say `"temperature": 0` and rung 4 called
+    # `llm(prompt, "", "judge")` without it — declared, never read, the same
+    # defect as manifest.model.temperature one layer down (2026-08-31). It is
+    # removed rather than wired: a rung DEFAULT would override the manifest's
+    # declaration and put a code default back on top of it. The judge inherits
+    # the temperature its Caller was bound at, which is the manifest's.
     "route": False,          # record only; rung 5 acts
     "show_vocabulary_term": False,
 }

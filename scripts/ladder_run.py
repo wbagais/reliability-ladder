@@ -216,7 +216,6 @@ _stamp = _prov.gather(
     entry_point="scripts/ladder_run.py", run_id=RUN_ID,
     models_spec={"extractor": (man.get("model", {}).get("extractor"), S.MODEL),
                  "judge": (man.get("model", {}).get("judge"), "llama3.2:3b")},
-    sampling={"temperature": 0.7, "k": 3},
     extra={"records": len(recs), "withheld": withheld})
 _prov.write(f"runs/{RUN_ID}.json", _stamp)
 for _w in _prov.warnings(_stamp):

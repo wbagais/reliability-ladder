@@ -103,6 +103,16 @@
   shows vocabulary labels, never bare SCTIDs, and searches through rung 0's own
   retriever. `--oracle` writes gold-derived resolutions — an ORACLE CEILING,
   labeled `resolved_oracle` on every row and refused on the test split.
+- **`manifest.model.temperature` IS READ NOW** (wired 2026-08-31). It was
+  declared and unread: `Caller.__call__` had `0.0` hardcoded, so the declared
+  and real answers agreed by accident. `llm.temperature_for` resolves it,
+  `for_rung` binds it to the Caller, and an explicit call argument still wins
+  so rung 3's `sampler(0.7)` is untouched. **The float cast is the whole
+  no-change guarantee** — temperature is in the cache key, and int `0` and
+  float `0.0` hash differently. `test_every_tracked_manifest_resolves_to_the_published_temperature`
+  fails if any manifest moves off 0.0: editing that key now CHANGES a run
+  rather than relabelling one. Provenance stamps `temperature_declared`, since
+  a declared 0 and a defaulted 0.0 are the same number and not the same fact.
 - **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
   carries no default and `resolve()` RAISES on a missing entry — it used to
   fall back to `ollama/gpt-oss:20b` while the manifest said

@@ -97,7 +97,6 @@ _stamp = _prov.gather(
     man, split="dev", n_docs=len(items), vocab=cfg["registry"],
     entry_point="scripts/full_run.py",
     models_spec={"extractor": (man.get("model", {}).get("extractor"), S.MODEL)},
-    sampling={"temperature": 0.0},
     extra={"mode": MODE})
 for _w in _prov.warnings(_stamp):
     print(f"  WARNING  {_w}")
