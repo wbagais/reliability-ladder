@@ -51,6 +51,7 @@ body{margin:0;background:var(--bg);color:var(--tx);
 .paper li{margin-bottom:4px}
 .note{background:#f0f0f0;border:1px solid #bbb;padding:10px 12px;margin:14px 0;font-size:10.5pt}
 .note b{display:block;margin-bottom:4px}
+.note b+b,.note strong{display:inline;margin:0}   /* inline emphasis inside a note */
 .warn{background:#fdf6e3;border-color:#c9a227}
 .stop{background:#fdecea;border-color:#c0392b}
 .figcap{font-size:9.5pt;color:#555;margin-top:4px}
@@ -92,7 +93,10 @@ svg{display:block;width:100%;height:auto}
 .case:hover{background:var(--pan2)}
 .case.on{background:#1e242c;border-left:3px solid var(--org);padding-left:12px}
 .case.done{opacity:.4}
-.case .cid{font-family:"SF Mono",monospace;font-size:11px;color:var(--mut);width:96px;flex-shrink:0}
+.case .cid{font-family:"SF Mono",monospace;font-size:10.5px;color:var(--mut);width:126px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px}
+.case .corp{font:600 9.5px ui-monospace,monospace;letter-spacing:.4px;padding:1px 5px;border-radius:3px;margin-right:9px;flex-shrink:0;width:44px;text-align:center}
+.cp-c{background:rgba(94,207,221,.14);color:#5ecfdd;border:1px solid rgba(94,207,221,.35)}
+.cp-f{background:rgba(240,150,60,.14);color:#e8a04a;border:1px solid rgba(240,150,60,.35)}
 .case .cs{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .case .cf{font-size:10.5px;padding:1px 7px;border-radius:9px;flex-shrink:0}
 .f-y{background:rgba(242,204,75,.14);color:var(--yel)}
@@ -257,7 +261,7 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 <body>
 
 <div class="top">
-  <span class="lg"></span><h1>The Reliability Ladder</h1><span class="v">v17</span>
+  <span class="lg"></span><h1>The Reliability Ladder</h1><span class="v">v18</span>
   <span class="sp"></span>
   <span class="knob" title="tokens you would spend to prevent one error">tok/error <input type="number" id="ec" value="500" step="50" min="1"></span>
   <span class="knob" title="share of records you can route to a person">review % <input type="number" id="hr" value="11" step="1" min="0" max="100"></span>
@@ -277,14 +281,38 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 <!-- ============ PLAN ============ -->
 <div class="pane on" id="p-plan"><div class="paper">
 <h1>The Reliability Ladder</h1>
-<p class="sub">Which reliability layer buys the reliability, and where it stops being worth paying for. Two people, three days.</p>
+<p class="sub">Which reliability layer buys the reliability, and where it stops being worth paying for. Two corpora, five models, fifteen runs — and the article, at <code>docs/article-v2.md</code>.</p>
 
 <div class="note stop">
 <b>Status — read this first</b>
-<b>The numbers exist.</b> All seven rungs have been measured on the 40-document dev split of CADEC v2, with <code>granite4:micro-h</code> as extractor and <code>llama3.2:3b</code> as judge, against SNOMED CT-AU <code>AU1000036_20260731</code> on a local GPU. Two gold controls have been run (rung 3 abstention, rung 4 judge), and the full ladder has been run end to end in the specified order <code>[0,1,2,3,4,5,6]</code>, reproducing every standalone figure — so no rung interacts with another.<br><br>
-<b>Headline: four reliability layers, zero correct codes.</b> Rung 0 produces 169 mentions at span F1 0.543 and <b>0 of 105 correct SNOMED codes</b>. Self-correction offered 158 corrections and rescued none. Voting was unanimous on 2% of its input and did not re-find the other 98%. The judge returns two constants — it fails 97% of spans whether they are the model's or the annotators', and passes 86–92% of codes whether they are fabricated or correct. Abstention withdrew 169 of 169, correctly, and inherited all of that correctness from a lookup.<br><br>
-<b>This document has not caught up.</b> Sections written as predictions still read as predictions, and several now state things known to be false — the record shape in §1, k=5 in §5, the gold count in §6, and the second-corpus claim in §9. See <code>docs/plan-html-audit.md</code> for the full list, <code>docs/decisions.md</code> for what was found and when, and <code>docs/infoq-article-draft.md</code> for the write-up.
-</div>
+<strong>Finished and written up.</strong> Seven rungs measured on CADEC, a frozen test split
+run once, five open-weight models at three draws each, a second corpus ported end
+to end, and a rung-1-to-6 audit. The article is <code>docs/article-v2.md</code>;
+the evidence is <code>docs/decisions.md</code> and the <code>MR-*.md</code> files.<br><br>
+
+<strong>Headline.</strong> The system ships <strong>21%</strong> of its answers at <strong>4.0 errors per
+100</strong>, against <strong>62.9</strong> for the bare model and <strong>63.3</strong> after every paid
+layer has had its turn. It routes <strong>196 of every 248 records</strong> to a person.
+Answered accuracy is <strong>0.371 and does not move</strong> through the deterministic
+checks, self-correction or the judge; voting moves it to <strong>0.367</strong>. The two
+paid model resolvers cost <strong>518,042 tokens between them for −0.004</strong>.<br><br>
+
+<strong>The one thing that worked.</strong> Rung 1's ACCEPT lane runs <strong>80.4–89.3%</strong>
+correct across five model families whose headline F1 spans a factor of 2.8, and
+its ordering has no relationship to model quality — the worst model by F1 has the
+highest ACCEPT lane. A free string comparison out-separates the LLM judge on the
+only axis a judge is for.<br><br>
+
+<strong>Four rungs measured dead, and not for the reasons expected.</strong> Nothing in
+<code>ladder/</code> reads <code>checks["r4_verdict"]</code>. Rung 1's
+<code>code_unknown</code> fires 0 times. Rung 5's τ is a dead dial — confidence
+takes two values. And a span filter added to rung 0 removed rung 1's entire
+rejection class, taking rung 2's trigger with it: a fix three layers down
+disabled two layers up, and every test still passed.<br><br>
+
+<strong>This document is now a record, not a plan.</strong> Sections 1–8 are the design as
+written; §5, §9, §10 and §14 carry what was measured. Where the two disagree the
+measurement wins.</div>
 
 <h2>1. Problem statement</h2>
 <p><b>Pharmacovigilance triage.</b> Spontaneous adverse-event reports arrive from patients and call centres. Most are routine; a minority need a trained safety officer. The system reads each archived report, identifies which spans mention a medication and which mention a bodily experience, normalises each to a standard vocabulary, and routes the record — verified, abstained, or escalated to a human.</p>
@@ -359,7 +387,7 @@ They are now hard-coded into the Triage desk, so changing them means changing th
 <tr><td>2</td><td>What does each rung cost?</td><td><b>Tokens per record</b>, <b>latency p95</b>, <b>records routed to a person</b> — three measures, never fused into one</td></tr>
 <tr><td>3</td><td>Where does it stop being worth it?</td><td>Marginal $ per prevented error against assumed error cost</td></tr>
 <tr><td>4</td><td>Does any rung make things <i>worse</i>?</td><td>Over-escalation, self-correction regression, judge false-approval, consensus-on-wrong</td></tr>
-<tr><td>5</td><td>Does the answer depend on difficulty?</td><td>Rung 1 rejection rate and the marginal costs, messy corpus vs clean prose</td></tr>
+<tr><td>5</td><td>Does the answer depend on the corpus?</td><td><b>Answered.</b> Same ladder on CADEC and FiNER-139: coverage 21% against <b>0%</b>. The free check needs the vocabulary's words and the source's words drawn from the same language.</td></tr>
 </table>
 <p>Objective 4 is the one nobody publishes, and the Triage desk measures it live — when you close a report that never needed a human, it counts.</p>
 
@@ -421,17 +449,17 @@ SNOMED CT and MedDRA both release twice a year; codes are added and occasionally
 <table>
 <tr><th style="width:4%">#</th><th style="width:13%">Layer</th><th style="width:36%">Implementation</th><th style="width:22%">What it does to the surviving set</th><th style="width:25%">Counter-metric (objective 4)</th></tr>
 <tr><td><b>0</b></td><td>Bare LLM</td><td>One prompt, one call, JSON, temp 0. No validation. Malformed JSON counts as failure — don't silently repair.</td><td>Baseline. Produces records for R1 to sort.</td><td>JSON parse failure rate.</td></tr>
-<tr><td><b>1</b></td><td>Deterministic</td><td>Pure code, zero LLM calls. Five checks: schema · <b>span grounding</b> · code exists in SNOMED/MedDRA · semantic type · lexical match. See §2.</td><td><b>The validation gate.</b> Rejects what is provably wrong at zero model cost. Span grounding is a string comparison and fires before any lookup.</td><td>Rejection rate, and the breakdown by reason.</td></tr>
-<tr><td><b>5</b></td><td>Abstention</td><td>Emit ABSTAIN for records still unresolved after everything else. τ tuned <b>on dev only</b>; sweep and report the curve.</td><td>Declines rather than resolves. Trades coverage for precision.</td><td>Over-abstention — records declined that would have been right.</td></tr>
-<tr><td><b>2</b></td><td>Self-correct</td><td>One bounded retry, <b>fired only by a rung 1 failure</b>, with the failure stated as a <b>fact</b>: <i>"SNOMED code 999999 does not exist"</i> · <i>"71388002 is a procedure, not a clinical finding"</i> · <i>"the span you cited contains 'tablets', not 'naproxil'"</i>. Never a question. Hard cap at one, never loop.</td><td><b>Works only on rejects.</b> A record that passed validation gives R2 nothing to feed back — there is no fact to state. R2 rescues what rung 1 caught, and a rescued record re-enters the pipeline unverified.</td><td><b>Regression rate</b> — correct answers made wrong. The most interesting number on the ladder.</td></tr>
-<tr><td><b>4</b></td><td>LLM judge</td><td>Second model scores surviving records against the span and the vocabulary entry. <b>Different model family</b> — same-family judges share blind spots.</td><td>Uncertain. Often repeats what the vote already told you.</td><td>Judge false-approval rate, benchmarked against gold separately.</td></tr>
-<tr><td><b>3</b></td><td>Voting k=5</td><td>Temp 0.7. <b>Vote on the normalised code, never the string</b> — synonyms would split a string vote.</td><td>~5× cost. Real value may be as a <i>detector</i>: a split vote flags genuine ambiguity.</td><td>Consensus-on-wrong — all five agree, all five wrong.</td></tr>
-<tr><td><b>6</b></td><td>Human loop</td><td>(i) simulated sweep over routing budgets using gold; (ii) <b>real timing via the Triage desk</b>.</td><td>Only rung with authority to <i>settle</i> a record. Escalation is <b>triggered</b> at every rung; R6 is where it is <b>resolved and measured</b>. See the note below.</td><td>Over-escalation and human error rate. Both review the same 25.</td></tr>
+<tr><td><b>1</b></td><td>Deterministic</td><td>Pure code, zero LLM calls. Five checks: schema · <b>span grounding</b> · code exists in SNOMED/MedDRA · semantic type · lexical match. See §2.</td><td><b>The one layer that paid.</b> Its ACCEPT lane is 80.4–89.3% correct across five model families spanning a factor of 2.8 in F1. But the REJECT lane collapsed: rung 0's span filters removed the whole rejection class, 5.1% &rarr; <b>0.4%</b>, and <code>code_unknown</code> now fires <b>0 times in 248</b>.</td><td>Rejection rate by reason. <b>Measured:</b> false-positive rate against gold 9.3% &rarr; 0.13% after fixes.</td></tr>
+<tr><td><b>5</b></td><td>Abstention</td><td>Emit ABSTAIN for records still unresolved after everything else. τ tuned <b>on dev only</b>; sweep and report the curve.</td><td><b>The only layer that moved the number</b>, and it moved it by declining to answer: errors per 100 62.9 &rarr; 4.0, coverage 100% &rarr; 21%. Every point of that fall is rung 1 acted on.</td><td>Over-abstention. <b>Measured:</b> τ is a dead dial — rung 0's confidence takes the values {1.0, 0.99} and nothing else.</td></tr>
+<tr><td><b>2</b></td><td>Self-correct</td><td>One bounded retry, <b>fired only by a rung 1 failure</b>, with the failure stated as a <b>fact</b>: <i>"SNOMED code 999999 does not exist"</i> · <i>"71388002 is a procedure, not a clinical finding"</i> · <i>"the span you cited contains 'tablets', not 'naproxil'"</i>. Never a question. Hard cap at one, never loop.</td><td><b>Fired once in 248.</b> Works only on rejects, and rung 1 stopped producing them — see the row above. A layer with nothing to do is indistinguishable from inside from a layer doing nothing.</td><td>Regression rate. <b>Measured:</b> 158 corrections offered on the earlier configuration, 0 rescued.</td></tr>
+<tr><td><b>4</b></td><td>LLM judge</td><td>Second model scores surviving records against the span and the vocabulary entry. <b>Different model family</b> — same-family judges share blind spots.</td><td><b>Nothing reads its verdict.</b> Separates 1.65× on the tuning set, 1.23× held out, against the free check's 2.36–6.12×. And its earlier 2:1 signal turned out to be living in a prompt defect: fixing it collapsed 28.0/15.6 to 25.4/23.6.</td><td>False-approval rate. <b>Measured:</b> grep <code>ladder/</code> for <code>r4_verdict</code> — the refusal step reads the deterministic verdict and nothing else.</td></tr>
+<tr><td><b>3</b></td><td>Voting k=3</td><td>Temp 0.7. <b>Vote on the normalised code, never the string</b> — synonyms would split a string vote.</td><td><b>Net zero out of sample.</b> +5 on the tuning set, 0 held out — 2 fixed, 2 broken. The voter and the answerer are the same model, so the vote carries no information the original answer lacked.</td><td>Consensus-on-wrong. <b>Measured:</b> 425,355 tokens, 152.2 s p95, and it moved accuracy 0.371 &rarr; 0.367.</td></tr>
+<tr><td><b>6</b></td><td>Human loop</td><td>(i) simulated sweep over routing budgets using gold; (ii) <b>real timing via the Triage desk</b>.</td><td>Only rung with authority to <i>settle</i> a record. <b>Measured:</b> 196 of 248 routed — 79 reviews per 100 records.</td><td>Over-escalation. Human cost is reported as a <b>count</b> of records routed, never as minutes: no reviewer session was ever timed.</td></tr>
 </table>
 
 <div class="note warn">
 <b>Why rung 6 is a rung, not a prompt instruction</b>
-"Tell the model to escalate when it is unsure" is <b>rung 3, abstention</b> — the system declining. Rung 6 is a person actually resolving the record. Fold them together and you lose four things you cannot recover afterwards:<br><br>
+"Tell the model to escalate when it is unsure" is <b>rung 5, abstention</b> — the system declining. Rung 6 is a person actually resolving the record. Fold them together and you lose four things you cannot recover afterwards:<br><br>
 <b>1 · The cost.</b> How many records reach a person, and how long each takes. That is one of your three cost measures and it exists nowhere else.<br>
 <b>2 · Whether the human is right.</b> Agreement with gold, and disagreement between your two reviewers. Humans are not an oracle and the number is publishable.<br>
 <b>3 · Over-escalation.</b> Records sent to a person that no person needed to see. If escalation is just the model saying "I don't know", you cannot measure how often it says that wrongly.<br>
@@ -478,7 +506,7 @@ Abstention must run <b>last</b> — abstaining before you've tried correction an
 <tr><td><b>Over-abstention</b> — declined something it would have got right</td><td>The cost of caution. Rarely reported.</td></tr>
 <tr style="background:#fdf6e3"><td><b>Headline</b></td>
 <td><b>Marginal tokens per prevented error</b><br>and <b>marginal reviews per prevented error</b><br><span style="font-weight:400">plus the error mix at each rung</span></td>
-<td>The contribution, in two currencies. On the illustrative figures: R2 prevents an error for ~110 extra tokens, R4 needs ~813 — seven times dearer. R6 costs no extra tokens at all and about two human reviews per error.</td></tr>
+<td>The contribution, in two currencies. <b>Measured:</b> R2, R3 and R4 prevent <i>no</i> errors, so their cost per prevented error is undefined rather than merely high &mdash; R3 alone spends 425,355 tokens to move accuracy 0.371 &rarr; 0.367. R5 costs no tokens and prevents 58.9 errors per 100, paying instead in <b>79 human reviews per 100 records</b>. That is the whole marginal-cost curve: one free rung, and a bill in a currency tokens cannot express.</td></tr>
 </table>
 
 <div class="note">
@@ -527,7 +555,7 @@ Stop at rung 5 and you cannot answer "where does it stop being worth it", becaus
 <table>
 <tr><th style="width:11%">Iteration</th><th style="width:9%">Time</th><th style="width:8%">n (test)</th><th style="width:30%">What it produces</th><th>What is thin</th></tr>
 <tr style="background:#fdf6e3"><td><b>1 — skeleton</b></td><td>7h</td><td><b>60</b></td><td>All seven rungs end-to-end. Rung 1 rejection rate, cost per rung, marginal cost curve, bootstrap CIs. <b>The full shape, measured.</b></td><td>Wide intervals. Voting at k=3. Rung 6 simulated from gold, not timed. One prompt, untuned.</td></tr>
-<tr><td><b>2 — depth</b></td><td>+1 day</td><td>300</td><td>Same seven rungs, intervals tight enough to separate adjacent ones. Real rung 6 timing session. k=5.</td><td>Single corpus. Single model.</td></tr>
+<tr><td><b>2 — depth</b></td><td>+1 day</td><td>300</td><td>Same seven rungs, intervals tight enough to separate adjacent ones. Real rung 6 timing session. k=5.</td><td><b>Both limits removed since.</b> Five models, three draws each; two corpora. The rung 6 timing session is still the open item.</td></tr>
 <tr><td><b>3 — defence</b></td><td>+1 day</td><td>300</td><td>CADECv2 slice for the contamination answer. Optional model swap: does a stronger model reduce what rung 1 catches, or shift where errors appear?</td><td>—</td></tr>
 </table>
 
@@ -725,16 +753,36 @@ Do not use feature branches — the overhead is not worth it at this scale, and 
 Work on <code>main</code>, commit small and often, and <code>pull --rebase</code> before every push. Because you own disjoint files, rebases will almost always be clean. The exceptions are the three high-risk rows above, and those are exactly the ones the rules cover.
 </div>
 
-<h3>8.3 Iteration 2 and 3 backlog</h3>',"split")
-<p>In priority order, once iteration 1 ships: <b>(1)</b> n from 60 to 300 — this is what makes adjacent rungs separate; <b>(2)</b> real rung 6 timing session through the Triage desk; <b>(3)</b> k from 3 to 5; <b>(4)</b> prompt tuning on dev; <b>(5)</b> CADECv2 slice for the contamination defence; <b>(6)</b> model swap — does a stronger model reduce what rung 1 catches, or just move the errors?</p>
+<h3>8.3 What is left</h3>
+<p><b>Done since v17:</b> the model swap (five families, three draws each — rung 1's ACCEPT lane holds at 80&ndash;89% across all of them); a second corpus; prompt tuning on dev; the contamination question, answered by leaving it in and noting it biases against our own conclusion.</p><p><b>Still open, in the order we would take them.</b> <b>(1)</b> A <b>preflight</b>: each rung has a property its value depends on &mdash; whether the checks ever fire, whether samples re-find the same spans, whether a judge separates known-good from known-bad input &mdash; and every one is measurable on a dev split <i>before the rung is built</i>. Whether such a check predicts which rungs will pay is the obvious next experiment and it has not been run. <b>(2)</b> A wider set of Mixture-of-Experts models: the reproducibility mechanism currently rests on one sparse model against four dense ones, which is suggestive and is not a result. <b>(3)</b> A real rung 6 timing session &mdash; human cost is still reported as a <i>count</i> of records routed, never as minutes. <b>(4)</b> A third corpus with a lexical vocabulary, to test whether the ~85% ACCEPT lane belongs to controlled vocabularies in general or to SNOMED in particular.</p>
 
-<h2>9. Publishable claims</h2>
+<h2>9. What was established</h2>
+<p>Written as claims-to-prove in v1. These are the ones that survived measurement, with what backs each.</p>
 <table>
-<tr><th style="width:26%">Claim</th><th>What it needs</th></tr>
-<tr><td><b>1. Deterministic checks pay for themselves</b></td><td>The rung 1 rejection rate on a real corpus, broken down by reason, at zero model cost. Reframes the ladder from "stack of improvements" to "a free validation gate plus a set of paid resolvers".</td></tr>
-<tr><td><b>2. The marginal cost curve</b></td><td>Marginal tokens and reviews per prevented error at each rung, with CIs. The headline.</td></tr>
-<tr><td><b>3. Shape depends on difficulty</b></td><td>Same ladder on CADEC and ADE Corpus V2. If occupancy and crossover both move, the ladder is a family of curves indexed by input difficulty. Half a day.</td></tr>
-<tr><td><b>4. The rungs that make things worse</b></td><td>Objective 4's counter-metrics. "Self-correction fixed 60 errors and introduced 22" beats another F1 table.</td></tr>
+<tr><th style="width:30%">Finding</th><th>Evidence</th></tr>
+<tr><td><b>1. A free deterministic check identifies a trustworthy subset, and the subset is model-independent</b></td>
+<td>ACCEPT lane 84.6 / 80.4 / 83.3 / 89.3 / 83.3 across <code>gpt-oss:20b</code>, <code>llama3.1:8b</code>,
+<code>mistral:7b-instruct</code>, <code>granite4:micro-h</code>, <code>qwen3:8b</code> — three draws each, fifteen runs.
+Headline F1 over the same set ranges 0.141–0.401. The separation ratio <i>grows</i> as models get worse: 2.36× to 6.12×.</td></tr>
+<tr><td><b>2. The layers do not stack</b></td>
+<td>Answered accuracy 0.371 through rungs 0–2 and 0.367 after voting. The two paid model resolvers cost
+518,042 tokens for −0.004. The only movement is at refusal, which spends nothing and works by declining to answer.</td></tr>
+<tr><td><b>3. Reproducibility is a model-selection choice with a price</b></td>
+<td>Four of five models produced byte-identical output across three identical runs; the fifth, the only
+Mixture-of-Experts model, produced three different files and a 1.3-point spread — larger than every
+improvement this project ever shipped. It also buys 6.5 exact points. One MoE model cannot establish
+the mechanism, and the trade does not depend on the mechanism being right.</td></tr>
+<tr><td><b>4. The method has a precondition, and it is testable in one query</b></td>
+<td>Ported to FiNER-139: ACCEPT 0 of 704, coverage 1.0 &rarr; 0.0. The lexical check must compare
+<code>"47.6"</code> against <code>|EffectiveIncomeTaxRateContinuingOperations|</code>, and a number shares
+no tokens with a name by construction. <b>Deterministic evidence of this kind needs the vocabulary's words
+and the source's words drawn from the same language.</b></td></tr>
+<tr><td><b>5. A single-draw significance test certifies noise</b></td>
+<td>A paired bootstrap over documents returned +0.0215 [+0.0000, +0.0433] — an interval excluding zero.
+Two further draws gave +0.0087 and −0.0089. The bootstrap prices the corpus sample and is blind to
+variance between generations.</td></tr>
+<tr><td><b>6. Rungs that pass every test can still be doing nothing</b></td>
+<td>See §12b. Three layers write a verdict field; the refusal step reads none of them. A span filter added to rung 0 removed rung 1's rejection class and rung 2's trigger with it. Every one of those layers passes its own tests.</td></tr>
 </table>
 
 <h2>10. Risks</h2>
@@ -742,9 +790,9 @@ Work on <code>main</code>, commit small and often, and <code>pull --rebase</code
 <tr><th style="width:24%">Risk</th><th style="width:8%">Likelihood</th><th style="width:32%">Tell</th><th>Mitigation</th></tr>
 <tr><td>Gold-matching rule argued mid-project</td><td>High</td><td>Your two scorers disagree on the same output</td><td>Written down and fixture-tested Day 0. One shared scorer, not two.</td></tr>
 <tr><td>No working vocabulary lookup</td><td>High</td><td>Rung 1 cannot tell a real code from a fake one</td><td><b>Critical path.</b> Resolve at 0:00 — BioPortal, then EBI OLS4, then a local release. Cache every response; never call twice for the same code.</td></tr>
-<tr><td>Check thresholds tuned on test</td><td>High</td><td>τ chosen after seeing test results</td><td>τ fixed on dev, written into the manifest before the first test run.</td></tr>
+<tr style="background:rgba(180,85,31,.07)"><td>Check thresholds tuned on test</td><td><b>MOOT</b></td><td>τ chosen after seeing test results</td><td>τ was fixed on dev as specified — and then found to be a <b>dead dial</b>. Rung 0's confidence takes the values {1.0, 0.99}, so the threshold never separates anything. The planned sweep was cancelled rather than run over a constant.</td></tr>
 <tr style="background:rgba(180,85,31,.07)"><td>Judge shares extractor's blind spots</td><td><b>MATERIALISED</b></td><td>Approval near 100%; errs in the same direction</td><td><b>The tell fired, and the mitigation did not help.</b> A different model family was used and benchmarked against gold independently, as specified. Both of the judge's channels are <b>constants</b>: it fails 97% of spans whether they are the model's or the annotators', and passes 86–92% of codes whether they are fabricated or correct. Its agreement with rung 1 moved 100% → 98% → 49% across three sets with identical behaviour — agreement is a property of the comparison set, not the judge.</td></tr>
-<tr><td>Contamination inflates R0</td><td>High</td><td>R0 F1 near published fine-tuned SOTA</td><td>Report it; note it biases against your own conclusion; validate on CADEC v2.</td></tr>
+<tr style="background:rgba(180,85,31,.07)"><td>Contamination inflates R0</td><td><b>ACCEPTED</b></td><td>R0 F1 near published fine-tuned SOTA</td><td><b>Reported and left in.</b> CADEC is public and from 2015, so it is almost certainly in pretraining. It inflates the bare-model baseline, which makes every measured gain here <b>conservative</b> — the bias runs against our own conclusion.</td></tr>
 <tr><td>Scope creep / artifact drift</td><td>High</td><td>Polished demos, no measured numbers</td><td>§7 contingency. See the Audit tab.</td></tr>
 <tr><td>Voting on strings not codes</td><td>Medium</td><td>Implausibly low consensus</td><td>Normalise before voting. Assert in a unit test.</td></tr>
 <tr><td>Human timing sample too small</td><td>Medium</td><td>Huge variance across 50 items</td><td>Report the distribution, not the mean. State n and reviewer count.</td></tr>
@@ -757,10 +805,74 @@ Work on <code>main</code>, commit small and often, and <code>pull --rebase</code
 <tr><td><b>RxNorm drug resolution</b></td><td>A deterministic gate deciding whether a record even needs a model — cheap and appealing.</td><td>CADEC carries no drug codes, so it cannot be scored here. The twelve-string probe in §2 still informs the design: it is why rung 1 uses exact code existence rather than fuzzy matching.</td></tr>
 <tr><td><b>openFDA label cross-check</b></td><td>A second opinion on whether a reaction plausibly appears on the product label.</td><td>Adds a second API dependency and a daily rate cap for a signal we cannot score against CADEC gold.</td></tr>
 <tr><td><b>AMT drug coding</b></td><td>Scored drug normalisation.</td><td>Australian-specific, and drug codes are not the interesting normalisation problem. Drugs stay span-checked only.</td></tr>
-<tr><td><b>ADE Corpus V2</b></td><td>The clean-prose contrast for objective 5 — does the ladder's shape depend on input difficulty?</td><td>Needs a second corpus end-to-end. <b>Highest-value item in this table</b> and first in the iteration 3 backlog.</td></tr>
+<tr style="background:rgba(45,106,79,.07)"><td><b>A second corpus</b></td><td>Does the ladder's shape depend on the input?</td><td><b>DONE — FiNER-139, not ADE.</b> SEC filings, 139 US-GAAP XBRL tags. Chosen for contrast rather than replication: 139 tags fit in a prompt, so the knowledge gap that shaped every CADEC finding is absent. The port cost sixteen one-line harness edits and no changes to rung logic. Result in §9, finding 4.</td></tr>
 <tr><td><b>n2c2 2018 Track 2</b></td><td>Clinical discharge summaries — the prestige corpus.</td><td>Per-person DUA with unpredictable lead time. Apply in parallel if you like; do not plan around it.</td></tr>
 <tr><td><b>MIMIC-IV</b></td><td>Large-scale clinical notes.</td><td>Credentialing plus ethics training. The open demo carries no free-text notes at all, so there is nothing to annotate.</td></tr>
 <tr><td><b>Model swap</b></td><td>Does a stronger model reduce what rung 1 catches, or just shift the error mix? A genuinely open question.</td><td>Iteration 3. Pin the judge to one model across both runs or nothing is attributable.</td></tr>
+</table>
+
+<h2>12b. What the audit and the second corpus found</h2>
+<p>The strongest material in the project, and none of it came from running a rung.
+It came from auditing the system as a whole and from pointing it at something else.</p>
+
+<div class="note stop">
+<b>Every deferral terminated in a field nothing read</b>
+Each paid resolver correctly declined to act on its own evidence — a layer that both judges and routes
+contaminates every measurement above it — and each named the refusal step as the one that would act.
+Self-correction writes <code>r2_declined</code>, voting writes <code>r3_unanimous_none</code>, the judge
+writes <code>r4_verdict</code>. <strong>The refusal step reads none of the three.</strong> It reads the deterministic
+verdict and nothing else. Three layers ran, cost money, passed their tests, and were wired to nothing.
+No test could have caught it, because every layer does exactly what its own documentation promises.
+<strong>The hole is between them.</strong>
+</div>
+
+<div class="note warn">
+<b>A fix three layers down silently disabled two layers up</b>
+The checks used to reject 5.1% of records, nearly all for an unlocatable span. Then extraction improved
+and a span filter began dropping those at source. The rejection rate fell to <strong>1 record in 248</strong>, and
+self-correction's trigger set went with it. Nothing broke. Both layers still pass every test and report
+honestly. <strong>A layer with nothing to do is indistinguishable from inside from a layer doing nothing.</strong>
+The same mechanism hollowed out the checks themselves: <code>code_unknown</code> now fires <strong>0 times</strong>,
+because the model picks from a retrieved menu of real codes and can no longer invent one.
+</div>
+
+<div class="note">
+<b>The headline metric could not see the bug it exists to prevent</b>
+Voting overwrote a record's code and never re-validated, so the refusal step routed on a verdict computed
+against the <i>replaced</i> code. Across three full runs it changed 25, 30 and 29 codes, every one carrying
+a stale verdict, and exactly one per run shipped to a user marked <i>verified</i>. Fixing it moved exact F1
+from <strong>0.204 to 0.204</strong> — because precision and recall cannot distinguish an <i>unwarranted</i> answer
+from an <i>incorrect</i> one, which is the entire distinction this system exists to make.
+</div>
+
+<div class="note">
+<b>A second corpus finds a class of bug that more testing does not</b>
+Three defects invisible for five phases surfaced within hours of running FiNER: the judge's prompt was
+never ported, so a model grading SEC filings was asked whether the span was <i>"really an adverse
+reaction"</i>; CADEC's exclusion list — a claim about one answer key — was applied to every corpus; and
+models were resolved lazily per rung, so a mistyped judge name burned <strong>133 minutes</strong> of compute before
+failing at the rung that needed it. A fourth came from a new <i>model</i> rather than a new corpus: one call
+site crashed on a reply shape another call site had accepted for weeks.
+</div>
+
+<div class="note stop">
+<b>A safety property that degrades silently</b>
+On FiNER, <code>err_per_100</code> at the abstention step is <strong>0.0</strong> — a perfect error rate, over an
+empty output. A system whose safety property is "abstain unless corroborated" degrades to "abstain always"
+the moment corroboration is inapplicable, and it does so <strong>reporting flawless numbers</strong>.
+<strong>Print coverage beside every error rate, always.</strong>
+</div>
+
+<h2>12c. How these were found</h2>
+<p>None of the layers announced that it had stopped working. What surfaced them was a loop, and it is the
+transferable part of this project.</p>
+<table>
+<tr><th style="width:34%">Step</th><th>Why it matters</th></tr>
+<tr><td>Build the rung on a plausible mechanism</td><td>Every rung here had one. Plausibility is not evidence.</td></tr>
+<tr><td><b>Measure it against the answer key before trusting it</b></td><td>Planting each error class into a perfect answer set gives the false-positive rate exactly, for free.</td></tr>
+<tr><td><b>When the number looks good, doubt it</b> — three draws, a held-out split, a gold control</td><td>The step that does the work. A layer that has just produced a good number is the least likely thing in a system to be re-examined, and it is where every one of our false results lived.</td></tr>
+<tr><td>When it fails, keep the fix and lose the finding</td><td>The judge's 2:1 separation was living in a prompt defect. Fixing the defect meant losing a published-looking result, and the fix was still right.</td></tr>
+<tr><td>Re-measure the layers above when you change one below</td><td>The span-filter case above. No test can substitute for this.</td></tr>
 </table>
 
 <h2>12. Repository hygiene</h2>
@@ -790,10 +902,10 @@ curl -s "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=zenoprofen&max
 <div class="pane" id="p-demo">
 <div class="paper" style="max-width:1060px">
 <h2 style="margin-top:0">Ladder demo — one record, seven rungs</h2>
-<p>Three records, each stepped down the ladder. Illustrative posts written in the style of patient reports, with illustrative check results.</p>
+<p>Three records stepped down the ladder. The posts are synthetic; every check result beside a rung is what was measured on the real corpora.</p>
 <div class="note stop" style="margin:10px 0">
-<b>Illustrative, and the real run looks worse</b>
-These three records show the ladder resolving things. The measured 40-document run resolved nothing: <b>0 of 105 correct codes</b> at rung 0, and the count never moved. Rung 2 offered 158 corrections and rescued none; rung 4's two channels are constants; rung 5 withdrew every record. Read this pane as a walkthrough of the <i>mechanism</i>, never as an indication of the <i>outcome</i>.
+<b>Synthetic text, measured results</b>
+<b>Read this pane as a walkthrough of the mechanism, never as a trace.</b> The posts are <b>synthetic</b> — CADEC is non-transferable and cannot appear in a tracked file — but every assertion beside a rung is what was <i>measured</i> on the real corpus, with the figure attached. An earlier version of this pane asserted outcomes ("5/5 agree", "Zone = PASSED") that later measurement contradicted; those are gone. The third record is the second corpus, where the same system ships nothing.
 </div>
 <div id="demoRoot"></div>
 </div>
@@ -812,11 +924,13 @@ These three records show the ladder resolving things. The measured 40-document r
       <button id="fS05">0.5×</button><button id="fS1" class="on">1×</button><button id="fS2">2×</button>
       <span style="width:10px"></span>
       <button id="fHi" class="on">◎ corrections</button>
+      <span style="width:10px"></span>
+      <button id="fCadec" class="on">CADEC</button><button id="fFiner">FiNER-139</button>
     </div>
     <canvas id="flowCanvas"></canvas>
   </div>
   <div class="fside">
-    <div class="fpanel"><h4>Where records end up</h4><div id="flowStats"></div></div>
+    <div class="fpanel"><h4>Where records end up</h4><div id="flowCorpusNote" style="font-size:11px;color:var(--org);margin-bottom:6px">CADEC &middot; 248 records &middot; ships 21%</div><div id="flowStats"></div></div>
     <div class="fpanel"><div id="flowCorr"></div></div>
     <div class="fpanel"><h4>Legend</h4><div class="fleg">
       <div><i style="background:#8b939e"></i>unchecked / travelling</div>
@@ -825,17 +939,26 @@ These three records show the ladder resolving things. The measured 40-document r
       <div><i style="background:#6fcf7f"></i>verified</div>
       <div><i style="background:#ff9a3d"></i>abstained</div>
       <div><i style="background:#5b9bf5"></i>escalated</div>
+      <div style="margin-top:7px;padding-top:7px;border-top:1px solid var(--bd)">
+        <i style="background:#8f96a5"></i>cheap &mdash; nothing spent yet
+      </div>
+      <div><i style="background:#e08a3c"></i>has been through a paid rung</div>
+      <div><i style="background:#f05a2a"></i>expensive &mdash; and still unsettled</div>
+      <div style="margin-top:6px;font-size:10.5px;color:var(--dim);line-height:1.5">
+        A record grows and reddens as tokens are charged to it. The bars on the
+        right are what each rung has spent, to scale. Watch rung&nbsp;3.
+      </div>
     </div></div>
     <div class="fpanel"><h4>What you are watching</h4>
       <div style="font-size:12.5px;color:var(--amut);line-height:1.65">
       <div style="border:1px solid #a53b3b;background:rgba(165,59,59,.12);padding:9px 11px;margin:0 0 10px;border-radius:3px">
-      <b style="color:#ff9a3d">This animation shows the ladder as designed, not as measured.</b><br>
-      On the 40-document dev run, rung 1 settled <b>0%</b> — 166 REJECT, 3 BAND, <b>0 ACCEPT</b>, so nothing exits right. Self-correction rescued <b>0 of 158</b>, so there are no course-correction arcs. Voting could not re-find 166 of 169 mentions. Abstention withdrew all 169. See the status banner on the Plan tab and <code>docs/infoq-article-draft.md</code>.
+      <b style="color:#ff9a3d">These proportions are measured, and the switch above changes corpus.</b><br>
+      <span id="flowNoteBody"><b>CADEC</b>, frozen test split, 248 records: rung 1 rejects <b>1</b> and bands the rest, so almost nothing exits right and self-correction has no trigger — hence no course-correction arcs. Voting changes 25&ndash;30 codes per run for a net of zero out of sample. Abstention withdraws <b>196 of 248</b>.</span> See the status banner on the Plan tab and <code>docs/article-v2.md</code>.
       </div>
-      100 records enter at R0. <b style="color:#fff">R1 settles 38% of them for free</b> — exact registry match exits right, ungrounded span exits left. Only the amber remainder travels below the fold, and only those cost anything.
+      100 records enter at R0. <b style="color:#fff">R1 settles almost none of them now</b> — the ACCEPT lane is real and 80&ndash;89% correct, but rung 0's span filters removed the REJECT lane, so 1 record in 248 exits left. Nearly everything travels below the fold, and everything below the fold costs tokens.
       <p style="margin:8px 0 0">The cyan arcs are <b style="color:#5ecfdd">course corrections</b>: a record rung 1 rejected that R2 manages to fix, looping back into the pipeline.</p>
 <p style="margin:8px 0 0">Notice how <b>few arcs start at R2</b>. Self-correction needs a fact to feed back, and records that passed validation give it none — so there is nothing to tell the model. Settling those records falls to voting, judging and people. <b>That is the expensive finding.</b></p>
-      <p style="margin:8px 0 0;color:var(--dim)">Proportions follow the illustrative figures in the plan. Replace them with your iteration 1 numbers.</p>
+      <p style="margin:8px 0 0;color:var(--dim)">Scaled to 100 records from the frozen test split. Token counts are per record, measured.</p>
       </div></div>
   </div>
 </div>
@@ -846,12 +969,13 @@ These three records show the ladder resolving things. The measured 40-document r
 <div class="split">
   <div class="L">
     <div class="hdr"><span class="t">Reports needing a decision</span><span class="m" id="qm"></span></div>
+    <div style="padding:6px 15px;border-bottom:1px solid var(--bd);font-size:10.5px;color:var(--dim);line-height:1.5"><span class="corp cp-c" style="display:inline-block">CADEC</span> patient reports &mdash; 196 of 248 routed here &nbsp;&middot;&nbsp; <span class="corp cp-f" style="display:inline-block">FiNER</span> SEC filings &mdash; <b style="color:#e8a04a">all 704</b>, because the free check cannot fire at all</div>
     <div style="padding:7px 15px;border-bottom:1px solid var(--bd);font-size:11px;color:var(--dim);font-family:var(--mono)"><b>1</b> <b>2</b> <b>3</b> pick &middot; <b>c</b> no valid code &middot; <b>x</b> reject span &middot; <b>s</b> defer &middot; <b>u</b> undo</div>
     <div class="cases" id="cases"></div>
     <div class="lwrap"><div class="detail" id="detail"></div></div>
   </div>
   <div class="Rp">
-    <div class="hdr exp"><span class="t">Experiment telemetry</span><span class="m" title="Simulated. The real triage desk has taken no reviews — nothing upstream produces records worth reviewing.">SIMULATED · real run: n=169, 0 reviews</span></div>
+    <div class="hdr exp"><span class="t">Experiment telemetry</span><span class="m" title="Simulated. On the frozen test split 196 of 248 records reach this rung; no reviewer session has ever been timed, so human cost is reported as a COUNT of records routed, never as minutes.">SIMULATED &middot; real run: 196 of 248 routed &middot; 0 timed</span></div>
     <div id="objs"></div>
     <div class="hdr"><span class="t" style="font-size:11.5px">Ledger</span></div>
     <div class="feed" id="feed"></div>
@@ -866,13 +990,13 @@ These three records show the ladder resolving things. The measured 40-document r
 <p class="sub">What runs where, what is committed, and what must never leave the machine.</p>
 
 <div class="note stop">
-<b>The constraint that shapes every decision below</b>
-The corpus is licensed <b>non-commercial and non-transferable, with no redistribution</b>. It cannot appear in the repository, in a container, in a deployed app, or inside a committed notebook output cell. Everything else follows from that: the benchmark runs locally, and only <i>derived results</i> are ever published.
+<b>The constraint that shapes every decision below — and it is no longer uniform</b>
+<b>CADEC</b> is licensed non-commercial and non-transferable, with no redistribution. It cannot appear in the repository, in a container, in a deployed app, or inside a committed notebook output cell. <b>FiNER-139 is CC-BY-SA-4.0</b> and is checked in deliberately, which is why that arm is the one a reader can reproduce. So the benchmark still runs locally and only <i>derived results</i> are published for CADEC — but the rule is now <b>per-corpus</b>, and a per-corpus rule enforced by a gate written for a global one is the thing to watch.
 </div>
 
 <div class="note warn">
 <b>The gap in the control that constraint depends on</b>
-<code>scripts/preflight.py</code> is the licence gate, and it scans <b>tracked files only</b>. An <code>unzip -d data/</code> once put both corpus archives in the working tree, untracked and unignored, and preflight would not have caught it — the staging step is the one place the gate cannot see. <code>.gitignore</code> is now <code>data/*</code> with an explicit <code>!data/splits/</code> exception, and <code>git status --short</code> before every <code>git add -A</code> is the manual half of the control.
+<code>scripts/preflight.py</code> is the licence gate, and it scans <b>tracked files only</b>. <b>It also predates the second corpus:</b> the gate was written when "no corpus in the repo" was a global rule, and FiNER-139 is CC-BY-SA and deliberately checked in, so the gate now has to know which corpus it is looking at. Separately, an <code>unzip -d data/</code> once put both corpus archives in the working tree, untracked and unignored, and preflight would not have caught it — the staging step is the one place the gate cannot see. <code>.gitignore</code> is now <code>data/*</code> with an explicit <code>!data/splits/</code> exception, and <code>git status --short</code> before every <code>git add -A</code> is the manual half of the control.
 </div>
 
 <h2>1b. Observability</h2>
@@ -899,11 +1023,13 @@ The open-source LLM tracing tools all model the same unit — the call: prompt, 
 </table>
 
 <div class="figure">
-<svg viewBox="0 0 960 470" style="width:100%;height:auto;border:1px solid #ccc;background:#fff">
+<svg viewBox="0 0 960 520" style="width:100%;height:auto;border:1px solid #ccc;background:#fff">
+<!-- ARCH-V18B -->
 <style>
  .ab{fill:#fff;stroke:#333;stroke-width:1.2}.ag{fill:#efefef;stroke:#333;stroke-width:1.2}
  .ad{fill:#dcdcdc;stroke:#333;stroke-width:1.4}.ay{fill:#fdf0c8;stroke:#333;stroke-width:1.4}
  .ar2{fill:#f7e3e3;stroke:#a53b3b;stroke-width:1.4}
+ .agr{fill:#e6f2ea;stroke:#2d6a4f;stroke-width:1.4}
  .at{font:700 12.5px Calibri,Arial;fill:#111}.as{font:10px Calibri,Arial;fill:#444}
  .ah{font:700 11px Calibri,Arial;fill:#666;letter-spacing:.6px}
  .aa{stroke:#333;stroke-width:1.3;fill:none;marker-end:url(#am)}
@@ -912,75 +1038,122 @@ The open-source LLM tracing tools all model the same unit — the call: prompt, 
 <defs><marker id="am" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
 <path d="M0,0 L7,3 L0,6 Z" fill="#333"/></marker></defs>
 
-<text x="14" y="20" class="ah">DATA PLANE — YOUR MACHINE, NEVER LEAVES IT</text>
-<rect x="14" y="28" width="600" height="150" fill="#faf7f7" stroke="#a53b3b" stroke-dasharray="4 3"/>
-<rect x="28" y="44" width="128" height="56" class="ar2"/>
-<text x="38" y="63" class="at">CADEC v2</text><text x="38" y="79" class="as">posts + SCT + MedDRA</text>
-<text x="38" y="93" class="as">gitignored, always</text>
-<rect x="170" y="44" width="128" height="56" class="ab"/>
-<text x="180" y="63" class="at">adapter</text><text x="180" y="79" class="as">→ one JSON:</text>
-<text x="180" y="93" class="as">prompt, schema, items</text>
-<rect x="312" y="44" width="140" height="56" class="ay"/>
-<text x="322" y="63" class="at">bench · rungs 0–6</text><text x="322" y="79" class="as">K runs per item</text>
-<text x="322" y="93" class="as">every call cached</text>
-<rect x="466" y="44" width="134" height="56" class="ab"/>
-<text x="476" y="63" class="at">model</text><text x="476" y="79" class="as">Ollama local, or</text>
-<text x="476" y="93" class="as">hosted API + key</text>
-<rect x="28" y="114" width="270" height="50" class="ag"/>
-<text x="38" y="133" class="at">registry.py — local SNOMED RF2</text>
-<text x="38" y="150" class="as">no network in the loop · SQLite index · OLS4 fallback is LOSSY (23.9% of gold invisible)</text>
-<rect x="312" y="114" width="288" height="50" class="ag"/>
-<text x="322" y="133" class="at">.llm_cache/ · cache/vocab/</text>
-<text x="322" y="150" class="as">re-runs free · interrupted runs resume · gitignored</text>
-<line x1="156" y1="72" x2="166" y2="72" class="aa"/>
-<line x1="298" y1="72" x2="308" y2="72" class="aa"/>
-<line x1="452" y1="72" x2="462" y2="72" class="aa"/>
+<text x="14" y="20" class="ah">DATA PLANE — YOUR MACHINE</text>
+<rect x="14" y="28" width="616" height="212" fill="#faf7f7" stroke="#a53b3b" stroke-dasharray="4 3"/>
 
-<text x="640" y="20" class="ah">RESULTS PLANE — GIT</text>
-<rect x="640" y="28" width="306" height="150" fill="#f4f8f4" stroke="#4a7a3a" stroke-dasharray="4 3"/>
-<rect x="654" y="44" width="278" height="56" class="ag"/>
-<text x="664" y="63" class="at">results.json</text>
-<text x="664" y="79" class="as">scores · counts · tokens · p95 · reviews</text>
-<text x="664" y="93" class="as">validated against results.schema.json</text>
-<rect x="654" y="114" width="278" height="50" class="ab"/>
-<text x="664" y="133" class="at">manifest.json · docs/decisions.md</text>
-<text x="664" y="150" class="as">versions, seeds, rung_order · the article's raw material</text>
-<line x1="600" y1="72" x2="648" y2="72" class="aa"/>
-<text x="596" y="112" class="as" text-anchor="end" fill="#a53b3b">no document text crosses here</text>
-<line x1="614" y1="96" x2="640" y2="96" class="ax"/>
+<rect x="28" y="44" width="146" height="62" class="ar2"/>
+<text x="38" y="63" class="at">CADEC v2</text><text x="38" y="78" class="as">1,250 posts · SCT · MedDRA</text>
+<text x="38" y="91" class="as">NON-TRANSFERABLE</text>
+<text x="38" y="102" class="as">gitignored, always</text>
 
-<text x="14" y="216" class="ah">PRESENTATION PLANE — PUBLIC, READS RESULTS ONLY</text>
-<rect x="14" y="224" width="932" height="106" fill="#f5f5fa" stroke="#3b6ea5" stroke-dasharray="4 3"/>
-<rect x="30" y="240" width="290" height="74" class="ab"/>
-<text x="40" y="259" class="at">Streamlit Community Cloud</text>
-<text x="40" y="275" class="as">interactive dashboard · economics sliders</text>
-<text x="40" y="290" class="as">calibration sweep · composer</text>
-<text x="40" y="305" class="as">~1GB RAM · sleeps after 12h idle</text>
-<rect x="334" y="240" width="290" height="74" class="ab"/>
-<text x="344" y="259" class="at">GitHub Pages — static</text>
-<text x="344" y="275" class="as">this document, numbers swapped for real ones</text>
-<text x="344" y="290" class="as">no cold start, no resource limit</text>
-<text x="344" y="305" class="as">the link that goes in the article</text>
-<rect x="638" y="240" width="292" height="74" class="ad"/>
-<text x="648" y="259" class="at">Local only — never hosted</text>
-<text x="648" y="275" class="as">Setup &amp; Run tab · rung 6 review queue</text>
-<text x="648" y="290" class="as">anything that reads corpus text</text>
-<text x="648" y="305" class="as">anything that spends an API key</text>
-<line x1="793" y1="178" x2="793" y2="236" class="aa"/>
-<line x1="175" y1="178" x2="175" y2="236" class="aa"/>
-<line x1="479" y1="178" x2="479" y2="236" class="aa"/>
+<rect x="28" y="116" width="146" height="62" class="agr"/>
+<text x="38" y="135" class="at">FiNER-139</text><text x="38" y="150" class="as">SEC filings · 139 XBRL tags</text>
+<text x="38" y="163" class="as">CC-BY-SA-4.0</text>
+<text x="38" y="174" class="as">redistributable — see note</text>
 
-<rect x="14" y="348" width="932" height="106" class="ag"/>
-<text x="26" y="368" class="at">The rule that keeps this safe</text>
-<text x="26" y="388" class="as">A hosted app cannot leak what it cannot reach. The deployed build has no corpus, no key, and no run capability —</text>
-<text x="26" y="404" class="as">it is a results viewer. That is a structural guarantee, not a policy: there is no configuration mistake that exposes the corpus,</text>
-<text x="26" y="420" class="as">because the corpus is not in the container.</text>
-<text x="26" y="442" class="as" fill="#a53b3b">If you ever find yourself adding a file-upload widget to the hosted app, stop — that is the boundary being crossed.</text>
+<rect x="190" y="80" width="130" height="62" class="ab"/>
+<text x="200" y="99" class="at">corpus adapter</text>
+<text x="200" y="114" class="as">corpus.py · corpus_finer.py</text>
+<text x="200" y="127" class="as">manifest picks which</text>
+<text x="200" y="138" class="as">16 edits to add the second</text>
+
+<rect x="336" y="80" width="146" height="62" class="ay"/>
+<text x="346" y="99" class="at">run.py · rungs 0–6</text>
+<text x="346" y="114" class="as">order is a manifest value</text>
+<text x="346" y="127" class="as">ledger row per record per rung</text>
+<text x="346" y="138" class="as">every call cached</text>
+
+<rect x="498" y="80" width="118" height="62" class="ab"/>
+<text x="508" y="99" class="at">models</text>
+<text x="508" y="114" class="as">Ollama, local only</text>
+<text x="508" y="127" class="as">5 families tested</text>
+<text x="508" y="138" class="as">named in models.yaml</text>
+
+<rect x="190" y="156" width="292" height="46" class="ag"/>
+<text x="200" y="174" class="at">vocabulary — registry.py · vocab_finer.py</text>
+<text x="200" y="190" class="as">local SNOMED RF2 in SQLite · 139 tags in memory · no network in the loop</text>
+
+<rect x="190" y="210" width="426" height="24" class="ag"/>
+<text x="200" y="227" class="as"><tspan class="at">.llm_cache/</tspan>  re-runs free · interrupted runs resume · gitignored</text>
+
+<path class="aa" d="M174 75 L188 92"/><path class="aa" d="M174 147 L188 118"/>
+<path class="aa" d="M320 111 L332 111"/><path class="aa" d="M482 111 L494 111"/>
+<path class="aa" d="M482 111 L482 66 L648 66 L648 78"/>
+
+<text x="646" y="20" class="ah">RESULTS PLANE — GIT</text>
+<rect x="646" y="28" width="300" height="212" fill="#f5faf6" stroke="#2d6a4f" stroke-dasharray="4 3"/>
+<rect x="660" y="44" width="272" height="60" class="ab"/>
+<text x="670" y="63" class="at">out/*.ledger.jsonl · *.records.jsonl</text>
+<text x="670" y="78" class="as">one row per record per rung: tokens, latency,</text>
+<text x="670" y="91" class="as">outcome, <tspan font-weight="700">denominator</tspan>, <tspan font-weight="700">evaluable</tspan></text>
+
+<rect x="660" y="114" width="272" height="56" class="ab"/>
+<text x="670" y="133" class="at">manifest*.json · provenance stamp</text>
+<text x="670" y="148" class="as">requested vs resolved model · backend · VRAM fit</text>
+<text x="670" y="161" class="as">git sha · dirty tree</text>
+
+<rect x="660" y="180" width="272" height="50" class="ab"/>
+<text x="670" y="199" class="at">docs/decisions.md · MR-*.md</text>
+<text x="670" y="214" class="as">3,000+ lines. The article's raw material.</text>
+
+<path class="ax" d="M616 128 L646 128"/>
+<text x="622" y="120" class="as" fill="#a53b3b">no CADEC text crosses here</text>
+
+<text x="14" y="268" class="ah">PRESENTATION PLANE — PUBLIC, READS RESULTS ONLY</text>
+<rect x="14" y="276" width="932" height="116" fill="#f7f8fa" stroke="#3b5aa5" stroke-dasharray="4 3"/>
+
+<rect x="28" y="292" width="286" height="84" class="ab"/>
+<text x="38" y="311" class="at">GitLab Pages — static</text>
+<text x="38" y="327" class="as">this document, with measured numbers</text>
+<text x="38" y="341" class="as">the monitor, reading a committed ledger</text>
+<text x="38" y="355" class="as">no cold start, no resource limit</text>
+<text x="38" y="368" class="as">the link that goes in the article</text>
+
+<rect x="330" y="292" width="286" height="84" class="ab"/>
+<text x="340" y="311" class="at">GitHub mirror — read-only</text>
+<text x="340" y="327" class="as">wbagais/reliability-ladder</text>
+<text x="340" y="341" class="as">where a reader arrives from the article</text>
+<text x="340" y="355" class="as">the FiNER arm runs from a clean checkout;</text>
+<text x="340" y="368" class="as">the CADEC arm cannot, by licence</text>
+
+<rect x="632" y="292" width="300" height="84" class="ad"/>
+<text x="642" y="311" class="at">Local only — never hosted</text>
+<text x="642" y="327" class="as">rung 6 review desk · the ledger TUI</text>
+<text x="642" y="341" class="as">anything that reads CADEC text</text>
+<text x="642" y="355" class="as">anything that spends a token budget</text>
+<text x="642" y="368" class="as">anything that writes to out/</text>
+
+<path class="aa" d="M170 240 L170 290"/><path class="aa" d="M472 240 L472 290"/>
+<path class="aa" d="M796 240 L796 290"/>
+
+<rect x="14" y="404" width="932" height="104" class="ag"/>
+<text x="28" y="424" class="at">The rule that keeps this safe — and the exception the second corpus introduced</text>
+<text x="28" y="443" class="as">A hosted build cannot leak what it cannot reach. It has no corpus, no key and no run capability: it is a results viewer. That is a</text>
+<text x="28" y="457" class="as">structural guarantee rather than a policy — no configuration mistake exposes CADEC, because CADEC is not in the container.</text>
+<text x="28" y="476" class="as"><tspan font-weight="700">The exception:</tspan> FiNER-139 is CC-BY-SA-4.0 and IS redistributable, so that arm is reproducible from a clean checkout. Two corpora under</text>
+<text x="28" y="490" class="as">two licences in one repository means the gate is now per-corpus, not global — <tspan font-weight="700">a rule that used to be "never" is now "it depends", which is</tspan></text>
+<text x="28" y="504" class="as"><tspan font-weight="700">exactly the kind of rule that gets violated by accident.</tspan> data/* stays gitignored with one exception, and preflight scans tracked files only.</text>
 </svg>
-<p class="figcap">Figure — the three planes. Everything that could leak stays left of the dashed red line.</p>
+<p class="figcap">Figure — the three planes. CADEC stays left of the dashed red line; FiNER does not have to, and that asymmetry is now the thing to get wrong.</p>
 </div>
 
 <h2>2. Repository layout</h2>
+
+<div class="note warn">
+<b>Nine modules written since this section was drafted</b>
+<code>score.py</code> the shared scorer, span-keyed &mdash; index-keyed comparison scored a
+<i>perfect</i> extraction at 0.216 &middot; <code>embed.py</code> and <code>keywords.py</code> dense retrieval
+and the keyword table &middot; <code>clean.py</code> gold cleaning, which found four corrupted answer-key codes &middot;
+<code>trim.py</code> the pool-learned span trimmer &middot; <code>rerank.py</code> built, measured, and
+<b>not enabled</b> &middot; <code>split.py</code> &middot; <code>provenance.py</code> what actually ran, as opposed
+to what the manifest asked for &middot; and <b><code>corpus_finer.py</code> with <code>vocab_finer.py</code></b>,
+which are the whole second corpus. <code>schemas/adapter.py</code> is listed below as one of the three
+contracts and <b>was never written</b> &mdash; a new corpus imitates the shape <code>corpus.py</code> happens
+to expose rather than conforming to a declared interface. That absence is why the port took sixteen edits
+instead of one.
+</div>
+
+
 <pre>reliability-ladder/
 ├── bench/                    # the benchmark — runs locally only
 │   ├── client.py  cache.py   #   model calls, disk cache
@@ -1105,7 +1278,7 @@ cp docs/plan.html index.html && git add index.html && git commit && git push</pr
 <tr><td>Resource limits</td><td>~1 GB, can be exceeded</td><td>None — it is a static file</td></tr>
 <tr><td>Risk during the article's lifetime</td><td>Sleeps, or trips a limit mid-demo</td><td>Effectively zero</td></tr>
 </table>
-<p><b>If you only publish one link, publish the Pages one.</b> Use Streamlit for readers who want to move the economics sliders themselves.</p><p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-23 — neither of these is what the project uses.</strong> Publishing is <strong>GitLab Pages</strong> from a GitLab CI job — <code>docs/plan.html</code> is copied to <code>public/index.html</code> on every push to <code>main</code>. There is no Streamlit app and no GitHub repository. The conclusion above still holds and was arrived at for the right reason: a static page has no cold start and cannot sleep mid-demo. The comparison, the repository tree in §8.1, the commit-or-never table and the deployment checklist all still name the two hosts that were considered rather than the one in use. <em>See docs/decisions.md.</em></p>
+<p><b>If you only publish one link, publish the Pages one.</b> Use Streamlit for readers who want to move the economics sliders themselves.</p><p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>NEITHER OF THESE IS WHAT THE PROJECT USES.</strong> Publishing is <strong>GitLab Pages</strong> from a GitLab CI job &mdash; <code>docs/plan.html</code> is copied to <code>public/index.html</code> on every push to <code>main</code>. There is no Streamlit app. <strong>There IS now a GitHub repository</strong>, but only as a read-only mirror at <code>wbagais/reliability-ladder</code>, which is where a reader arriving from the article lands. The conclusion above still holds and was reached for the right reason: a static page has no cold start and cannot sleep mid-demo. Everything below that names Streamlit &mdash; the tree, the commit-or-never table, the deployment checklist &mdash; describes hosts that were <em>considered</em>, and is kept because the reasoning is still worth reading. <em>See docs/decisions.md.</em></p>
 
 <h2>4. The three contracts</h2>
 <p>These are what let two people work in parallel and let rungs be swapped without rework.</p>
@@ -1182,29 +1355,32 @@ time is what keeps the contracts between them honest.</p>
 
 <script>
 /* ================= shared state ================= */
-const RUNG=["bare LLM","deterministic","abstention","self-correct","LLM judge","voting","human loop"];
+const RUNG=["bare LLM","deterministic","self-correct","voting","LLM judge","abstention","human loop"];
 /* tok = mean tokens (in+out) per record · hum = records per 100 routed to a person */
 /* rej = % of R0 output rejected by deterministic checks alone, at no model cost */
-/* MEASURED 2026-08-23. Dev split, 40 documents, 169 mentions.
+/* MEASURED. Frozen test split, 60 documents, 248 records, gpt-oss:20b extractor.
    granite4:micro-h extractor, qwen2.5:7b judge, SNOMED CT-AU AU1000036_20260731.
-   The previous values here were illustrative and described a ladder that
-   improves: F1 .55 -> .95, error 44% -> 3.5%. Neither happened. Span F1 is
-   flat at 0.543 throughout and code accuracy is 0/105 at every rung, so the
-   charts below now draw a flat line. That IS the result.
-   Note this array has no field for code accuracy — the dashboard was built
-   around a metric that moved, with no slot for the one that did not. */
-const D=[{f1:.543,cov:100,err:100,tok:19354, hum:0,  rej:0,  p95:2.1},
- {f1:.543,cov:1.8, err:100,tok:0,     hum:0,  rej:98, p95:0.0},
- {f1:.543,cov:1.8, err:100,tok:72539, hum:0,  rej:98, p95:2.4},
- {f1:.543,cov:1.8, err:100,tok:55704, hum:0,  rej:98, p95:12.1},
- {f1:.543,cov:1.8, err:100,tok:87130, hum:0,  rej:98, p95:3.1},
- {f1:.543,cov:0,   err:100,tok:0,     hum:0,  rej:100,p95:0.0},
- {f1:.543,cov:0,   err:100,tok:0,     hum:100,rej:100,p95:0.0}];
-/* No second corpus was run. The 'easy' arm was illustrative; it is now a copy
-   of D so nothing draws a contrast that was never measured. */
-const REJ_EASY=[0,98,98,98,98,100,100], EASY_TOK=[19354,0,72539,55704,87130,0,0],
+   The charts below draw a flat line through rungs 0-4 and a step at rung 5.
+   That IS the result: answered accuracy 0.371 -> 0.367 -> 0.808, where the only
+   movement comes from declining to answer 79% of the time. `f1` here is answered
+   accuracy, not span F1 — the dashboard was originally built around a metric
+   that moved, and the field was repurposed rather than renamed. */
+const D=[
+ /* rung 0 · extract   */ {f1:.371, cov:100, err:62.9, tok:164897, hum:0,  rej:0,   p95:0.0},
+ /* rung 1 · check     */ {f1:.371, cov:100, err:62.9, tok:0,      hum:0,  rej:0.4, p95:0.0},
+ /* rung 2 · correct   */ {f1:.371, cov:100, err:62.9, tok:548,    hum:0,  rej:0.4, p95:0.0},
+ /* rung 3 · vote      */ {f1:.367, cov:100, err:63.3, tok:425355, hum:0,  rej:0.4, p95:152.2},
+ /* rung 4 · judge     */ {f1:.367, cov:100, err:63.3, tok:92687,  hum:0,  rej:0.4, p95:1.5},
+ /* rung 5 · refuse    */ {f1:.808, cov:21,  err:4.0,  tok:0,      hum:0,  rej:0.4, p95:0.0},
+ /* rung 6 · person    */ {f1:.808, cov:21,  err:4.0,  tok:0,      hum:79, rej:0.4, p95:0.0}];
+/* The FiNER-139 arm. The same system, same rungs, same models, on SEC filings.
+   It is NOT a worse curve — it is no curve: ACCEPT 0 of 704, coverage 1.0 -> 0.0,
+   every record routed to a person. The lexical check has nothing to compare when
+   the span is a bare number, so the one signal carrying the system has zero
+   coverage. Kept here so the contrast is visible rather than described. */
+const REJ_EASY=[0,0.1,0.1,0.1,0.1,0.1,0.1], EASY_TOK=[1086846,0,0,0,0,0,0],
       EASY_ERR=[100,100,100,100,100,100,100], EASY_HUM=[0,0,0,0,0,0,100];
-const N=169, ESC=1.00;
+const N=248, ESC=0.79;
 const $=i=>document.getElementById(i);
 const EC=()=>Math.max(1,+$("ec").value||500);   // tokens you'd spend per error prevented
 const HR=()=>Math.max(0,+$("hr").value||11);    // review budget, % of records
@@ -1259,9 +1435,9 @@ function cRejCompare(){const s=S("0 0 300 74"),y0=58,h=44,bw=300/7;
   E(s,"text",{x:i*bw+bw*.5,y:y0+11,"text-anchor":"middle","font-size":8.5,"font-family":"monospace",
    fill:CS("--dim")},"R"+i);});
  E(s,"rect",{x:0,y:2,width:7,height:7,fill:CS("--red"),opacity:.72});
- E(s,"text",{x:11,y:9,"font-size":8.5,fill:CS("--mut")},"messy 18%");
+ E(s,"text",{x:11,y:9,"font-size":8.5,fill:CS("--mut")},"CADEC");
  E(s,"rect",{x:74,y:2,width:7,height:7,fill:CS("--cyn"),opacity:.72});
- E(s,"text",{x:85,y:9,"font-size":8.5,fill:CS("--mut")},"clean 9%");return s;}
+ E(s,"text",{x:85,y:9,"font-size":8.5,fill:CS("--mut")},"FiNER-139");return s;}
 function bigAxis(s,x0,y0,w,h,ts,f){E(s,"line",{x1:x0,y1:y0,x2:x0+w,y2:y0,stroke:CS("--bd2")});
  ts.forEach(t=>{const y=y0-t.p*h;E(s,"line",{x1:x0,y1:y,x2:x0+w,y2:y,stroke:"#21262c"});
   E(s,"text",{x:x0-6,y:y+3,"text-anchor":"end",fill:CS("--dim"),"font-size":9.5,
@@ -1329,38 +1505,46 @@ function cTimes(){const s=S("0 0 540 200");if(!done.length)return s;
   "green matched gold · red missed · orange = should never have reached you");return s;}
 
 /* ================= DEMO tab ================= */
+/* MECHANISM ILLUSTRATION, not a trace. The posts are SYNTHETIC — CADEC is
+   non-transferable and cannot appear in a tracked file. What each step asserts
+   is what was MEASURED on the real corpus, with the figure beside it; an earlier
+   version of this array asserted outcomes ("5/5 agree", "Zone = PASSED") that
+   later measurement contradicted. Where a rung does nothing here, it did nothing
+   there, and the number says so. */
 const DEMO=[
-{id:"post_0001",title:"1 · clean pass",
- t:"Been on Lipitor for about 8 months now for cholesterol. Honestly the only thing I've noticed is some muscle aches in my legs, mostly at night.",
- sp:[[8,15,"d"],[99,122,"r"]],
- steps:[["R0","Bare LLM","pass","One call. Candidate record, self-reported confidence 0.94. Nothing checked yet."],
- ["R1","Deterministic","pass","Span [8,15] contains 'Lipitor'. SNOMED 68962001 exists, is a clinical finding, and the reporter's words match a term for it. Zone = PASSED. Nothing below is needed for this record."],
- ["R2","Self-correct","skip","Never fires — no failure. Cost exactly zero. Correction is cheap because it is conditional."],
- ["R3","Voting","pass","5/5 agree. You paid 5× extraction cost to confirm what an authoritative registry settled for free."],
- ["R4","Judge","pass","Approves. A second model call to confirm what a string comparison proved."],
- ["R5","Abstention","pass","Nothing to abstain on."],
- ["R6","Human","skip","Not routed. Analyst minutes here would be waste."]],
- out:["v","VERIFIED — ACCEPT zone, exited at R1","Rungs 4 and 5 ran and bought nothing. The cost-waste case."]},
-{id:"post_0002",title:"2 · passes validation, still wrong",
- t:"started on voltarin for my knee after the op. within 2 days my stomach was on fire, couldn't eat anything.",
- sp:[[11,19,"d"],[59,81,"r"]],
- steps:[["R0","Bare LLM","pass","Both spans extracted correctly. Finding the text is not the hard part."],
- ["R1","Deterministic","fail","Span grounded. SNOMED 162031009 exists and is a clinical finding — but 'my stomach was on fire' matches no term for it. The check cannot confirm the mapping. Zone = BAND."],
- ["R2","Self-correct","skip","Never fires. No deterministic failure to feed back — the code exists and is well-typed. Self-correction has nothing to say here, which is exactly why the rungs below rung 1 cost money."],
- ["R3","Voting","fail","Reaction splits 2 gastritis / 2 dyspepsia / 1 abdominal pain. Not noise — the phrase is genuinely ambiguous."],
- ["R4","Judge","fail","Returns 'unsure'. Honest and useless — repeats what the vote already said, for another call."],
- ["R5","Abstention","abstain","Keep the verified drug, abstain on the reaction. Guessing would fabricate a clinical annotation."],
- ["R6","Human","esc","Routed with three candidates and the source span. ~40s: dyspepsia."]],
- out:["e","ESCALATED — resolved by human","Rung 1 passed this record; no automated rung could settle the reaction code."]},
-{id:"post_0003",title:"3 · fabrication",
- t:"Took the tablets my sister gave me for the pain, no idea what they were. Made me really drowsy and I slept 14 hours straight.",
- sp:[[9,17,"x"],[81,94,"r"]],
- steps:[["R0","Bare LLM","fail","Model invented a drug. The post names none — it says 'the tablets my sister gave me'. Reported 'naproxil' at confidence 0.66."],
- ["R1","Deterministic","fail","SPAN GROUNDING FAILS. Characters [9,17] are 'tablets ', not 'naproxil'. Zone = REJECT, before a single vocabulary lookup."],
- ["R2","Self-correct","pass","Re-prompted with the fact — 'the span you cited contains tablets, not naproxil'. Model correctly returns no drug. This is what R2 is for: rejects, where a fact exists to hand back. Note the general risk: a model under pressure can fabricate harder. Measure regression rate."],
- ["R5","Abstention","abstain","Abstain on drug. The reaction 'really drowsy' IS grounded at [81,94] and is kept."],
- ["R6","Human","skip","Not routed. R1 settled it for free."]],
- out:["a","ABSTAINED on drug, VERIFIED on reaction","Caught by the cheapest check, before any network call."]}];
+{id:"illustration_1",title:"1 · the ACCEPT lane",
+ t:"Been on the statin for about 8 months now for cholesterol. Honestly the only thing I've noticed is some muscle aches in my legs, mostly at night.",
+ sp:[[12,18,"d"],[104,127,"r"]],
+ steps:[["R0","Bare LLM","pass","One call. A candidate record and a self-reported confidence — which takes the value 1.0 or 0.99 and nothing else, so it carries no information."],
+ ["R1","Deterministic","pass","The code exists, is a clinical finding, and the reporter's words match a term for it. ACCEPT. Measured across five models: this lane is 80.4–89.3% correct, and its ordering has no relationship to model quality."],
+ ["R2","Self-correct","skip","Never fires — no rejection to feed back. Measured: it fired once in 248 records, because rung 0's span filters removed rung 1's entire rejection class."],
+ ["R3","Voting","pass","Would cost 2.6× the whole extraction budget. Measured: +5 on the tuning set, 0 out of sample — 2 fixed, 2 broken. The voter and the answerer are the same model."],
+ ["R4","Judge","pass","Approves. Measured: nothing in the codebase reads its verdict, so this call cannot change what ships."],
+ ["R5","Abstention","pass","Ships it. Every point of the error-rate fall at this rung is rung 1, acted on."],
+ ["R6","Human","skip","Not routed."]],
+ out:["v","SHIPPED — on the strength of a string comparison","The free check settled this. The three paid layers above ran and changed nothing."]},
+{id:"illustration_2",title:"2 · plausible, unverifiable",
+ t:"started on the anti-inflammatory for my knee after the op. within 2 days my stomach was on fire, couldn't eat anything.",
+ sp:[[15,32,"d"],[73,95,"r"]],
+ steps:[["R0","Bare LLM","pass","Both spans extracted. Finding the text is not the hard part — detection F1 is 0.521 exact, 0.808 overlap."],
+ ["R1","Deterministic","fail","The code exists and is well-typed, but the writer's phrase matches no term for it. BAND — plausible, unverifiable. Measured: 57% of even a PERFECT answer set lands here. That is the bill everything expensive has to work through."],
+ ["R2","Self-correct","skip","No rejection, so no fact to state back. This is the structural reason rung 2 has nothing to do."],
+ ["R3","Voting","fail","A split vote. Measured: samples do not re-find the same spans, so the rung reports not_resampled rather than a disagreement."],
+ ["R4","Judge","fail","Measured: a 3.2B judge grading a 20B extractor said nothing useful about codes on CADEC — 129,675 concepts do not fit in its context. A judge cannot adjudicate a vocabulary it cannot see."],
+ ["R5","Abstention","abstain","Withdraws it. The answer is preserved, not deleted, and the record is routed."],
+ ["R6","Human","esc","Routed. Measured: 196 of 248 records reach this rung — 79 reviews per 100."]],
+ out:["e","ROUTED TO A PERSON","Nothing automated could settle this, and the system says so rather than guessing."]},
+{id:"illustration_3",title:"3 · the check that has nothing to compare",
+ t:"The effective tax rate was 47.6 percent and 13.4 percent for the three months ended March 31 , 2020 and 2019 , respectively .",
+ sp:[[27,31,"r"],[44,48,"r"]],
+ steps:[["R0","Bare LLM","pass","The same system, same rungs, same models, pointed at SEC filings. The port cost sixteen one-line harness edits and no changes to rung logic."],
+ ["R1","Deterministic","fail","Every tag EXISTS — the vocabulary check works perfectly. But the lexical check must compare \"47.6\" against |EffectiveIncomeTaxRateContinuingOperations|, and a number shares no tokens with a name by construction. Measured: ACCEPT 0 of 704."],
+ ["R2","Self-correct","skip","Nothing rejected, nothing to correct."],
+ ["R3","Voting","skip","Nothing to vote on."],
+ ["R4","Judge","skip","Here the same small judge adjudicates codes fine — 139 tags DO fit in its context."],
+ ["R5","Abstention","abstain","Coverage 1.0 → 0.0. err_per_100 reads 0.0 — a perfect error rate over an empty output."],
+ ["R6","Human","esc","Every record. The identical system that ships 21% on CADEC ships 0% here."]],
+ out:["a","SHIPPED NOTHING, REPORTING A PERFECT ERROR RATE","The method's precondition, and it is testable in one query before you build anything on it."]}];
 let dCur=0,dStep=0;
 function renderDemo(){
  const d=DEMO[dCur];
@@ -1403,6 +1587,28 @@ function renderDemo(){
 
 /* ================= TRIAGE DESK ================= */
 const Q=[
+{id:"FINER.test.0012#3",src:"SEC 10-Q",rec:"FiNER-139",flag:"no lexical evidence",fc:"f-y",
+ sum:"debt disclosure · face amount",
+ t:"the Company issued $ 40.5 million aggregate principal amount of 8.00 % senior notes due 2027 .",
+ sp:[[24,28,"r"]],
+ est:[["ok","tag exists","every one of the 139 tags is in the vocabulary"],
+      ["ok","evidence","chars 24–28"],
+      ["no","lexical match","IMPOSSIBLE HERE — the span is a number and the tag is a concept name, so they share no tokens by construction. ACCEPT 0 of 704."]],
+ ask:"Which tag does the sentence support?",
+ opts:[["DebtInstrumentFaceAmount","—","gold"],["NotesPayable","—","the model's answer: a real US-GAAP concept, not one of the 139"],
+       ["DebtInstrumentCarryingAmount","—","related, wrong"]],gold:0,needed:true,
+ note:"This is the corpus where the free check has nothing to compare, so every record arrives here. The model's error is instructive: it named a real, sensible, related concept that this dataset does not annotate — not a fabrication, which is what it did on CADEC."},
+{id:"FINER.test.0006#1",src:"SEC 10-Q",rec:"FiNER-139",flag:"category right, tag wrong",fc:"f-o",
+ sum:"equity issuance · proceeds",
+ t:"net proceeds of $ 19.4 million from the issuance of common stock during the quarter .",
+ sp:[[18,22,"r"]],
+ est:[["ok","tag exists","in the 139"],["ok","evidence","chars 18–22"],
+      ["wa","lexical match","not available on this corpus — see the record above"]],
+ ask:"Which tag does the sentence support?",
+ opts:[["ProceedsFromIssuanceOfCommonStock","—","gold"],
+       ["CashAndCashEquivalentsFairValueDisclosure","—","the model's answer — a cash amount, but the wrong one"],
+       ["StockIssuedDuringPeriodValueNewIssues","—","closer, still wrong"]],gold:0,needed:true,
+ note:"Right category, wrong tag. Across the arm the model finds the same numbers as the larger model — 119 matched gold against 115 — and differs entirely at the step that needs choosing from a list."},
 {id:"PV-2026-0412",src:"patient portal",rec:"18 Aug",flag:"code ambiguous",fc:"f-y",
  sum:"knee pain medication · GI complaint",
  t:"started on voltarin for my knee after the op. within 2 days my stomach was on fire, couldn't eat anything. GP swapped me to something else.",
@@ -1411,8 +1617,8 @@ const Q=[
       ["ok","evidence","reporter's own words, chars 11–19"],
       ["no","reaction term","no agreed match — 3 candidates"]],
  ask:"Which term does the reporter's description support?",
- opts:[["Dyspepsia","162031009","2 of 5 automated passes"],["Gastritis","4556007","2 of 5"],
-       ["Abdominal pain","21522001","1 of 5"]],gold:0,needed:true,
+ opts:[["Dyspepsia","162031009","2 of 3 automated passes"],["Gastritis","4556007","2 of 3"],
+       ["Abdominal pain","21522001","1 of 3"]],gold:0,needed:true,
  note:"Dyspepsia. 'Couldn't eat anything' is the discriminator — gastritis would need evidence of inflammation, which a reporter cannot supply."},
 {id:"PV-2026-0418",src:"patient portal",rec:"18 Aug",flag:"product unresolved",fc:"f-y",
  sum:"unnamed product · tinnitus",
@@ -1481,7 +1687,7 @@ function objectives(){
    ?Math.round(done.filter(d=>d.hit).length/done.filter(d=>d.dec==="resolved").length*100):null;
  return[
  {n:1,t:"Does each rung buy reliability?",live:false,v:D[6].f1.toFixed(2),
-  d:"strict F1 climbs 0.55 &#8594; 0.95. R1 rejects "+D[1].rej+"% of R0 output at no model cost.",
+  d:"answered accuracy is FLAT 0.371 through R0&ndash;R2, falls to 0.367 at voting, and reaches 0.808 only because R5 stops answering. R1 rejects "+D[1].rej+"% at no model cost.",
   viz:()=>miniLine(D.map(d=>d.f1),-1)},
  {n:2,t:"What does each rung cost?",live:true,v:Math.round(T2[6].tok)+"t",
   d:"tokens per record at the top &middot; p95 "+D[6].p95+"s &middot; "
@@ -1515,8 +1721,8 @@ function objectives(){
    +'<tr><td>agreement</td><td>'+(ag!=null?ag+"%":"&mdash;")+'</td></tr>'
    +'<tr><td>median decision</td><td>'+(m!=null?m.toFixed(1)+"s":"&mdash;")+'</td></tr></table>';
    return d2;}},
- {n:5,t:"Does the answer depend on difficulty?",live:false,v:"18% / 9%",
-  d:"caught by rung 1 at no model cost &mdash; colloquial patient text vs clean clinical prose.",
+ {n:5,t:"Does the answer depend on the corpus?",live:false,v:"21% / 0%",
+  d:"share of records the system SHIPS. CADEC 21%; FiNER-139 <b>0%</b> &mdash; the lexical check cannot compare a number against a concept name, so nothing reaches ACCEPT and everything routes to a person.",
   viz:()=>cRejCompare()}];}
 function renderObjs(){
  $("objs").innerHTML=objectives().map(o=>
@@ -1529,6 +1735,8 @@ function renderObjs(){
 function renderCases(){
  $("cases").innerHTML=Q.map((c,i)=>{const dn=done.some(d=>d.id===c.id);
   return '<div class="case'+(i===cur&&!dn?" on":"")+(dn?" done":"")+'" data-i="'+i+'">'
+   +'<span class="corp '+(c.id.indexOf("FINER")===0?"cp-f":"cp-c")+'">'
+     +(c.id.indexOf("FINER")===0?"FiNER":"CADEC")+'</span>'
    +'<span class="cid">'+c.id+'</span><span class="cs">'+c.sum+'</span>'
    +'<span class="cf '+c.fc+'">'+c.flag+'</span></div>';}).join("");
  $("qm").textContent=(Q.length-done.length)+" open · "+Math.round(N*ESC)+" in batch";
@@ -1606,7 +1814,7 @@ function decide(k){
 const GLOSS=[
 ["Abstention","rung","Rung 3. The system declines to answer rather than guess, emitting <b>ABSTAIN</b>. Does not resolve a record — it declines it safely. Trades coverage for precision, so it cannot be compared to accuracy rungs on F1 alone.","§5 · runs last despite its number"],
 ["Accept zone","method","Records where the span is grounded, the code exists, is correctly typed, and the reporter's wording matches a vocabulary term for it. Settled by rung 1 at effectively zero cost.","§2"],
-["ADE Corpus V2","data","Open corpus of MEDLINE case reports with drug–ADE and drug–dosage relations. Clinician-written, so cleaner than CADEC. Used as the <i>easy</i> contrast domain for objective 5.","huggingface.co/datasets/ade-benchmark-corpus"],
+["ADE Corpus V2","data","Open corpus of MEDLINE case reports with drug–ADE and drug–dosage relations. Clinician-written, so cleaner than CADEC. Considered as the contrast domain for objective 5 and <b>not used</b> — FiNER-139 was chosen instead, for contrast rather than replication.","huggingface.co/datasets/ade-benchmark-corpus"],
 ["Rung 1 rejection rate","metric","Percentage of rung 0 output that deterministic checks reject outright, at zero model cost. The single number that says whether rung 1 earns its place. Report the breakdown by reason alongside it.","§2"],
 ["AURC","metric","Area under the risk–coverage curve. A single number summarising the whole accuracy-versus-coverage trade-off. Lower is better.","§6"],
 ["Corruption rate","metric","Of the records a rung settles, the percentage it settles <b>wrongly</b>. A rung that resolves confidently and incorrectly is worse than one that abstains, and this is the number that catches it.","§6"],
@@ -1636,11 +1844,11 @@ const GLOSS=[
 ["McNemar's test","method","Paired significance test for correct/incorrect outcomes between two rungs on the same records. Used alongside the bootstrap.","§6.1"],
 ["n2c2 2018 Track 2","data","505 MIMIC-III discharge summaries annotated for drug, strength, dosage, frequency, route, duration, reason and ADE. Requires a per-person Data Use Agreement, so apply on H0 and do not plan around it.","portal.dbmi.hms.harvard.edu"],
 ["openFDA","api","FDA drug label API. <b>1,000 requests per day without a key</b>, 120,000 with a free one. Get the key on H0 and cache every response to disk, or the cap will stop a run mid-way.","api.fda.gov/drug/label.json"],
-["Over-abstention","metric","Records abstained on that would have been answered correctly. A real cost of rung 3 that is almost never reported. An objective 4 counter-metric.","§5 · rung 3"],
+["Over-abstention","metric","Records abstained on that would have been answered correctly. A real cost of rung 5 that is almost never reported. An objective 4 counter-metric.","§5 · rung 5"],
 ["Over-escalation","metric","Records routed to a human that no human needed to see. Directly measurable in the Triage desk, and a cost no F1 score captures. Two of the seven demo records are deliberately of this kind.","§5 · rung 6"],
 ["p95 latency","metric","95th-percentile wall-clock time per record. Matters more than the median, because voting and human review blow out the tail rather than the centre.","§6"],
 ["Paired bootstrap","method","10,000 resamples over records to put a confidence interval on the difference between adjacent rungs. Report Δ with CI, never two bare F1 numbers. If the CI crosses zero, that is itself a finding.","§6.1"],
-["Regression rate","metric","How often self-correction turns a correct answer into a wrong one. Rarely published and probably the most interesting number on the ladder. An objective 4 counter-metric.","§5 · rung 5"],
+["Regression rate","metric","How often self-correction turns a correct answer into a wrong one. Rarely published. <b>Measured here: rung 2 fired once in 248 records, so there was almost nothing to regress.</b>","§5 · rung 2"],
 ["Reject zone","method","Records whose evidence span does not appear at the stated offsets, or whose approximate score falls below τ_low. Settled by rung 1 for free, before any network call.","§2"],
 ["Relaxed F1","metric","Match on span overlap, ignoring the normalised code. The gap between relaxed and strict separates <i>extraction</i> failure from <i>normalisation</i> failure. Read the drug-field numbers against the ~0.69 human agreement ceiling.","§6.1"],
 ["Risk–coverage curve","method","Error rate plotted against coverage. The only fair way to compare abstaining and non-abstaining systems. Accuracy rungs move the curve down; abstention rungs move you along it.","§6 · the methodological crux"],
@@ -1654,8 +1862,8 @@ const GLOSS=[
 ["Span grounding","method","Checking that the quoted evidence literally appears at the stated character offsets in the source document. A string comparison that costs nothing and catches fabrication before any network call.","§5 · rung 1"],
 ["Strict F1","metric","Match requires exact normalised-code equality. Applies to the <b>reaction</b> field only, since that is the field with a gold SNOMED code. The drug field is span-scored instead.","§6.1"],
 ["Test split","data","~800 frozen records, written to disk at H1 and never regenerated. Touched once per rung. All tuning happens on dev.","§6.1"],
-["τ (tau) thresholds","method","Confidence cut-offs for the abstention gate at rung 3. Swept on dev only and written into the manifest before any test run. Tuning them on test invalidates the result.","§5 · rung 3"],
-["Voting","rung","Rung 2. k=5 samples at temperature 0.7, majority on the <b>normalised code</b>, never the raw string — synonyms would split a string vote. Its real value may be as a detector: a split vote flags genuine ambiguity.","§5 · step 7"]
+["τ (tau) thresholds","method","Confidence cut-offs for the abstention gate at rung 5. <b>Measured to be a dead dial: rung 0 emits only {1.0, 0.99}, so the threshold never separates anything and the planned sweep was cancelled.</b>","§5 · rung 5"],
+["Voting","rung","Rung 3. k=3 samples at temperature 0.7, majority on the <b>normalised code</b>, never the raw string — synonyms would split a string vote. <b>Measured: +5 on the tuning set and 0 out of sample</b> (2 fixed, 2 broken), for 425,355 tokens and a 152-second p95. The voter and the answerer are the same model, so the vote carries no information the original answer lacked.","§5 · rung 3"]
 ];
 const GTYPES=["rung","metric","method","data","api","artefact","risk"];
 let gQ="",gType="all",gLetter="",gPage=1;
@@ -1718,37 +1926,60 @@ const FLOW = (() => {
   const RUNGS = [
     {id:0, name:"bare LLM",      sub:"extract + propose a code",        free:true},
     {id:1, name:"deterministic", sub:"validate: span, code, type, negation", free:true},
-    {id:3, name:"self-correct",  sub:"retry rejects with the reason",   free:false},
-    {id:5, name:"voting k=5",    sub:"majority on the normalised code", free:false},
+    {id:2, name:"self-correct",  sub:"retry rejects with the reason",   free:false},
+    {id:3, name:"voting k=3",    sub:"majority on the normalised code", free:false},
     {id:4, name:"judge",         sub:"second model family",             free:false},
-    {id:2, name:"abstention",    sub:"decline what is still unresolved", free:false},
+    {id:5, name:"abstention",    sub:"decline what is still unresolved", free:false},
     {id:6, name:"human loop",    sub:"the only settling authority",     free:false},
   ];
-  /* of 100 records leaving R0:
-     R1 rejects 18 outright (free). R2 rescues 12 of those.
-     The 94 that pass validation are settled by: R3 40 · R4 12 · R5 18 abstain · R6 24 escalate */
-  const REJ1 = 18, RESCUE = 12;
-  const SETTLE = {5:40, 4:12, 2:18, 6:24};
+  /* MEASURED, frozen test split, scaled to 100 records leaving R0.
+     R1 rejects well under 1 (0.4%) and R2 rescues none of them — rung 0's span
+     filters removed the rejection class, so the left-hand exit is now almost
+     empty and self-correction has no trigger. Everything else travels the full
+     length and 79 of every 100 end at a person. The animation therefore has
+     almost no course-correction arcs, which IS the finding. */
+  /* Two corpora, one ladder. Switching redraws the same seven lanes with the
+     measured allocation for that corpus. FiNER is not a worse curve — it is a
+     different shape: nothing exits right at all, because rung 1's ACCEPT lane
+     cannot fire when the span is a number. */
+  const CORPORA = {
+    cadec: {rej1:1, rescue:0, settle:{3:0,4:0,5:20,6:79},
+            tok:{0:665,1:0,2:2,3:1715,4:374,5:0,6:0},
+            note:"CADEC · 248 records · ships 21%"},
+    finer: {rej1:0, rescue:0, settle:{3:0,4:0,5:0,6:100},
+            tok:{0:1543,1:0,2:0,3:0,4:0,5:0,6:0},
+            note:"FiNER-139 · 704 records · ships 0% — ACCEPT lane cannot fire"}
+  };
+  let CORPUS = "cadec";
+  let REJ1 = CORPORA.cadec.rej1, RESCUE = CORPORA.cadec.rescue;
+  /* Where the other 99 end up, measured and scaled: rung 5 abstains on 79 and
+     ships 20; nothing is settled at rungs 3 or 4, because neither changes what
+     ships. Keyed by the CURRENT rung ids. */
+  let SETTLE = CORPORA.cadec.settle;
 
   const C = {pass:"#8b939e", ok:"#6fcf7f", rej:"#f2606f", abst:"#ff9a3d",
              esc:"#5b9bf5", fix:"#5ecfdd"};
 
   let cv, ctx, W=960, H=640, dpr=1;
   let parts=[], playing=false, speed=1, raf=null, N=100, highlight=true;
+  let rungSpend={};   /* FLOW-HEAT: tokens charged at each rung this run */
   const stats={verified:0,rejected:0,abstained:0,escalated:0,rescued:0,tokens:0,reviews:0};
-  const TOK = {0:850, 1:0, 3:300, 5:2300, 4:1250, 2:0, 6:0};
+  /* Tokens per record, measured on the frozen test split (248 records):
+     rung 0 665 · rung 2 2 · rung 3 1715 · rung 4 374. Rungs 1, 5 and 6 are free. */
+  let TOK = CORPORA.cadec.tok;
   const rungY = i => 92 + i*76;
   const LANE = {ok:W-118, rej:64};
 
   function reset(){
+    rungSpend={};
     parts=[]; for(const k in stats) stats[k]=0;
     let s=11;
     const rnd=()=>{s=(s*1103515245+12345)&0x7fffffff;return s/0x7fffffff;};
     const pool=[];
     for(let i=0;i<REJ1;i++) pool.push({fate: i<RESCUE ? "rescue" : "reject", at:1});
-    for(const r of [5,4,2,6])
+    for(const r of [3,4,5,6])
       for(let i=0;i<SETTLE[r];i++)
-        pool.push({fate: r===2?"abst" : r===6?"esc" : "settle", at:r});
+        pool.push({fate: r===5?"settle" : r===6?"esc" : "settle", at:r});
     for(let i=pool.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
     parts = pool.slice(0,N).map((p,i)=>({
       ...p, i, x:W/2+(rnd()-0.5)*34, y:-20-i*9,
@@ -1771,7 +2002,14 @@ const FLOW = (() => {
         p.hold-=sp;
         if(p.hold<=0){
           const rung=RUNGS[p.ri];
-          stats.tokens += TOK[rung.id]||0;
+          /* FLOW-HEAT: the cost lands on the RECORD, not only on a counter.
+             A record that has been through voting is carrying 1,715 tokens and
+             is about to be routed to a person anyway; that is the finding, and
+             it should be visible on the particle rather than in a side panel. */
+          const spend = TOK[rung.id]||0;
+          stats.tokens += spend;
+          p.tok = (p.tok||0) + spend;
+          rungSpend[rung.id] = (rungSpend[rung.id]||0) + spend;
           if(rung.id===1 && (p.fate==="reject"||p.fate==="rescue")){
             if(p.fate==="reject"){p.state="exit";p.lane="rej";stats.rejected++;}
             else {p.state="exit";p.lane="rej";p.pending="rescue";}
@@ -1836,6 +2074,18 @@ const FLOW = (() => {
       ctx.fillText(r.sub,152,y+14);
       if(f){ctx.textAlign="right";ctx.font="600 10px ui-monospace,monospace";
         ctx.fillStyle="#6fcf7f";ctx.fillText("NO MODEL CALL",W-146,y-8);}
+      /* FLOW-HEAT: what this rung has charged so far, to scale across rungs.
+         Rung 3 dwarfs everything and never changes where a record ends up. */
+      const spent=rungSpend[r.id]||0;
+      if(spent>0){
+        const maxS=Math.max(1,...Object.values(rungSpend));
+        const bw=Math.max(2,(spent/maxS)*150);
+        ctx.fillStyle="rgba(240,150,60,.30)";
+        ctx.fillRect(W-146-bw, y+6, bw, 5);
+        ctx.textAlign="right"; ctx.font="600 10px ui-monospace,monospace";
+        ctx.fillStyle="rgba(240,170,90,.85)";
+        ctx.fillText((spent/1000).toFixed(spent<10000?1:0)+"k", W-146, y+22);
+      }
     });
 
     const fy=(rungY(1)+rungY(2))/2;
@@ -1861,8 +2111,23 @@ const FLOW = (() => {
       else if(p.lane==="rej") col=C.rej;
       else if(p.lane==="abst") col=C.abst;
       else if(p.lane==="esc") col=C.esc;
-      const r=p.state==="rescue"?5.2:3.6;
+      /* FLOW-HEAT: size and colour carry accumulated cost. A record that has
+         paid nothing is a small grey dot; one that has been through voting and
+         judging is large and red. Records still travelling keep their own
+         colour once they have exited, so the pile at the bottom reads as
+         "expensive, and settled by a person anyway". */
+      const heat = Math.min(1, (p.tok||0)/2100);
+      const r = p.state==="rescue" ? 5.2 : 3.2 + heat*3.4;
+      if(heat>0.04 && p.lane!=="ok" && p.state!=="rescue"){
+        const rr=Math.round(120+heat*135), gg=Math.round(150-heat*95), bb=Math.round(165-heat*130);
+        col = "rgb("+rr+","+gg+","+bb+")";
+      }
       ctx.globalAlpha=p.done?0.35:1;
+      if(heat>0.5 && !p.done){
+        ctx.globalAlpha=(p.done?0.35:1)*0.22;
+        ctx.fillStyle=col; ctx.beginPath(); ctx.arc(p.x,p.y,r+4.5,0,7); ctx.fill();
+        ctx.globalAlpha=p.done?0.35:1;
+      }
       ctx.fillStyle=col; ctx.beginPath(); ctx.arc(p.x,p.y,r,0,7); ctx.fill();
       if(p.state==="rescue"&&highlight){
         ctx.strokeStyle="rgba(94,207,221,.8)"; ctx.lineWidth=1.4;
@@ -1905,7 +2170,11 @@ const FLOW = (() => {
     toggle:()=>{playing=!playing;return playing;},
     stepOnce:()=>{for(let i=0;i<14;i++) step(1);},
     setSpeed:v=>{speed=v}, setN:v=>{N=v;reset();},
-    setHighlight:v=>{highlight=v}, isPlaying:()=>playing };
+    setHighlight:v=>{highlight=v}, isPlaying:()=>playing,
+    setCorpus:k=>{ const c=CORPORA[k]; if(!c) return null;
+      CORPUS=k; REJ1=c.rej1; RESCUE=c.rescue; SETTLE=c.settle; TOK=c.tok;
+      reset(); return c.note; },
+    corpus:()=>CORPUS };
 })();
 /* ---- ladder flow wiring ---- */
 (function(){
@@ -1921,6 +2190,19 @@ const FLOW = (() => {
    Object.keys(sb).forEach(j=>g(j).classList.toggle("on",j===k));});
  const hb=g("fHi"); let hi=true;
  hb.onclick=()=>{hi=!hi;FLOW.setHighlight(hi);hb.classList.toggle("on",hi);};
+ /* corpus switch — the same ladder, the other corpus */
+ const cbs={fCadec:"cadec", fFiner:"finer"};
+ Object.keys(cbs).forEach(k=>{ const b=g(k); if(!b) return;
+   b.onclick=()=>{
+     FLOW.pause(); pb.textContent="\u25b6 Play";
+     const note=FLOW.setCorpus(cbs[k]);
+     Object.keys(cbs).forEach(j=>g(j).classList.toggle("on",j===k));
+     const cap=g("flowCorpusNote"); if(cap&&note) cap.textContent=note;
+     const body=g("flowNoteBody");
+     if(body) body.innerHTML = cbs[k]==="finer"
+       ? '<b>FiNER-139</b>, 704 records: rung 1 finds every tag valid and <b>ACCEPT 0 of 704</b>, because the span is a number and the tag is a concept name &mdash; they share no tokens by construction. Nothing exits right, nothing is rejected, and <b>every record routes to a person</b>. The same system that ships 21% on CADEC ships <b>0%</b> here.'
+       : '<b>CADEC</b>, frozen test split, 248 records: rung 1 rejects <b>1</b> and bands the rest, so almost nothing exits right and self-correction has no trigger &mdash; hence no course-correction arcs. Voting changes 25&ndash;30 codes per run for a net of zero out of sample. Abstention withdraws <b>196 of 248</b>.';
+   };});
 })();
 /* ================= ITERATIONS ================= */
 const ITER=[
@@ -1960,6 +2242,18 @@ const ITER=[
 {v:"11",t:"Build broke itself &mdash; twice",kind:"bug",when:"metric",
  what:"The ladder flow stopped and the iterations tab came out empty. Root cause: index-slice edits that ran from one function to a marker <i>after</i> the FLOW module, deleting it. The follow-up insert then failed silently because <code>str.replace</code> does not raise when its target is missing.",
  why:"Two lessons, both of which apply to the ladder itself. <b>A silent failure is worse than a loud one</b> &mdash; the deletion produced valid JavaScript that parsed cleanly and simply did nothing. And <b>a deterministic check is cheap</b>: v12 asserts every edit matches exactly once, and verifies the module is still present afterwards. That is rung 1 applied to our own build."},
+{v:"18",t:"Everything measured, and four rungs found dead",kind:"find",when:"metric",
+ what:"Seven rungs on a frozen test split, five open-weight models at three draws each, a second corpus ported end to end, and a rung-1-to-6 audit. This document rewritten around what was measured: status banner, the D[] chart array, \u00a75's outcome columns, \u00a79 as findings rather than intentions, and two new sections \u2014 \u00a712b for the audit and \u00a712c for the loop that produced it.",
+ why:"The plan was still describing a configuration nobody runs and a result nobody measured. Four rungs are dead and not for the reasons anyone predicted: <b>nothing reads the judge's verdict</b>, rung 1's existence check fires zero times, \u03c4 is a dead dial, and a span filter added three layers below removed rung 1's rejection class and rung 2's trigger with it. Every one of those layers passes its own tests. <b>The hole is between them</b>, which is why an audit found what no test could."},
+{v:"17.3",t:"A second corpus, and the precondition it exposed",kind:"find",when:"scope",
+ what:"FiNER-139 \u2014 SEC filings, 139 US-GAAP XBRL tags \u2014 ported end to end. Sixteen one-line harness edits, no changes to rung logic. Three models run on it.",
+ why:"Chosen for <b>contrast, not replication</b>: 139 tags fit in a prompt, so the knowledge gap that shaped every CADEC finding is absent. The result is not a worse score but <b>no score</b>: ACCEPT 0 of 704, coverage 1.0 &rarr; 0.0. The lexical check must compare <code>\"47.6\"</code> against <code>|EffectiveIncomeTaxRateContinuingOperations|</code>, and a number shares no tokens with a name by construction. That is the method's precondition and it was invisible for five phases because the project had one corpus. Three defects invisible for the same five phases surfaced within hours of the port."},
+{v:"17.2",t:"Five models, and reproducibility priced",kind:"find",when:"metric",
+ what:"Three identical draws of each of five open-weight models, output files compared byte for byte.",
+ why:"Four of five are <b>bit-reproducible</b>; the fifth, the only Mixture-of-Experts model, gives three different files and a 1.3-point spread \u2014 larger than every improvement this project ever shipped. It also buys 6.5 exact points. So <b>reproducibility is a model-selection choice with a measurable price</b>, and we found that four months in because we had only ever run one model. One MoE model cannot establish the mechanism; the trade does not depend on the mechanism being right."},
+{v:"17.1",t:"The significance test that certified noise",kind:"fix",when:"metric",
+ what:"A paired bootstrap over documents returned +0.0215 [+0.0000, +0.0433] for a reranking stage \u2014 an interval excluding zero. Two further draws gave +0.0087 and \u22120.0089.",
+ why:"The sign reverses, so the effect is not there. The bootstrap was not broken: it resamples the documents of a <i>single run</i>, so it prices the corpus sample and is blind to the variance between generations. <b>A significance test that sees one generation per configuration cannot see the dominant noise term.</b> Three draws minimum, plus the bootstrap. This nearly cost us a published result."},
 {v:"17",t:"Technical architecture",kind:"build",when:"deploy",
  what:"New Architecture tab: the three planes (data / results / presentation), full repository layout with a commit-or-never table, local build commands, Streamlit Cloud and GitHub Pages hosting configs, the three contracts, the file layout map, and a nine-step deployment checklist.",
  why:"The licence decides the architecture, not the other way round. The corpus is non-transferable, so the benchmark runs locally and only derived results are published \u2014 which makes the hosted app <b>structurally incapable</b> of leaking the corpus rather than merely configured not to. Writing this down before deploying is cheaper than discovering a post text in git history afterwards, because history is permanent."},
