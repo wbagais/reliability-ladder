@@ -108,10 +108,25 @@ gold mentions are discontinuous spans our extractor cannot express** — a recal
 cap we built, not one the task imposes. **[PENDING B1: fix this before
 publishing a recall number that blames the task.]**
 
+Both limits read better as records than as percentages:
+
+| | | |
+|---|---|---|
+| **a boundary disagreement** | model `"extreme rectal bleed"` | gold `"rectal bleed"` |
+| **a discontinuous mention** | gold spans `"loss of"` + `"strength"` | our extractor emits one segment, so it cannot express this at all |
+
+The first costs us twice — the same concept scores as a false positive *and* a
+false negative — over a boundary two annotators also disagree about.
+
 **What limits FiNER.** The label is **not decidable from the text**: gold tags a
 number only if the filer chose to tag it *and* that tag made the top-139 cut.
 **77% of our false positives are defensible readings of the sentence.** Precision
-has a ceiling here that no model work touches. Only 17.3% of sentences carry any
+has a ceiling here that no model work touches. One of ours:
+
+> *"The Company recognized a net increase in revenues of $ **19.5** million…"*
+> — the model tags `19.5 → Revenues`. Gold does not tag it here, though it tags
+> that same literal elsewhere in the corpus. Both readings are defensible; only
+> one is in the answer key. Only 17.3% of sentences carry any
 tag, so most documents contain no gold at all.
 
 Read as a pair, they vary one thing: whether the words in the source and the words
@@ -217,6 +232,16 @@ near-misses:
 Neither catches them. The lenient one **vouches for one in five** — worse than
 missing them, because you act on it.
 
+A near-miss from the dev split, sitting in the ACCEPT lane:
+
+> span `"stamina"` → `248276000` |Stamina|
+> gold says `248277009` |**Lack of** stamina|
+
+The vocabulary uses that exact word for that exact code, so every mechanical
+check passes it — and the model has coded the presence of a thing the writer
+says they lost. **A lexical match is evidence about the words, never about the
+claim.**
+
 ---
 
 ## 5. The one thing that worked
@@ -242,6 +267,15 @@ ordering has no relationship to model quality — the *worst* model by F1 has th
 The reason is structural. The quantity is conditional on a **deterministic
 property of the record**, not on the run. You cannot make the model repeatable.
 **You can make your knowledge about it repeatable.**
+
+The cost shows up in single records. This one was withheld, and it was right:
+
+> span `"extreme rectal bleed"` → `12063002` |Rectal hemorrhage| — **correct**,
+> and withdrawn, because the patient's words and the vocabulary's words share
+> nothing.
+
+That is the 57% BAND bill in one line. The check is not saying this answer is
+wrong. It is saying it has no evidence either way.
 
 ---
 
@@ -298,7 +332,13 @@ natural experiment:
 | …taken while sitting at slot 0 | 57 | 3 |
 
 **The model picks it if and only if it is first.** That is 19.5% of every
-prediction on this corpus going to line one of a list. Position bias in option
+prediction on this corpus going to line one of a list. On a real sentence:
+
+> *"…trade accounts receivable are all due in **12 months** or less."*
+> → `AccrualForEnvironmentalLossContingencies`
+
+No reading of that sentence brings the tag close. It is the first line of the
+menu. Position bias in option
 lists is documented and we are rediscovering it; what is ours is the setting — 139
 options in a production pipeline, not four in a benchmark.
 
@@ -387,7 +427,11 @@ draws.
 | to a person | 196 / 198 / 186 | 210 / 211 / 200 |
 
 It withdraws 14, 13, 14 shipped answers to remove **3 errors each time** — about
-**3.7 correct answers destroyed per error caught.** Its withdrawals are 1.11–1.21×
+**3.7 correct answers destroyed per error caught.** Three it destroyed, all
+three of which gold agrees with:
+
+> `"drowsiness"` → |Drowsy| &nbsp;·&nbsp; `"memory loss"` → |Amnesia|
+> &nbsp;·&nbsp; `"pain"` → |Pain| Its withdrawals are 1.11–1.21×
 more likely to be wrong than what it keeps; the free check, same records,
 separates 3.03–3.15×.
 
