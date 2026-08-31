@@ -305,14 +305,6 @@ that no LLM observability platform models.
   boolean. Parse failures, not-re-found mentions and unevaluable checks are none
   of them a pass and none of them a fail.
 
-Optional OpenTelemetry export, off unless `LADDER_OTEL=1`, so no measured figure
-depends on it:
-
-```bash
-LADDER_OTEL=1 OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 \
-  LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
-```
-
 ## Data — read before you clone
 
 No corpus is in this repository, and none can be.
@@ -361,7 +353,7 @@ python -m ladder.vocab_crosscheck --live 40
 ```
 ladder/       schema (the A/B contract) · corpus reader + frozen splits ·
               registry (local SNOMED index) · vocab (backend selection + OLS4) ·
-              llm (cached model client) · ledger · otel (optional OTLP export) ·
+              llm (cached model client) · ledger ·
               negation · run.py · fixture (the gate) · calibrate · probe ·
               vocab_crosscheck
 ladder/rungs/ r0 (extract + A/B ablation) · r1 (validate) · r2 (abstain) ·
@@ -388,7 +380,9 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
       in the specified order confirming zero rung interaction
 - [x] Per-record ledger for every rung, with denominators and a three-valued
       `evaluable`
-- [x] InfoQ article — first draft in [docs/infoq-article-draft.md](docs/infoq-article-draft.md)
+- [x] InfoQ article — the 2026-08-24 first draft is archived as
+      [docs/versions/infoq-article-draft-2026-08-24.md](docs/versions/infoq-article-draft-2026-08-24.md);
+      the live draft is [docs/article-v3.md](docs/article-v3.md)
 - [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns
       empty rather than guessing, and reports a missing rung rather than faking it
 - [x] Rung 6 measured as a timing study — 1.2 reviewer-hours extrapolated

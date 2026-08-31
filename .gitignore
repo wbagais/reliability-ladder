@@ -79,6 +79,11 @@ data/*
 # python docs/wiki/build.py
 docs/wiki/site/
 *.bak
-runs/*.ledger.jsonl
-runs/*.report.txt
-runs/.r6-pool.json
+# runs/ is a WRITE directory for scripts/{ladder_run,full_run,dev_sweep}.py.
+# Nothing reads it back — docs/decisions.md is the durable record — so its
+# CONTENTS are scratch, exactly like out/. 29 outputs were committed here before
+# this rule existed and were removed 2026-08-31. The DIRECTORY stays tracked via
+# .gitkeep: scripts/ladder_run.py opens runs/<run-id>.report.txt without an
+# mkdir, so a clone without runs/ would crash the runner.
+runs/*
+!runs/.gitkeep

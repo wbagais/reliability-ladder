@@ -194,7 +194,6 @@ def gather(man: dict | None = None, *, split: str | None = None,
         },
         "sampling": sampling or {},
         "env": {
-            "ladder_otel": os.environ.get("LADDER_OTEL"),
             "ollama_host": os.environ.get("OLLAMA_HOST"),
         },
     }

@@ -1,1 +1,0 @@
-{"run_id": "smoke", "rung": 1, "doc_id": "D1", "record_id": "D1#0", "zone": "NEW", "outcome": "judged", "reason": null, "tokens_in": 10, "tokens_out": 5, "api_calls": 1, "latency_ms": 42.0, "usd": 0.0, "human_minutes": 0.0, "ts": 1787506336.005493, "extra": {"denominator": "r1_offered_169", "evaluable": "fail"}, "verdict": null}
