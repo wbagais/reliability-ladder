@@ -652,8 +652,11 @@ to be worth more than any layer that tried to answer them.
   dense model of similar size.
 - **The precondition was found by accident**, after hours of running, when one
   query would have said it. Every layer has a property its value depends on, and
-  all of them are measurable before the layer is built. Whether such a preflight
-  predicts which layers pay is the obvious next experiment.
+  all of them are measurable before the layer is built. **[PENDING: a
+  rung-preflight now exists in the repo — `scripts/preflight_rungs.py`, landed
+  on main 2026-08-31. Whether its predictions match which layers actually paid
+  is unvalidated, and that comparison is the experiment. Rewrite this bullet
+  once it has been run.]**
 - **We never ran a supervised baseline**, so our distance from a trained system is
   quoted rather than measured.
 - **Our retriever is a general-purpose 30M embedding model** where this task's
