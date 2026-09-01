@@ -77,11 +77,85 @@ def _corpus_root(man):
     return c.get("root") or c["cadec_root"]
 
 
+SNOMED_BACKENDS = ("local-rf2",)
+
+
+def check_snomed_backend(man: dict[str, Any] | None = None) -> str:
+    """Which SNOMED backend this run is allowed to use, from the manifest.
+
+    Wired 2026-08-31, and it is the highest-stakes of the four declarations
+    found dead alongside `manifest.model.temperature`. `manifest.vocabulary`
+    named `snomed_backend: "local-rf2"` and `_vocab_for` was hardwired to
+    Registry, so declaring `ols4` would have changed NOTHING while every
+    results file claimed ols4 — under a hard rule (CLAUDE.md, and
+    schemas/vocabulary.py) that a rung 1 rejection rate must never be reported
+    without saying which backend produced it, where the two backends differ by
+    23.9% of CADEC gold.
+
+    `ols4` is REFUSED rather than honoured. `vocab.Ols4Vocabulary` is real and
+    serves rung 1's surface, but not `replacements` and not rung 0's
+    `shortlist`/`resolve`/`search_labelled`, so running the ladder on it is a
+    measurement nobody has taken, not a fix. Refusing still closes the defect:
+    after this a manifest cannot claim a backend the run did not use.
+    """
+    want = ((man or {}).get("vocabulary") or {}).get("snomed_backend")
+    if want is None or want in SNOMED_BACKENDS:
+        return want or "local-rf2"
+    if want == "ols4":
+        raise SystemExit(
+            "manifest.vocabulary.snomed_backend is 'ols4', and run.py has only "
+            "the local RF2 index wired.\n"
+            "OLS4 is LOSSY (lossy=True): it indexes active international SNOMED "
+            "only, so 23.9% of CADEC gold answers exists()==False — 7.5% "
+            "retired, 16.4% AU-extension, which is 100% of drug mentions. It "
+            "also has no replacements() and none of rung 0's shortlist/resolve.\n"
+            "Compare the two with:  python -m ladder.vocab_crosscheck\n"
+            "This is refused rather than ignored because a results file that "
+            "claims a backend the run did not use is worse than a run that "
+            "stops."
+        )
+    raise SystemExit(
+        f"manifest.vocabulary.snomed_backend is {want!r}, which is not a "
+        f"backend. Known: {', '.join(SNOMED_BACKENDS)} (and 'ols4', refused "
+        "above)."
+    )
+
+
+def check_meddra_mode(man: dict[str, Any] | None = None) -> str:
+    """`reference` or nothing. `answer_space` no longer has an implementation.
+
+    CLAUDE.md: "MedDRA defaults to `reference` mode; `answer_space` is a
+    declared choice that must go in the manifest." The declared choice had no
+    reader (2026-08-31) — and no implementation either, because `answer_space`
+    meant showing the model the MedDRA list, which was rung 0's S3, dropped
+    2026-08-24 for reasons that have not changed: the list is the answer key's
+    own 666-code inventory. Rung 0 has not read MedDRA since. Accepting the
+    value would let a manifest declare an experiment that cannot run.
+    """
+    want = ((man or {}).get("vocabulary") or {}).get("meddra_mode")
+    if want is None or want == "reference":
+        return want or "reference"
+    if want == "answer_space":
+        raise SystemExit(
+            "manifest.vocabulary.meddra_mode is 'answer_space', which no code "
+            "path implements. It meant showing the model the MedDRA list — "
+            "rung 0's S3, DROPPED 2026-08-24 because that list is the answer "
+            "key's own inventory (666 codes, every one of them in the gold "
+            "annotations). Rung 0 does not read MedDRA at all; there is a test "
+            "asserting the filename is absent from r0.py. Use 'reference'."
+        )
+    raise SystemExit(
+        f"manifest.vocabulary.meddra_mode is {want!r}. Known: 'reference' "
+        "(and 'answer_space', refused above)."
+    )
+
+
 def _vocab_for(man):
     """The vocabulary the manifest names. Registry unless told otherwise."""
     if (man.get("vocabulary") or {}).get("backend") == "finer-tags":
         from ladder import vocab_finer
         return vocab_finer.load(_corpus_root(man))
+    check_snomed_backend(man)
     return Registry(man["vocabulary"]["snomed_db"])
 from ladder import llm as llm_mod
 from ladder.ledger import Ledger
@@ -780,6 +854,7 @@ def cmd_ablate(a) -> int:
 
 
 def _load_meddra(man: dict[str, Any]) -> MeddraTable | None:
+    check_meddra_mode(man)
     path = man.get("vocabulary", {}).get("meddra_csv")
     if not path:
         return None

@@ -15,12 +15,14 @@ from ladder.registry import Registry
 from ladder.rungs.r0 import run
 from ladder.rungs import r1, r2, r3, r4, r5
 from ladder.ledger import Ledger
+from ladder.run import check_snomed_backend
 import argparse, contextlib, io, sys, select, shutil
 from ladder import stub_llm as S
 
 ORDER = [0, 1, 2, 3, 4, 5, 6]
 
 man = json.loads(pathlib.Path("manifest.json").read_text())
+check_snomed_backend(man)   # same blind spot as _vocab_for's, same check
 reg = Registry(man["vocabulary"]["snomed_db"])
 items = S.load_items(man["corpus"]["splits_dir"])
 src = {i["doc_id"]: i["text"] for i in items}
@@ -121,8 +123,7 @@ def emit(rung, fn, *a):
 
 
 RUN_ID = f"ladder-{int(time.time())}"
-LEDGER = Ledger("runs/ladder.ledger.jsonl",
-                run_id=RUN_ID)
+LEDGER = Ledger("runs/ladder.ledger.jsonl", run_id=RUN_ID)
 
 t_start = time.perf_counter()
 
@@ -216,7 +217,6 @@ _stamp = _prov.gather(
     entry_point="scripts/ladder_run.py", run_id=RUN_ID,
     models_spec={"extractor": (man.get("model", {}).get("extractor"), S.MODEL),
                  "judge": (man.get("model", {}).get("judge"), "llama3.2:3b")},
-    sampling={"temperature": 0.7, "k": 3},
     extra={"records": len(recs), "withheld": withheld})
 _prov.write(f"runs/{RUN_ID}.json", _stamp)
 for _w in _prov.warnings(_stamp):

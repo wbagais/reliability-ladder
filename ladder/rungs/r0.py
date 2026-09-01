@@ -1894,16 +1894,6 @@ def apply(
     return out, agg
 
 
-def report_run(agg: dict) -> None:
-    n, docs = agg["records"], agg["documents"]
-    print(f"\n{'=' * 58}\nRUNG 0 — bare LLM\n{'=' * 58}")
-    print(f"  documents             {docs}")
-    print(f"  mentions emitted      {n}  ({n / docs if docs else 0:.1f} per document)")
-    print(f"  JSON parse failures   {agg['parse_failed']}")
-    print(f"  tokens {agg['tokens_in'] + agg['tokens_out']:6d}   "
-          f"tool calls {agg['tool_calls']:3d}   {agg['seconds']}s")
-
-
 # ============================================================================
 # THE ABLATION — does a vocabulary lookup tool help?
 #
