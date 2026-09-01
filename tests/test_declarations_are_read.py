@@ -172,9 +172,13 @@ def test_nothing_references_the_deleted_exporter():
                             "versions", "__pycache__") for part in rel.parts):
                 continue
             # The RECORD may name a deleted thing — that is what a record is
-            # for. This guard is about files that ADVERTISE or IMPLEMENT it.
+            # for. This guard is about files that ADVERTISE or IMPLEMENT it:
+            # README.md, docs/plan.html, the wiki, the code. The record files
+            # are decisions.md, CLAUDE.md and the MR-*.md write-ups at the root
+            # — the last of which caught me, because the MR description for
+            # THIS branch explains the deletion and so necessarily names it.
             if path.name in ("test_declarations_are_read.py", "decisions.md",
-                             "CLAUDE.md"):
+                             "CLAUDE.md") or path.name.startswith("MR-"):
                 continue
             text = path.read_text(errors="ignore")
             looked += 1
