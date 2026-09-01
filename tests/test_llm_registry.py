@@ -310,14 +310,16 @@ def test_biomistral_is_registered_and_local():
     assert info.dollars(1000, 1000) == 0.0
 
 
-def test_biomistral_has_a_small_explicit_output_budget():
-    """One JSON line, not a chain of thought. 512 is 13x the measured reply."""
-    assert ModelInfo("ollama/biomistral:7b-q5_k_m").max_tokens == 512
+# The 512/120 budget those two facts were written against was JUDGE-shaped and
+# was resized on 2026-08-31 for the extractor arm; the values now live in
+# test_biomistral_carries_the_instruct_extractor_budget at the foot of this
+# file. What survives here is the property that did not depend on the role: the
+# entry is DECLARED rather than inherited, which is the rule qwen3 broke.
 
 
-def test_biomistral_has_an_explicit_timeout():
-    """240 records x one call each: a hung call must cost one record."""
-    assert ModelInfo("ollama/biomistral:7b-q5_k_m").timeout_s == 120
+def test_biomistral_declares_its_own_timeout():
+    """A hung call must cost one record, on a bound this file states."""
+    assert ModelInfo("ollama/biomistral:7b-q5_k_m").timeout_s != DEFAULT_TIMEOUT_S
 
 
 def test_biomistral_declares_no_reasoning_channel():
@@ -774,3 +776,26 @@ def test_claude_sonnet_5_carries_an_extraction_budget():
     info = ModelInfo("anthropic/claude-sonnet-5")
     assert info.max_tokens == 8000
     assert info.timeout_s == 300
+
+
+# --- BioMistral in the EXTRACTOR role (2026-08-31) ---------------------------
+#
+# The 512/120 budget above was written for rung 4, where the reply is one JSON
+# line. Rung 0 is a different shape: the S2 find reply is a mentions array and
+# the measured replies of the other non-reasoning instruct models in the
+# comparison (llama3.1:8b, mistral:7b-instruct) run 200-400 completion tokens
+# at a 2000 budget. Keeping the judge's 512 here would not merely risk a
+# truncation — it would make one INDISTINGUISHABLE from the instant-EOS cliff
+# this arm exists to test, and `truncated` and a short reply are the two
+# outcomes the arm has to tell apart. The budget therefore matches the other
+# instruct extractors exactly, so the comparison varies the model and nothing
+# else.
+
+
+def test_biomistral_carries_the_instruct_extractor_budget():
+    """Same budget as the other non-reasoning instruct extractors, so a short
+    reply can only be the model and never the cap."""
+    info = ModelInfo("ollama/biomistral:7b-q5_k_m")
+    peer = ModelInfo("ollama/mistral:7b-instruct")
+    assert info.max_tokens == peer.max_tokens == 2000
+    assert info.timeout_s == peer.timeout_s == 180

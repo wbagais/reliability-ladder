@@ -662,9 +662,14 @@ to be worth more than any layer that tried to answer them.
 - **Our retriever is a general-purpose 30M embedding model** where this task's
   literature uses domain-adapted encoders — so some of the retrieval ceiling we
   attribute to the task may belong to that choice.
-- **We tested a domain-adapted model in one role only.** A medical Mistral failed
-  as a judge for an instruction-following reason, and we concluded domain
-  adaptation costs instruction-following without ever running it as the extractor.
+- **~~We tested a domain-adapted model in one role only.~~ CLOSED 2026-08-31.**
+  BioMistral-7B has now been run as the *extractor* on the same dev split and
+  frozen config, three draws: 3 predictions against 226 gold, F1 exact 0.0087,
+  36 of 40 documents returning `" {"` and end-of-sequence — the identical
+  signature to its judge failure, in the role whose prompts are 2-3x longer.
+  Raising the temperature to 1.0 escapes the greedy EOS and still lands at F1
+  0.017-0.050, a factor of four below the un-adapted `mistral:7b-instruct` on
+  the same split. The claim holds in two roles.
 - **The second corpus is a demonstration, not a matched comparison.** A third
   corpus with a lexical vocabulary would test whether the ~85% ACCEPT lane belongs
   to controlled vocabularies in general or to SNOMED in particular.
