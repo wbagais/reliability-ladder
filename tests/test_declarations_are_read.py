@@ -161,7 +161,7 @@ def test_nothing_references_the_deleted_exporter():
     """Including the docs. A feature the README advertises and no code
     implements is the defect this whole file is about, pointed the other way.
     """
-    hits = []
+    hits, looked = [], 0
     for pat in ("**/*.py", "**/*.md", "**/*.html", "**/*.txt", "**/*.yml"):
         for path in _ROOT.glob(pat):
             # RELATIVE parts, not absolute: this repo is worked in worktrees
@@ -177,9 +177,16 @@ def test_nothing_references_the_deleted_exporter():
                              "CLAUDE.md"):
                 continue
             text = path.read_text(errors="ignore")
+            looked += 1
             if "LADDER_OTEL" in text or "ladder.otel" in text \
                     or "OtelLedger" in text or "opentelemetry" in text:
                 hits.append(str(rel))
+    # THE GUARD ON THE GUARD. This test passed VACUOUSLY when it was written:
+    # it filtered on absolute path.parts, and this repo is worked in worktrees
+    # under .claude/, so every path was excluded and nothing was read while
+    # README.md still advertised the exporter. A count of what was actually
+    # opened is what makes the empty result mean something.
+    assert looked > 50, f"only read {looked} files — the walk is broken, not clean"
     assert not hits, "the exporter is deleted; these still advertise it: " + \
         ", ".join(sorted(set(hits)))
 
@@ -202,13 +209,15 @@ def test_no_tracked_manifest_names_a_model_ollama_does_not_have():
     died at rung 4 on the first full FiNER run (docs/decisions.md 2026-08-29).
     Three other tracked manifests still carried it.
     """
-    bad = []
+    bad, seen = [], 0
     for path in sorted(_ROOT.glob("manifest*.json")):
+        seen += 1
         man = json.loads(path.read_text())
         for role, spec in (man.get("model") or {}).items():
             if isinstance(spec, str) and spec.endswith("/granite4:micro-h") \
                     and "ibm/" not in spec:
                 bad.append(f"{path.name}:{role} = {spec}")
+    assert seen >= 5, f"only {seen} manifests globbed — an empty pass is not a pass"
     assert not bad, "ollama namespaces this model under ibm/: " + "; ".join(bad)
 
 
