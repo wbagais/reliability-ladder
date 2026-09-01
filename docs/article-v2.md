@@ -1,5 +1,9 @@
 # The AI Reliability Ladder, Measured Rung by Rung
 
+> **File role:** the *previous submission*, 3,579 words, sent 2026-08-30.
+> Kept as the record of what was submitted. The current draft is
+> [`article-v3.md`](article-v3.md).
+
 **Pushpdeep Mishra · Wejdan Bagais**
 
 *Seven reliability layers around a language model, measured one at a time on a

@@ -1,23 +1,18 @@
 # The AI Reliability Ladder, Measured Rung by Rung
 
-> ## DRAFT — NOT SUBMITTABLE YET
+> ## DRAFT — one claim still open
 >
-> This is the **structure with the numbers we already have**. It is not
-> finished. Every `[PENDING]` marker below is a claim waiting on a task in
-> `docs/PLAN-next-sessions.md`, and two of them can change what the article
-> says rather than just add to it.
+> **One `[PENDING]` marker remains, and it is a claim at risk rather than an
+> incomplete one:** §9's *"retrieval is a ceiling"* rests on a general-purpose
+> 30M embedder where this task's literature uses domain-adapted encoders, so
+> part of that ceiling may be ours (task **B2** in
+> `docs/PLAN-next-sessions.md`). The offline menu-recall probe settles it
+> without a run.
 >
-> | gap | blocks | task |
-> |---|---|---|
-> | CONORM comparison unverified | §lit "behind", and the 0.70 ceiling claim | **A1** |
-> | No supervised baseline | §lit, §could-not-settle | B6 |
-> | Retriever is general-purpose, not domain-adapted | §9 "retrieval is a ceiling" | B2 |
-> | Domain-adapted model never run as extractor | §could-not-settle | B3 |
-> | 17.3% of gold structurally unreachable | §1, §could-not-settle | B1 |
->
-> **Two claims are currently at risk, not just incomplete:** the 0.70 ceiling
-> (A1 may show it applies only to zero-shot systems) and "retrieval is a
-> ceiling" (B2 may show it is our embedder).
+> The other claim that was at risk — that CADEC's boundary convention caps
+> span-exact scores near 0.70 — has been checked against the strongest
+> published system on this corpus and it held. Everything else here is
+> measured, labelled by split, and cited.
 
 **Pushpdeep Mishra · Wejdan Bagais**
 
@@ -37,7 +32,7 @@ cost nothing. Source: author-created with Matplotlib.*
 2. **The model should read the text and nothing else.** Recalling an identifier, building the candidate list, ordering it, checking, judging, and deciding to abstain each measured better when taken away from the model.
 3. **A free string comparison beat the LLM judge by 3×** at identifying which answers were correct — and held at ~85% across five model families spanning 2.8× in accuracy.
 4. **That check has a precondition you can test in one query.** On a corpus where the span is a bare number it has zero coverage, and the system silently ships nothing.
-5. **Deleting the three paid layers changed one answer out of 43 and saved 518,590 tokens.** The layer that cut errors from 62.9 to 4.0 per 100 spent nothing — and charged 196 of 248 records to a person instead.
+5. **Deleting the three paid layers changed one answer out of 43 and saved 518,590 tokens** (development split). The layer that cut errors from 62.9 to 4.0 per 100 spent nothing — and charged 196 of 248 records to a person instead.
 
 ---
 
@@ -76,12 +71,18 @@ prepared to defend each one.
 and cannot tell you *which* 80% is unusable wherever a wrong answer costs
 something.
 
-> The system ships **21%** of its answers. On those it makes **4.0 errors per
-> 100**, against **62.9** for the bare model and **63.3** after every paid layer
-> has had its turn. It sends the other **196 of every 248 records** to a person.
+> **On the held-out split, run once and never re-run:** the system ships **23%**
+> of its answers — 72 records of 314. On those it makes **3.8 errors per 100**,
+> against **59.6** for the bare model. It sends the other **242** to a person.
+> End-to-end F1 is **0.204 [0.150–0.260]** span-exact, **0.215** on overlap.
 
 Not a good result. An honest one — and most of this article is about the things we
 built that did not contribute to it.
+
+The held-out split was spent on that single run, so **every other number in this
+article is development-side.** They are labelled where they appear. We say which
+split a number comes from every time, because the two do not agree and the
+difference is not always in our favour.
 
 ---
 
@@ -100,12 +101,17 @@ the precondition for the only thing that worked.
 
 **What limits CADEC.** Its boundary convention is only ~67% deterministic —
 `"terrible"` sits inside a span 52% of the time — so exact matching punishes
-disagreements two annotators also have. It has been public since 2015 and is
-almost certainly in pretraining, which inflates the bare-model baseline and makes
-our gains conservative. 11% of its gold codes are now retired, and **17.3% of its
-gold mentions are discontinuous spans our extractor cannot express** — a recall
-cap we built, not one the task imposes. **[PENDING B1: fix this before
-publishing a recall number that blames the task.]**
+disagreements two annotators also have. That figure predicts a span-exact ceiling
+near 0.70, and the best supervised system published on this corpus scores **0.704
+span-exact on detection alone**, which is as close to a confirmation as an
+argument like this gets. It has been public since 2015 and is almost certainly in
+pretraining, which inflates the bare-model baseline and makes our gains
+conservative. 11% of its gold codes are now retired, and **17.3% of its gold
+mentions are discontinuous spans our extractor cannot express** — a recall cap we
+built, not one the task imposes. We report every recall number with that cap
+attached rather than netting it out; emitting multi-segment spans is unfinished
+work, and the supervised system above uses a contiguous tagging scheme, so it
+looks to be unfinished there too.
 
 Both limits read better as records than as percentages:
 
@@ -385,8 +391,12 @@ class of bug that depth of testing does not.**
 
 We built four resolvers on the residue and expected a staircase.
 
+**Everything in this section is the development split** — 248 records, 40
+documents. The held-out split was spent on one frozen run and cannot arbitrate an
+ablation, so the ablation and the judge arm live here and stay labelled.
+
 Each is followed by what it actually did to a real record, from the full-ladder
-run behind every CADEC figure in this article.
+run behind every development-side CADEC figure in this article.
 
 **Rung 1, the free checks.** Three verdicts, three records:
 
@@ -439,7 +449,7 @@ third is why it throws them away.
 voting. It rises only when the system stops answering. Source: author-created with
 Matplotlib.*
 
-| layer | answered accuracy | bought | tokens | p95 |
+| layer (development split) | answered accuracy | bought | tokens | p95 |
 |---|---|---|---|---|
 | bare model | 0.371 | — | 164,897 | *cached* |
 | deterministic checks | 0.371 | +0.000 | **0** | **0** |
@@ -457,7 +467,7 @@ answer.**
 Per-layer deltas are an argument. The ablation is the measurement — same corpus,
 extraction step held **identical** on both sides:
 
-| stack | F1 exact | overlap | correct | shipped | to a person | tokens |
+| stack (development split) | F1 exact | overlap | correct | shipped | to a person | tokens |
 |---|---|---|---|---|---|---|
 | full seven rungs | 0.182 | 0.187 | 43 | 52 | 196 | **683,488** |
 | spine only | 0.182 | 0.182 | 42 | 52 | 196 | **164,898** |
@@ -613,13 +623,38 @@ comparison, on the same records, in the same run, and the string comparison won 
 3×. We have not found that comparison published. It is the narrow claim this
 article defends.
 
-**Where we may simply be behind.** Systems that *train* on CADEC report end-to-end
-F1 near 0.72; our zero-shot pipeline reports 0.399. We ran no supervised baseline —
-which also means our claim that the answer key's ~67% boundary determinism caps
-any system near 0.70 should be read as a claim about **zero-shot** systems until
-checked against that work directly. **[PENDING A1: read the paper. If their
-"exact" is span-exact and end-to-end, our ceiling claim is wrong as written and
-must be rewritten, not softened.]**
+**Where we are behind, stated in the right units.** The strongest published system
+on this corpus is CONORM (Yazdani et al., medRxiv `10.1101/2023.09.26.23296150`),
+which fine-tunes on 875 of CADEC's 1,250 files. Its
+evaluation code scores a `(type, span, concept)` tuple under the same two
+strategies we use — identical offsets, or overlapping ones — so the metrics line
+up even though the vocabularies do not. Matched on both axes:
+
+| | span-exact | overlap / lenient |
+|---|---|---|
+| CONORM, end-to-end, supervised | ≤ **0.704** | **0.7245** |
+| CONORM, **detection only**, supervised | **0.704** | 0.891 |
+| ours, end-to-end, zero-shot, held-out | **0.204** [0.150–0.260] | 0.215 |
+
+We are a long way behind on both, and one number would have hidden by how much. The
+`≤` is arithmetic, not modesty: end-to-end demands the span *and* the code, so it
+cannot exceed detection alone under the same matching, and their published 0.7245
+therefore has to be the lenient figure. Their paper reports one end-to-end number
+per corpus without labelling its strategy.
+
+**And the ceiling claim survives the check that was meant to break it.** We claimed
+CADEC's ~67% boundary determinism caps span-exact scores near 0.70. A fully
+supervised tagger, trained on that corpus, scores **0.704 span-exact on detection
+alone** — before it assigns a single code. That is the predicted number, reached by
+the system with every advantage, doing the easier half of the task.
+
+Three things travel with the comparison. They normalise to **MedDRA preferred
+terms**, not the 129,675-concept SNOMED graph we code against. They are supervised,
+and their own analysis prices what that buys: stratified by whether the gold
+concept was seen in training, precision falls from **85.8% to 47.1%** on concepts
+it was not — and a zero-shot system is out-of-distribution on every record by
+construction. And their tagger uses a contiguous BIO scheme, so the discontinuous
+mentions our extractor cannot express appear to be beyond theirs too.
 
 ---
 
@@ -636,12 +671,14 @@ deal, and not what they were bought for.
   by construction, so you get its false-positive rate for nothing. Ours went from
   9.3% to 0.13%.
 - **Grep for the readers of every field you write** — and when you find an orphan,
-  measure it before you adopt it. Ours cost yield when we connected it.
+  measure it before you adopt it. Ours cost yield when we connected it. This one
+  is worth automating: forty lines of regex over our own source names all three
+  of the dead layers we had found by hand, and needs no data and no model.
 - **Re-measure the top when you change the bottom**, and **print coverage beside
   every error rate.**
 
-The system ships about a fifth of its answers, at four errors per hundred instead
-of sixty-three, and hands the rest to a person. Not what we set out to build. But
+The system ships about a quarter of its answers, at four errors per hundred
+instead of sixty, and hands the rest to a person. Not what we set out to build. But
 the machinery that makes the other four-fifths *legible* to that person turned out
 to be worth more than any layer that tried to answer them.
 
@@ -651,14 +688,19 @@ to be worth more than any layer that tried to answer them.
   ones.** Suggestive, not a result. It wants more MoE models, and should fail on a
   dense model of similar size.
 - **The precondition was found by accident**, after hours of running, when one
-  query would have said it. Every layer has a property its value depends on, and
-  all of them are measurable before the layer is built. **[PENDING: a
-  rung-preflight now exists in the repo — `scripts/preflight_rungs.py`, landed
-  on main 2026-08-31. Whether its predictions match which layers actually paid
-  is unvalidated, and that comparison is the experiment. Rewrite this bullet
-  once it has been run.]**
-- **We never ran a supervised baseline**, so our distance from a trained system is
-  quoted rather than measured.
+  query would have said it — so we wrote the query down as a tool and checked it
+  against our own wreckage. Run against the code as it stood *before* the audit,
+  its free wiring check names the three orphaned verdict fields we had found by
+  hand and nothing else, leaving 55 diagnostic fields alone. Its ACCEPT-lane
+  check refuses the corpus where the ladder shipped 0%, on a property of the
+  answer key, before a model runs. **What we have not done is use it in
+  anger**: every case above is one we already knew the answer to, and a
+  precondition tool validated only backwards is a hypothesis about the next
+  project, not a result from this one.
+- **We never ran a supervised baseline.** Our distance from a trained system is
+  read off someone else's paper rather than measured on our own splits — verified
+  line by line against their evaluation code, but still a comparison across two
+  vocabularies and two test sets.
 - **Our retriever is a general-purpose 30M embedding model** where this task's
   literature uses domain-adapted encoders — so some of the retrieval ceiling we
   attribute to the task may belong to that choice.
