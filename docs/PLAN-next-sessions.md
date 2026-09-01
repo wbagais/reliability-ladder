@@ -144,47 +144,111 @@ mitigation measured rather than proposed.
   person. Never fuse them.
 - **New behaviour is an off-by-default arm**, declared in the manifest, with a
   test pinning the one-key diff.
+- **A go/no-go probe must use the ARM'S OWN DENOMINATOR.** B2's probe separated
+  over 1,144 documents while the arm ran on 38, and on those 38 the sign
+  flipped. A probe measured on a population the arm will not see is not a
+  stop condition, it is a different experiment.
+- **A held-fixed layer and a dead arm both print Δ = 0.000.** Record the
+  ABSOLUTE values of anything an ablation pins, and verify the arm is not a
+  no-op (menus differ, codes differ).
+- **A green local suite is not a green pipeline.** CI is `python:3.12-slim`
+  with `requirements.txt` + pytest — no numpy, httpx, torch or `git` binary.
+  Two red pipelines in two days came from this. Reproduction command is in
+  `CLAUDE.md`.
 - **No ten-document arms.**
 
 ## Do not redo (measured and rejected)
 
 Prompt rewording · merging overlapping predictions · lexical/hybrid reranking ·
 deep=200 reranking · a system message · ten-document arms · BioMistral **as
-judge** · the no-digit filter on FiNER · the context-ordered FiNER menu.
+judge** · BioMistral **as extractor** · the no-digit filter on FiNER · the
+context-ordered FiNER menu · **a domain-adapted retriever (SapBERT) for S2** —
+it is genuinely the better retriever corpus-wide and lost end to end, three
+draws for three; `manifest.sapbertarm.json` is kept, off, if you need to see it
+again.
 
 ---
 
-## Prompt to start Session 1
+## Prompt to start the next session — B4
 
-Paste this once the current run has finished.
+Session 1 and B2 are spent; this is what the file's own queue points at next.
+B1 is the alternative and is deliberately deferred (see the status table).
 
 ```
-Continue the reliability-ladder project, Session 1 of docs/PLAN-next-sessions.md.
+Continue the reliability-ladder project. Scope is B4 ONLY — break the slot-0
+position prior on FiNER (docs/PLAN-next-sessions.md, Session 3 §2).
 
 READ FIRST
-- docs/PLAN-next-sessions.md  (this session's scope is Session 1 only)
-- docs/article-v3.md          (the draft; six [PENDING] markers are the work)
-- docs/decisions.md, entries dated 2026-08-30
-- CLAUDE.md "Current state" and "TODO — registered, not started"
+- docs/PLAN-next-sessions.md   (status header is current; B2 closed 2026-09-01)
+- docs/decisions.md            the slot-0 attractor entry (2026-08-30), the
+                               context-menu rejection (2026-08-30), and the
+                               2026-09-01 B2 entries
+- CLAUDE.md                    "TODO — registered, not started", and the
+                               session-2026-08-30 FiNER notes
+- ladder/menuorder.py          the existing arm mechanism, off everywhere
 
-The four FiNER draws launched on 2026-08-30 should be finished. They are in
-out/harness/finerdraws.log and out/finer/arm-finer{base,ctx}-d{0,1,2}.json,
-in the phase-e-rung-6-human-loop-64ce8e worktree.
+THE FINDING UNDER ATTACK
+FiNER's menu is `sorted(set(tags))`. `AccrualForEnvironmentalLossContingencies`
+is alphabetically first, sits at slot 0 in every record, and is predicted 57
+times in 292 against 2 in gold — 19.5% of all predictions are the list's first
+line. The context arm proved it is POSITION, not meaning: move the tag to
+median slot 92 and it is predicted 3 times, all 3 while it happened to be
+first. The model takes line one iff it is line one.
 
-Do Session 1 and nothing else:
-1. A1 first — verify the CONORM comparison and DECIDE on our 0.70 ceiling
-   claim. This can invalidate a published claim, so do it before any writing.
-2. Write up the three FiNER draws: the paired context-arm result, FiNER's
-   first run-to-run spread, and the refusal's draw-dependence.
-3. Apply both to docs/article-v3.md and clear the [PENDING] markers they close.
-4. Add the one-line file-role headers to docs/article.md and docs/article-v2.md.
+This is now the third sighting. CADEC: alphabetising a score-ordered menu cost
+10–12pt. FiNER: imposing a mediocre order cost 8.9pt. B2: a better encoder
+pushed slot-0 selection 76.6%→79.0% while slot-0 accuracy fell.
 
-Rules that bind: TDD if any code changes. Log every decision to
-docs/decisions.md as you go. Three draws plus the paired bootstrap, never one.
-Phase F spent the test split — everything is dev-side and not validatable.
+DO THIS, IN ORDER
+1. NOT A BETTER RANKER. Two candidate mechanisms, both off-by-default arms:
+   (a) a slot 0 that is never a valid answer — a sentinel line;
+   (b) a per-mention permutation under a fixed seed (the literature's own
+       mitigation is option-order randomisation).
+   Pick ONE to ship first and say why. Menu recall on FiNER is 1.000 by
+   construction, so there is no recall probe to run and no stop condition —
+   the arm is purely about position.
+2. PRE-REGISTER THE PREDICTION BEFORE RUNNING, in docs/decisions.md: slot-0
+   selection rate should FALL, and the attractor tag's prediction count should
+   fall from 57 toward gold's 2. Say what result would REFUTE the mechanism.
+   A null is only readable if the prediction was written down first.
+3. Three draws, paired bootstrap over documents, detection and coding reported
+   SEPARATELY. Base first at each draw with a shared cache so the arm's find
+   calls are cache hits and detection is held fixed — then VERIFY the arm is
+   not a no-op (menus differ, codes differ), because a held-fixed layer and a
+   dead arm both print Δ = 0.000.
+
+RULES THAT BIND
+- TDD, test first, watch it fail. Mutate your own thresholds and confirm the
+  tests catch it — B2's first pass left two mutations alive.
+- One-key manifest diff with a test pinning the diff, same pattern as
+  manifest.sapbertarm.json and manifest.finer.ctxmenu.json.
+- An ablation holds its base fixed.
+- A GO/NO-GO PROBE MUST USE THE ARM'S OWN DENOMINATOR. B2's probe separated
+  over 1,144 documents while the arm ran on 38, and the sign flipped.
+- Cost is three separate measures — tokens, latency p95, records routed to a
+  person. Never fuse them. An arm that ran second has cached find calls, so
+  its p95 is NOT comparable to the base's.
+- Run the CI-shaped suite before pushing (command in CLAUDE.md). Two red
+  pipelines in two days came from skipping it.
+- Log every decision to docs/decisions.md as you go.
+- Phase F spent the test split. Everything here is dev-side and not
+  validatable; Phase F's shipped numbers are final and are not re-opened.
+- Do not redo: see the list above. The context-ordered FiNER menu and a better
+  ranker of any kind are both on it.
+
+SETUP
+Fresh worktree needs symlinks from the main checkout at
+/Users/wejdanbagais/Documents/repo/reliability-ladder: data/cadec,
+data/keywords.csv, data/exclusions.csv, data/SnomedCT_Release_*, ladder/cache.
+The venv is that checkout's .venv. Run scripts/preflight.py before any commit.
+
+COST WARNING: out/finer/* was deleted in the 2026-08-31 cleanup, so the base
+draws must be re-run. Six runs; the FiNER base is ~78 min each and the arm is
+much shorter on a shared cache. Estimate before you start and ASK before
+running anything over an hour.
 
 My voice for anything written: direct, short, to the point, no bluff, lead with
 the takeaway, actionable, well structured and easy to follow.
 
-Do not start Sessions 2-4. Ask before running anything that takes over an hour.
+Do not start B1, B5, B6 or B7 — they are documented as future work.
 ```
