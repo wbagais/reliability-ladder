@@ -99,6 +99,10 @@ DEFAULTS: dict[str, Any] = {
     #: because a number produced under one retriever is only interpretable
     #: next to the other, which is why the choice is written onto every record.
     "rung0_retrieval": "dense",  # "dense" | "lexical"
+    # WHICH dense encoder builds the menu (B2, 2026-08-31). "granite" is
+    # the whole shipped record; "sapbert" is the off-by-default arm. One
+    # key, because the model and its index must move together.
+    "rung0_encoder": "granite",
     #: Trim rung 0's spans to the answer key's boundary convention, AFTER
     #: locate() — rules learned from POOL gold at runtime (ladder/trim.py).
     #: Note the order: S2's retrieval queries the model's FULL quote and the
@@ -1052,16 +1056,29 @@ def _retriever(cfg: dict):
 
     index = cfg.get("dense")
     if index is None:
-        from ladder.embed import DEFAULT_PREFIX, EmbeddingIndex
+        from ladder.embed import (
+            DEFAULT_PREFIX, EmbeddingIndex, encoder_for, lazy_embedder_for,
+            prefix_for,
+        )
 
-        prefix = cfg.get("embed_prefix") or DEFAULT_PREFIX
+        # encoder_for RAISES on an unregistered name, and it is called BEFORE
+        # anything touches the disk so a typo is a refusal rather than a
+        # missing-file message about a path nobody meant.
+        name = cfg.get("rung0_encoder", DEFAULTS["rung0_encoder"])
+        encoder_for(name)
+        prefix = prefix_for(cfg.get("embed_prefix") or DEFAULT_PREFIX, name)
         try:
-            index = EmbeddingIndex(prefix)
+            # The query embedder comes from the SAME registry entry as the
+            # matrix. Reading a 768-dim index with a 384-dim query embedder
+            # does not fail; it ranks noise. LAZY, so the index-missing check
+            # below fails before a 440 MB checkpoint is loaded for nothing.
+            index = EmbeddingIndex(prefix, lazy_embedder_for(name))
         except FileNotFoundError as exc:
             raise RuntimeError(
-                f"rung0_retrieval='dense' needs the embedding index at "
-                f"{prefix}, which is missing. Build it once (minutes) with:\n"
-                "    python -m ladder.embed --build"
+                f"rung0_retrieval='dense' with rung0_encoder={name!r} needs the "
+                f"embedding index at {prefix}, which is missing. Build it once "
+                "(minutes) with:\n"
+                f"    python -m ladder.embed --build --encoder {name}"
             ) from exc
         cfg["dense"] = index
     return (lambda text, k: index.search(text, k=k)), which

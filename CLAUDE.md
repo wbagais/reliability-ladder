@@ -9,6 +9,20 @@
   `data/cadec/` is gitignored. This includes notebook output cells — the classic leak.
 - **Run `python3 scripts/preflight.py` before any commit.** Exits 1 on a breach.
   CI runs it too and blocks the pipeline, but catching it locally is cheaper.
+- **A GREEN LOCAL SUITE IS NOT A GREEN PIPELINE. Run the tests the way CI does
+  before you push.** CI is `python:3.12-slim` with `requirements.txt` + pytest
+  and NOTHING else — no numpy, no httpx, no torch, and no `git` binary. It has
+  gone red twice for this: once on a test that shelled out to `git`
+  (2026-08-31), once on two tests that constructed a real embedder
+  (2026-09-01). Both passed on every developer machine.
+
+      python -m venv /tmp/civenv
+      /tmp/civenv/bin/pip install -r requirements.txt pytest
+      /tmp/civenv/bin/python -m pytest tests/ -q -m "not integration"
+
+  A test that needs a local-only extra either stubs it (preferred - the stub
+  keeps the assertion running in CI) or `pytest.importorskip`s it. Do NOT let
+  it skip by accident: a test silently skipped in CI is a guard nobody has.
 - **Never put a real API key in a tracked file.** preflight scans for key-shaped strings.
 - `ladder/vocab.py` is a **global resource**, not a per-item `trusted_record` —
   now formalised as `schemas/vocabulary.py`, contract 2.
@@ -529,13 +543,41 @@ end of `docs/decisions.md`.
     `manifest.rungs.3.temperature`. Same shape as the `manifest.model` fallback
     defect and the 5.9-point arms gap, one layer down.
 
-- **SapBERT (or any domain-adapted encoder) as the S2 retriever** (added
-  2026-08-30, from the literature review). Dense retrieval currently runs
-  `granite-embedding:30m`, a GENERAL-PURPOSE 30M embedder, where the field
-  standard for biomedical entity linking is a domain-adapted encoder. Part of
-  the retrieval ceiling this project attributes to the TASK may be attributable
-  to that choice, and "retrieval is a ceiling" is a load-bearing claim. State it
-  as a limitation in the article regardless; measure it if there is time.
+- **~~SapBERT as the S2 retriever~~ — DONE 2026-09-01, NEGATIVE, and the arm
+  ships OFF** (two decisions entries, 2026-08-31 and 2026-09-01). `rung0_encoder`
+  is a new manifest key (`granite | sapbert`), declared explicitly, one-key diff
+  in `manifest.sapbertarm.json`, pinned by a test. **SapBERT IS the better
+  retriever corpus-wide and made the system WORSE**: menu recall@20 87.0% ->
+  88.4% and recall@1 63.7% -> 66.1% over all 6,595 gold mentions (separated,
+  1,144 documents), against F1 exact **0.413/0.434/0.423 -> 0.405/0.394/0.391**
+  and coding accuracy **0.754/0.778/0.758 -> 0.738/0.706/0.702** on three paired
+  draws at byte-identical detection and identical tokens. Rejected on
+  sign-consistency plus an effect twice the base's own spread, NOT on separated
+  intervals.
+  - **THE METHOD LESSON, AND IT IS THE REUSABLE ONE: A GO/NO-GO PROBE MUST BE RUN
+    ON THE DENOMINATOR THE ARM WILL BE SCORED ON.** The probe that authorised
+    this arm separated over **1,144 documents**; the arm runs on **38**. On dev
+    the sign flips (-2.78pt at k=1, -0.46pt at k=20) and on the dev gold the
+    model actually matches it flips too (-1.67pt at k=20). Not a contradiction —
+    38 documents cannot resolve a 1.4-point retrieval difference — but the probe
+    said go and the population it measured was not the arm's.
+  - **It is the SUBSET, not the query.** The same gold-text probe over all / dev
+    / dev-matched already carries the whole reversal (87.0->88.4, 88.9->88.4,
+    94.2->92.5 at k=20). SapBERT's 435 corpus rescues arrive at median rank 4;
+    the 340 it breaks sat at median rank 2. Its gain lives in a hard tail the
+    detector never reaches.
+  - **The slot-0 attractor, a third time.** Slot-0 selection 76.2/78.6/76.6% ->
+    79.5/83.3/79.0% while slot-0 accuracy FELL. Same shape as the FiNER context
+    menu and the reranker.
+  - **The ceiling IS partly ours and the article now says so:** an oracle over
+    the two encoders reaches **93.6%** at k=20. 87% is this encoder's ceiling,
+    not the task's — and moving it did not move the result.
+  - **`ladder/menurecall.py` is the probe and it is production code**, 16 tests,
+    mutation-checked seven ways (two mutations survived the first test set and
+    are now caught). Its granite control reproduces the recorded deduped baseline
+    to every decimal — 63.7/77.7/83.2/87.0/91.1 — which is what makes any second
+    row readable. torch/transformers are LATE imports; the default `granite`
+    path needs neither.
 
 - **Break the slot-0 position prior on FiNER** (added 2026-08-30, the highest
   value untried FiNER experiment — see the slot-0 attractor entry in
