@@ -174,7 +174,7 @@
     }
   },
   "output": {
-    "dir": "out/geo"
+    "dir": "out/geo-smoke"
   },
   "scorer": "ladder.score:reaction_sct_strict",
   "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align.",
@@ -193,5 +193,6 @@
     "manifest": "manifest.json at b7aba48 (Phase F: test split run once)",
     "_note": "Fill in the SHA from `git rev-parse --short HEAD` at the phase F merge before running. ladder/provenance.py records the SHA of the run itself; this records what it was frozen AGAINST. Both are needed: the ladder is under active development, and a comparison against a moving reference is not a comparison."
   },
-  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form."
+  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form.",
+  "_arm": "Smoke test only \u2014 3 documents, full ladder. Not a measurement."
 }
