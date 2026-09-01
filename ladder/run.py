@@ -52,6 +52,9 @@ def _corpus_for(man):
     name = (man.get("corpus") or {}).get("adapter", "cadec")
     if name == "cadec":
         return corpus_mod
+    if name == "geo":
+        from ladder import corpus_geo as mod
+        return mod
     if name == "finer":
         from ladder import corpus_finer
         return corpus_finer
@@ -611,9 +614,17 @@ def cmd_init(a) -> int:
             )
             return 2
         reg = Registry(db)
-        real = "162031009"
+        # A code this vocabulary MUST hold, and one it must NOT. Both are
+        # per-vocabulary facts: 162031009 is SNOMED's |Abdominal pain| and means
+        # nothing to a gazetteer, so the gate asserted a CADEC constant against
+        # every corpus. Declared in the manifest, with the CADEC values as the
+        # default so nothing already frozen moves.
+        _gate = (man.get("vocabulary") or {}).get("gate") or {}
+        real = _gate.get("real", "162031009")
+        fake = _gate.get("fake", "999999999")
         print(f"vocab   : {reg.release}  {reg.stats()}")
-    assert reg.exists(real) and not reg.exists("999999999"), "vocabulary gate FAILED"
+    assert reg.exists(real) and not reg.exists(fake), \
+        f"vocabulary gate FAILED: exists({real})={reg.exists(real)}, exists({fake})={reg.exists(fake)}"
     print("gate    : real code resolves, fake code does not — rung 1 has a vocabulary")
 
     splits_dir = Path(man["corpus"]["splits_dir"])

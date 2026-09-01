@@ -163,6 +163,9 @@ def load(manifest_path):
 
 def corpus_for(man):
     name = (man.get("corpus") or {}).get("adapter", "cadec")
+    if name == "geo":
+        from ladder import corpus_geo as mod
+        return mod
     if name == "finer":
         from ladder import corpus_finer as mod
     else:

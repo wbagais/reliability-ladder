@@ -83,6 +83,12 @@ public/
 data/*
 !data/splits/
 !data/splits/**
+# Every corpus's splits, not just CADEC's. The original exception named
+# data/splits/ when there was one corpus; FiNER and GeoWebNews put theirs
+# under data/<corpus>/splits/ and were silently ignored. Frozen split ids
+# that are not committed are not frozen.
+!data/*/splits/
+!data/*/splits/**
 
 # Generated wiki output. Source is docs/wiki/content/; rebuild with
 # python docs/wiki/build.py
