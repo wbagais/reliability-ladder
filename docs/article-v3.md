@@ -1,18 +1,13 @@
 # The AI Reliability Ladder, Measured Rung by Rung
 
-> ## DRAFT — one claim still open
->
-> **One `[PENDING]` marker remains, and it is a claim at risk rather than an
-> incomplete one:** §9's *"retrieval is a ceiling"* rests on a general-purpose
-> 30M embedder where this task's literature uses domain-adapted encoders, so
-> part of that ceiling may be ours (task **B2** in
-> `docs/PLAN-next-sessions.md`). The offline menu-recall probe settles it
-> without a run.
->
-> The other claim that was at risk — that CADEC's boundary convention caps
-> span-exact scores near 0.70 — has been checked against the strongest
-> published system on this corpus and it held. Everything else here is
-> measured, labelled by split, and cited.
+> **No claim is open.** The two that were at risk have both been checked.
+> CADEC's boundary convention caps span-exact scores near 0.70 — verified
+> against the strongest published system on this corpus, and it held. And
+> §9's *"retrieval is a ceiling"* rested on a general-purpose 30M embedder
+> where this task's literature uses domain-adapted ones; we swapped in
+> SapBERT and measured it. It puts gold on the menu more often across the
+> corpus and made the system **worse**, three draws for three. §9 now carries
+> that result. Everything here is measured, labelled by split, and cited.
 
 **Pushpdeep Mishra · Wejdan Bagais**
 
@@ -551,9 +546,17 @@ Yes — about twenty arms over five months. Six lessons transfer:
   tokens. The recall version invented codes and put them beside correct labels.
 - **Retrieval is a ceiling, not a floor.** A frontier hosted model produced **31
   exactly-correct answers against the local model's 31** — identical. A better
-  reader cannot beat the menu; a worse one can fail to use it. **[PENDING B2:
-  our retriever is a general-purpose 30M embedder where the field uses
-  domain-adapted ones. Test before this claim ships.]**
+  reader cannot beat the menu; a worse one can fail to use it.
+- **And a better menu did not beat the pick either.** Our retriever was a
+  general-purpose 30M embedder where this task's literature uses domain-adapted
+  ones, so we swapped in SapBERT — same corpus, same *k*, same answer key, one
+  manifest key. Across all 6,595 gold mentions it *is* the better retriever:
+  menu recall@20 **87.0% → 88.4%**, recall@1 **63.7% → 66.1%**, both separated
+  over 1,144 documents. End to end on three paired draws it **lost**: F1 exact
+  **0.413/0.434/0.423 → 0.405/0.394/0.391**, coding accuracy **0.754/0.778/0.758
+  → 0.738/0.706/0.702**, at byte-identical detection and identical token cost.
+  Two independent tests of the same claim, from opposite ends: a better *reader*
+  scored the same, and a better *menu* scored worse.
 - **Menu order is load-bearing.** Alphabetising cost 10–12 points at
   byte-identical detection.
 - **Menu recall is not menu accuracy.** Retrieving 40 candidates put more gold on
@@ -565,6 +568,13 @@ Yes — about twenty arms over five months. Six lessons transfer:
 
 The residual is span boundaries, and those belong to the answer key.
 
+**One caveat we owe the reader, because it cuts against us.** "Retrieval is a
+ceiling" is a claim about the division of labour, not about the height of the
+ceiling — and the height is partly ours. SapBERT reaches 88.4% where our
+shipped encoder reaches 87.0%, and an oracle picking the better of the two per
+mention reaches **93.6%**. So 87% is this encoder's ceiling, not the task's.
+What the arm shows is that raising it is not the same as improving the result.
+
 ---
 
 ## 10. The division of labour
@@ -575,7 +585,7 @@ The part another team can use tomorrow:
 |---|---|---|
 | **Read the prose, propose candidate spans** | **the model** | the one thing it does well — detection 0.69–0.79 |
 | Recall an identifier | **not the model** | F1 0.018 vs 0.209, at more tokens |
-| Decide the candidate list | **not the model** | a frontier model scored identically on the same menu |
+| Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
 | Order the candidate list | **not the model** | takes line one 19.5% of the time, iff it is line one |
 | Check its own output | **not the model** | self-correction 1 in 248; voting moved accuracy down |
 | Judge whether an answer is right | **not the model** | 1.1–1.2× against a string comparison's 3.0–6.1× |
@@ -701,9 +711,19 @@ to be worth more than any layer that tried to answer them.
   read off someone else's paper rather than measured on our own splits — verified
   line by line against their evaluation code, but still a comparison across two
   vocabularies and two test sets.
-- **Our retriever is a general-purpose 30M embedding model** where this task's
-  literature uses domain-adapted encoders — so some of the retrieval ceiling we
-  attribute to the task may belong to that choice.
+- **~~Our retriever is a general-purpose 30M embedding model.~~ CLOSED
+  2026-09-01, and the answer has two halves.** SapBERT — domain-adapted, the
+  field standard for biomedical entity linking — was run as an off-by-default
+  arm on the same dev split, three paired draws. It **is** the better retriever
+  corpus-wide (menu recall@20 87.0% → 88.4%, separated over 1,144 documents) and
+  it made the system **worse** (F1 exact −0.027 pooled, coding accuracy −0.048,
+  sign-consistent three for three at byte-identical detection). So the ceiling
+  we attribute to the task *is* partly ours — an oracle over the two encoders
+  reaches 93.6% — and moving it did not move the result. **What the arm also
+  exposed is a flaw in our own method:** the probe that authorised it measured
+  recall over 1,144 documents while the arm ran on 38, and on those 38 the sign
+  is negative. A go/no-go probe has to be run on the denominator the arm will be
+  scored on.
 - **~~We tested a domain-adapted model in one role only.~~ CLOSED 2026-08-31.**
   BioMistral-7B has now been run as the *extractor* on the same dev split and
   frozen config, three draws: 3 predictions against 226 gold, F1 exact 0.0087,

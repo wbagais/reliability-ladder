@@ -14,3 +14,12 @@ pyyaml==6.0.2
 # numpy is imported LATE, inside ladder/embed.py, with a message naming this
 # file. A checkout that reads out/*.csv and never builds an embedding index
 # does not need it, and the lexical retrieval path runs without it.
+#
+# torch + transformers  # ladder/embed.py — rung0_encoder: "sapbert" ONLY.
+#   Added 2026-08-31 for the B2 arm. Imported LATE, with a message naming this
+#   file, exactly like numpy: the DEFAULT encoder is "granite" through ollama
+#   and needs neither. ~2.5 GB, so a checkout that never runs the arm should
+#   not carry it. Unpinned deliberately — nothing tracked depends on a
+#   reproducible version of them, because the arm's INDEX is the artefact and
+#   it is a cache, rebuilt with:
+#       python -m ladder.embed --build --encoder sapbert

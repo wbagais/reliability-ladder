@@ -1,7 +1,8 @@
 # Plan — next sessions
 
-**Updated 2026-08-31. Session 1 is DONE and `docs/article-v3.md` now has ONE
-`[PENDING]` left — B2.** Read this header before working from anything below it.
+**Updated 2026-09-01. Session 1 is DONE, B2 is DONE, and `docs/article-v3.md`
+has NO `[PENDING]` markers left.** Read this header before working from anything
+below it.
 
 | item | state |
 |---|---|
@@ -11,7 +12,7 @@
 | **Session 1 §5** · file-role headers | **DONE 2026-08-31.** |
 | **B3** · BioMistral as extractor | **DONE 2026-08-31, negative.** Session 3 §1 below is spent; the article bullet is closed. |
 | **B1** · discontinuous spans | **DEFERRED, deliberately.** Discharged in the article as a stated cap rather than a fix — no conclusion rests on the recall number, and the best supervised system appears to share the cap. Still worth building; not a blocker. |
-| **B2** · domain-adapted retriever | **OPEN — the only blocker.** Do the offline menu-recall@20 probe first and stop on a null. |
+| **B2** · domain-adapted retriever | **DONE 2026-09-01, negative.** SapBERT is the better retriever corpus-wide (menu recall@20 87.0% → 88.4%, separated) and made the system **worse** end to end (F1 exact −0.027 pooled, coding −0.048, 3/3, byte-identical detection). Arm ships OFF. **The probe that authorised it was run over 1,144 documents while the arm runs on 38, and on those 38 the sign flips — a go/no-go probe must use the arm's own denominator.** |
 | **B4 · B6 · B7** | future work, documented in the article as such. |
 
 **The structural reason not to run Sessions 2–4 in full:** Phase F spent the test
@@ -79,16 +80,19 @@ article-v3 has three fewer `[PENDING]`s.
    - Three draws, paired bootstrap, report **detection and coding separately**.
    - Expect recall movement. If it does not move, that is a finding too — say so.
 
-2. **B2 · A domain-adapted retriever.** Swap `granite-embedding:30m` for a
-   SapBERT-class encoder in the S2 shortlist. Off-by-default arm, one-key diff
-   manifest, test pinning the diff — same pattern as `manifest.judgearm.json`.
-   - Measure **menu recall@20 first, offline.** If gold does not reach the menu
-     more often, stop: there is nothing for the pick to convert and no run is
-     needed.
-   - This directly tests *"retrieval is a ceiling"*, which §9 leans on.
+2. **~~B2 · A domain-adapted retriever.~~ DONE 2026-09-01, negative.** Full
+   result in `docs/decisions.md`; `manifest.sapbertarm.json` is the arm and it
+   ships off. Two things to carry forward:
+   - **A go/no-go probe must be run on the denominator the arm will be scored
+     on.** Ours separated over 1,144 documents and the arm ran on 38, where the
+     sign is negative. That is the reusable lesson.
+   - **`ladder/menurecall.py` is the probe, and it is production code with
+     tests** — the granite control reproduces the recorded baseline to every
+     decimal, which is what makes any second row readable.
 
 **Done when:** both arms are measured at three draws, the article's recall
 numbers are re-derived, and §9's claim is either confirmed or rewritten.
+**B2 is done; B1 is what remains of this session.**
 
 ---
 

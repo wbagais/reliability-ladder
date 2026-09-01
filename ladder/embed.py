@@ -56,6 +56,158 @@ DEFAULT_BATCH = 512
 DEFAULT_ENDPOINT = "http://localhost:11434/api/embed"
 
 
+# --- which encoder builds the menu (B2, 2026-08-31) --------------------------
+#
+# ONE KEY NAMES AN ENCODER, not a model string plus a prefix, because those two
+# must move together: a 768-dim matrix read with a 384-dim query embedder does
+# not fail, it ranks noise. Same reason `manifest.model` is the one place a
+# model is named.
+#
+# `granite` is the default and the whole shipped record. `sapbert` is the arm
+# the offline menu-recall probe justified: recall@20 87.0% -> 88.4%, recall@1
+# 63.7% -> 66.1% over the same 6,595 gold mentions, same corpus, same k
+# (docs/decisions.md 2026-08-31). It is a LOCAL model like everything else --
+# rung 0's prompts carry CADEC text verbatim and the same rule applies to
+# anything that sees a keyword or a mention -- but it runs through
+# transformers rather than ollama, because no GGUF conversion of it exists.
+
+ENCODERS: dict[str, dict[str, Any]] = {
+    "granite": {
+        "model": "granite-embedding:30m",
+        "backend": "ollama",
+        "dim": 384,
+        "suffix": "",
+    },
+    "sapbert": {
+        "model": "cambridgeltl/SapBERT-from-PubMedBERT-fulltext",
+        "backend": "transformers",
+        "dim": 768,
+        # SapBERT's training objective and its own model card pool on [CLS].
+        # Mean pooling is a silent quality loss here, never an error.
+        "pooling": "cls",
+        "max_length": 32,
+        "suffix": "-sapbert",
+    },
+}
+
+DEFAULT_ENCODER = "granite"
+
+
+def encoder_for(name: str | None = None) -> dict[str, Any]:
+    """The registry entry for `name`. RAISES on one nobody registered.
+
+    No silent fallback, for the reason `llm.resolve` has none: a default that
+    answers for an unknown name gives "which encoder produced this number" two
+    answers depending on whether the name reached the lookup.
+    """
+    name = name or DEFAULT_ENCODER
+    if name not in ENCODERS:
+        raise ValueError(
+            f"rung0_encoder={name!r} is not registered. Known: "
+            f"{', '.join(sorted(ENCODERS))}. An unregistered encoder would "
+            "report a run under a label the article cannot explain."
+        )
+    return ENCODERS[name]
+
+
+def prefix_for(base: str | Path, name: str | None = None) -> Path:
+    """Where `name`'s index lives, given the manifest's `embed_prefix`.
+
+    The suffix is a HYPHEN, not a dot: `EmbeddingIndex` builds its filenames
+    with `Path.with_suffix`, which REPLACES a dotted tail, so a prefix of
+    "keywords.sapbert" would quietly load granite's matrix and rank 768-dim
+    queries against 384-dim rows.
+    """
+    base = Path(base or DEFAULT_PREFIX)
+    return base.with_name(base.name + encoder_for(name)["suffix"])
+
+
+def transformers_embedder(
+    model: str, pooling: str = "cls", max_length: int = 32, device: str | None = None,
+    batch: int = 256,
+) -> Callable[[Sequence[str]], list[list[float]]]:
+    """A batch embedder over a local HuggingFace encoder.
+
+    torch and transformers are imported LATE with an actionable message, the
+    same way numpy is: they are needed to run ONE arm, and a checkout that
+    never touches it should not carry 2.5 GB to read a CSV.
+    """
+    try:
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise RuntimeError(
+            f"rung0_encoder names {model!r}, which runs through transformers "
+            "(a local-only extra, see requirements.txt):\n"
+            "    pip install torch transformers\n"
+            "The default encoder is 'granite' and needs neither."
+        ) from exc
+
+    if device is None:
+        device = ("mps" if torch.backends.mps.is_available()
+                  else "cuda" if torch.cuda.is_available() else "cpu")
+    tok = AutoTokenizer.from_pretrained(model)
+    mdl = AutoModel.from_pretrained(model).to(device).eval()
+
+    def embed(texts: Sequence[str]) -> list[list[float]]:
+        texts = [str(t) for t in texts]
+        if not texts:
+            return []
+        out: list[list[float]] = []
+        for i in range(0, len(texts), batch):
+            enc = tok(texts[i:i + batch], padding=True, truncation=True,
+                      max_length=max_length, return_tensors="pt").to(device)
+            with torch.no_grad():
+                h = mdl(**enc).last_hidden_state
+            if pooling == "cls":
+                v = h[:, 0, :]
+            else:
+                m = enc["attention_mask"].unsqueeze(-1).to(h.dtype)
+                v = (h * m).sum(1) / m.sum(1).clamp(min=1e-9)
+            out.extend(v.float().cpu().tolist())
+        if len(out) != len(texts):
+            raise RuntimeError(
+                f"{model} returned {len(out)} embeddings for {len(texts)} "
+                "inputs. A short batch would silently shift every later row "
+                "against its code."
+            )
+        return out
+
+    return embed
+
+
+def lazy_embedder_for(name: str | None = None, **kw: Any) -> Callable[
+    [Sequence[str]], list[list[float]]
+]:
+    """`embedder_for`, built on the FIRST QUERY rather than at construction.
+
+    Order matters here and a test pins it: building the embedder eagerly loads
+    a 440 MB checkpoint before anything has checked that the index it is meant
+    to search exists, so a missing index reported "install torch" instead of
+    "build the index". The cheap check must fail first.
+    """
+    held: dict[str, Callable[[Sequence[str]], list[list[float]]]] = {}
+
+    def embed(texts: Sequence[str]) -> list[list[float]]:
+        if "f" not in held:
+            held["f"] = embedder_for(name, **kw)
+        return held["f"](texts)
+
+    return embed
+
+
+def embedder_for(name: str | None = None, **kw: Any) -> Callable[
+    [Sequence[str]], list[list[float]]
+]:
+    """The query embedder for `name`. The default path imports no torch."""
+    spec = encoder_for(name)
+    if spec["backend"] == "ollama":
+        return ollama_embedder(spec["model"], **kw)
+    return transformers_embedder(
+        spec["model"], spec.get("pooling", "cls"), spec.get("max_length", 32), **kw
+    )
+
+
 def _np():
     """numpy, imported late with an actionable message.
 
@@ -381,7 +533,11 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--build", action="store_true")
     ap.add_argument("--table", default=None, help="defaults to data/keywords.csv")
     ap.add_argument("--prefix", default=str(DEFAULT_PREFIX))
-    ap.add_argument("--model", default=DEFAULT_MODEL)
+    ap.add_argument("--encoder", default=DEFAULT_ENCODER,
+                    help=f"one of {sorted(ENCODERS)} - picks the model, the\n"
+                         " pooling and the index path together")
+    ap.add_argument("--model", default=None,
+                    help="override the encoder's model (ollama backend only)")
     ap.add_argument("--batch", type=int, default=DEFAULT_BATCH)
     ap.add_argument("--retries", type=int, default=DEFAULT_RETRIES)
     ap.add_argument("--backoff", type=float, default=DEFAULT_BACKOFF)
@@ -390,11 +546,17 @@ def main(argv: list[str] | None = None) -> int:
     if not a.build and a.query is None:
         ap.error("nothing to do — pass --build or --query")
 
+    spec = encoder_for(a.encoder)
+    prefix = prefix_for(a.prefix, a.encoder)
     if a.build:
         rows = _rows_from_table(a.table)
-        print(f"[embed] {len(rows):,} keywords through {a.model}", file=sys.stderr)
+        model = a.model or spec["model"]
+        print(f"[embed] {len(rows):,} keywords through {model} -> {prefix}",
+              file=sys.stderr)
+        embedder = (ollama_embedder(model) if spec["backend"] == "ollama"
+                    else embedder_for(a.encoder))
         stats = build_index(
-            rows, a.prefix, ollama_embedder(a.model), a.batch, progress=True,
+            rows, prefix, embedder, a.batch, progress=True,
             retries=a.retries, backoff=a.backoff,
         )
         print(
@@ -404,7 +566,13 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
     if a.query:
-        idx = EmbeddingIndex(a.prefix, ollama_embedder(a.model))
+        # Through the SAME registry as --build. `--model` is an override that
+        # defaults to None, and passing that straight to ollama_embedder asked
+        # the server to embed with model None; searching an index under a
+        # different encoder from the one that built it is worse than failing.
+        embedder = (ollama_embedder(a.model or spec["model"])
+                    if spec["backend"] == "ollama" else embedder_for(a.encoder))
+        idx = EmbeddingIndex(prefix, embedder)
         for q in a.query:
             print(f"\n{q!r}")
             for h in idx.search(q, k=10):
