@@ -125,12 +125,19 @@
   `answer_space` is refused, because it meant S3, dropped 2026-08-24. (c)
   `rungs.1.outdated_check` — the `off` its own note documents did not exist;
   `r1.DEFAULTS` now carries it and `_record_history` honours it. (d)
-  **`ladder/otel.py` was UNIMPORTED**, so the `LADDER_OTEL=1` in its own
-  docstring emitted nothing; `run.ledger_for` is the wiring, and OFF it
-  returns the same plain `Ledger` (asserted with `type() is`, not
-  `isinstance`). Spans need `opentelemetry-sdk`, which is NOT in
-  requirements.txt — without it the row is still written and the span is
-  dropped with a printed reason.
+  **`ladder/otel.py` is DELETED** (2026-08-31, the day after it was wired).
+  It was UNIMPORTED, so the `LADDER_OTEL=1` in its own docstring emitted
+  nothing; wiring it made that honest, and then the feature turned out not to
+  be wanted. One commit ever (2026-08-23), touching only the module and a
+  hand-made smoke row — "phoenix transport verified" meant verified against
+  `{"run_id": "smoke", "doc_id": "D1"}`, never a ladder run. Five phases and
+  two corpora later nothing had used it, no `docs/decisions.md` entry depended
+  on it, and its spans were a strict copy of the ledger row that is already
+  JSONL on disk and already what `ladder_top.py`, `provenance` and the harness
+  scripts read. The README block and the `docs/plan.html` row went with it.
+  **Do not reintroduce it without a consumer**: two tests keep it gone, one of
+  which greps the docs, because a feature the README advertises and no code
+  implements is this same defect pointed the other way.
 - **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
   carries no default and `resolve()` RAISES on a missing entry — it used to
   fall back to `ollama/gpt-oss:20b` while the manifest said

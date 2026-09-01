@@ -5,10 +5,17 @@ at all. `full_run.py` recorded two fields inline; `ladder_run.py` and
 `r4_gold_control.py` recorded nothing. That is an odd gap in a project whose
 central claim is that provenance is what makes two runs comparable.
 
-Worse, the stamp recorded INTENT. Today the manifest asked for
-`ollama/ibm/granite4:micro-h`, which does not exist and 404s, while every
-measured run used `granite4:micro-h` named inline in a script. A stamp that
-records the manifest is a stamp that can be wrong.
+Worse, the stamp recorded INTENT. On the day this was written the manifest
+asked for `ollama/ibm/granite4:micro-h`, which 404'd, while every measured run
+used `granite4:micro-h` named inline in a script. A stamp that records the
+manifest is a stamp that can be wrong.
+
+(THAT EXAMPLE HAS SINCE INVERTED, 2026-08-31: ollama now namespaces the model
+under `ibm/`, so `ollama/ibm/granite4:micro-h` is the name that exists and bare
+`granite4:micro-h` is the one that 404s — three tracked manifests carried the
+bare name and were corrected. The point stands and is stronger for having
+flipped: what the manifest asks for and what the provider answers to are two
+facts, and only one of them is a property of this run.)
 
 So this gathers from the live objects and the live machine. Three fields exist
 because of specific things that went wrong:
@@ -242,7 +249,10 @@ def gather(man: dict | None = None, *, split: str | None = None,
         # stamp that says nothing about sampling. Explicit still wins.
         "sampling": sampling if sampling is not None else sampling_for(man),
         "env": {
-            "ladder_otel": os.environ.get("LADDER_OTEL"),
+            # `ladder_otel` was stamped here until 2026-08-31 and named an env
+            # var that switched on an exporter nothing imported. Removed with
+            # it: a stamp recording a knob that does nothing describes a run
+            # nobody had.
             "ollama_host": os.environ.get("OLLAMA_HOST"),
         },
     }

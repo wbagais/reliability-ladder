@@ -150,41 +150,6 @@ def check_meddra_mode(man: dict[str, Any] | None = None) -> str:
     )
 
 
-def ledger_for(path, *, run_id: str, man: dict[str, Any], split: str,
-               order: list[int], registry, enabled: bool | None = None):
-    """The ledger this run writes, traced when LADDER_OTEL=1 says so.
-
-    `ladder/otel.py` was not merely unread on 2026-08-31, it was UNIMPORTED:
-    nothing in ladder/ or scripts/ referenced it, so the `LADDER_OTEL=1 ...
-    scripts/ladder_run.py` in its own docstring emitted no spans, and its
-    `run_meta` — whose docstring says "Temperature is here because rung 5's
-    entire result is a function of it and it was never stamped" — had no
-    callers, so it still was not stamped. This is the call site both were
-    written for.
-
-    OFF changes nothing: the plain `Ledger` every published run used is
-    returned unless the flag is set, which is why `type(led) is Ledger` is
-    asserted rather than `isinstance`.
-    """
-    from ladder import otel
-
-    if enabled is None:
-        enabled = otel.ENABLED
-    if not enabled:
-        return Ledger(path, run_id=run_id)
-    try:
-        model = llm_mod.resolve("extractor", man)
-    except SystemExit:
-        # Telemetry must never break a run — the same rule OtelLedger.log
-        # follows when a span fails to emit. A manifest naming no model is a
-        # hard error at the rung that needs one, not here.
-        model = "n/a"
-    return otel.OtelLedger(path, run_id=run_id, run_meta=otel.run_meta(
-        man, model, split, order,
-        temperature=llm_mod.temperature_for(man),
-        backend=getattr(registry, "name", "") or ""))
-
-
 def _vocab_for(man):
     """The vocabulary the manifest names. Registry unless told otherwise."""
     if (man.get("vocabulary") or {}).get("backend") == "finer-tags":
@@ -322,8 +287,7 @@ def run_ladder(
 ) -> dict[str, Any]:
     order = [n for n in man["rung_order"] if n in rungs]
     _ledger_path = out_dir / f"{run_id}.ledger.jsonl"
-    ledger = ledger_for(_ledger_path, run_id=run_id, man=man, split=split,
-                        order=order, registry=registry)
+    ledger = Ledger(_ledger_path, run_id=run_id)
 
     global _MON
     if _TUI_REQUESTED and _MON is None:

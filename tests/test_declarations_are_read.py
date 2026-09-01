@@ -138,50 +138,58 @@ def test_the_default_is_still_flag_when_no_mode_is_passed():
     assert checks["sct_outdated"] is False
 
 
-# --- ladder/otel.py was not merely unread, it was UNIMPORTED ----------------
+# --- ladder/otel.py is DELETED, and this is what keeps it deleted ----------
 #
-# The module docstring tells you to run `LADDER_OTEL=1 ... scripts/ladder_run.py`
-# and nothing anywhere imported it, so that command emitted no spans. Its
-# `run_meta` — the function whose docstring says "Temperature is here because
-# rung 5's entire result is a function of it and it was never stamped" — had no
-# callers, so it still was not stamped.
+# Removed 2026-08-31, the day after it was wired. The wiring was correct and
+# the feature was not wanted: one commit ever (44882a3, 2026-08-23) which
+# touched only the module and a HAND-MADE smoke row, never an entry point —
+# "phoenix transport verified" meant verified against `{"run_id": "smoke",
+# "doc_id": "D1"}`, not against a ladder run. Five phases, two corpora and zero
+# decisions.md entries later, nothing had used it, and its spans were a strict
+# copy of the ledger row that is already JSONL on disk and already what
+# ladder_top.py, provenance and every out/harness script read. Same failure
+# class as the five declarations fixed the same day: shipped, advertised in
+# README.md and docs/plan.html, and inert.
 
 
-def test_the_default_ledger_is_untouched(tmp_path):
-    """LADDER_OTEL unset must give the SAME plain Ledger every published run
-    used. Not a subclass: exactly Ledger."""
+def test_the_otel_module_is_gone():
+    assert not (_ROOT / "ladder" / "otel.py").exists()
+    assert not (_ROOT / "runs" / "otel-smoke.jsonl").exists()
+
+
+def test_nothing_references_the_deleted_exporter():
+    """Including the docs. A feature the README advertises and no code
+    implements is the defect this whole file is about, pointed the other way.
+    """
+    hits = []
+    for pat in ("**/*.py", "**/*.md", "**/*.html", "**/*.txt", "**/*.yml"):
+        for path in _ROOT.glob(pat):
+            # RELATIVE parts, not absolute: this repo is worked in worktrees
+            # under .claude/, so filtering on path.parts excluded every file
+            # and the guard passed while README.md still advertised the thing.
+            rel = path.relative_to(_ROOT)
+            if any(part in (".git", "out", "runs", ".claude", "public",
+                            "versions", "__pycache__") for part in rel.parts):
+                continue
+            # The RECORD may name a deleted thing — that is what a record is
+            # for. This guard is about files that ADVERTISE or IMPLEMENT it.
+            if path.name in ("test_declarations_are_read.py", "decisions.md",
+                             "CLAUDE.md"):
+                continue
+            text = path.read_text(errors="ignore")
+            if "LADDER_OTEL" in text or "ladder.otel" in text \
+                    or "OtelLedger" in text or "opentelemetry" in text:
+                hits.append(str(rel))
+    assert not hits, "the exporter is deleted; these still advertise it: " + \
+        ", ".join(sorted(set(hits)))
+
+
+def test_the_ledger_is_built_directly_again():
+    """`run.ledger_for` existed only to choose between Ledger and OtelLedger.
+    With one option left, the indirection is a branch that cannot branch."""
     from ladder import run
-    from ladder.ledger import Ledger
 
-    led = run.ledger_for(tmp_path / "x.ledger.jsonl", run_id="r1", man={},
-                         split="dev", order=[0], registry=None, enabled=False)
-    assert type(led) is Ledger
-
-
-def test_otel_gets_a_ledger_and_a_temperature_when_it_is_switched_on(tmp_path):
-    from ladder import run
-    from ladder.otel import OtelLedger
-
-    man = {"model": {"extractor": "ollama/gpt-oss:20b", "temperature": 0},
-           "vocabulary": {"snomed_release": "REL"}}
-    led = run.ledger_for(tmp_path / "x.ledger.jsonl", run_id="r1", man=man,
-                         split="dev", order=[0, 1], registry=None, enabled=True)
-    assert isinstance(led, OtelLedger)
-    assert led.run_meta["temperature"] == 0.0
-    assert led.run_meta["model"] == "ollama/gpt-oss:20b"
-    assert led.run_meta["split"] == "dev"
-
-
-def test_a_run_with_no_model_still_gets_a_ledger(tmp_path):
-    """Telemetry must never break a run — the same rule OtelLedger.log already
-    follows when a span fails to emit. A manifest naming no extractor is a hard
-    error at `llm.resolve`, and it must not become a hard error HERE, before
-    the run has even reached a rung."""
-    from ladder import run
-
-    led = run.ledger_for(tmp_path / "x.ledger.jsonl", run_id="r1", man={},
-                         split="dev", order=[0], registry=None, enabled=True)
-    assert led.run_meta["model"] == "n/a"
+    assert not hasattr(run, "ledger_for")
 
 
 # --- the model name that does not exist -------------------------------------
@@ -202,16 +210,6 @@ def test_no_tracked_manifest_names_a_model_ollama_does_not_have():
                     and "ibm/" not in spec:
                 bad.append(f"{path.name}:{role} = {spec}")
     assert not bad, "ollama namespaces this model under ibm/: " + "; ".join(bad)
-
-
-def test_the_entry_point_otel_names_builds_its_ledger_through_the_wiring():
-    """`ladder/otel.py`'s docstring names `scripts/ladder_run.py` by name as
-    the way to switch tracing on. That script built a plain `Ledger` of its
-    own, so the documented command emitted nothing there either — wiring
-    `ladder/run.py` alone would have left the documented one still dead."""
-    src = (_ROOT / "scripts/ladder_run.py").read_text()
-    assert "ledger_for(" in src
-    assert "Ledger(\"runs/ladder.ledger.jsonl\"" not in src
 
 
 def test_the_script_checks_the_backend_it_opens():

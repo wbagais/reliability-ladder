@@ -305,14 +305,6 @@ that no LLM observability platform models.
   boolean. Parse failures, not-re-found mentions and unevaluable checks are none
   of them a pass and none of them a fail.
 
-Optional OpenTelemetry export, off unless `LADDER_OTEL=1`, so no measured figure
-depends on it:
-
-```bash
-LADDER_OTEL=1 OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317 \
-  LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
-```
-
 ## Data — read before you clone
 
 No corpus is in this repository, and none can be.
@@ -361,7 +353,7 @@ python -m ladder.vocab_crosscheck --live 40
 ```
 ladder/       schema (the A/B contract) · corpus reader + frozen splits ·
               registry (local SNOMED index) · vocab (backend selection + OLS4) ·
-              llm (cached model client) · ledger · otel (optional OTLP export) ·
+              llm (cached model client) · ledger ·
               negation · run.py · fixture (the gate) · calibrate · probe ·
               vocab_crosscheck
 ladder/rungs/ r0 (extract + A/B ablation) · r1 (validate) · r2 (abstain) ·

@@ -1005,7 +1005,6 @@ curl -s "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=zenoprofen&max
 <tr><th style="width:20%">Layer</th><th style="width:30%">What it records</th><th>Why</th></tr>
 <tr><td><b>Run provenance</b></td><td>Compute backend, SNOMED release, corpus version, model, split, temperature, rung order</td><td>Determinism is bounded by the hardware — the same model and seed produced 176 mentions on CPU and 169 on GPU. Two runs are not comparable without this.</td></tr>
 <tr><td><b>Ledger</b></td><td>One row per record per rung: tokens, calls, latency, outcome, <b>denominator</b>, <b>evaluable</b></td><td>The last two are the ones nothing else models. A rate is meaningless without the set it is over, and <i>could not run</i> is a third outcome that must never collapse into pass or fail.</td></tr>
-<tr><td><b>OTel export</b></td><td>The ledger as OpenTelemetry spans, off unless <code>LADDER_OTEL=1</code></td><td>Optional and off by default: every measured figure was taken without it, and an observability layer that changes what it observes would be an odd thing to ship in this project. Points at any OTLP collector.</td></tr>
 </table>
 
 <div class="note">
