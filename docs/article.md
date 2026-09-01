@@ -347,6 +347,17 @@ scores **0.457**, and the ranker's top slot scores 0.373.
 > A ranking can carry real signal, visibly move the model, and still make the
 > system worse — because what it displaces was better than it.
 
+> **Caveat added 2026-09-01, and it is not a small one.** The two slot-0 rows in
+> that table mix two lanes. About a quarter of this run's records are filled by
+> our own `_fill_from_menu` rule, which writes **menu position 0** whenever the
+> pick reply omits a mention — so a share of "the pick lands on slot 0" is not a
+> pick at all, in both arms. We found this later, on a different arm, and the
+> context arm's artifacts were deleted in a cleanup before we could re-decompose
+> them. The rejection stands on coding accuracy, which is measured on the same
+> records either way. **The mechanism above — "the model follows the ranker" —
+> does not stand as stated**, and re-running it is the price of that sentence.
+
+
 That completes a pair. On the medical corpus, *destroying* a good menu order
 cost 10–12 points. Here, *imposing* a mediocre one costs 8.9. The pick is
 exquisitely sensitive to order in both directions, which means menu order is not
@@ -358,7 +369,7 @@ run-to-run spread plus a mechanism read off the artifacts, not as a separated
 result. Making it a three-draw finding needs four more runs at ~78 minutes each,
 because a paired comparison needs both sides at the same draw.)
 
-### Then we found what the pick was actually doing, and it is worse than a bad ranking
+### Then we found what the pick was actually doing — and later, that it was us
 
 Decomposing the 68 mis-coded spans the other way — the mirror of the
 false-positive analysis — turned up something we had been staring past. The
@@ -372,7 +383,7 @@ But one tag is not in the tail:
 It is menu slot 0. Our menu is `sorted(set(tags))`, and that tag is
 alphabetically first.
 
-The context-ranked arm turned out to be exactly the experiment that separates
+The context-ranked arm looked like exactly the experiment that separates
 position from meaning, because it moves the tag off slot 0:
 
 | | alphabetical menu | context-ranked menu |
@@ -381,28 +392,74 @@ position from meaning, because it moves the tag off slot 0:
 | times predicted | **57** | **3** |
 | …of those, taken while sitting at slot 0 | 57 | 3 |
 
-**The model picks it if and only if it is first.** Not usually — always. That is
-19.5% of every prediction on this corpus going to the first line of a list.
+We read that as: the model picks it if and only if it is first. Not usually —
+always. 19.5% of every prediction on this corpus going to the first line of a
+list. It named the next experiment too, and not a better ranker: break the
+position prior instead of feeding it, with a slot 0 that is never a valid answer
+or a per-mention permutation under a fixed seed.
 
-Which turns the arm's failure into two real effects pulling opposite ways. It
-*fixed* something: the attractor collapsed, 57 spurious predictions to 3. And it
-*amplified* something: slot-0 selection went 20.4% → 50.2%, moving mass off the
-model's own reading of the menu (0.457) and onto the ranker's top slot (0.373).
-Net negative — but "the ranking was bad" was never the story.
+**We built the permutation. It refuted all of the above.**
 
-It also names the next thing to try, and it is not a better ranker: **break the
-position prior instead of feeding it** — a slot 0 that is never a valid answer,
-or a per-mention permutation with a fixed seed.
+### The attractor was our own fallback rule
 
-And it composes with the medical corpus rather than contradicting it. There the
-menu is ordered by retrieval score, so the same positional prior lands on the
-*best* candidate and is aligned with quality — which is exactly why
-alphabetising that menu cost 10–12 points. One prior, two corpora, opposite
-consequences, decided entirely by what your ordering happens to put first.
+We pre-registered the prediction before running: permuting the menu per mention
+should drop the attractor's count from 57 toward the answer key's 2. It dropped
+to 2 exactly — and the arm's whole point, killing the attractor, is what made us
+ask which part of the pipeline had been producing those predictions. Grouping by
+lane rather than by tag:
 
-> If your model picks from a list, measure how often it takes line one. Ours
-> took line one a fifth of the time, on a corpus where line one was almost never
-> the answer, and no accuracy metric we had would ever have said so.
+| | base | permuted menu |
+|---|---|---|
+| times the attractor is predicted | **77** | 2 |
+| …written by `_fill_from_menu` | **74** | 0 |
+| …chosen by the model | **3** | 2 |
+| the model's own slot-0 rate | **1.3%** | — |
+| chance rate (1 of 139) | 0.72% | — |
+
+`r0._fill_from_menu` exists so that a record does not leave rung 0 with no answer
+while its own candidate menu sits on it — abstention is rung 5's decision, and
+rung 5 cannot withdraw an answer rung 0 never gave. When the pick reply omits a
+mention, the record is filled from **menu position 0**. On the medical corpus
+position 0 is the top dense-retrieval hit, and we measured it there: +0.015 exact
+F1, and under this scorer it cannot lose. On the financial corpus the menu is
+alphabetical, so position 0 is an accident of the letter A, and the rule wrote
+**one literal constant onto 74 of 313 answers** — a quarter of the run.
+
+The model's own rate of taking line one is 1.3%, against a 0.72% chance rate.
+There was no position bias to find. And the natural experiment that seemed to
+settle it — "predicted 3 times, all 3 while sitting at slot 0" — is the same
+artefact from the other side: a rule that always writes slot 0 produces slot-0
+predictions under every ordering you can try. The evidence was consistent with
+the hypothesis *and* fully explained by a line of our own code, which had landed
+two days before we wrote the finding down.
+
+The arm lost badly on its own terms as well — coding accuracy 0.425 → 0.058,
+exact F1 0.213 → 0.029, paired −0.184 [−0.253, −0.109] over documents at
+byte-identical detection — and that is ours too. The pick call is *batched*:
+seven mentions per prompt, and because the menu is the whole vocabulary every
+mention normally sees the same list, so "choice 42" means one tag throughout the
+call. Permuting per mention put seven different orderings in one prompt. In
+**26% of the arm's mis-codes the chosen index is one at which the correct tag
+sits in a sibling mention's menu** — against a 3.7% null, p = 0.0005. The model
+reached the right concept and read it off the wrong list. If you randomise option
+order over a batched call, randomise per call.
+
+Switching the fallback off costs almost nothing and is worth the number: exact F1
+0.2134 → 0.2050, −0.0084 [−0.0279, +0.0000], detection unchanged. It converts 2
+of its 74 writes. It could never *lower* the headline — a filled record and an
+empty one are both not-correct and both already in the denominator — which is
+precisely why it survived a corpus port, a five-model sweep and two arms with
+nobody noticing, while sitting in plain sight in every artifact.
+
+> If your model picks from a list, measure how often it takes line one — and
+> then check which part of your own code wrote each of those answers. Ours took
+> line one 1.3% of the time. Our fallback took it 74 times, and we spent a
+> session attributing that to the model.
+
+**The generalisable lesson is not about position bias.** A metric computed over a
+component's output has to be decomposed by which *lane* produced each row,
+because your own defaults live in that output and look exactly like the model's
+answers. The flag was on every record from the first run; nobody grouped by it.
 
 ### One document, refused, cost 12.7% of the answer key
 

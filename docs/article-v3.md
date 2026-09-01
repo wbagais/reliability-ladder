@@ -339,37 +339,65 @@ Decomposing the mis-codes, one tag stopped looking like the others:
 
 > `AccrualForEnvironmentalLossContingencies` is predicted **57 times in 292
 > records.** The answer key uses it **twice.**
->
-> *(extraction alone, draw 0. The other draws and the full stack agree: 63 of
-> 303, 64 of 292 — between 19.5% and 21.9% of all predictions.)*
 
-It is menu slot 0 — our menu is alphabetical and that tag is first. An arm that
-re-orders the menu by sentence relevance moves it off slot 0, which makes a clean
-natural experiment:
+It is menu slot 0 — our menu is alphabetical and that tag is first. We wrote
+that up as position bias: the model takes line one because it is line one. An
+arm that re-orders the menu by sentence relevance moved the tag to median slot
+92 and its prediction count fell 57 → 3, every one of the three taken while it
+happened to be first. The model picks it if and only if it is first. One
+prediction in five going to the first line of a list, in a production pipeline
+with 139 options rather than four in a benchmark.
 
-| | alphabetical menu | re-ordered menu |
+**That was wrong, and the thing that was wrong was ours.**
+
+The obvious next experiment was to break the prior instead of feeding it, so we
+built a per-mention permutation of the menu and pre-registered the prediction:
+the attractor's count should fall from 57 toward the answer key's 2. It fell to
+2 exactly. Then we grouped the predictions by which part of *our own code* wrote
+them:
+
+| | base | permuted menu |
 |---|---|---|
-| its median slot | **0** | 92 |
-| times predicted | **57** | **3** |
-| …taken while sitting at slot 0 | 57 | 3 |
+| times the attractor is predicted | **77** | 2 |
+| …written by our fallback rule | **74** | 0 |
+| …chosen by the model | **3** | 2 |
+| the model's own slot-0 rate | **1.3%** | — |
+| chance rate (1 of 139) | 0.72% | — |
 
-**The model picks it if and only if it is first.** That is roughly **one
-prediction in five** on this corpus going to line one of a list. On a real sentence:
+Rung 0 has a rule that a record must not leave with no answer while its own
+candidate menu sits on it: if the pick reply omits a mention, fill it from
+**menu position 0**. On our first corpus position 0 is the top retrieval hit, so
+the rule is close to free and we measured it that way. On this corpus the menu
+is alphabetical, so position 0 is an accident of the letter A — and the rule
+wrote one literal constant onto 74 of 313 answers, a quarter of the run.
 
-> *"…trade accounts receivable are all due in **12 months** or less."*
-> → `AccrualForEnvironmentalLossContingencies`
+The model's own rate of taking line one is 1.3% against a 0.72% chance rate.
+**There was no position bias. There was a default of ours, in the output,
+wearing the model's clothes.** And the natural experiment that seemed to settle
+it — "predicted 3 times, all 3 while first" — is the same artefact seen from the
+other side: a rule that always writes slot 0 produces slot-0 predictions under
+every ordering you try.
 
-No reading of that sentence brings the tag close. It is the first line of the
-menu. Position bias in option
-lists is documented and we are rediscovering it; what is ours is the setting — 139
-options in a production pipeline, not four in a benchmark.
+The permutation arm itself lost badly — coding accuracy 0.425 → 0.058, exact F1
+0.213 → 0.029, paired −0.184 over documents at byte-identical detection — and
+that too turned out to be ours. Our pick call is *batched*: seven mentions in
+one prompt, and because the menu is the whole vocabulary, every mention normally
+sees the same list, so "choice 42" means one tag throughout. Permuting per
+mention put seven different orderings in one prompt. In 26% of the arm's
+mis-codes the chosen index is one at which the correct tag sits in a *sibling
+mention's* menu — against a 3.7% null, p = 0.0005. The model reached the right
+concept and read it off the wrong list.
 
-It also cost us the arm. Re-ordering *killed* the attractor and still made the
-system worse — coding accuracy **0.393 → 0.304, 0.421 → 0.263, 0.421 → 0.263**
-across three draws of the extraction step — because it *amplified* the positional
-prior — moving mass off the
-model's own reading and onto the ranker's top slot. **A ranking can carry real
-signal, visibly move the model, and still lose to what it displaced.**
+So the honest version of this section is shorter and less flattering. We found a
+striking pattern in our own output, gave it a mechanism in the model, built an
+arm on that mechanism, and the arm's job — killing the attractor — is what
+revealed the attractor was never the model's. The generalisable part is not
+about position bias at all:
+
+**A metric computed over a component's output must be decomposed by which lane
+produced each row.** Your own defaults are in that output, and they do not look
+different from the model's answers. The flag we needed was on every record from
+the start; nobody had grouped by it.
 
 The port paid for itself in defects. Three invisible for five phases surfaced
 within hours: the judge's prompt was never ported, so a model grading SEC filings
@@ -586,7 +614,7 @@ The part another team can use tomorrow:
 | **Read the prose, propose candidate spans** | **the model** | the one thing it does well — detection 0.69–0.79 |
 | Recall an identifier | **not the model** | F1 0.018 vs 0.209, at more tokens |
 | Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
-| Order the candidate list | **not the model** | takes line one 19.5% of the time, iff it is line one |
+| Order the candidate list | **not the model** | our own fallback wrote line one onto a quarter of the answers; the model's slot-0 rate is 1.3% |
 | Check its own output | **not the model** | self-correction 1 in 248; voting moved accuracy down |
 | Judge whether an answer is right | **not the model** | 1.1–1.2× against a string comparison's 3.0–6.1× |
 | Decide when to abstain | **not the model** | its confidence was a constant — the threshold was a dead dial |
@@ -622,10 +650,11 @@ prediction*, a formalised field; we compute risk-coverage curves without having
 used its vocabulary. Our weak judge is corroborated, not idiosyncratic — published
 work documents self-inconsistency in LLM judges and an agreeableness bias with
 true-positive rates above 96% against true-negative rates below 25%. Our voting
-result is the same story from the other side. And the slot-0 attractor is a
-rediscovery: position bias in option lists is documented, and *option-order
-randomisation* — the mitigation we arrived at independently — is already the
-recommended one.
+result is the same story from the other side. Position bias in option lists is
+documented too, and *option-order randomisation* is the recommended mitigation —
+which is what we built, and what showed us we had no position bias to mitigate.
+Worth stating plainly: the literature was not wrong here. We matched a known
+pattern to our numbers before checking whether our own code had produced them.
 
 **Where we differ is what we compared.** That literature treats the judge and
 self-consistency voting as standard tooling. We priced both against a free string

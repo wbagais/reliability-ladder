@@ -13,7 +13,8 @@ below it.
 | **B3** · BioMistral as extractor | **DONE 2026-08-31, negative.** Session 3 §1 below is spent; the article bullet is closed. |
 | **B1** · discontinuous spans | **DEFERRED, deliberately.** Discharged in the article as a stated cap rather than a fix — no conclusion rests on the recall number, and the best supervised system appears to share the cap. Still worth building; not a blocker. |
 | **B2** · domain-adapted retriever | **DONE 2026-09-01, negative.** SapBERT is the better retriever corpus-wide (menu recall@20 87.0% → 88.4%, separated) and made the system **worse** end to end (F1 exact −0.027 pooled, coding −0.048, 3/3, byte-identical detection). Arm ships OFF. **The probe that authorised it was run over 1,144 documents while the arm runs on 38, and on those 38 the sign flips — a go/no-go probe must use the arm's own denominator.** |
-| **B4 · B6 · B7** | future work, documented in the article as such. |
+| **B4** · slot-0 position prior | **DONE 2026-09-01, REJECTED — and it refuted the finding it was built to fix.** There was no position prior: **74 of the base's 77 attractor predictions are `r0._fill_from_menu` writing menu position 0**, the model chose the tag 3 times, and its own slot-0 rate is 1.3% against 0.72% chance. The shuffle arm lost hard (F1 exact 0.213 → 0.029, paired −0.184) via an artefact it created — a per-mention permutation under a BATCHED pick, 26.0% of mis-codes read off a sibling's ordering (p = 0.0005). Arm ships OFF. `rung0_pick_fallback` is now declared and priced. |
+| **B6 · B7** | future work, documented in the article as such. |
 
 **The structural reason not to run Sessions 2–4 in full:** Phase F spent the test
 split. B1, B2 and B4 can only produce development-side deltas, and no
@@ -105,14 +106,27 @@ numbers are re-derived, and §9's claim is either confirmed or rewritten.
    else frozen. Report detection and coding separately, and report the ACCEPT
    lane.
 
-2. **B4 · Break the slot-0 position prior on FiNER.** Not a better ranker. Either
-   a slot 0 that is never a valid answer, or a per-mention permutation under a
-   fixed seed — the literature's own mitigation is option-order randomisation.
-   Off-by-default arm. Three draws.
+2. **~~B4 · Break the slot-0 position prior on FiNER.~~ DONE 2026-09-01,
+   REJECTED.** Full result in `docs/decisions.md` (two entries same date).
+   `manifest.finer.shufflemenu.json` is the arm and it ships off. Three things
+   to carry forward:
+   - **The finding it attacked is superseded.** The slot-0 attractor was
+     `r0._fill_from_menu`, not the model. `CLAUDE.md`'s 2026-08-30 bullet is
+     struck through with the correction; do not requote 19.5% as a claim about
+     the model.
+   - **A metric over a rung's OUTPUT must be decomposed by which LANE produced
+     each row.** A rung's own defaults sit in that output and do not look
+     different from the model's answers. This is the third lesson of this shape,
+     after B2's denominator and the temperature declaration.
+   - **Option-order randomisation is unsafe under a batched pick.** Seven
+     orderings in one prompt aliases the indices. Permute per CALL if anyone
+     revisits it.
 
-**Done when:** the "domain adaptation cost instruction-following" claim is either
-strengthened to two roles or retracted to one, and the slot-0 finding has a
-mitigation measured rather than proposed.
+**Done when:** ~~the "domain adaptation cost instruction-following" claim is
+either strengthened to two roles or retracted to one, and the slot-0 finding has
+a mitigation measured rather than proposed.~~ **Both done — B3 strengthened the
+claim to two roles (negative), and B4 measured the slot-0 mitigation and found
+there was nothing to mitigate. This session is closed.**
 
 ---
 
@@ -162,7 +176,10 @@ mitigation measured rather than proposed.
 Prompt rewording · merging overlapping predictions · lexical/hybrid reranking ·
 deep=200 reranking · a system message · ten-document arms · BioMistral **as
 judge** · BioMistral **as extractor** · the no-digit filter on FiNER · the
-context-ordered FiNER menu · **a domain-adapted retriever (SapBERT) for S2** —
+context-ordered FiNER menu · **a per-mention permuted FiNER menu** (B4 — there
+is no slot-0 position prior to break, and a per-mention permutation aliases the
+indices of a batched pick; `manifest.finer.shufflemenu.json` is kept, off) ·
+**a domain-adapted retriever (SapBERT) for S2** —
 it is genuinely the better retriever corpus-wide and lost end to end, three
 draws for three; `manifest.sapbertarm.json` is kept, off, if you need to see it
 again.
