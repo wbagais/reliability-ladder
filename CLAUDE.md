@@ -451,15 +451,21 @@ column, never folded into correct — headline denominators unchanged;
    New material is marked in the typeset page so a reader who saw revision 2
    can find what changed.
 
-**Where this session's artifacts live.** `out/` is gitignored, so every run and
-every harness script cited above sits in the worktree
-`.claude/worktrees/phase-e-rung-6-human-loop-64ce8e/out/` — new this session:
-`harness/debt.sh`, `debtpaired.py`, `judgearmcmp.py`, `finerrecall.py`,
-`finerctx.py`, `finerarm.py`, `finerctxdiag.py`, `finerrefusal.py`, plus
-`out/judgearm/` and `out/finer/arm-finer{base,ctx}-d0.*`. Per the standing
-convention (`out/harness/README.md`) the scripts are scratch and
-`docs/decisions.md` is the durable record; the FiNER data is symlinked from the
-`agitated-lewin-346b03` worktree.
+**Where this session's artifacts live — THEY DO NOT, ANY MORE (deleted
+2026-08-31).** `out/` is gitignored, and the worktrees that held it were removed
+in the branch cleanup: `phase-e-rung-6-human-loop-64ce8e` (the debt arms,
+`out/judgearm/`, `out/finer/`, ~80 harness scripts), `agitated-lewin-346b03`
+(the five-model sweep and the FiNER data everything else symlinked to),
+`reliability-ladder-owner-a-8786e6` (phaseB), `plan-e2e-test-b5f28f` (the gold
+replays), `fervent-hellman-813240`, `phase-d-rung-3-repair-fafe4c` (phaseD-r3-2)
+and `phase-f-test-split-cd5c99` (**`phaseF-test-1`, the one held-out run**).
+This was the standing convention executed, not a mistake —
+`out/harness/README.md` calls the scripts scratch and `docs/decisions.md` is the
+durable record — and every number cited in this file stands as reported there.
+The consequence to know before quoting one: **no number here can be re-derived
+from disk any more, only re-run**, and Phase F cannot be re-run at all. Full
+inventory of what went, per worktree, in the three `2026-08-31` entries at the
+end of `docs/decisions.md`.
 
 ### Also this session — the article layer, and the FiNER draws
 5. **The FiNER three-draw debt is PAID and the context arm is REJECTED.**

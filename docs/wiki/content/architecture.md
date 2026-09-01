@@ -76,9 +76,7 @@ Reverse none of these silently. Each is recorded in `docs/decisions.md` with the
 | `ladder/rungs/r5.py` | [[r5]] |
 | `ladder/rungs/r0.py` | rung 0, and the recall-vs-search ablation over it |
 | `ladder/stub_llm.py` | Ollama client for rung 0 |
-| `bench/align.py` | pairs predictions with gold; bipartite, IoU 0.5 |
-| `ladder/rungs/r0.py` `r2` `r4` `r3` | not written |
-| `ladder/score.py` | shared scorer — not written |
+| `ladder/score.py` | the ONE scorer: pairs predictions with gold by SPAN KEY, `exact` or `overlap`, detection and coding as separate layers |
 | `schemas/vocabulary.py` | the `Vocabulary` contract |
 
 ## Data boundary

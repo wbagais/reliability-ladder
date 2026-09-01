@@ -380,7 +380,9 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
       in the specified order confirming zero rung interaction
 - [x] Per-record ledger for every rung, with denominators and a three-valued
       `evaluable`
-- [x] InfoQ article — first draft in [docs/infoq-article-draft.md](docs/infoq-article-draft.md)
+- [x] InfoQ article — the 2026-08-24 first draft is archived as
+      [docs/versions/infoq-article-draft-2026-08-24.md](docs/versions/infoq-article-draft-2026-08-24.md);
+      the live draft is [docs/article-v3.md](docs/article-v3.md)
 - [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns
       empty rather than guessing, and reports a missing rung rather than faking it
 - [x] Rung 6 measured as a timing study — 1.2 reviewer-hours extrapolated
