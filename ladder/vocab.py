@@ -125,18 +125,6 @@ def _toks(s: str) -> set[str]:
     return {w for w in re.findall(r"[a-z]+", (s or "").lower()) if w not in _STOP}
 
 
-def lexical_overlap(span_text: str, code: str) -> float:
-    """
-    Check 6. Does the reporter's wording overlap the concept's label?
-    NOT a pass/fail. Zero overlap is normal and expected — see the note below.
-    """
-    lab = preferred(code)
-    if not lab:
-        return 0.0
-    a, b = _toks(span_text), _toks(lab)
-    return 0.0 if not a or not b else len(a & b) / len(a | b)
-
-
 # ------------------------------------------- CHECKS that need no vocabulary
 def negated(source: str, span: tuple[int, int], window: int = 45) -> bool:
     """Check 3. 'so far no gastric problems' — costs nothing, needs no vocabulary.

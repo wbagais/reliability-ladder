@@ -103,6 +103,41 @@
   shows vocabulary labels, never bare SCTIDs, and searches through rung 0's own
   retriever. `--oracle` writes gold-derived resolutions — an ORACLE CEILING,
   labeled `resolved_oracle` on every row and refused on the test split.
+- **`manifest.model.temperature` IS READ NOW** (wired 2026-08-31). It was
+  declared and unread: `Caller.__call__` had `0.0` hardcoded, so the declared
+  and real answers agreed by accident. `llm.temperature_for` resolves it,
+  `for_rung` binds it to the Caller, and an explicit call argument still wins
+  so rung 3's `sampler(0.7)` is untouched. **The float cast is the whole
+  no-change guarantee** — temperature is in the cache key, and int `0` and
+  float `0.0` hash differently. `test_every_tracked_manifest_resolves_to_the_published_temperature`
+  fails if any manifest moves off 0.0: editing that key now CHANGES a run
+  rather than relabelling one. Provenance stamps `temperature_declared`, since
+  a declared 0 and a defaulted 0.0 are the same number and not the same fact.
+- **The same audit found FOUR more declared-and-never-read settings, now all
+  read** (2026-08-31, `tests/test_declarations_are_read.py`). None changed a
+  number; all four were inert at their declared value, which is how the
+  temperature key looked too. (a) `vocabulary.snomed_backend` — `run.py` was
+  hardwired to Registry, so `ols4` would have changed nothing while the
+  results file claimed it. `run.check_snomed_backend` now REFUSES `ols4`
+  rather than honouring it: `Ols4Vocabulary` serves rung 1 but has no
+  `replacements` and none of rung 0's `shortlist`/`resolve`, so running on it
+  is an unmeasured experiment, not a fix. (b) `vocabulary.meddra_mode` —
+  `answer_space` is refused, because it meant S3, dropped 2026-08-24. (c)
+  `rungs.1.outdated_check` — the `off` its own note documents did not exist;
+  `r1.DEFAULTS` now carries it and `_record_history` honours it. (d)
+  **`ladder/otel.py` is DELETED** (2026-08-31, the day after it was wired).
+  It was UNIMPORTED, so the `LADDER_OTEL=1` in its own docstring emitted
+  nothing; wiring it made that honest, and then the feature turned out not to
+  be wanted. One commit ever (2026-08-23), touching only the module and a
+  hand-made smoke row — "phoenix transport verified" meant verified against
+  `{"run_id": "smoke", "doc_id": "D1"}`, never a ladder run. Five phases and
+  two corpora later nothing had used it, no `docs/decisions.md` entry depended
+  on it, and its spans were a strict copy of the ledger row that is already
+  JSONL on disk and already what `ladder_top.py`, `provenance` and the harness
+  scripts read. The README block and the `docs/plan.html` row went with it.
+  **Do not reintroduce it without a consumer**: two tests keep it gone, one of
+  which greps the docs, because a feature the README advertises and no code
+  implements is this same defect pointed the other way.
 - **`manifest.model` is the ONE place a model is named.** `ladder/llm.py`
   carries no default and `resolve()` RAISES on a missing entry — it used to
   fall back to `ollama/gpt-oss:20b` while the manifest said

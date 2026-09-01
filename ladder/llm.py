@@ -46,6 +46,15 @@ DEFAULT_MAX_TOKENS = 2000
 DEFAULT_TIMEOUT_S = 120
 DEFAULT_CACHE_DIR = Path(__file__).parent.parent / ".llm_cache"
 
+#: The temperature every rung calls at unless it says otherwise. Greedy
+#: decoding is a project-wide choice: two runs of the same configuration must
+#: not disagree because of sampling noise. Rung 3 is the one exception and
+#: declares its own `rungs.3.temperature` — k identical votes are not a
+#: majority. THIS CONSTANT IS THE FALLBACK, NOT THE ANSWER: `temperature_for`
+#: reads `manifest.model.temperature` first, and provenance stamps which of
+#: the two a run actually used.
+GREEDY_TEMPERATURE = 0.0
+
 
 @dataclass
 class LLMResponse:
@@ -291,9 +300,16 @@ class Caller:
     silently. Nothing inside the fence is touched.
     """
 
-    def __init__(self, spec: str, role: str = "", cache_dir: Path | str = DEFAULT_CACHE_DIR):
+    def __init__(self, spec: str, role: str = "",
+                 cache_dir: Path | str = DEFAULT_CACHE_DIR,
+                 temperature: float = GREEDY_TEMPERATURE):
         self.spec = spec
         self.role = role
+        # The greedy temperature this Caller was BOUND at, from
+        # manifest.model.temperature. Cast, because the manifest says `0` and
+        # the cache key is a JSON dump: int 0 and float 0.0 hash differently,
+        # and every entry in .llm_cache was written under the float.
+        self.temperature = float(temperature)
         self.client = LLMClient(spec, cache_dir=cache_dir)
         self.latencies: list[float] = []
         self.fenced = 0
@@ -427,9 +443,15 @@ class Caller:
         prompt: str,
         text: str,
         mode: str,
-        temperature: float = 0.0,
+        temperature: float | None = None,
         sample_index: int = 0,
     ) -> tuple[str, dict]:
+        # None means "the temperature this Caller was bound at", which is the
+        # manifest's. It used to mean 0.0 unconditionally, so the declaration
+        # in manifest.model and the real value agreed only by accident — the
+        # failure the manifest.model note itself was written for, one layer
+        # down. An explicit argument still wins: rung 3's sampler passes one.
+        temperature = self.temperature if temperature is None else float(temperature)
         t0 = time.time()
         # A rung whose template embeds the post passes text="" — appending a
         # POST section anyway would send the post twice (rung 4 did, measured
@@ -517,6 +539,32 @@ def resolve(role: str, manifest: dict | None = None, override: str | None = None
     return spec
 
 
+def temperature_for(manifest: dict | None = None) -> float:
+    """The greedy temperature this run calls at, from `manifest.model`.
+
+    Wired 2026-08-31. `manifest.json` declared `model.temperature: 0` and
+    NOTHING read it — `Caller.__call__` had 0.0 as a hardcoded default and no
+    rung passed a value — so "which temperature produced this number" had a
+    declared answer and a real answer that agreed by accident. Same class as
+    the model fallback the note in `manifest.model` describes, and as the
+    5.9-point manifest/arms gap of 2026-08-28.
+
+    Unlike `resolve`, an absent value does NOT raise. A manifest that names no
+    model is a run nobody can attribute; a manifest that declares no
+    temperature is only a run using the documented project-wide default, and
+    the FiNER manifests are in exactly that position. `provenance.sampling_for`
+    records WHICH of the two happened, so the distinction survives into the
+    stamp instead of being lost in a number that looks the same either way.
+
+    The float cast is not cosmetic: `temperature` is in the LLM cache key and
+    the key is a JSON dump, so the manifest's int `0` and the code's `0.0`
+    hash differently. Every cached call in the project was written under the
+    float.
+    """
+    t = ((manifest or {}).get("model") or {}).get("temperature")
+    return GREEDY_TEMPERATURE if t is None else float(t)
+
+
 def provider_models(provider: str = "ollama", timeout: float = 5.0) -> list[str] | None:
     """Model names the provider actually has, or None if it cannot be asked.
 
@@ -593,9 +641,16 @@ def check_models(manifest: dict, rungs, available: list[str] | None = None) -> l
     return problems
 
 
-def for_rung(n: int, manifest: dict | None = None, override: str | None = None) -> Caller | None:
-    """The Caller a rung should be handed, or None if that rung needs no model."""
+def for_rung(n: int, manifest: dict | None = None, override: str | None = None,
+             cache_dir: Path | str = DEFAULT_CACHE_DIR) -> Caller | None:
+    """The Caller a rung should be handed, or None if that rung needs no model.
+
+    The ONE place a model is resolved, and therefore the one place its
+    temperature is resolved too. A rung never names a model and never names a
+    temperature; rung 3 asks for a `sampler`, which is a different request.
+    """
     role = ROLE_BY_RUNG.get(n)
     if role is None:
         return None
-    return Caller(resolve(role, manifest, override), role=role)
+    return Caller(resolve(role, manifest, override), role=role,
+                  cache_dir=cache_dir, temperature=temperature_for(manifest))

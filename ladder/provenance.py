@@ -5,10 +5,17 @@ at all. `full_run.py` recorded two fields inline; `ladder_run.py` and
 `r4_gold_control.py` recorded nothing. That is an odd gap in a project whose
 central claim is that provenance is what makes two runs comparable.
 
-Worse, the stamp recorded INTENT. Today the manifest asked for
-`ollama/ibm/granite4:micro-h`, which does not exist and 404s, while every
-measured run used `granite4:micro-h` named inline in a script. A stamp that
-records the manifest is a stamp that can be wrong.
+Worse, the stamp recorded INTENT. On the day this was written the manifest
+asked for `ollama/ibm/granite4:micro-h`, which 404'd, while every measured run
+used `granite4:micro-h` named inline in a script. A stamp that records the
+manifest is a stamp that can be wrong.
+
+(THAT EXAMPLE HAS SINCE INVERTED, 2026-08-31: ollama now namespaces the model
+under `ibm/`, so `ollama/ibm/granite4:micro-h` is the name that exists and bare
+`granite4:micro-h` is the one that 404s — three tracked manifests carried the
+bare name and were corrected. The point stands and is stronger for having
+flipped: what the manifest asks for and what the provider answers to are two
+facts, and only one of them is a property of this run.)
 
 So this gathers from the live objects and the live machine. Three fields exist
 because of specific things that went wrong:
@@ -34,8 +41,10 @@ Usage:
     stamp = provenance.gather(man, split="dev", n_docs=40,
                               vocab=reg, entry_point="scripts/ladder_run.py",
                               models={"extractor": ("granite4:micro-h",
-                                                    S.MODEL)},
-                              sampling={"temperature": 0.7, "k": 3})
+                                                    S.MODEL)})
+    # sampling is left unset on purpose: gather reads it from the manifest
+    # (sampling_for). An entry point that passes a literal is stamping a
+    # temperature nobody configured, which is what both scripts used to do.
     json.dump({"provenance": stamp, ...}, fh)
 
 Nothing here raises. A stamp that crashes a run is worse than an incomplete
@@ -169,6 +178,50 @@ def models(spec: dict[str, tuple[str | None, str | None]]) -> dict[str, Any]:
 
 
 # ----------------------------------------------------------------- main
+def sampling_for(man: dict | None = None) -> dict[str, Any]:
+    """What temperature this run actually called at, read from the manifest.
+
+    Added 2026-08-31 with the `manifest.model.temperature` wiring. Before it,
+    `scripts/ladder_run.py` stamped `{"temperature": 0.7, "k": 3}` and
+    `scripts/full_run.py` stamped `{"temperature": 0.0}` — both LITERALS, and
+    the first reported RUNG 3's sampler temperature as though it were the
+    run's. A stamp that hardcodes its answer cannot be wrong and cannot be
+    right, which is the same failure the input side had.
+
+    `temperature_declared` is the field that earns this function. `0` in the
+    manifest and 0.0 from `llm.GREEDY_TEMPERATURE` are the same number and not
+    the same fact, and after the wiring nothing else can tell them apart.
+
+    Rung 3's sampler is reported SEPARATELY and only when declared: absent
+    means absent, never a guessed 0.7, because a stamp that invents k=3 for a
+    run with no rung 3 reports a vote nobody took. Nothing here raises.
+    """
+    from ladder import llm as _llm
+
+    man = man or {}
+    out: dict[str, Any] = {}
+    try:
+        out["temperature"] = _llm.temperature_for(man)
+        out["temperature_declared"] = (
+            ((man.get("model") or {}).get("temperature")) is not None)
+    except Exception:
+        out["temperature"] = _llm.GREEDY_TEMPERATURE
+        out["temperature_declared"] = False
+    r3 = ((man.get("rungs") or {}).get("3") or {})
+    if r3.get("enabled") is False:
+        # `enabled: false` is a RECORDED run state, never a silent skip — the
+        # same rule run.py's disabled ledger row follows.
+        out["sampler"] = "disabled"
+    for key, src, cast in (("sampler_temperature", "temperature", float),
+                           ("k", "k", int)):
+        if src in r3:
+            try:
+                out[key] = cast(r3[src])
+            except Exception:
+                out[key] = r3[src]
+    return out
+
+
 def gather(man: dict | None = None, *, split: str | None = None,
            n_docs: int | None = None, vocab: Any = None,
            models_spec: dict | None = None, sampling: dict | None = None,
@@ -192,9 +245,14 @@ def gather(man: dict | None = None, *, split: str | None = None,
             "n_docs": n_docs,
             "ladder_n": os.environ.get("LADDER_N"),
         },
-        "sampling": sampling or {},
+        # An entry point that says nothing about sampling must not produce a
+        # stamp that says nothing about sampling. Explicit still wins.
+        "sampling": sampling if sampling is not None else sampling_for(man),
         "env": {
-            "ladder_otel": os.environ.get("LADDER_OTEL"),
+            # `ladder_otel` was stamped here until 2026-08-31 and named an env
+            # var that switched on an exporter nothing imported. Removed with
+            # it: a stamp recording a knob that does nothing describes a run
+            # nobody had.
             "ollama_host": os.environ.get("OLLAMA_HOST"),
         },
     }

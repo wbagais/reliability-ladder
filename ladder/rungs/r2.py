@@ -75,8 +75,13 @@ DEFAULTS = {
     # on produces a re-roll, not a correction.
     "correctable": (R_CODE_UNKNOWN, R_CODE_INACTIVE, R_WRONG_SEMANTIC_TYPE,
                     R_SPAN_UNGROUNDED, R_SPAN_OUT_OF_RANGE),
-    "max_attempts": 1,      # one retry. More is a different experiment.
-    "allow_withdrawal": True,   # model may return null; always counted apart
+    # NO max_attempts AND NO allow_withdrawal. Both were declared here from
+    # 158d8bf and read by nobody (found 2026-08-31 by the audit that started
+    # with manifest.model.temperature): `_attempt` runs exactly once, and
+    # withdrawal is unconditional. Their own comments said why they should not
+    # be settings — "more is a different experiment", and withdrawal-never-
+    # deletion is Constraint 5 — so they are removed rather than wired. Making
+    # either real is an unmeasured arm, which is a measurement, not a fix.
 }
 
 # The fact, per reason. Present tense, specific, no hedging, no question.
