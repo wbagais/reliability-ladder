@@ -64,17 +64,37 @@ python -m ladder.rungs.r0 --compare
 - Mode A (`recall`) vs mode B (`search`). One implementation, one flag.
 - Needs `ladder/stub_llm.py` and a running Ollama.
 
-## align — pairing predictions with gold
+## scoring — pairing predictions with gold
 
-`bench/align.py`. Without it precision and recall are undefined: a post has an unknown number of reactions, so *which prediction corresponds to which gold* must be decided before anything is scored.
+`ladder/score.py`, and it is the ONLY scorer. Without pairing, precision and
+recall are undefined: a post has an unknown number of reactions, so *which
+prediction corresponds to which gold* must be decided before anything is
+scored.
+
+Until 2026-08-31 there were TWO. `bench/align.py` paired by character IoU >= 0.5
+under bipartite assignment and was reached only from `scripts/full_run.py`;
+`score_run` produced every figure in `docs/decisions.md`. Both were defensible
+and they reported under the same words, so "precision" meant different things
+depending on the entry point, with nothing on either number saying which. The
+IoU matcher was deleted and `full_run.py` moved onto `score_run`.
 
 Three decisions, explicit because they move the numbers more than any rung:
 
-- **Bipartite, not greedy.** CADEC golds overlap each other — two can start at the same offset. Greedy matching depends on file order; maximum-weight bipartite matching gives each gold at most one prediction and is order-independent.
-- **Character-level IoU over fragment sets.** Discontinuous mentions are ~16 % of ADRs, so a mention is a *set* of character positions, not a range. One formula handles both.
-- **Threshold 0.5, and it is reported.** A threshold chosen silently is a thumb on the scale.
+- **Keyed by SPAN, never by position.** Gold is `{(doc_id, spans): mention}`.
+  Record ids are positions in a list, and the two numberings agree only by
+  luck — variable-length mention arrays break a position-keyed scorer outright.
+- **`exact` or `overlap`, declared per call and reported on every row.** Not a
+  threshold to tune: `exact` is the headline, `overlap` says whether the miss
+  was the concept or the boundary. An unknown mode raises rather than
+  defaulting, so no number can be produced that nobody can reproduce.
+- **Detection and coding are separate layers.** Did the system FIND the mention,
+  and given a match is the CODE right. `recall == detection.recall x
+  coding.accuracy` by construction, which is what makes a regression
+  attributable instead of merely visible.
 
-Error classes kept separate: `matched_correct` · `matched_wrong_code` (the interesting one) · `spurious` · `missed`.
+Discontinuous mentions (~16% of ADRs) are carried as a list of `(start, end)`
+fragments on the record, so one span is a set of ranges and both layers handle
+them without a special case.
 
 ## What cannot be measured yet
 
