@@ -1,15 +1,29 @@
 # Plan — next sessions
 
-**State on 2026-08-30.** `docs/article-v3.md` is a DRAFT with six `[PENDING]`
-gaps. This file closes them. Two tasks can **change** what the article says; the
-rest add to it.
+**Updated 2026-08-31. Session 1 is DONE and `docs/article-v3.md` now has ONE
+`[PENDING]` left — B2.** Read this header before working from anything below it.
+
+| item | state |
+|---|---|
+| **A1** · CONORM comparison | **DONE 2026-08-31.** The 0.70 ceiling claim is *corroborated*, not refuted — their span-exact 0.704 is **detection only**, and their 0.7245 end-to-end is the lenient figure. Our own comparison was the defective part and is rewritten. |
+| **Session 1 §2** · FiNER three draws | **DONE 2026-08-31**, already written into §2: the run-to-run spread is one refused document, d1 and d2 byte-identical. |
+| **Session 1 §4** · `preflight_rungs` | **DONE 2026-08-31.** Validated against the four dead rungs, 11 tests, mutation-checked. Scope and caveats in `docs/decisions.md`. |
+| **Session 1 §5** · file-role headers | **DONE 2026-08-31.** |
+| **B3** · BioMistral as extractor | **DONE 2026-08-31, negative.** Session 3 §1 below is spent; the article bullet is closed. |
+| **B1** · discontinuous spans | **DEFERRED, deliberately.** Discharged in the article as a stated cap rather than a fix — no conclusion rests on the recall number, and the best supervised system appears to share the cap. Still worth building; not a blocker. |
+| **B2** · domain-adapted retriever | **OPEN — the only blocker.** Do the offline menu-recall@20 probe first and stop on a null. |
+| **B4 · B6 · B7** | future work, documented in the article as such. |
+
+**The structural reason not to run Sessions 2–4 in full:** Phase F spent the test
+split. B1, B2 and B4 can only produce development-side deltas, and no
+development-side delta can move a shipped number.
 
 Run each session in its own worktree. Log every decision to `docs/decisions.md`
 as you go. TDD, test first. Three draws plus the paired bootstrap, never one.
 
 ---
 
-## Session 1 — Article, no code (~4 h)
+## Session 1 — Article, no code (~4 h) — **DONE 2026-08-31**
 
 **Goal: article-v3 becomes submittable except for what Sessions 2–4 add.**
 
@@ -78,7 +92,7 @@ numbers are re-derived, and §9's claim is either confirmed or rewritten.
 
 ---
 
-## Session 3 — The two model questions (~half day)
+## Session 3 — The two model questions (~half day) — **§1 (B3) DONE, negative**
 
 1. **B3 · BioMistral-7B as the rung 0 extractor.** Full brief already in
    `CLAUDE.md` under *TODO — registered, not started*. Read it before starting;

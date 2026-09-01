@@ -1,5 +1,9 @@
 # Which answers can you trust?
 
+> **File role:** the longform *build report* — the full narrative of how the
+> ladder was built and what each step measured. Not the submission. The
+> current draft is [`article-v3.md`](article-v3.md).
+
 *Building a system that tells you which of its own outputs to believe — and
 measuring, over five months and five open-weight models, how little of what we
 built actually did that.*

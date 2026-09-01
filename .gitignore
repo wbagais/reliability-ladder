@@ -24,7 +24,11 @@ data/meddra_codes.csv
 # SNOMED CT release files — affiliate licence, and 5 GB besides. The derived
 # SQLite index is the same content in another shape, so it goes too.
 data/SnomedCT_Release_*
+# Both forms: a fresh worktree SYMLINKS this in from the main checkout, and
+# git does not treat a symlink as a directory, so the trailing-slash rule
+# alone left it untracked-but-not-ignored.
 ladder/cache/
+ladder/cache
 
 # data/splits/ is deliberately NOT ignored: document IDs only, no post text and
 # no annotations. The frozen split has to survive or iteration 2 cannot be
