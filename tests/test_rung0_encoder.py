@@ -61,9 +61,22 @@ def test_a_non_default_prefix_survives_with_suffix():
     assert Path(p).with_suffix(".rows.json").name == "keywords-sapbert.rows.json"
 
 
-def test_embedder_for_granite_does_not_need_torch():
-    # The default path must not import a 2.5 GB optional dependency.
-    assert callable(embedder_for("granite"))
+def test_embedder_for_granite_does_not_need_torch(monkeypatch):
+    """The default path must not reach for a 2.5 GB optional dependency.
+
+    Asserted on the ROUTING, not by constructing a real embedder: building the
+    ollama one imports httpx, which is itself a local-only extra, so a test
+    that built it would fail in CI for a reason that says nothing about torch.
+    """
+    import sys
+
+    from ladder import embed as E
+
+    monkeypatch.setattr(E, "ollama_embedder", lambda *a, **kw: "OLLAMA")
+    monkeypatch.setattr(E, "transformers_embedder",
+                        lambda *a, **kw: pytest.fail("granite reached for torch"))
+    assert E.embedder_for("granite") == "OLLAMA"
+    assert "torch" not in sys.modules
 
 
 # --- the wiring --------------------------------------------------------------
@@ -75,13 +88,26 @@ def test_rung0_defaults_declare_the_encoder_and_it_is_granite():
     assert r0.DEFAULTS["rung0_encoder"] == "granite"
 
 
-def test_the_dense_retriever_looks_for_the_encoder_named_in_cfg():
+def test_the_dense_retriever_looks_for_the_encoder_named_in_cfg(monkeypatch):
+    """A missing index must name the ENCODER'S path, not the base one.
+
+    `EmbeddingIndex` is stubbed to raise rather than left to fail on a real
+    absent file: its first act is to import numpy, a local-only extra, so
+    against a bare environment the real object reports "install numpy" and the
+    test would pass or fail on the wrong message entirely.
+    """
+    from ladder import embed as E
     from ladder.rungs import r0
 
+    def _missing(prefix, embedder=None):
+        raise FileNotFoundError(prefix)
+
+    monkeypatch.setattr(E, "EmbeddingIndex", _missing)
     with pytest.raises(RuntimeError) as exc:
         r0._retriever({"rung0_retrieval": "dense", "rung0_encoder": "sapbert",
                        "embed_prefix": "/nonexistent/keywords"})
     assert "keywords-sapbert" in str(exc.value)
+    assert "--encoder sapbert" in str(exc.value)
 
 
 def test_an_unknown_encoder_is_refused_at_the_retriever_too():

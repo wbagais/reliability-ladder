@@ -9,6 +9,20 @@
   `data/cadec/` is gitignored. This includes notebook output cells — the classic leak.
 - **Run `python3 scripts/preflight.py` before any commit.** Exits 1 on a breach.
   CI runs it too and blocks the pipeline, but catching it locally is cheaper.
+- **A GREEN LOCAL SUITE IS NOT A GREEN PIPELINE. Run the tests the way CI does
+  before you push.** CI is `python:3.12-slim` with `requirements.txt` + pytest
+  and NOTHING else — no numpy, no httpx, no torch, and no `git` binary. It has
+  gone red twice for this: once on a test that shelled out to `git`
+  (2026-08-31), once on two tests that constructed a real embedder
+  (2026-09-01). Both passed on every developer machine.
+
+      python -m venv /tmp/civenv
+      /tmp/civenv/bin/pip install -r requirements.txt pytest
+      /tmp/civenv/bin/python -m pytest tests/ -q -m "not integration"
+
+  A test that needs a local-only extra either stubs it (preferred - the stub
+  keeps the assertion running in CI) or `pytest.importorskip`s it. Do NOT let
+  it skip by accident: a test silently skipped in CI is a guard nobody has.
 - **Never put a real API key in a tracked file.** preflight scans for key-shaped strings.
 - `ladder/vocab.py` is a **global resource**, not a per-item `trusted_record` —
   now formalised as `schemas/vocabulary.py`, contract 2.
