@@ -226,3 +226,59 @@ def test_the_script_checks_the_backend_it_opens():
     duplicated its blind spot."""
     src = (_ROOT / "scripts/ladder_run.py").read_text()
     assert "check_snomed_backend(man)" in src
+
+
+# --- rung DEFAULTS that were declared and never read ------------------------
+#
+# The same audit as the manifest's, run over every rung's DEFAULTS. `r4`'s
+# `temperature` was the first (fixed 2026-08-31); these three are the rest.
+# All are REMOVED rather than wired, and the reason differs from r4's: there is
+# no manifest declaration to defer to here, so the question is only whether the
+# knob exists. Each one's own comment says the answer is no — turning it into a
+# real setting would create an unmeasured arm, which is a measurement, not a
+# fix.
+
+
+def test_rung_2_declares_no_attempt_count_it_does_not_honour():
+    """`"max_attempts": 1` with the comment "one retry. More is a different
+    experiment." Never read: `_attempt` runs exactly once, hardcoded, so a
+    manifest setting 3 would have changed nothing."""
+    from ladder.rungs import r2
+
+    assert "max_attempts" not in r2.DEFAULTS
+
+
+def test_rung_2_declares_no_withdrawal_switch_it_does_not_honour():
+    """`"allow_withdrawal": True`, never read. Withdrawal is unconditional and
+    is Constraint 5 — withdrawal, never deletion — which is a design rule, not
+    a setting that can be turned off."""
+    from ladder.rungs import r2
+
+    assert "allow_withdrawal" not in r2.DEFAULTS
+
+
+def test_rung_4_declares_no_vocabulary_term_switch():
+    """`"show_vocabulary_term": False`, added 39a94f0 and never read since."""
+    from ladder.rungs import r4
+
+    assert "show_vocabulary_term" not in r4.DEFAULTS
+
+
+# --- dead code, the shape otel.run_meta had ---------------------------------
+
+
+def test_the_dead_reporters_are_gone():
+    """Two public functions with no caller in ladder/, scripts/ or tests/.
+
+    `r0.report_run` is worse than unused: it reads `agg["documents"]` and
+    `agg["tool_calls"]`, which the modern `apply()` aggregate does not carry,
+    so calling it today would raise KeyError. `report(mode, recs, agg)` is the
+    live one. `vocab.lexical_overlap` is the OLS4-era "check 6"; `lexical_match`
+    on both backends replaced it.
+    """
+    from ladder import vocab
+    from ladder.rungs import r0
+
+    assert not hasattr(r0, "report_run")
+    assert not hasattr(vocab, "lexical_overlap")
+    assert hasattr(r0, "report"), "the LIVE reporter must survive the deletion"

@@ -50,6 +50,27 @@ def test_script_compiles(name):
     compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
 
+def skip_reason(name: str, exc: BaseException) -> str | None:
+    """Why this machine could not run the script — or None, meaning it DID.
+
+    EXIT 0 IS A PASS. `ENVIRONMENT` lists SystemExit, so a script that does its
+    whole job at import and exits cleanly was reported as "environment, not
+    code" and skipped: four of them were (port_prompts, port_prompt_constants,
+    fix_tui_live, add_full_retrieval), which understated the coverage of the
+    one test CLAUDE.md credits with catching two live bugs in ladder_run.py.
+    A nonzero code is still a skip — a missing model, an argparse usage error —
+    and the code is named so the reason stays diagnosable. DEFECT never reaches
+    here; the caller re-raises it first.
+    """
+    if isinstance(exc, SystemExit) and exc.code in (0, None):
+        return None
+    if isinstance(exc, SystemExit):
+        return f"{name}: environment, not code — SystemExit: {exc.code}"
+    if isinstance(exc, ENVIRONMENT):
+        return f"{name}: environment, not code — {type(exc).__name__}: {exc}"
+    return f"{name}: needs a live environment — {type(exc).__name__}: {exc}"
+
+
 @pytest.mark.parametrize("name", SCRIPTS)
 def test_script_imports_or_says_why_not(name):
     path = ROOT / "scripts" / f"{name}.py"
@@ -62,12 +83,14 @@ def test_script_imports_or_says_why_not(name):
         spec.loader.exec_module(mod)
     except DEFECT:
         raise
-    except ENVIRONMENT as exc:
-        pytest.skip(f"{name}: environment, not code — {type(exc).__name__}: {exc}")
-    except Exception as exc:  # noqa: BLE001
-        if isinstance(exc, DEFECT):
-            raise
-        pytest.skip(f"{name}: needs a live environment — {type(exc).__name__}: {exc}")
+    # SystemExit is a BaseException, NOT an Exception — `except Exception`
+    # does not catch it, and a script that exits at import would escape this
+    # handler entirely. The old code caught it only because ENVIRONMENT named
+    # it explicitly.
+    except (Exception, SystemExit) as exc:  # noqa: BLE001
+        why = skip_reason(name, exc)
+        if why:
+            pytest.skip(why)
     finally:
         if added:
             sys.path.remove(str(ROOT))
@@ -107,3 +130,31 @@ def test_ladder_run_pairs_each_label_with_its_own_module():
     assert pairs, "no (label, module) pairs found — has the banner moved?"
     for label, mod in pairs:
         assert label == mod, f"{label} is printed against module {mod}"
+
+
+# --- a script that exits 0 has RUN. It was being counted as unrunnable. ------
+
+
+def test_a_clean_exit_is_a_pass_not_a_skip():
+    """`ENVIRONMENT` includes SystemExit wholesale, so four scripts that do
+    their whole job at import and exit 0 — port_prompts, port_prompt_constants,
+    fix_tui_live, add_full_retrieval — were reported as "environment, not
+    code" and skipped. Exit 0 is success: the script ran on this machine and
+    did what it does. Counting it as unrunnable understates the coverage this
+    smoke test actually has, in the one test CLAUDE.md credits with catching
+    two live bugs in ladder_run.py."""
+    assert skip_reason("x", SystemExit(0)) is None
+    assert skip_reason("x", SystemExit()) is None
+
+
+def test_a_nonzero_exit_is_still_a_skip():
+    """A script that stops with a code is telling us it could not run here —
+    a missing model, an argparse usage error. Still not a defect, still a
+    skip, and the code is named so the reason is diagnosable."""
+    why = skip_reason("x", SystemExit(2))
+    assert why and "2" in why
+
+
+def test_a_missing_build_artifact_is_still_environment():
+    why = skip_reason("x", FileNotFoundError("ladder/cache/snomed.sqlite"))
+    assert why and "environment, not code" in why

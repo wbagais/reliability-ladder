@@ -66,7 +66,9 @@ DEFAULTS = {
     # declaration and put a code default back on top of it. The judge inherits
     # the temperature its Caller was bound at, which is the manifest's.
     "route": False,          # record only; rung 5 acts
-    "show_vocabulary_term": False,
+    # `show_vocabulary_term: False` stood here from 39a94f0 and was never read.
+    # Removed 2026-08-31 with r2's two. What the judge is shown is decided by
+    # PROMPT_SLOTS and judge_prompt(), where it is visible.
 }
 
 ALLOWED_CHECK_KEYS = frozenset({"r1_verdict", "r1_reason"})
