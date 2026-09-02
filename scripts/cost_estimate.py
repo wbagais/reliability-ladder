@@ -64,6 +64,12 @@ def main() -> int:
                     help="documents in the smoke run (default: counted from the ledger)")
     ap.add_argument("--runs", type=int, default=1, help="how many full runs")
     ap.add_argument("--rate", type=float, default=0.0, help="$/hour, if renting")
+    ap.add_argument("--new-runs", type=int, default=0,
+                    help="how many of the runs send calls the cache has never "
+                         "seen. A run repeating another's model, prompts and "
+                         "sample_index costs NOTHING — measured: of three base "
+                         "runs, one cost 1,706s and two cost zero. Defaults to "
+                         "--runs, which is the pessimistic reading.")
     a = ap.parse_args()
 
     rows = load(a.ledger)
@@ -118,7 +124,20 @@ def main() -> int:
         print(f"  {str(rung) + ' ' + name:16} {s:8.1f}s {k['rows']:7} "
               f"{proj/60:9.1f} min   {assumption}")
 
-    total_min = total_s * a.runs / 60
+    # Runs after the first do not pay for cached rungs. Ignoring that projected
+    # 171 minutes for six runs that took 52 — the arithmetic was right and the
+    # MODEL OF HOW THE RUNS WORK was wrong, which is the more expensive kind of
+    # error and the one this repository keeps finding.
+    # MEASURED, and it is starker than the flag suggests. Three base runs of
+    # the type-check arm: run 1 cost 1,706 seconds, runs 2 and 3 cost ZERO —
+    # not mostly cached, entirely cached, every rung. The cache key is
+    # (model, messages, temperature, sample_index), so a run repeating a
+    # previous run's config pays nothing at all.
+    #
+    # So the question is not which rungs cache. It is HOW MANY RUNS ARE NEW.
+    # Modelling it any other way projected 171 minutes for 52 minutes of work.
+    new = a.new_runs if a.new_runs else a.runs
+    total_min = total_s * new / 60
     print("  " + "-" * 74)
     print(f"  {'total':16} {'':9} {'':7} {total_min:9.0f} min"
           + (f"   ≈ {total_min/60:.1f} h" if total_min > 90 else ""))
