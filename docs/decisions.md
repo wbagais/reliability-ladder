@@ -3643,3 +3643,40 @@ real and it describes a set nobody named.
   **These add points and not diversity.** All three are geoparsing, so none can say whether a threshold holds outside geography. Recorded in the calibration file so five entries do not read as five independent regimes when they are three corpora of one kind.
 
   Two shape notes worth carrying. LGL and TR-News carry `<gaztag geonameid="...">` on every mention, so **the answer key supplies the identifier** and there is no resolution step to get wrong — unlike GeoWebNews, whose name-and-coordinates format forced `resolve_ids` to guess an id and pick a Brooklyn in South Africa. And the offset check earned itself again: **116 of TR-News's 1,275 spans do not land**, dropped and counted rather than silently mis-scored.
+- 2026-09-02 — **THE FREE CHECK'S YIELD IS SUBSTANTIALLY A PROPERTY OF WHICH NAMES YOU LET THE VOCABULARY SEE, AND THAT IS A CONFIGURATION CHOICE MADE ONCE WITHOUT MEASUREMENT.** LINNAEUS ported as a fifth corpus — 95 documents, 4,259 species mentions, **zero offsets that do not land**, cleaner than any of the other four — against NCBI Taxonomy built twice from the same `names.dmp`, differing only in which name classes are indexed.
+
+  Same corpus, same mentions, same check:
+
+  | vocabulary contains | identical | subset | partial | no shared token |
+  |---|---|---|---|---|
+  | **scientific names only** | 5.4% | 0.9% | 16.9% | **76.8%** |
+  | **plus common names and synonyms** | **35.4%** | 5.8% | 15.5% | **43.4%** |
+
+  **The identical stratum moves by 6.5×** and 33 points of records leave the bucket where the lexical check is structurally unable to fire — because the vocabulary was permitted to know that `mouse` is a name for *Mus musculus*. `preferred(10090)` is `Mus musculus` in both indexes; `terms(10090)` is `['Mus musculus']` in one and `['house mouse', 'mouse', 'Mus musculus']` in the other.
+
+  **THIS IS A CORRECTION TO A PUBLISHED FIGURE.** GeoWebNews's ACCEPT lane was measured at 39.8% against a GeoNames index built **main-name-only**, a choice recorded on 2026-09-01 as "MAIN NAME ONLY, not the alternate-names table … including them would lift the ACCEPT rate substantially and is a separate declared arm." That arm was never run. GeoNames' alternates hold precisely the demonyms and exonyms — `French`, `USA`, `Moskva` — that put 29.9% of GeoWebNews gold in the no-overlap stratum. **So the geo number was measuring our build decision as much as the corpus**, and the size of that effect is now known from a corpus where both arms were run: on the order of 30 points.
+
+  The cross-corpus comparison in the article therefore needs a qualification it does not have. *"The ACCEPT lane fires at 42% on CADEC, 0% on FiNER and 39.8% on GeoWebNews"* is four numbers taken under four unstated vocabulary configurations. FiNER's zero is safe — it is structural, a numeral shares no token with a phrase under any name list — but the other three are not comparable without saying which names each vocabulary was built with.
+
+  **The mechanism is a third kind, which is why this corpus was worth an afternoon where two more geoparsing corpora were not.** The no-overlap stratum has now been produced three different ways: demonyms and abbreviations in geography (`French` → Republic of France), a numeral against an English phrase in finance (`47.6` → EffectiveIncomeTaxRate…), and **vernacular against scientific nomenclature** here (`mice` → *Mus musculus*, `yeast` → *Saccharomyces cerevisiae*). The eight commonest surface forms in LINNAEUS are `patients`, `human`, `mice`, `mouse`, `patient`, `people`, `women`, `yeast` — every one a common noun.
+
+  It also supplies the first non-clinical vocabulary in the set where **rung 1's semantic check is not vacuous**: `is_finding` carries taxonomic RANK, 2.83M of 2.99M taxa being species-like, so a mention resolving to a kingdom is detectably not a species. On a gazetteer and a 139-tag set that check is true by construction.
+
+  **A bug worth recording rather than quietly fixing.** The first `stratify` compared the surface form against `preferred()` alone and returned **identical numbers for both indexes** — which is impossible, since they differ by 523,000 names, and was visible only because the two arms were run side by side. Rung 1's lexical check reads every term a code carries, so the stratum must too. A comparison whose two arms agree exactly is a comparison that is not running.
+
+- 2026-09-02 — **THE CALIBRATION SET IS NOW FIVE CORPORA AND FOUR VOCABULARY SHAPES, AND THE THREE GEO CORPORA DISAGREE WITH EACH OTHER.** LGL (588 articles, 4,462 mentions) and TR-News (118, 1,159) added from the GeoWebNews repository's own `data/Corpora/`, both GeoNames-linked, both readable by the index already built — `ladder/corpus_geoxml.py`, one adapter for the pair.
+
+  | corpus | vocabulary shape | identical | no shared token |
+  |---|---|---|---|
+  | CADEC | clinical ontology | ~42% | — |
+  | FiNER-139 | flat tag set | 0% | 100% (structural) |
+  | GeoWebNews | gazetteer | 40.5% | 29.9% |
+  | LGL | gazetteer | **72.9%** | 15.0% |
+  | TR-News | gazetteer | **78.2%** | 18.7% |
+  | LINNAEUS | rank taxonomy | 5.4% / 35.4% | 76.8% / 43.4% |
+
+  **GeoWebNews is the outlier among the three gazetteer corpora, and the mechanism is unchanged** — LGL's no-overlap cases are the same phenomena (`U.S.`, `Ky.`, `Conn.`, `Chinese`, `Egyptian`, `Minnesotans`). What differs is which name the annotators chose as canonical: GeoWebNews resolves `Britain` to `United Kingdom of Great Britain and Northern Ireland`, LGL resolves `Alexandria` to `Alexandria`. **A threshold tuned on GeoWebNews alone was tuned on the outlier of its own kind**, which is what a calibration set exists to catch.
+
+  Two shape notes. LGL and TR-News carry `<gaztag geonameid="…">` on every mention, so the answer key supplies the identifier and there is no resolution step to get wrong — unlike GeoWebNews, whose name-and-coordinates format forced a lookup that picked a Brooklyn in South Africa. And the offset check earned itself twice more: **116 of TR-News's 1,275 spans do not land**, dropped and counted rather than silently mis-scored.
+
+  The set still has one corpus each for three of the four shapes. Five entries are not five independent regimes and the calibration record says so.
