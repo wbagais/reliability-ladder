@@ -102,3 +102,10 @@ docs/wiki/site/
 # mkdir, so a clone without runs/ would crash the runner.
 runs/*
 !runs/.gitkeep
+# runs/archive/ is the EXCEPTION and is tracked: it holds the 29 outputs that
+# were committed before the rule existed plus the pre-rule ledger, restored
+# 2026-09-02. They are a historical record, not scratch — nothing writes here.
+# The negated directory must be un-ignored before its contents, or the contents
+# rule never gets evaluated.
+!runs/archive/
+!runs/archive/**
