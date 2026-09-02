@@ -55,6 +55,14 @@
       "claim_verb": "was filed",
       "claim_object": "identifier",
       "_claim_wording_note": "Without these the rung 4 judge prompt read 'claimed a specific reported financial fact WAS REPORTED, with a US-GAAP XBRL tag TAG NAME' \u2014 CADEC's claim_verb and a derived claim_object colliding with this corpus's own vocabulary noun. Declared rather than derived: only the corpus knows whether its facts are reported, filed or observed."
+    },
+    "r2_prompts": {
+      "vocabulary": "the US-GAAP XBRL tag set",
+      "source_ref": "the filing excerpt",
+      "source_head": "The excerpt",
+      "id_name": "tag",
+      "entity_short": "figure",
+      "_note": "Rung 2's prompt named SNOMED CT at every corpus and it had never mattered, because rung 2 never fired on FiNER \u2014 rung 1 rejected 1 record in 704. Rung 7 wakes it, which is when the wording starts being sent. Third instance of the same defect: r4's judge asked SEC filings about adverse reactions, r0 needed slot templating, now r2. A dead rung's prompt is never wrong, because it is never sent."
     }
   },
   "vocabulary": {
@@ -76,6 +84,7 @@
   "rung_order": [
     0,
     1,
+    7,
     2,
     3,
     4,
@@ -181,7 +190,7 @@
     }
   },
   "output": {
-    "dir": "out/finer"
+    "dir": "out/finer-typecheck"
   },
   "scorer": "ladder.score:reaction_sct_strict",
   "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align.",
@@ -200,5 +209,6 @@
     "manifest": "manifest.json at b7aba48 (Phase F: test split run once)",
     "_note": "Fill in the SHA from `git rev-parse --short HEAD` at the phase F merge before running. ladder/provenance.py records the SHA of the run itself; this records what it was frozen AGAINST. Both are needed: the ladder is under active development, and a comparison against a moving reference is not a comparison."
   },
-  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form."
+  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form.",
+  "_arm": "FiNER + rung 7 (type compatibility). ONE change from manifest.finer.json: rung_order gains 7, plus the r2 prompt slots that rung 7 makes reachable. DEV split \u2014 the test split is spent, so this is a development-side result and cannot move a shipped number, same status as the reranker and SapBERT arms."
 }

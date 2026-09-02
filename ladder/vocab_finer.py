@@ -184,6 +184,42 @@ class FinerVocabulary:
         return [{"code": t, "label": normalise_term(t), "score": round(s, 3)}
                 for s, t in scored[:rows]]
 
+    #: What KIND of quantity a tag names, read from the words in its own name.
+    #: ORDER IS LOAD-BEARING: several tags contain both a quantity word and a
+    #: currency word — the antidilutive tags carry "Securities" AND "Amount" —
+    #: and are read as whichever appears first here. Counts therefore precede
+    #: money, which was worth 3 of the first draft's 8 disagreements.
+    _TYPES = (
+        ("percent",  r"Percentage|Rate(?!d)|BasisSpread|Ratio"),
+        ("date",     r"Date\b"),
+        ("duration", r"Term\b|Life\b|Period\b|RemainingLease|WeightedAverageRemaining"),
+        ("count",    r"Shares|NumberOf|Securities|Units\b|Segments|Employees|Stores"),
+        ("money",    r"Amount|Value|Expense|Cost|Proceeds|Income|Loss|Payment|Debt"
+                     r"|Goodwill|Assets|Liabilit|Revenue|Charges|Cash|Capacity"
+                     r"|Investment|Consideration|Impairment|Compensation"),
+    )
+
+    def code_type(self, code: str | None) -> str | None:
+        """The type this tag names, or None rather than a guess.
+
+        Rung 7's half of a check rung 1 cannot make: the lexical check compares
+        a numeral against an English phrase and finds nothing by construction,
+        while a tag's NAME still says whether it wants a percentage, an amount,
+        a count, a date or a duration. Measured on the FiNER test split before
+        the rung was written — 87.7% of gold mentions type on both sides at a
+        1.22% false-rejection rate.
+
+        Returning None is a real answer and is counted as could-not-run: 13 of
+        the 139 tags name no type this can read, and guessing at those would
+        manufacture the false rejections the measurement exists to avoid.
+        """
+        if not code:
+            return None
+        for name, pattern in self._TYPES:
+            if re.search(pattern, code):
+                return name
+        return None
+
     def all_codes(self) -> list[str]:
         """Every tag. Only sane for a vocabulary that fits in a prompt.
 

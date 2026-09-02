@@ -190,6 +190,14 @@ RUNG_NAMES = {
     4: "LLM judge",
     5: "abstention",
     6: "human loop",
+    # Rung 7 (2026-09-02) is the first rung added since the renumber, and it
+    # found two hardcoded bounds in an extension point this module's own
+    # docstring calls automatic: --rungs defaults to "0-6", so a rung named in
+    # rung_order is silently dropped unless the flag is widened; and this dict
+    # raised KeyError AFTER apply() had run and the ledger row was written, so
+    # the work happened and only the console line failed. Both are cosmetic and
+    # both are the same shape.
+    7: "type check",
 }
 
 
@@ -331,7 +339,7 @@ def run_ladder(
         mod = load_rung(n)
         if mod is None:
             missing.append(n)
-            print(f"[run] rung {n} ({RUNG_NAMES[n]}) — not implemented, skipped")
+            print(f"[run] rung {n} ({RUNG_NAMES.get(n, f'rung {n}')}) — not implemented, skipped")
             continue
         cfg: dict[str, Any] = dict(man["rungs"].get(str(n), {}))
         # A rung disabled in the manifest is a RECORDED state, never a silent
@@ -417,7 +425,7 @@ def run_ladder(
         counts = verdicts if verdicts else Counter(r.zone for r in records)
         label = "judged  " if verdicts and not routed else "routed  "
         print(
-            f"[run] rung {n} ({RUNG_NAMES[n]:14s}) {dt:6.2f}s  {label}"
+            f"[run] rung {n} ({RUNG_NAMES.get(n, f'rung {n}'):14s}) {dt:6.2f}s  {label}"
             + "  ".join(f"{z}={c}" for z, c in sorted(counts.items()))
         )
     ledger.close()
