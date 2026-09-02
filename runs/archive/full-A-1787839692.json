@@ -1,0 +1,102 @@
+{
+  "provenance": {
+    "run_id": null,
+    "started_utc": "2026-08-27T14:08:12+00:00",
+    "entry_point": "scripts/full_run.py",
+    "rung_order": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "git": {
+      "sha": "83493ef",
+      "branch": "main",
+      "dirty": true,
+      "dirty_files": 5
+    },
+    "compute": {
+      "gpu": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+      "vram_total_mib": 4096,
+      "vram_used_mib": 2207,
+      "driver": "610.57.04",
+      "resident_models": [
+        "granite4:micro-h 076afb3855dc 2.1 GB 100% GPU 4096 29 minutes from now"
+      ],
+      "fits": null
+    },
+    "corpus": {
+      "root": "data/cadec/data/cadec",
+      "version": "CADEC v2 (corpus); DAP collection v3 (csiro:10948, 10.4225/08/570FB102BDAD2)",
+      "split": "dev",
+      "n_docs": 40,
+      "ladder_n": "0"
+    },
+    "sampling": {
+      "temperature": 0.0
+    },
+    "env": {
+      "ladder_otel": null,
+      "ollama_host": null
+    },
+    "vocabulary": {
+      "backend": "local-rf2",
+      "lossy": false,
+      "db_path": "ladder/cache/snomed.sqlite",
+      "release": null,
+      "index_stats": {
+        "release": "SnomedCT_Release_AU1000036_20260731",
+        "concepts": "721187",
+        "active_concepts": "555792",
+        "clinical_findings": "129675",
+        "descriptions": "1822645"
+      }
+    },
+    "models": {
+      "extractor": {
+        "requested": "ollama/gpt-oss:20b",
+        "resolved": "granite4:micro-h",
+        "matches": false
+      }
+    },
+    "mode": "A"
+  },
+  "mode": "A",
+  "compute_backend": "NVIDIA GeForce RTX 3050 Ti Laptop GPU",
+  "model": "granite4:micro-h",
+  "documents": 40,
+  "snomed_release": "SnomedCT_Release_AU1000036_20260731",
+  "corpus_version": "CADEC v2 (corpus); DAP collection v3 (csiro:10948, 10.4225/08/570FB102BDAD2)",
+  "rung0": {
+    "mentions": 192,
+    "tokens": 23995,
+    "latency_p95_s": 51.937
+  },
+  "gold": {
+    "reaction_golds": 244,
+    "predictions": 187,
+    "span_precision": 0.6203,
+    "span_recall": 0.4754,
+    "code_correct": 0,
+    "code_graded": 110
+  },
+  "rung3": {
+    "attempted": 119,
+    "rescued": 0,
+    "still_failing": 0,
+    "reasserted": 0,
+    "unchanged": 73,
+    "declined": 119,
+    "parse_failed": 0,
+    "tokens_in": 35497,
+    "tokens_out": 4460,
+    "seconds": 705.09
+  },
+  "code_after_r3": {
+    "correct": 0,
+    "graded": 110
+  }
+}

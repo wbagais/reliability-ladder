@@ -56,12 +56,11 @@
   },
   "model": {
     "extractor": "ollama/gpt-oss:20b",
-    "judge": "ollama/granite4:micro-h",
+    "judge": "ollama/ibm/granite4:micro-h",
     "temperature": 0,
     "temperature_note": "Declared 2026-08-31 so this corpus has the same one answer to \"which temperature produced this number\" that manifest.json now has. manifest.model.temperature became load-bearing that day (ladder/llm.py:temperature_for); undeclared, this ran on llm.GREEDY_TEMPERATURE, which is the same 0.0 and NOT the same fact. Zero changes no FiNER number: every run in out/finer/ was produced at an effective 0.0.",
     "_frozen": "Identical to manifest.json at phase F. NOT tuned for this corpus, deliberately. A model tuned per corpus would make the two arms incomparable, and the prompts were tuned on CADEC's dev split over five phases \u2014 so FiNER runs with prompts fitted to a different domain. State that as a limitation; do not fix it by tuning, which would forfeit the comparison.",
-    "_judge_name_note": "The ollama name carries the ibm/ namespace. Without it this said 'ollama/granite4:micro-h', which does not exist, and the first full FiNER run died at rung 4 after 133 minutes of rung 0 and rung 3 compute. The CADEC manifest always had the right name, so only a second corpus could surface it. llm.check_models now validates every model the run needs before rung 0 starts.",
-    "_judge_note": "The prefixed name 'ollama/ibm/granite4:micro-h' arrived from manifest.finer.json and ollama does not have it. Caught by the model-availability guard in a 3-document smoke run before any rented GPU time \u2014 the same defect burned 133 minutes on FiNER by failing lazily at the rung that needed it."
+    "_judge_name_note": "The ollama name carries the ibm/ namespace. Without it this said 'ollama/granite4:micro-h', which does not exist, and the first full FiNER run died at rung 4 after 133 minutes of rung 0 and rung 3 compute. The CADEC manifest always had the right name, so only a second corpus could surface it. llm.check_models now validates every model the run needs before rung 0 starts."
   },
   "rung_order": [
     0,
