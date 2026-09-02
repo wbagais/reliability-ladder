@@ -3518,3 +3518,36 @@ real and it describes a set nobody named.
   What that looks like: `preflight` reports per-layer preconditions from a dev split; `watch` attaches to a running job and halts only on the left column above; `report` reads a finished ledger and prices each layer in tokens, latency and human referrals, never fused. The shared core is a ledger row that carries a **denominator** and a **three-valued evaluable** — the two fields no LLM tracing tool models, which is the argument the architecture page already makes.
 
   **The honest risk, recorded now:** this is infrastructure, and infrastructure without adoption is a repository nobody stars. Its credibility rests on the article, and the article is not published. Build order therefore follows evidence rather than ambition — preflight first, because it already has three corpora behind it and has caught a real bug before a GPU was booked.
+- 2026-09-02 — **THE SAME FREE CHECK IS CLEAN ON ONE SPLIT AND BROKEN ON THE OTHER, AND NOTHING IN THE TOOLING SAID SO.** Rung 7's type relation, measured against gold on FiNER, on the same model output, differing only in which split:
+
+  | | contradictions | with gold to check | FALSE rejections |
+  |---|---|---|---|
+  | **test** (60 docs, one draw) | 30 | 11 | **0 — 0.0%** |
+  | **dev** (40 docs, arm draw 0) | 44 | 14 | **5 — 35.7%** |
+
+  The dev figure reproduces the pooled three-draw number exactly, so the arm's rejection of rung 7 stands. But a report built on the test split alone would have said the relation was flawless, and one built on dev alone would have said it was unusable, and **both would have been stated as facts about the relation rather than about the split.**
+
+  This is the **second** instance in three days: GeoWebNews's ACCEPT lane measured 39.8% on dev and 46.2% on test, a 6.4-point spread inside one corpus. Twice now the same quantity has moved materially between halves of the same data.
+
+  **The rule this forces:** a check's verdict is not a property of the check. It is a property of *(check, corpus, split, gold-or-model)*, and a tool that reports the number without the tuple is manufacturing false confidence. `ladder/relations.py` currently does exactly that — it reports whichever split it was pointed at, with nothing indicating the other disagrees. That is the failure the tool exists to prevent, committed by the tool.
+
+  Fixing it is the specification for the calibration record: **the registry must refuse to state a verdict without naming its denominator**, and where both splits have been measured it must report the pair rather than a mean. A mean over two numbers that disagree by 35 points is not a summary, it is a way of hiding a disagreement.
+
+- 2026-09-02 — **A RELATION CAN BE INVISIBLE ON GOLD AND USEFUL ON MODEL OUTPUT, WHICH IS THE INVERSE OF THE TRAP THAT KILLED RUNG 7.** `ladder/relations.py` measures every relation on both, and the two views disagree in *both directions*:
+
+  | relation | on GOLD | on MODEL OUTPUT |
+  |---|---|---|
+  | `exists` | **silent** — gold codes always exist | **17 contradictions, 0% false** |
+  | `type` | 1.22% false (test) / broken (dev) | 0% false (test) / 35.7% (dev) |
+  | `lexical` | 0.0% coverage — structural zero | 0.0% coverage |
+  | `semantic` | endorses everything | **vacuous** — no discriminating power |
+
+  Rung 7 failed because it was tuned on gold and validated on gold, and gold spans sit where annotators put them while model spans drift. `exists` is the mirror image: it cannot fire on a perfect answer set *by construction*, because a gold code exists by definition, so a gold-only assessment would have discarded a relation that catches 17 real errors.
+
+  **Neither view is the validation. A relation is not assessed until both are known**, and the registry now reports them as separate runs rather than one number.
+
+- 2026-09-02 — **THE RELATION REGISTRY: THE PREFLIGHT NOW SAYS WHAT TO BUILD, NOT WHAT IS BROKEN.** `ladder/relations.py` makes a deterministic relation a first-class object rather than a hardcoded check, and reports which have signal on *this* data. The output's grammar changes from a diagnosis to a recommendation — before: *"the ACCEPT lane cannot fire here"*; after: *"lexical: no signal, the span is a numeral and the code is a phrase. type: 27% coverage, 30 contradictions, 0% false. Build that one."* Same measurements, and nobody's work is being called broken.
+
+  **It found three bugs in itself on the first run, and each is worth keeping.** (1) The verdict scale treated "endorses only" as failure and therefore reported that **CADEC had no usable signal** — the tool contradicting the study that produced it. Relations come in two kinds: an ENDORSING relation can only vouch (lexical overlap: a patient writing "bit drowsy" for |Drowsy| is not proof of wrongness), a REJECTING one can prove wrongness. One scale cannot judge both. (2) `semantic` rejected 41 correctly-coded DRUG mentions on CADEC, 100% false, because a drug is not a clinical finding and the relation was judging entities it has no business judging. (3) `unique` was implemented as a per-record contradiction when its own docstring says it is a property of the VOCABULARY — it rejected 126 correct records on gold before that was noticed.
+
+  A fourth state was added after the first fix: **`vacuous`** — a relation that agrees with everything and contradicts nothing has no discriminating power, and calling that "endorsing" is the ACCEPT-lane-on-a-gazetteer failure in a new place. `semantic` on FiNER is vacuous at 100% coverage and is now excluded from the recommendation.
