@@ -438,6 +438,22 @@ def report(results: list[Result], on: str = "gold") -> str:
         if r.examples:
             s, c = r.examples[0]
             lines.append(f"  {'':<{w}}  e.g. it rejects {s!r} against {str(c)[:40]} — and that was RIGHT")
+    # Every verdict prints its own track record. A check with two misses on
+    # file and a check never tested against an outcome must not look the same,
+    # and before this they did.
+    try:
+        from ladder.calibration import caveat
+    except Exception:
+        caveat = None
+    if caveat:
+        lines.append("")
+        for r in rows:
+            if r.verdict() in ("n/a", "no signal"):
+                continue
+            c = caveat(r.name)
+            if c:
+                lines.append(f"  {r.name:<{w}}  {c}")
+
     usable = [r for r in rows if r.verdict() in ("rejects", "endorses")]
     lines.append("")
     if usable:
