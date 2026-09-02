@@ -230,13 +230,35 @@ def _verdict(rec: Record) -> tuple[str | None, str | None]:
     return v, rec.checks.get("r1_reason")
 
 
+
+_WORDS = {"high": 0.9, "medium": 0.6, "moderate": 0.6, "low": 0.3, "none": 0.0}
+
+
+def _confidence(v) -> float:
+    """A float, whatever the model returned. Never raises."""
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        try:
+            return float(v.strip())
+        except ValueError:
+            return _WORDS.get(v.strip().lower(), 0.0)
+    return 0.0
+
+
 def build_fact(rec: Record, reason: str, n_source: int = 0) -> str | None:
     tpl = FACTS.get(reason)
     if tpl is None:
         return None
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
+    # Rung 7's fact names both types, and rung 7 wrote them onto the record.
+    # Passed here rather than recomputed: a fact derived twice can disagree
+    # with the verdict that produced it, and then the prompt states something
+    # the check did not conclude.
     return tpl.format(sct=rec.sct, text=rec.text, start=s, end=e,
-                      n_source=n_source)
+                      n_source=n_source,
+                      span_type=rec.checks.get("r7_span_type", "value"),
+                      code_type=rec.checks.get("r7_code_type", "value"))
 
 
 def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Record | None, dict]:
@@ -277,7 +299,12 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
         text=m.get("span_text", rec.text),
         spans=[(start, end)] if isinstance(start, int) and isinstance(end, int) else [],
         sct=(str(m["code"]) if m.get("code") is not None else None),
-        confidence=float(m.get("confidence", 0) or 0),
+        # A model that answers "high" or "low" instead of 0.8 is not a parse
+        # failure: the span and the code are still usable, and the confidence
+        # field is measured elsewhere to be a dead dial anyway (rung 0 emits
+        # {1.0, 0.99} and nothing else). This crashed the first time rung 2
+        # ever ran on a second corpus — never wrong before, because never run.
+        confidence=_confidence(m.get("confidence")),
     )
     return cand, meta
 
