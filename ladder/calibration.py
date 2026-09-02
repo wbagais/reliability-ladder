@@ -168,7 +168,25 @@ def caveat(check: str) -> str:
     if not misses:
         return s
     worst = misses[0]
-    return f"{s}  ·  MISSED on {worst.scope['corpus']}: {worst.what_happened[:88]}"
+    # Not truncated. A caveat cut mid-sentence is read as a footnote; the whole
+    # point is that it is not one.
+    return f"{s}  ·  MISSED on {worst.scope['corpus']}"
+
+
+def missed_on(check: str, corpus: str) -> Prediction | None:
+    """Has this check been wrong ON THIS CORPUS?
+
+    The distinction the first version could not make. `lexical` has two right
+    predictions and one partly-right, and printing that summary next to
+    "build on lexical" on GEOWEBNEWS — the corpus it was wrong about — is a
+    tool contradicting itself inside one report.
+    """
+    check = ALIASES.get(check, check)
+    for p in PREDICTIONS:
+        if p.check == check and p.scope.get("corpus") == corpus \
+                and p.outcome in ("wrong", "partly"):
+            return p
+    return None
 
 
 def report() -> str:

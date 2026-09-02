@@ -414,7 +414,7 @@ def _context(rec, sources) -> tuple[str, str]:
     return doc[max(0, i - 40):i], doc[j:j + 40]
 
 
-def report(results: list[Result], on: str = "gold") -> str:
+def report(results: list[Result], on: str = "gold", corpus: str = "") -> str:
     """The recommendation, not the diagnosis.
 
     Ordered so the usable relations come FIRST. A tool whose output opens with
@@ -442,9 +442,9 @@ def report(results: list[Result], on: str = "gold") -> str:
     # file and a check never tested against an outcome must not look the same,
     # and before this they did.
     try:
-        from ladder.calibration import caveat
+        from ladder.calibration import caveat, missed_on as missed
     except Exception:
-        caveat = None
+        caveat = missed = None
     if caveat:
         lines.append("")
         for r in rows:
@@ -454,11 +454,27 @@ def report(results: list[Result], on: str = "gold") -> str:
             if c:
                 lines.append(f"  {r.name:<{w}}  {c}")
 
-    usable = [r for r in rows if r.verdict() in ("rejects", "endorses")]
+    # A check this tool has been WRONG about on THIS corpus does not go in the
+    # build list unqualified. Before this the report could recommend `lexical`
+    # on GeoWebNews and, four lines below, print that `lexical` misled us on
+    # GeoWebNews — a tool contradicting itself inside one page.
+    usable, caution = [], []
+    for r in rows:
+        if r.verdict() not in ("rejects", "endorses"):
+            continue
+        miss = missed(r.name, corpus) if missed and corpus else None
+        (caution if miss else usable).append((r, miss))
     lines.append("")
     if usable:
-        lines.append(f"  → build on {', '.join(r.name for r in usable)}.")
-    else:
+        lines.append(f"  → build on {', '.join(r.name for r, _ in usable)}.")
+    for r, miss in caution:
+        lines.append(f"  → {r.name} has signal here, but this tool was WRONG about it")
+        lines.append(f"    on {corpus} before: {miss.what_happened}")
+        lines.append("    Measure it against the lane it is meant to beat before trusting it.")
+    if not usable and not caution:
+        # Only when NOTHING has signal, not merely when nothing is unqualified.
+        # Printing "build on X" and "nothing has signal" in one report is the
+        # kind of self-contradiction this tool exists to catch elsewhere.
         lines.append("  → no relation on this list has usable signal here. That is a real")
         lines.append("    answer: the free check has nothing to work with, and a paid layer")
         lines.append("    built on top of it will inherit that.")

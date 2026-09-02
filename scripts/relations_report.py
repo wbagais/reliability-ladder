@@ -108,13 +108,13 @@ def main() -> int:
 
         print(f"\n  {name} · {len(rows)} MODEL records · {files[0].split('/')[-1]}")
         res = R.measure(rows, sources, vocab, is_correct=is_correct)
-        print(R.report(res, on="model output"))
+        print(R.report(res, on="model output", corpus=name))
     else:
         print(f"\n  {name} · {len(gold)} GOLD mentions · split {a.split}")
         # On gold every record is correct by definition, so every contradiction
         # is false. That is the whole trick and it costs nothing.
         res = R.measure(gold, sources, vocab, is_correct=lambda _: True)
-        print(R.report(res, on="gold"))
+        print(R.report(res, on="gold", corpus=name))
     print()
     return 0
 
