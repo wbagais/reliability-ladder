@@ -3622,3 +3622,24 @@ real and it describes a set nobody named.
   Add the two found on 2026-08-29 and 08-30 — rung 4's judge asking SEC filings about adverse reactions, rung 0's six prompt constants needing slot templating — and the pattern is not a coincidence. **A dead rung's prompt is never wrong, because it is never sent. A dead rung's parser is never wrong, because nothing reaches it.** Every one of these passed its own tests, and the tests passed because they exercised the CADEC path that works.
 
   Two consequences worth carrying. The audit that found four rungs measured dead was reading their OUTPUT; this is the same rungs read as CODE, and it finds different things. And **`--rungs` defaults to `0-6` while `run.py`'s docstring says a rung registers itself by existing** — a rung named in `rung_order` is silently dropped unless the flag is widened, with nothing reporting the disagreement between manifest and flag. Fixed by making `RUNG_NAMES` lookups tolerant; the `--rungs` default is left alone deliberately, since widening it would change what every existing command does.
+- 2026-09-02 — **THE OVERLAP DISTRIBUTION MEASURES THE ANSWER KEY'S NAMING POLICY AS MUCH AS THE LANGUAGE, AND GEOWEBNEWS IS THE OUTLIER.** Two further geoparsing corpora ported — **LGL** (588 articles, 4,462 gold mentions) and **TR-News** (118 articles, 1,159) — both shipping inside the GeoWebNews repository, both GeoNames-linked, both readable by the index already built. `ladder/corpus_geoxml.py`, one adapter for the pair.
+
+  The lexical-overlap stratum, computed from gold alone:
+
+  | | identical | subset | partial | no shared token |
+  |---|---|---|---|---|
+  | GeoWebNews | **40.5%** | 24.8% | 4.9% | **29.9%** |
+  | LGL | **72.9%** | 10.4% | 1.7% | 15.0% |
+  | TR-News | **78.2%** | 1.7% | 1.4% | 18.7% |
+
+  **The identical stratum is roughly twice as large on the other two, and the mechanism is unchanged.** LGL's no-overlap cases are the same four phenomena GeoWebNews's are — abbreviations (`U.S.`, `Ky.`, `Conn.`, `D.C.`), demonyms (`Chinese`, `Egyptian`, `Sudanese`, `Minnesotans`), exonyms, metonymy. Nothing about the language differs.
+
+  What differs is **which name the annotators chose as canonical.** GeoWebNews resolves `Britain` to `United Kingdom of Great Britain and Northern Ireland` and `Congress` to `United States Capitol`; LGL resolves `Alexandria` to `Alexandria`. Same surface form, same place, different canonical name, different stratum — and therefore a different measured overlap rate for reasons that have nothing to do with whether a free check can work.
+
+  **This qualifies the geo arm's central finding without overturning it.** The gradient — correctness falling monotonically with lexical overlap, 0.30 → 0.07 across three models — is still the mechanism. But the *proportion* of records in each stratum is partly an artefact of the answer key's naming policy, so **a rate like "39.8% of gold reaches ACCEPT" is a fact about a corpus AND its annotation convention**, not about the domain. Quoting it as a property of geography would be wrong.
+
+  It also means a threshold tuned on GeoWebNews alone was tuned on the **outlier** of the three, which is exactly what a calibration set exists to catch and exactly why it was worth half an hour.
+
+  **These add points and not diversity.** All three are geoparsing, so none can say whether a threshold holds outside geography. Recorded in the calibration file so five entries do not read as five independent regimes when they are three corpora of one kind.
+
+  Two shape notes worth carrying. LGL and TR-News carry `<gaztag geonameid="...">` on every mention, so **the answer key supplies the identifier** and there is no resolution step to get wrong — unlike GeoWebNews, whose name-and-coordinates format forced `resolve_ids` to guess an id and pick a Brooklyn in South Africa. And the offset check earned itself again: **116 of TR-News's 1,275 spans do not land**, dropped and counted rather than silently mis-scored.
