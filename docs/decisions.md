@@ -3483,7 +3483,7 @@ real and it describes a set nobody named.
   |---|---|---|
   | mentions it can speak about | **0%** | **87.7%** (164 of 187) |
   | false-rejection rate on gold | — | **1.22%** (2 of 164) |
-  | menu after the check | 139 tags | percent **17** · count **15** · duration **8** · date **1** |
+  | menu after the check | 139 tags | percent **21** · count **16** · duration **8** · date **1** |
 
   1.22% is comparable to rung 1's 0.13% on CADEC and was reached the same way the CADEC figure was — **by measuring against gold first and fixing the rules, not the data.** The first draft rejected **8.54%** of a perfect answer set; three rule corrections took it to 1.22%: `Rate\b` failed to match `RateContinuing`; "per share" is a UNIT so `$ 90.07 per share` is a price and not a count; and a currency symbol immediately before a span outranks a quantity word after it, so `$ 6.1 billion in share repurchases` is money. The two remaining disagreements are genuine annotation quirks — `PublicUtilitiesRequestedRateIncreaseDecrease` carries `$ 1.1 million` — and cannot be tightened away.
 
