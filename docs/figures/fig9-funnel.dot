@@ -1,0 +1,69 @@
+// Where rung 0's answers go, CADEC dev, draw 0.
+//
+// THE INPUT IS 40 POSTS. Everything else is either something the system
+// produced or something the answer key says. Gold is NOT an input — it is the
+// key the output is compared against afterwards, drawn dashed for that reason.
+//
+// THREE OUTCOMES, NOT FOUR. A true negative would be a span correctly not
+// extracted, and the negative class is every possible span in every post —
+// unbounded, so uncountable. Hence precision/recall/F1, none of which use TN.
+// FiNER is the exception: its candidates are the numeric tokens, which ARE
+// enumerable, so "correctly tagged nothing" is measurable there.
+//
+// 232 records are emitted; 13 sit on mentions excluded from scoring and are
+// neither credited nor blamed; 219 are scored. Counts are score_run's.
+//
+// COLOUR KEY — the article's, unchanged:
+//   teal  #0c6469  a model runs here     green #2d6a4f  correct
+//   red   #a33333  wrong or lost         grey  #5a6b73  a stage, no verdict
+digraph funnel {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  input [label="INPUT\n40 forum posts" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+  find  [label="MODEL CALL 1 · find\n+ trim, split and the drop filters" fillcolor="#e3eeef" color="#0c6469"];
+  out1  [label="OUTPUT · 232 spans\n219 of them scored\n(13 sit on excluded mentions)" fillcolor="#f4fafa" color="#0c6469"];
+
+  key   [label="ANSWER KEY\n226 gold mentions" fillcolor="#ffffff" color="#8a9aa1"
+         style="dashed,rounded" fontsize=12];
+  cmp   [label="compare spans" fillcolor="#eef1f2" shape=box];
+
+  found [label="MATCHED\nsame span in both\n126" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  fp1   [label="FALSE POSITIVE\nspan matches no gold · 93" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  fn1   [label="FALSE NEGATIVE\ngold never proposed · 100" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+
+  ret    [label="RETRIEVE · no model\n20 nearest concepts" fillcolor="#eef1f2"];
+  onmenu [label="right code on the menu\n114" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  fn2    [label="FALSE NEGATIVE\nright code absent · 12" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+
+  pick   [label="MODEL CALL 2 · pick\nchoose a line number" fillcolor="#e3eeef" color="#0c6469"];
+  tp     [label="TRUE POSITIVE\nright span, right code\n92" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5 fontsize=13];
+  fp2    [label="FALSE POSITIVE\nright span, wrong code · 22" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+
+  input -> find -> out1;
+  out1 -> cmp [label="  219"];
+  key  -> cmp [label="  226  " style=dashed color="#8a9aa1"];
+  cmp -> found; cmp -> fp1; cmp -> fn1;
+  found -> ret [label="  126"];
+  ret -> onmenu; ret -> fn2;
+  onmenu -> pick [label="  114"];
+  pick -> tp; pick -> fp2;
+
+  { rank=same; out1; key }
+  { rank=same; fn1; found; fp1 }
+  { rank=same; onmenu; fn2 }
+  { rank=same; tp; fp2 }
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The two counts overlap; they do not sum.</B> The 126 matched spans are one gold mention AND one prediction:</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">219 scored = 126 matched + 93 that hit no gold. &#160; 226 gold = 126 matched + 100 never proposed.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f"><B>TP 92</B></FONT><FONT POINT-SIZE="11" COLOR="#5a6b73">  ·  </FONT><FONT POINT-SIZE="11" COLOR="#a33333"><B>FP 127</B> = 93 wrong span + 22 wrong code + 12 unreachable  ·  <B>FN 134</B> = 100 + 22 + 12</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">precision 92/219 = 0.420   ·   recall 92/226 = 0.407   ·   F1 0.413</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>There is no true negative</B> — the negative class is every possible span in every post.</FONT></TD></TR>
+        </TABLE>>];
+  fp2 -> note [style=invis];
+}

@@ -90,9 +90,60 @@ article-v3 has three fewer `[PENDING]`s.
      tests** — the granite control reproduces the recorded baseline to every
      decimal, which is what makes any second row readable.
 
+3. **B5 · The FiNER pick call cannot see the sentence, and the sentence is the
+   whole answer.** FOUND 2026-09-01 while writing §1; not yet measured. This is
+   a defect in our harness, not a limit of the task, and it is the same class as
+   the unported judge prompt §6 already reports.
+   - **The evidence, all from the code as it stands.** `r0._blocks` renders one
+     pick block as `reaction {idx}: "{rec.text}"` plus the numbered menu, and
+     **nothing else**. `context` is collected by the find call and used only by
+     `locate()` and by the rejected `menu_order: "context"` arm — it never
+     reaches the pick prompt. So the FiNER pick call sees:
+
+         reaction 0: "47.6"
+              [0] AccrualForEnvironmentalLossContingencies
+              ... 139 lines ...
+
+     while its own `pick_guidance` says *"The number itself carries no
+     information. The sentence around it decides."* **The prompt states that the
+     sentence decides, and the sentence is not in the prompt.** The manifest's
+     own `_shape_differences_from_cadec` says the same thing: *"Tagged tokens
+     are numeric and meaningless in isolation."*
+   - **Why CADEC hid it.** There the span carries its own meaning — `"bit
+     drowsy"` is most of what you need to pick |Drowsy| — so a context-free
+     pick works well enough that nobody looked. FiNER is the corpus where the
+     defect is visible, which is the second corpus doing its job.
+   - **It predicts the slot-0 attractor rather than competing with it.** A pick
+     with no information to act on takes line one; measured, line one is 19.5%
+     of all predictions. It also explains why the context menu-order arm lifted
+     slot-0 accuracy 0.087 → 0.373 — that arm was smuggling context in through
+     the ranking, the only channel it had — while still losing overall.
+   - **Second defect, same root, found the same way: `_blocks` hardcodes the
+     word `reaction`.** It is not slotted. The FiNER pick prompt says *"Each
+     fact has a number after the word 'fact'"* and the data says `reaction 0:`.
+     CADEC is unaffected because its `entity_short` IS "reaction". Fix this
+     first — it is a one-line slot and needs no arm.
+   - **The arm.** Add the span's sentence (or the `context` window already
+     collected) to each pick block, behind a declared manifest key, off by
+     default, one-key diff pinned by a test. TDD first. Three draws on FiNER,
+     detection and coding reported separately — detection should not move at
+     all, and if it does, the arm is doing something it should not.
+   - **State the confound rather than dodging it.** `r0.py` freezes the prompt
+     SHAPE on purpose: *"a corpus needing those changed would be a different
+     experiment rather than a second data point."* Giving FiNER context that
+     CADEC does not have breaks that comparability. So run the arm on BOTH
+     corpora, or report FiNER's improved number as a separate result and keep
+     the ported-shape number as the comparable one. Do not quietly replace it.
+   - **What it does to the article if it works.** §6's "the corpus where none of
+     it works" survives — the ACCEPT lane is zero for a reason no prompt fixes,
+     because a number shares no token with a tag name. But §6's coding numbers
+     and the slot-0 attractor would need re-reporting against a pick that can
+     actually see the evidence, and §9's "menu order is load-bearing" reads
+     differently once the alternative signal is present.
+
 **Done when:** both arms are measured at three draws, the article's recall
 numbers are re-derived, and §9's claim is either confirmed or rewritten.
-**B2 is done; B1 is what remains of this session.**
+**B2 is done; B1 and B5 are what remain of this session.**
 
 ---
 
@@ -131,6 +182,251 @@ mitigation measured rather than proposed.
    F1**. It is the most *on-thesis* item in this file: rung 5's `tau` is a dead
    dial because rung 0's confidence is a constant `{1.0: 204, 0.99: 44}`, so the
    abstention decision currently has no calibrated input at all.
+
+---
+
+## Required before the article ships
+
+Everything here either blocks a claim the draft makes or removes a caveat it
+carries. Items 1, 3, 5 and 6 need runs; 2, 4, 7, 8 and 9 do not. Item 3 is the only one
+that goes beyond unblocking — it makes the model findings two-corpus instead of
+one, and the article is shippable without it, with its CADEC-only caveats
+intact.
+
+0. **THE CONSOLIDATED RE-RUN — one config, one metric, one cache state, one
+   record. Do this FIRST; it subsumes items 1 and 3 and makes 4 unnecessary.**
+   Every number in the article was produced across roughly two weeks, in
+   worktrees most of which no longer exist, under at least three different F1
+   denominators. Nothing published is known to be wrong — but the figures cannot
+   all be reproduced from one place, and reviewing §2 alone turned up a mean
+   sitting in a per-draw column, a clustering bug, a "warm cache" that was not
+   one, and a between-batch drift that was a metric mismatch. That rate of defect
+   per section is the argument for the re-run.
+   - **Scope: DEVELOPMENT SPLIT ONLY.** Three cold draws of the full ladder and
+     of rung 0 alone, on CADEC dev and FiNER dev, from the tracked manifests with
+     no override.
+   - **THE HELD-OUT SPLIT IS NOT IN SCOPE AND MUST NOT BE TOUCHED.** Phase F was
+     run once, on 2026-08-26, and `CLAUDE.md` is explicit: *nothing is re-run
+     after Phase F.* The test numbers (F1 0.204 [0.150-0.260], 242 of 314 to a
+     person) stay exactly as published. Re-running test would not refresh the
+     headline, it would destroy the only honest held-out measurement this project
+     has. If a dev number moves, report dev moving and leave the test box alone.
+   - **Fix the metric first, then run.** Decide which F1 the article reports
+     (currently `score_run` span-exact with exclusions), and make `results.csv`
+     agree with it or label its column differently. Running before that fix
+     produces a fourth set of numbers rather than a canonical one.
+   - **Record per draw, in `docs/decisions.md` and not only in run files**: spans
+     proposed, detection exact/overlap, coding exact/overlap, F1 exact/overlap,
+     sha256, the three-way consensus categories, and the post-exclusion gold
+     count for each split. Those are the fields this review needed and could not
+     find.
+   - **Then re-derive every figure in the article from that one run set**, and
+     mark anything that cannot be — the article should not carry a number whose
+     provenance is a deleted worktree.
+   - **Also produces the FiNER stage-by-stage tree**, which article §2 carries a
+     PENDING for. CADEC's version traces all 226 gold mentions through find →
+     retrieve → pick and shows detection losing 100, retrieval 12 and the pick
+     21; FiNER's cannot be drawn because `data/finer` is in no checkout, so its
+     records cannot be re-scored against gold. Record the same three splits, and
+     expect the shape to INVERT — FiNER's whole vocabulary is in the prompt, so
+     retrieval loses nothing by construction and the loss should move into the
+     pick. That inversion is the article's sharpest argument for reporting
+     detection and coding separately, and it is currently asserted rather than
+     shown.
+   - Optional and separable: the five-model sweep (item 3b) on the same footing.
+
+1. **B6 · Three draws of rung 0 on CADEC dev, recording detection AND coding
+   per draw.** REQUIRES A RUN, and it is a cheap one — rung 0 only, 40 dev
+   documents, `sample_index` 0/1/2, the tracked manifest with no override.
+   - **Why it blocks a claim.** §2 argues that detection and coding move
+     independently run to run. The evidence for it is two data points:
+     `docs/decisions.md` (2026-08-28) recorded detection per draw (235 / 235 /
+     225 spans, det 0.516 / 0.516 / 0.537) but F1 only as a RANGE and coding
+     not at all. So the section's central claim is an inference on the corpus
+     we ran properly, while the corpus with a complete per-draw record is
+     FiNER, which we ran once. The draft says so; it should not have to.
+   - **Also fixes a sourcing defect already corrected in the prose.** The §2
+     table used to print `0.395 | 0.408 | 0.401` per draw. The record contains
+     only the range and the mean, and 0.401 IS the mean — it was sitting in
+     draw 2's column as though it were a measurement. Now stated as a range;
+     the run is what makes a per-draw table honest again.
+   - **Record all four levels per draw**: spans proposed, detection (exact and
+     overlap), coding on matched spans, end-to-end F1. Level 2 (retrieval) is
+     deterministic and needs no column — note that rather than measuring it.
+   - `out/` is gitignored and the previous artifacts were deleted, so write the
+     per-draw figures into `docs/decisions.md` this time, not just the run
+     files. That is the whole lesson of the deleted worktrees.
+
+2. **The five-model per-level table — NO RUN NEEDED, the data already exists.**
+   `docs/decisions.md` (2026-08-30, the five-model table) already carries
+   detection-overlap and coding-overlap per model, and four of the five are
+   bit-reproducible at `±0.000`, so their three draws ARE one measurement. The
+   article has never printed the decomposition, and it carries the sharpest
+   model finding in the project: **`qwen3:8b` is second-best at coding (0.556,
+   ahead of llama and mistral) and last overall, because it proposes 57 spans
+   against gpt-oss's 232.** A single F1 ranks it below two models it beats at
+   the half everyone assumes is hard. Placeholder is in §2 of
+   `docs/article-v3.md`. Only gpt-oss's row needs B6 to complete.
+
+3. **FiNER, five models, three cold draws each — the second-corpus twin of the
+   CADEC model table.** REQUIRES RUNS, and this is the largest item here. It
+   covers two things at once, which is why they are one entry: they need the
+   same 15 runs.
+   - **(a) FiNER's agreement figures on the run set the article reports.** §2 now
+     gives FiNER consensus (306/306, 100%) from `arm-finerbase-d{0,1,2}`, which
+     the 2026-09-01 correction confirmed are three genuine cold runs, not cache
+     replays — the ledger shows 40 real calls per draw at ~56 s median. But that
+     is a DIFFERENT configuration from the one behind the article's 0.193 /
+     0.205 / 0.205, whose artifacts were deleted. So the article currently
+     reports two FiNER run sets that disagree about whether this model is
+     reproducible, and cannot put consensus figures on the second. Three cold
+     draws of the reported configuration closes it.
+   - **(b) The five-model table, on FiNER.** Every cross-model claim in the
+     article is CADEC-only and says so. Three of them are worth testing on a
+     second corpus: **is bit-reproducibility a property of the model or of the
+     model-plus-corpus?** (four of five were bit-identical on CADEC; nothing
+     establishes that it transfers); **does the detection-versus-coding
+     decomposition reorder the models the same way?**; and **is the slot-0
+     attractor model-specific?** — currently measured on `gpt-oss` alone, and if
+     all five families take menu line one it is a general position prior rather
+     than one model's quirk, which changes what section 6 is entitled to claim.
+   - **What the table will NOT show, and do not build it expecting to.** The
+     ACCEPT lane is **0 for every model on FiNER** by construction — a number
+     shares no token with a tag name — so this is not a second ACCEPT/BAND table.
+     The columns are spans proposed, detection, coding, agreement, and slot-0
+     share.
+   - **COLD CACHE, and verify it.** Check the ledger, not the records file:
+     nothing in the output announces a replay. A run whose completions were all
+     served from cache is one measurement wearing three hats.
+   - **COST WARNING, and it may force a documented exclusion.** `qwen3:8b` costs
+     ~2 h per draw on CADEC and was already excluded from the FiNER refusal probe
+     after holding the GPU 45 minutes **on a single document** without returning.
+     Three FiNER draws of it may be infeasible. If so, exclude it and say so in
+     the table, the way the refusal probe did — an exclusion stated is a result;
+     an exclusion hidden is a hole.
+   - **Record per model per draw**: spans proposed, detection (exact and
+     overlap), coding on matched spans, F1, sha256, wall clock, pairwise span
+     Jaccard, and the same-code rate on shared spans. Write them into
+     `docs/decisions.md`, not only the run files.
+
+4. **NAME THE METRIC BESIDE EVERY F1 — there are at least three in this repo and
+   they disagree by 2-3 points.** NO RUN NEEDED; this is a labelling fix, and it
+   dissolves an apparent contradiction rather than explaining one. Measured on
+   `arm-sapbase-d{0,1,2}` (CADEC, one configuration, three draws):
+
+   | | draw 0 | draw 1 | draw 2 |
+   |---|---|---|---|
+   | `score_run`, exclusions applied | 0.413 | 0.434 | 0.422 |
+   | `score_run`, no exclusions | 0.387 | 0.407 | 0.396 |
+   | `results.csv` `f1_sct_strict` | 0.397 | 0.412 | 0.407 |
+
+   The spread between metrics on the SAME run (2.6 points) is larger than the
+   spread between runs (2.1 points). This was nearly written up as a
+   between-batch drift finding: the 2026-08-28 baseline reads 0.399 / 0.395 /
+   0.408 and the 2026-09-01 baseline reads 0.413 / 0.434 / 0.422, which looks
+   like two barely-overlapping ranges from an identical configuration — until you
+   notice the first is a `results.csv`-style figure and the second is
+   `score_run` with exclusions. **On a common metric the two batches agree.**
+   Same likely applies to FiNER, where the article reports 0.193 / 0.205 / 0.205
+   and the surviving run's `results.csv` says 0.163; unconfirmed, because
+   `data/finer` is in no checkout and the set cannot be re-scored.
+   - **The fix:** state which metric every F1 in the article is, once, and check
+     that no table mixes two. §2's figures are `score_run` with exclusions.
+   - **The rule:** an F1 quoted without its denominator is not reproducible, and
+     two of ours differ by more than any arm this project ever shipped.
+
+5. **TWO CLAIMS IN §2 REST ON WORK THAT WAS NEVER FINISHED. Both need runs; do
+   not close either by quoting the old figures into the article.** Each was
+   measured once, in a different session under a different harness, and this
+   review has already shown what happens when figures from two run sets are set
+   beside each other — the apparent between-batch drift in item 4 was a metric
+   mismatch, not a result. Re-run them on the consolidated footing from item 0.
+   - **(a) The LLM reranker, at three draws.** §2 says nothing that tried to help
+     the model choose better from the menu ever cleared the bar. True as written,
+     and **misleading by omission**: the most promising candidate — a rerank pass
+     driven by the model itself rather than by a free feature — was measured on
+     ONE draw and dropped on cost, not on evidence. It is untested, not rejected,
+     and the article now says so. Three draws settle it. Note the cost before
+     starting: it is roughly 1.7× the calls and 2.2× the tokens of a baseline
+     run, so three paired draws is six expensive runs.
+   - **(b) FiNER's over-extraction, decomposed.** §6 presents FiNER as a recall
+     problem. The record says the model proposes far MORE spans than gold holds,
+     so the miss is *which* numbers rather than how many — a different diagnosis
+     pointing at a different fix. That was measured on a single earlier run whose
+     configuration does not match the one §6 reports. Recompute it on the run
+     §6 actually cites, then either rewrite §6's framing or record that the
+     earlier finding did not reproduce.
+
+6. **RUNG 1 DOES NOT WORK ON FiNER AND THE ARTICLE NOW SAYS SO — build the
+   version that can.** Not a measurement gap: a defect. Four of rung 1's five
+   checks are vacuous on FiNER by construction (`exists` is always true because
+   the menu IS the vocabulary, `is_active` is documented as "vacuously true",
+   `finding_status` returns FINDING for anything that exists, and
+   `lexical_match` compares a bare number to a tag name so it is always false).
+   Only span-grounding has any power, and rung 0's drop filter already handles
+   that. **`ACCEPT 0` therefore reports our implementation, not the corpus** —
+   the same class of error as an `err_per_100` of 0.0 over an empty output,
+   which §6 catches one layer up. `ladder/vocab_finer.py` says this itself in
+   `terms()`: *"here it is close to a tautology, and the article should say so."*
+   - **The evidence exists; we looked in the wrong place.** The tag's own words
+     sit in the sentence, not in the span: *"the effective income tax rate was
+     47.6 percent"* against `EffectiveIncomeTaxRateContinuingOperations`. The
+     2026-08-30 context probe already showed the signal is real semantically —
+     de-camel-cased tag names against 120 characters either side reach recall@20
+     0.685, median rank 7. The open question is whether a DETERMINISTIC string
+     test finds it too.
+   - **Two candidate checks, both free, both deterministic.** (a) *Context
+     lexical match*: do the tag's de-camel-cased tokens appear in the window
+     around the span? Same comparison rung 1 already does, wider window. (b)
+     *Type consistency*: a tag ending `Percentage` or `Rate` should carry a span
+     in 0-100; one ending `Amount` or `Value` should sit near a currency symbol
+     or a scale word. Both are checkable from the tag name and the text alone.
+   - **Measure them the way `lexical_mode` was measured** — plant near-miss tags
+     into FiNER gold and report, for each candidate, the ACCEPT-lane coverage
+     AND the share of planted near-misses wrongly accepted. That protocol is the
+     one thing in this project that produced a setting nobody had to argue
+     about; reuse it rather than inventing a new one.
+   - **Do not let this become a coverage-chasing exercise.** A check that lifts
+     ACCEPT on FiNER while vouching for near-misses is worse than the vacuous
+     one it replaces, because at least the vacuous one abstains honestly.
+
+7. **§7's stamina example is framed as a coding fix and cannot be one.**
+   Retrieval is deterministic and was replayed 2026-09-01: from the span
+   `"stamina"`, `248277009` |Lack of stamina| is ABSENT from the menu at k=50,
+   while from `"no stamina"` it sits at rank 0. So rung 3 cannot have changed
+   only the code — it must have re-extracted a different span. Either recover
+   the span (needs a re-run; the artifacts are gone) or reframe the example as
+   what it actually demonstrates: **the span decides the menu, and the menu
+   decides which answers are reachable at all.**
+
+8. **WHY `contained` COSTS 22 POINTS OF LANE ACCURACY — measured, never
+   explained.** NO RUN NEEDED; the records are on disk. Replaying
+   `arm-sapbase-d0` through `r1.zone` under each setting gives ACCEPT 48 at
+   85.4% correct (`exact`) against 88 at 63.6% (`contained`). The 40 records the
+   looser setting admits are **15 correct and 25 not**, and nobody has looked at
+   what separates them. §4 now states that this is unexplained and out of scope
+   for the article.
+   - **Why it is worth doing.** If the 25 share a structure — a class of
+     qualifier, a length ratio, a shape of concept name — then a rule admitting
+     the 15 without them is worth eleven points of free coverage, on the only
+     rung in this project that costs nothing to run.
+   - **Start with the 25.** Print them with their spans, their chosen codes, the
+     matched term and which direction the subset ran (span ⊆ term, or term ⊆
+     span). The second is the suspicious one: a term whose words are a subset of
+     the span means the model quoted MORE than the concept names, which is
+     exactly the boundary problem §1 describes.
+   - **Then price any candidate rule the way `lexical_mode` was priced** — over
+     planted near-misses, reporting coverage AND the share wrongly accepted. A
+     rule that recovers coverage while re-admitting near-misses is the setting we
+     already rejected, wearing a narrower name.
+
+9. **The FiNER pipeline figure carries one unverified index.**
+   `docs/figures/fig7-pipelines.dot` shows `choice 41 →
+   EffectiveIncomeTaxRateContinuingOperations`. Slot 0 is verified; index 41 is
+   not, because `data/finer` is in no checkout. Recompute it, and replace the
+   illustrative excerpt with a real one — FiNER is CC-BY-SA-4.0, so unlike
+   CADEC there is no reason for that cell to be illustrative. Both are flagged
+   in the `.dot` header.
 
 ---
 

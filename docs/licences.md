@@ -3,11 +3,19 @@
 Two of the three data sources in this project carry licences with teeth. Neither
 can be redistributed, so neither is in the repo, and neither ever will be.
 
-## CADEC v3 — CSIRO Data Licence
+## CADEC v2 — CSIRO Data Licence
 
+- **Two version numbers, and they are not the same one.** The **corpus** is
+  **CADEC v2**; the **DAP collection** `csiro:10948` is at **edition v3**. The
+  collection's own `collection_import_sha256sum.txt` lists exactly two files,
+  `CADEC.v1.zip` and `CADEC.v2.zip` — there is no v3 corpus. The manifests
+  record both, distinguished: `CADEC v2 (corpus); DAP collection v3`. Quote the
+  corpus version when you report a number. See `docs/decisions.md`,
+  "Provenance corrected".
 - **Where** — <https://data.csiro.au/collection/csiro:10948> · DOI
   `10.4225/08/570FB102BDAD2` · cite Karimi, Metke-Jimenez, Kemp & Wang (2016);
-  corpus paper *J. Biomedical Informatics* 55 (2015).
+  corpus paper *J. Biomedical Informatics* 55 (2015). Checksums in
+  `docs/cadec-checksums.txt`.
 - **Terms** — royalty-free, non-exclusive, **non-commercial**, and
   **non-transferable**. The corpus paper states the data is for research
   purposes only. CSIRO retired this licence for new collections in July 2021,

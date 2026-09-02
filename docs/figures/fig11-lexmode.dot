@@ -1,0 +1,46 @@
+// The same 222 records, sorted by the same rung 1, under the two settings of
+// lexical_mode. Recomputed 2026-09-02 by replaying r1.zone over
+// out/arm-sapbase-d0.records.jsonl with each mode; correctness from
+// ladder.score.outcome with the local RF2 registry.
+//
+// This is the eleven points, in records rather than percentages: contained adds
+// 40 to the ACCEPT lane, 15 of which are correct.
+//
+// COLOUR KEY — the article's zone colours:
+//   green #2d6a4f ACCEPT   amber #946c00 BAND   grey a stage
+digraph lexmode {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=11];
+
+  in [label="the same 222 records\nthe same four checks" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+
+  ex [label="lexical_mode = exact\nthe strings must be identical" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  co [label="lexical_mode = contained\none word-set inside the other" fillcolor="#f2f4f5" color="#8a9aa1" penwidth=2 style="filled,rounded,dashed"];
+
+  exa [label="ACCEPT · 48\n41 correct · 1 wrong · 6 on no gold\n85.4% correct"
+       fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+  exb [label="BAND · 174\n29.3% correct" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+
+  coa [label="ACCEPT · 88\n56 correct · 6 wrong · 26 on no gold\n63.6% correct"
+       fillcolor="#f4f9f6" color="#8a9aa1" penwidth=2.5];
+  cob [label="BAND · 134\n26.9% correct" fillcolor="#fdfaf0" color="#b8a06a" penwidth=2];
+
+  in -> ex [label="  SHIPPED  "]; in -> co [label="  the alternative  " style=dashed color="#c8d1d5"];
+  ex -> exa; ex -> exb;
+  co -> coa; co -> cob;
+
+  { rank=same; ex; co }
+  { rank=same; exa; exb; coa; cob }
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The looser setting nearly doubles the free lane and takes 22 points off its accuracy.</B></FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Of the 40 records it adds, <B>15 are correct</B> — the other 25 are wrong or sit on no gold at all.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">Note what does NOT happen: BAND's accuracy barely moves (29.3% to 26.9%). The setting</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">does not sort better — it moves the line, and mostly moves unverifiable records across it.</FONT></TD></TR>
+        </TABLE>>];
+  cob -> note [style=invis];
+}

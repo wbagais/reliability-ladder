@@ -1,0 +1,60 @@
+// Rung 1 on CADEC dev, draw 0. Every record rung 0 emitted, sorted into three
+// lanes by deterministic checks alone — no model call, identical every run.
+//
+// WHAT ENTERS: everything. Rung 1 judges without routing, so it sees the false
+// positives too, not just the records that matched a gold mention.
+//
+// The correct / wrong / no-gold split inside each lane is scored afterwards
+// against gold; rung 1 itself never sees it. That is the whole point — the lane
+// is assigned from the vocabulary alone, and the accuracy inside it is what
+// makes the lane worth anything.
+//
+// Draws 1 and 2: ACCEPT 85.7% / 85.1%, BAND 29.9% / 31.2%, REJECT 2 / 2.
+//
+// COLOUR KEY — the article's zone colours, unchanged from fig1-wiring:
+//   green #2d6a4f ACCEPT   amber #946c00 BAND   red #a33333 REJECT
+digraph rung1 {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  in [label="EVERY record rung 0 produced\n222 scored\n(126 matched a gold mention, 96 did not)"
+      fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+
+  chk [label="RUNG 1 · four checks, no model call\ndoes the code exist? · is the span really in the post?\nis it the right kind of concept? · do the words match?"
+       fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+
+  acc [label="ACCEPT · 48\nthe vocabulary uses these very words"
+       fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+  band[label="BAND · 174\nplausible, and nothing can confirm it"
+       fillcolor="#fdf0c8" color="#946c00" penwidth=2.5];
+  rej [label="REJECT · 0\nprovably wrong"
+       fillcolor="#fbe4e4" color="#a33333" penwidth=2.5];
+
+  accd [label="41 correct · 1 wrong code · 6 on no gold\n= 85.4% correct"
+        fillcolor="#f4f9f6" color="#2d6a4f"];
+  bandd[label="51 correct · 29 wrong code · 94 on no gold\n= 29.3% correct"
+        fillcolor="#fdfaf0" color="#946c00"];
+  rejd [label="the class is empty — see below"
+        fillcolor="#fbfbfb" color="#c8d1d5"];
+
+  in -> chk;
+  chk -> acc; chk -> band; chk -> rej;
+  acc -> accd; band -> bandd; rej -> rejd;
+
+  { rank=same; acc; band; rej }
+  { rank=same; accd; bandd; rejd }
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The lanes are assigned without an answer key.</B> Rung 1 never sees gold; the accuracy inside each lane</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">is measured afterwards, and is the only reason the sort is worth anything: <B>85% against 29%</B>.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>REJECT is empty, and that is our doing.</B> A rung 0 filter now drops ungrounded spans at source,</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 5.1% of records into arrives already empty. Section 8.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>BAND is where the false positives go</B> — 94 of its 174 sit on no gold mention at all.</FONT></TD></TR>
+        </TABLE>>];
+  bandd -> note [style=invis];
+}
