@@ -3490,3 +3490,31 @@ real and it describes a set nobody named.
   **What this changes in the article.** §9's precondition currently reads that the free check needs the span and the code drawn from the same language. That is too narrow. The truer statement is that **the free check needs SOME deterministic relation between the span and the code; lexical overlap is one, type compatibility is another,** and the second was available on the corpus where we reported the first as absent. A layer reported dead should be read as *this check found no signal*, never as *this corpus has none* — the difference is the difference between a finding and a failure of imagination.
 
   NOT WIRED. Measured as an option and left out of the shipped configuration: the FiNER arm is spent, no held-out split remains to confirm it on, and enabling it would change numbers already written up. Recorded so the claim can be corrected without the arm being re-run.
+- 2026-09-02 — **THE IN-FLIGHT STOP PRINCIPLE: HALT ON A BROKEN SETUP, NEVER ON AN UNWELCOME ANSWER.** Recorded before any code, because the distinction is the whole design and it was nearly got wrong. The proposal was a watcher that halts a run when something looks bad, motivated by real incidents: the FiNER run whose rung 0 parse-failed 5 of 10 documents, the 133 minutes burned before a mistyped judge name failed at the rung that needed it, the geo run that produced 704 records and 0 codes because resolution never happened. Each was knowable within minutes and each ran to completion.
+
+  **The hazard, raised by Owner B and correct:** a stop condition that fires on RESULTS is optional stopping. "Rung 3 has not changed anything in 20 records, kill it" is deciding a null before it is measured, and a few of those make the surviving runs a biased sample — the ones that happened to look good. Several conditions on the first list had exactly that defect.
+
+  **The line, which is the backbone of the tool:**
+
+  | STOP — the setup is wrong | DO NOT STOP — the answer is unwelcome |
+  |---|---|
+  | resolved model ≠ requested model | accuracy looks low |
+  | menu smaller than the manifest configured | a rung is changing nothing |
+  | retrieval silently fell back to another mode | cost per record is high |
+  | output unparseable above ~80% | the delta is negative |
+  | a required vocabulary or split is absent | the spread between draws is wide |
+  | a rate would be computed over fewer than 5 records | a verdict class has one member |
+
+  The left column is all knowable **without looking at whether the answer is any good** — they are statements about the run's configuration and its ability to produce a scoreable record at all. The right column is the experiment's output, and halting on it is putting a thumb on the scale.
+
+  Two rules make the left column safe. **Every stop is logged with its reason**, so a reader can see what was halted and why rather than finding a gap. And **a stop is a bug report, not a result**: the config is fixed and the run repeated, and the partial is never reported as a measurement. A stopped run produces no number.
+
+  Note the last row of the left column is the borderline case and is included deliberately: "a rate over fewer than 5 records" is about the DENOMINATOR, not the value, and the monitor's existing `minority verdict class 1/703` warning is the same check after the fact. Refusing to compute a rate over nothing is not a judgement about the rate.
+
+- 2026-09-02 — **THREE TOOLS OR ONE: PREFLIGHT, IN-FLIGHT AND THE LEDGER ARE ONE IDEA IN THREE TENSES.** `scripts/preflight_rungs.py` asks *will this layer pay* before it is built. An in-flight watcher would ask *is this run capable of producing a number* while it runs. The ledger asks *what did each layer buy and cost* after. Written as three tools they look like three products; the questions they ask are the same two questions at three moments — **what is the precondition, and what is the denominator.**
+
+  **Ship them as one tool with three commands, not three tools and not a framework.** A framework asks a team to adopt a taxonomy — rungs, zones, verdicts — and the value here does not depend on any of that: a denominator is a denominator in any pipeline. Three separate installs fragment the one idea that connects them. One command surface keeps the connection visible and the adoption cost at a single install.
+
+  What that looks like: `preflight` reports per-layer preconditions from a dev split; `watch` attaches to a running job and halts only on the left column above; `report` reads a finished ledger and prices each layer in tokens, latency and human referrals, never fused. The shared core is a ledger row that carries a **denominator** and a **three-valued evaluable** — the two fields no LLM tracing tool models, which is the argument the architecture page already makes.
+
+  **The honest risk, recorded now:** this is infrastructure, and infrastructure without adoption is a repository nobody stars. Its credibility rests on the article, and the article is not published. Build order therefore follows evidence rather than ambition — preflight first, because it already has three corpora behind it and has caught a real bug before a GPU was booked.

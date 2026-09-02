@@ -41,6 +41,7 @@ import json
 import os
 import pathlib
 import re
+import statistics
 import sys
 import time
 
@@ -240,6 +241,86 @@ def check_accept_lane(man, gold, vocab):
     return c.report(BUILD, ev,
                     "The lane can fire. On our CADEC arm the records that land in it were 80-89% "
                     "correct regardless of which model produced them — worth measuring on yours.")
+
+
+def check_name_uniqueness(man, gold, vocab):
+    """rung 1 · does a name IDENTIFY, or merely match?
+
+    The check this tool was missing, and the geo arm is why it exists.
+
+    ACCEPT means the vocabulary uses the extracted words. That is evidence only
+    where the words pick out one concept. Measured 2026-09-02: on GeoWebNews the
+    ACCEPT lane FIRED at 39.8% and was WORSE than BAND on all three models —
+    0.206/0.134/0.214 against 0.250/0.330/0.370 — because 1,117 of 2,399 gold
+    mentions name a place more than one gazetteer entry holds. Matching "London"
+    to "London" is not evidence about which London.
+
+    Computed over the ANSWER KEY's own names rather than the whole vocabulary:
+    a gazetteer's 13.4M entries contain vast numbers of names nothing will ever
+    extract, and their ambiguity is not this task's problem. What matters is
+    whether the names this corpus actually uses identify anything.
+    """
+    c = Check(1, "name uniqueness", "does a matching name IDENTIFY one concept?")
+    shared = tried = 0
+    worst = []
+    counts = []
+    for m in gold:
+        name = None
+        try:
+            name = vocab.preferred(m.sct[0]) if m.sct else None
+        except Exception:
+            name = None
+        if not name:
+            continue
+        try:
+            holders = set(vocab.codes_for_term(name) or [])
+        except Exception:
+            continue
+        # DEDUPED BY CONCEPT. codes_for_term returns description ROWS, and
+        # SNOMED gives one concept many descriptions — the first version of
+        # this check counted 'Pain' as nine concepts sharing a name and
+        # reported CADEC at 100% ambiguous, which is the corpus where the
+        # lane demonstrably works. Rows are not concepts.
+        tried += 1
+        counts.append(len(holders))
+        if len(holders) > 1:
+            shared += 1
+            if len(worst) < 5:
+                worst.append((name, len(holders)))
+    if not tried:
+        return c.failed(RuntimeError("no gold name could be looked up"))
+
+    rate = shared / tried
+    # HOW BADLY, not whether. Measured: CADEC 43.5% of names are shared and
+    # GeoWebNews 41.9% — nearly identical, on the two corpora where the lane
+    # behaves OPPOSITELY. The share is not the signal. 'Rectal hemorrhage' is
+    # held by 4 near-synonymous concepts, any of which a coder might defend;
+    # 'California' is held by 231 distinct places, of which exactly one is
+    # right. The median number of holders separates them and the share does not.
+    med = statistics.median(counts) if counts else 1
+    worst_n = max(counts) if counts else 1
+    ev = (f"{shared} of {tried} gold names are shared ({rate:.1%}); "
+          f"median {med:.0f} holders, worst {worst_n}")
+    if worst:
+        ev += "  e.g. " + ", ".join(f"{n!r}x{k}" for n, k in worst[:3])
+
+    if med >= 5 or worst_n > 50:
+        return c.report(DONT, ev,
+                        "A name that several concepts share is not evidence about which one. "
+                        "A lane built on it will ENDORSE most confidently where it knows least "
+                        "— measured on GeoWebNews, where the ACCEPT lane fired at 39.8% and "
+                        "scored WORSE than BAND on every model tested. If the lane must exist "
+                        "here, route on it as a warning rather than an endorsement.")
+    if med >= 2:
+        return c.report(UNKNOWN, ev,
+                        "Enough shared names to weaken the lane without killing it. Measure the "
+                        "ACCEPT lane's correctness AGAINST the BAND lane's before trusting it; "
+                        "if ACCEPT is not clearly better, the check is matching rather than "
+                        "identifying.")
+    return c.report(BUILD, ev,
+                    "Names in this vocabulary mostly identify one concept, so a lexical match is "
+                    "evidence rather than a coincidence. This is the condition CADEC meets and a "
+                    "gazetteer does not.")
 
 
 def check_reject_lane(man, gold, vocab):
@@ -459,6 +540,10 @@ def main() -> int:
 
     print(BOLD("  preconditions") + DIM(f"  — {len(gold)} gold mentions, {len(doc_ids)} documents"))
     checks.append(check_accept_lane(man, gold, vocab))
+    # Immediately after the lane check, because it QUALIFIES that verdict: a
+    # lane that fires on names nothing identifies is worse than one that does
+    # not fire at all, and only the pair says which case you are in.
+    checks.append(check_name_uniqueness(man, gold, vocab))
     checks.append(check_reject_lane(man, gold, vocab))
 
     if not a.static:
@@ -501,6 +586,8 @@ def main() -> int:
           + AMBER(f"{verdicts[UNKNOWN]} unknown")
           + (f"   {RED(str(len(orphans)) + ' orphaned field(s)')}" if orphans else ""))
     print(DIM("  A rung marked DON'T is not broken. Its bet does not hold on this data,"))
+    print(DIM("  and a rung marked BUILD is not finished: a check can FIRE and still be"))
+    print(DIM("  worthless, which is what the name-uniqueness row is for."))
     print(DIM("  and you now know that in minutes rather than after building it."))
     print()
     return 0
