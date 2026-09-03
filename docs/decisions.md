@@ -4268,3 +4268,43 @@ is why the detection ceiling propagates rather than merely capping.
 
 Sections renumbered 9 -> 8; the article is now eight numbered sections, 17,492
 words, from 18,276 when this review's cutting pass began.
+
+## 2026-09-03 — "The division of labour" merged into "What we would tell you", and the advice rewritten against the whole review
+
+Owner asked whether the division-of-labour section was needed. It was, but not
+where it sat: the article had **two advice sections separated by two other
+sections** (§8's table, then How we found these, then the literature, then the
+bullets). Merged into one closing argument — the table as the assignment, the
+bullets as the practices. The article now has SEVEN numbered sections.
+
+An unsourced number found on the way: the table's first row cited **"detection
+0.69–0.79"**, and that range appears nowhere else in the article and is not
+derivable from anything it reports. The sourced figures are 0.808 overlap /
+0.521 exact on held-out CADEC and 0.685 on FiNER. Replaced with those. Third
+unsourced figure this review has found, after the two fabricated durations.
+
+The bullets were rewritten against everything this review established. Three
+lessons were missing and are now the load-bearing ones:
+
+  - **Measure your floor before you measure an improvement** — three identical
+    runs differ by 2.1 points, so every arm below that was noise we would have
+    shipped. Carries the probe-denominator lesson as its second clause.
+  - **Judge each layer against its own purpose, not against accuracy**, and print
+    coverage and yield beside every accuracy figure, because abstaining always
+    raises precision.
+  - **Check that your metric can see the defect you are preventing** — ours could
+    not.
+
+Two table cells updated to what the review established rather than what was
+originally written: self-correction is now "never had a trigger" rather than
+"1 in 248", and voting is "its sign changed with the draw" rather than "moved
+accuracy down". The judge row keeps its blind-judge caveat.
+
+**The close now states the structural limit**, which the article had never said
+in its own conclusion: no layer we built can propose a mention the extractor
+missed — not even the human desk, which can only choose codes for spans it was
+handed. Reliability engineering of this kind makes answers more trustworthy; it
+does not make the system see more.
+
+One dangling cross-reference fixed ("Section 8 argues..." in What we could not
+settle). Article 17,750 words.

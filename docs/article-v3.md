@@ -1648,26 +1648,6 @@ then scored them with a metric that cannot see the difference.**
 
 ---
 
-## 8. The division of labour
-
-The part another team can use tomorrow:
-
-| job | whose | evidence |
-|---|---|---|
-| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — detection 0.69–0.79 |
-| Recall an identifier | **not the model** | F1 0.018 vs 0.209, at more tokens |
-| Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
-| Order the candidate list | **not the model** | takes line one 19.5% of the time, iff it is line one |
-| Check its own output | **not the model** | self-correction 1 in 248; voting moved accuracy down |
-| Judge whether an answer is right | **not the model** ⚠️ | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but see section 6: it was never shown what a code means |
-| Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right ~40% of the time — a dead dial |
-| Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes |
-
-> **The model reads. Everything else belongs to something that does not
-> resample.**
-
----
-
 ## How we found these
 
 No layer announced that it had stopped working. Each ran, returned, wrote its
@@ -1745,23 +1725,60 @@ We set out believing that stacking reliability layers buys reliability. Measured
 end to end, **the layers made errors visible rather than fewer** — worth a great
 deal, and not what they were bought for.
 
+The part another team can use tomorrow is the assignment, not the ladder:
+
+| job | whose | evidence |
+|---|---|---|
+| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — detection 0.808 overlap on held-out CADEC, 0.685 on FiNER |
+| Recall an identifier | **not the model** | F1 0.018 against 0.209 for retrieve-and-pick, at more tokens |
+| Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
+| Order the candidate list | **not the model** | it takes menu line one 19.5% of the time, and only when it is line one |
+| Check its own output | **not the model** | self-correction never had a trigger; voting's sign changed with the draw |
+| Judge whether an answer is right | **not the model** ⚠️ | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but we measured it blind (section 6) |
+| Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right about 40% of the time |
+| Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes, at zero cost |
+
+> **The model reads. Everything else belongs to something that does not
+> resample.**
+
+And six practices, each of which we learned by getting it wrong first:
+
 - **Condition your confidence on something that does not resample** — a
-  vocabulary, a schema, a type check, a compiler.
-- **Establish its precondition first.** One query, before you build.
+  vocabulary, a schema, a type check, a compiler — and **establish its
+  precondition before you build.** One query would have told us the free check
+  had zero coverage on our second corpus.
+- **Measure your floor before you measure an improvement.** Three identical runs
+  of our unchanged system differ by 2.1 points of F1. Every arm we ran below that
+  was noise we would have shipped. The same discipline applies to the probe that
+  authorises an arm: run it on the denominator the arm will be scored on, not a
+  larger one that happens to be available.
 - **Test the free layer against your answer key.** Every rejection there is false
   by construction, so you get its false-positive rate for nothing. Ours went from
-  9.3% to 0.13%.
-- **Grep for the readers of every field you write** — and when you find an orphan,
-  measure it before you adopt it rather than assuming it would have paid. This one
-  is worth automating: forty lines of regex over our own source names all three
-  of the dead layers we had found by hand, and needs no data and no model.
-- **Re-measure the top when you change the bottom**, and **print coverage beside
-  every error rate.**
+  9.3% to 0.13% without touching a model.
+- **Grep for the readers of every field you write**, and when you find an orphan,
+  measure it before you adopt it rather than assuming it would have paid. Forty
+  lines of regex over our own source named all three of the dead layers we had
+  found by hand.
+- **Judge each layer against its own purpose, not against accuracy** — and print
+  coverage and yield beside every accuracy figure. Abstaining always raises
+  precision, so any layer that withdraws answers will look good on the wrong
+  column.
+- **Check that your metric can see the defect you are preventing.** Ours could
+  not: fixing a layer that shipped answers under a warrant that no longer applied
+  moved F1 by nothing, because precision and recall cannot tell an unwarranted
+  answer from an incorrect one.
 
 The system ships about a quarter of its answers, at four errors per hundred
-instead of sixty, and hands the rest to a person. Not what we set out to build. But
-the machinery that makes the other four-fifths *legible* to that person turned out
-to be worth more than any layer that tried to answer them.
+instead of sixty, and hands the rest to a person. Not what we set out to build.
+And one limit is worth being plain about, because it is structural rather than a
+shortfall we could engineer away: **none of this made the system better at the
+task.** No layer we built can propose a mention the extractor missed — not even
+the human desk, which can only choose codes for spans it was handed. Reliability
+engineering of this kind makes a system's answers more trustworthy. It does not
+make the system see more. That was still worth having, and it is not what we
+thought we were buying.
+
+---
 
 ## What we could not settle
 
@@ -1783,7 +1800,7 @@ to be worth more than any layer that tried to answer them.
   line by line against their evaluation code, but still a comparison across two
   vocabularies and two test sets.
 - **We never tested how much of this a dictionary could do, and our own
-  conclusion says we should have.** Section 8 argues the model should read the
+  conclusion says we should have.** Our own division-of-labour table argues the model should read the
   text and nothing else; we applied that to identifiers and to building the
   candidate list, but not to the pick. A one-draw probe — below our own bar, so
   reported here rather than in the body — says detection cannot be replaced
