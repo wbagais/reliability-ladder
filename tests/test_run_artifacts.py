@@ -140,3 +140,19 @@ def test_cmd_ladder_passes_the_exclusion_applied_gold_to_the_trace(tmp_path):
     assert src.index("excluded = clean_mod.exclusions_for(man)") < src.index("run_ladder("), (
         "gold must be built BEFORE the run so every rung's state row is scored"
     )
+
+
+def test_the_git_stamp_is_taken_when_the_run_starts_not_when_it_ends(tmp_path, monkeypatch):
+    """Draw 0 of the consolidated re-run (2026-09-03) ran for an hour from
+    7457a79 and its aggregates said f3ff539 — three doc commits later — because
+    the stamp was taken at the end. The code that produced a run is the code
+    at its START; the finish stamp is kept beside it so a mid-run commit is
+    visible rather than hidden."""
+    from ladder import provenance
+
+    calls = iter([{"sha": "start00", "dirty": False}, {"sha": "finish0", "dirty": True}])
+    monkeypatch.setattr(provenance, "git", lambda: next(calls))
+    run(tmp_path, run_id="g")
+    agg = json.loads((tmp_path / "g.aggregates.json").read_text())
+    assert agg["git"]["sha"] == "start00"
+    assert agg["git_at_finish"]["sha"] == "finish0"

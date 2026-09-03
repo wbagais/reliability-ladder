@@ -316,6 +316,10 @@ def run_ladder(
     _ledger_path = out_dir / f"{run_id}.ledger.jsonl"
     ledger = Ledger(_ledger_path, run_id=run_id)
     started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    # Stamped at the START: the code that produced a run is the code it began
+    # under. Draw 0 of the 2026-09-03 re-run carried a sha three doc commits
+    # newer than the one it ran from, because this was taken at the end.
+    git_start = _git_stamp()
     state_path = out_dir / f"{run_id}.state.jsonl"
     if state_path.exists():
         state_path.unlink()
@@ -480,11 +484,6 @@ def run_ladder(
             aggregates.setdefault(n, {})
             aggregates[n].setdefault("seconds", round(wall[n], 3))
             aggregates[n]["wall_s"] = round(wall[n], 3)
-    try:
-        from ladder import provenance
-        git = provenance.git()
-    except Exception:  # pragma: no cover - provenance is best effort
-        git = {"sha": None, "dirty": None}
     summary = {
         "run_id": run_id,
         "split": split,
@@ -495,7 +494,8 @@ def run_ladder(
         "llm_cache": str(llm_mod.cache_dir_for()),
         "models": {str(n): c.spec for n, c in callers.items()},
         "temperature": llm_mod.temperature_for(man),
-        "git": git,
+        "git": git_start,
+        "git_at_finish": _git_stamp(),
         "started_utc": started_utc,
         "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "rungs": {str(n): a for n, a in aggregates.items()},
@@ -515,6 +515,14 @@ def run_ladder(
         "callers": callers,
         "aggregates": aggregates,
     }
+
+
+def _git_stamp() -> dict[str, Any]:
+    try:
+        from ladder import provenance
+        return provenance.git()
+    except Exception:  # pragma: no cover - provenance is best effort
+        return {"sha": None, "dirty": None}
 
 
 # --- reporting --------------------------------------------------------------
