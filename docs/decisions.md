@@ -3825,3 +3825,46 @@ each defer to a rung 5 that reads none of them. Rung 5 reads all of them except
 the judge: rungs 2 and 3 RE-RUN `r1.zone()` after changing a code and overwrite
 `r1_verdict` (`ladder/rungs/r2.py:451`, `ladder/rungs/r3.py:218`), so their work
 reaches rung 5 through a recomputed free check. Rung 4 alone has no reader.
+
+## 2026-09-02 — rung 6 rewritten cost-first; the oracle ceiling is arithmetic, not a discovery
+
+Owner's framing, and it is the right one: rung 6 is rung 5 seen from the other
+end — the same deployer-owned decision — so §6's passage now leads with the bill
+and not with accuracy.
+
+**The oracle ceiling was oversold in review and is now one sentence.** 0.131 ->
+0.444 looked like the largest number movement in the study; it is
+`detection 0.449 x coding 0.990`, which follows once you know the desk fixes
+codes and cannot touch spans. "A perfect reviewer improves things" was never in
+doubt. What survives is the part that is not arithmetic: even flawless code
+review stops at 0.444 because the desk has nowhere to put a corrected span, so
+the residual gap is entirely annotation. Rejected on the same grounds: an oracle
+over BOTH spans and codes. It returns 1.0 and measures gold against gold.
+
+**Rung 6's actual function, and the reason it is a rung:** it is the only place
+the third cost currency gets a number. Tokens and latency are easy to shrug at;
+"196 of 248 records went to a person" is not, and without it rung 5's jump to
+0.808 reads as free.
+
+Kept precise rather than stated: no human desk session has ever run, and the
+owner asked that this not be spelled out in the article. The labels carry it —
+the count is MEASURED, the minutes are DECLARED ("an illustration, never an
+observation"), the accuracy is a CEILING derived from gold — and the desk is
+never described in the present tense as though sessions occur. `docs/decisions.md`
+(Phase E, 2026-08-26) and the Limitations paragraph remain the durable record.
+
+**An error-budget correction the owner made, and it reverses a recommendation I
+had given.** I had proposed aiming future human corrections at the retriever.
+Wrong: the loss decomposes roughly as detection 0.449, retrieval ~13% (menu
+recall@20 87.0%), picking ~58% — when the right code IS on the menu the model
+takes it about one time in three. Retrieval is the SMALLEST of the three, and
+four independent findings already said so (the slot-0 attractor, the alphabetised
+menu at -10-12pt, the FiNER context menu, SapBERT). The flywheel's target is PICK
+SUPERVISION — which line of the menu was right. NOTE: 55/13/58 mixes denominators
+(87.0% is over all 6,595 gold mentions, 0.291 over one run's matched spans), so it
+is an estimate and is NOT printed in the article as measured. Exact split needs
+the per-record join, plan item 12.
+
+Also corrected in §9's division-of-labour table: "its confidence was a constant"
+-> "it never reported below 0.95 confidence while being right ~40% of the time",
+which is what the distribution actually shows.

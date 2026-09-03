@@ -661,6 +661,13 @@ intact.
       measurements of the blindfolded judge. They are not wrong as reported;
       they answer a different question than the article says they do.
     - Cost: roughly +160 tokens of menu per record on top of 92,687.
+    - **AND EXTEND ITEM 12 WITH THE ERROR BUDGET.** The join must produce the
+      exact detection / retrieval / picking split. The article states the shape
+      (picking is the largest, retrieval the smallest) but the numbers
+      55 / ~13 / ~58 mix denominators — 87.0% menu recall is over all 6,595 gold
+      mentions, 0.291 coding accuracy over one run's matched spans — so they are
+      an ESTIMATE and must never be printed as measured. Registered 2026-09-02
+      after the owner corrected a recommendation built on them.
 
 15. **NO RUNG IN THIS LADDER CAN ADD A MENTION — state it as a limitation.**
     NO RUN NEEDED; the proof is already in the artifacts. Raised 2026-09-02.

@@ -1485,8 +1485,16 @@ that ships most of the batch at usable accuracy, and the dial cannot manufacture
 one — the ceiling is the free check's ability to sort, not the policy on top of
 it.
 
-**Rung 6, the person.** Three rows from the queue — what 196 of 248 records
-actually look like:
+**Rung 6, the person.** Rung 5 decides how much to withhold; rung 6 is what
+happens to it, and it is the same decision seen from the other end. It runs no
+model — a simulated desk that needed one would be self-correction wearing a
+disguise, and the ladder's attribution would collapse.
+
+Its job is to make the third cost real. Tokens and latency are easy to report
+and easy to shrug at; **196 of 248 records went to a person** is neither.
+Without that line, rung 5's jump to 0.808 reads as free.
+
+Three rows from that queue:
 
 > `"extreme rectal bleed"` → system proposed \|Rectal hemorrhage\| — *correct*
 > `"extremely sick"` → system proposed \|Illness\|
@@ -1494,6 +1502,24 @@ actually look like:
 
 The first is a right answer the system could not corroborate and threw away. The
 third is why it throws them away.
+
+The count is measured. **The minutes are not** — the manifest carries a declared
+2.0 minutes per record, and any total derived from it is an illustration, never
+an observation. We also ran the queue with the gold codes filled in, which is an
+arithmetic ceiling rather than a study of reviewers: it lifts the stack from
+0.131 to **0.444** and no further, because the desk offers a choice of codes and
+has nowhere to put a corrected span. Even flawless code review leaves the
+detection half exactly where rung 0 put it. *(Ceiling from `phaseD-r3-2`; the
+routing counts are `audit-full-dev-1`.)*
+
+One thing this corpus cannot show. In a deployment the resolutions accumulate,
+and they are unusually portable — ids, offsets, codes and vocabulary labels,
+never corpus text, so they travel where CADEC cannot. What they would be worth
+is a question a corpus chosen *because* it has an answer key is the wrong place
+to ask; we note the asset and leave it as future work. If we did aim it, we
+would aim it at the pick — the table in section 9 has four separate rows saying
+that is where this system loses, and a correction records exactly which line of
+the menu was right.
 
 ![Figure 15](figures/fig2-flat.png)
 
@@ -1700,7 +1726,7 @@ The part another team can use tomorrow:
 | Order the candidate list | **not the model** | takes line one 19.5% of the time, iff it is line one |
 | Check its own output | **not the model** | self-correction 1 in 248; voting moved accuracy down |
 | Judge whether an answer is right | **not the model** | 1.1–1.2× against a string comparison's 3.0–6.1× |
-| Decide when to abstain | **not the model** | its confidence was a constant — the threshold was a dead dial |
+| Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right ~40% of the time — a dead dial |
 | Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes |
 
 > **The model reads. Everything else belongs to something that does not
