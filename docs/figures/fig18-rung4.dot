@@ -7,6 +7,11 @@
 // and says which; the pass/fail correctness separation (21.0% vs 12.7%) comes
 // from a different dev draw and is deliberately NOT mixed in here.
 //
+// PROVISIONAL — READ THIS BEFORE QUOTING ANY NUMBER HERE. `sct_label` appears
+// nowhere in r4.py, so the judge was handed a bare nine-digit code and asked
+// whether it was the right SNOMED concept. Every pass/fail count below measures a
+// judge that could not answer the question it was asked. Found 2026-09-03.
+//
 // COLOUR KEY — the article's: teal a model runs here · green pass · red fail
 digraph rung4 {
   rankdir=TB; bgcolor="white"; nodesep=0.30; ranksep=0.34;
@@ -25,7 +30,9 @@ digraph rung4 {
     cp [label="pass · 146" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
     cf [label="fail · 95" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     cu [label="unjudged · 7" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    cn [label="It rules on the SPAN and says nothing useful\nabout the code — 129,675 concepts do not fit\nin its context, so it cannot check one."
+    cn [label="It rules on the SPAN and says nothing useful
+about the code — we sent it the number
+1003722009 and never the concept name."
         fillcolor="#fdf0c8" color="#946c00"];
     { rank=same; cp; cf; cu }
     cp -> cn [style=invis]; cf -> cn [style=invis];
@@ -37,7 +44,8 @@ digraph rung4 {
     fp [label="pass · 48" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
     ff [label="fail · 299" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     fu [label="unjudged · 4" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    fn [label="span ✗ code ✗ · 192      span ✓ code ✗ · 102\nspan ✓ code ✓ ·  48      span ✗ code ✓ ·   5\nIt answers BOTH questions — the whole\nanswer space is 139 tags and fits."
+    fn [label="span ✗ code ✗ · 192      span ✓ code ✗ · 102\nspan ✓ code ✓ ·  48      span ✗ code ✓ ·   5\nIt answers BOTH questions — here the code
+IS a name: DebtInstrumentFaceAmount."
         fillcolor="#e3f0e6" color="#2d6a4f"];
     { rank=same; fp; ff; fu }
     fp -> fn [style=invis]; ff -> fn [style=invis];
@@ -52,10 +60,14 @@ digraph rung4 {
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Same model, same rung, two corpora — and only on one of them can it do its job.</B></FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">We read that as the limit of a 3.2B judge for five phases. It is a property of the vocabulary.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">We read that as the limit of a 3.2B judge for five phases. It is a property of the identifiers:</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">FiNER&#39;s codes are words, CADEC&#39;s are nine-digit numbers, and we never sent the concept&#39;s name.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 92,687 tokens a run to write</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. Section 7.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333"><B>EVERY COUNT ON THIS PAGE IS PROVISIONAL.</B> The judge was asked whether a code was right</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333">and never shown what the code means. Found 2026-09-03; the re-measurement is registered.</FONT></TD></TR>
         </TABLE>>];
   dead -> note [style=invis];
 }

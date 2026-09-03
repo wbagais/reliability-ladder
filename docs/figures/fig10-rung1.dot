@@ -11,6 +11,12 @@
 //
 // Draws 1 and 2: ACCEPT 85.7% / 85.1%, BAND 29.9% / 31.2%, REJECT 2 / 2.
 //
+// THE REJECT NOTE IS A DEV-TO-DEV COMPARISON and must stay one. It read "5.1% of
+// records" until 2026-09-03; that is phaseF-test-1, the TEST split, and pairing
+// it with a dev figure made a before/after out of two different populations. The
+// matched pair is full-ladder-dev-1's 10 of 240 against audit-full-dev-1's 1 of
+// 248, both dev.
+//
 // COLOUR KEY — the article's zone colours, unchanged from fig1-wiring:
 //   green #2d6a4f ACCEPT   amber #946c00 BAND   red #a33333 REJECT
 digraph rung1 {
@@ -52,7 +58,7 @@ digraph rung1 {
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">is measured afterwards, and is the only reason the sort is worth anything: <B>85% against 29%</B>.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>REJECT is empty, and that is our doing.</B> A rung 0 filter now drops ungrounded spans at source,</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 5.1% of records into arrives already empty. Section 8.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 10 of 240 records into arrives already empty. Section 7.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>BAND is where the false positives go</B> — 94 of its 174 sit on no gold mention at all.</FONT></TD></TR>
         </TABLE>>];
