@@ -456,7 +456,7 @@ count, and the model reads them as background. **67 it touched with the wrong
 boundary**: `"extreme rectal bleed"` for gold's `"rectal bleed"`, `"Entire
 body ached"` for `"body ached"`, `"problems"` for `"problems with memory"`,
 and one quote — `"EXTREME AND EXCRUCIATING MUSCLE PAIN IN SHOULDERS"` —
-covering two gold mentions, neck and hip. Thirty of the 67 carry the right
+covering two gold mentions, neck and hip. Twenty-two of the 67 carry the right
 code under the wrong span; the exact metric counts them lost twice.
 
 Notice also that the two middle failures are counted twice. A right span with a
