@@ -4122,3 +4122,51 @@ recorded — but the article no longer describes the experiment they come from, 
 column. Rewrite it when the takeaways are reviewed.
 
 §7 is 945 words, from 1,082 at the split. Article 17,752.
+
+## 2026-09-03 — §8 reviewed, one claim RETRACTED, the wiring figure redrawn, and §8 merged into §7
+
+Three claims checked against the code and the artifacts. One sound, one stale,
+one **not supported by our own data**.
+
+**RETRACTED — "a fix three layers down silently disabled two layers up."** The
+article said the span filter emptied rung 1's REJECT lane and self-correction's
+trigger set went with it. Rung 2's firing count across every full-ladder run on
+record is **0 (`full-ladder-dev-1`, at 10 rejects of 240), 0 (`phaseF-test-1`, at
+16 of 314), 1 (`audit-full-dev-1`, of 248)**. It fired ZERO when rejections were
+ten times higher. Every rejection in all three runs was `schema_invalid` — a span
+the extractor could not locate — which by design carries no fact to state back.
+**Rung 2 was never disabled; on this corpus it was never enabled.** Replaced with
+that, which is harsher and true.
+
+The numbers were also cross-split: the article's "5.1%" is `phaseF-test-1`
+(**test**) and "1 in 248" is `audit-full-dev-1` (**dev**), presented as a
+before/after from a code change. The matched dev pair (10 of 240 -> 1 of 248) is
+now used instead. Same defect class as the fabricated durations — a comparison
+assembled from whatever numbers were to hand.
+
+**STALE — "the refusal step reads none of the three."** True when the audit found
+it; false since 2026-08-30, when `abstain_on_judge_fail` gave `r4_verdict` a
+reader (off by default). Rewritten around the sharper fact found on 2026-09-02:
+rungs 2 and 3 DO reach rung 5, by re-running `r1.zone()` and overwriting
+`r1_verdict`. **Only one verdict travels up this ladder and it is the free one**
+— every paid layer's own reasoning is written and discarded. The judge is the
+sole layer with no channel at all.
+
+**SOUND — the stale-verdict finding.** Verified exactly against the 2026-08-28
+replay: exact F1 0.204 -> 0.204, overlap 0.215 -> 0.218. Kept as the section's
+close.
+
+**FIGURE 15 REDRAWN (`fig1-wiring.dot`).** Two defects. (a) It drew execution
+order and data flow as the same kind of arrow, in a diagram whose whole subject
+is what reads what — a reader could only conclude the judge reads from the vote,
+which it does not (r4's input boundary is ENFORCED to `r1_verdict` and
+`r1_reason`, `ladder/rungs/r4.py:24`). Execution order is now dotted grey and
+labelled; every solid arrow is a real read or write. (b) It showed three orphaned
+fields and missed the borrowed-channel finding entirely. Also reshaped from
+3394x392 — unusable on a page — to 1079x1208.
+
+**§8 MERGED INTO §7** on the owner's call. At 199 words it was thin, and its
+subject is the same question §7 asks: §7 says the layers did not deliver, and
+this says why nobody could have noticed. §7 is now 1,308 words with three
+subsections; sections renumbered 9->8, 10->9 and all cross-references updated.
+Article 17,916 words, 16 figures.

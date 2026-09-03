@@ -1414,7 +1414,7 @@ prompt, and it stood for five phases.
 > measure a judge that could not see what it was judging.
 
 None of which changed a shipped answer, because **nothing reads the verdict.**
-Section 8 is about how that survived five phases of testing.
+Section 7 is about how that survived five phases of testing.
 
 **Rung 5, refusal.** Zero model calls, and no judgement of its own. It reads the
 free check's verdict — recomputed, because rungs 2 and 3 re-run rung 1 after they
@@ -1603,34 +1603,47 @@ the layer it would replace is the most expensive one we have. Plan item 15.
 
 ---
 
-## 8. What no single-layer test could see
+### Why none of it showed up in a test
 
-**Every deferral terminated in a field nothing read.** Self-correction wrote
-`r2_declined`, voting wrote `r3_unanimous_none`, the judge wrote `r4_verdict`. The
-refusal step reads none of the three. No test could catch it, because every layer
-does exactly what its own documentation promises. The hole is *between* them.
+Every layer above passed its own tests, did what its documentation promised, and
+returned. The failures were not in the layers. They were in what happens between
+them.
 
 ![Figure 15](figures/fig1-wiring.png)
 
-*Fig. 15: Three layers write a verdict; the refusal step reads none of them.
-Source: author-created with Graphviz.*
+*Fig. 15: What propagates. Dotted grey is execution order and carries no verdict;
+every solid arrow is a real read or write. Source: author-created with Graphviz.*
 
-**A fix three layers down silently disabled two layers up.** The checks used to
-reject 5.1% of records for an unlocatable span, until extraction improved and a
-filter dropped those at source. The rejection rate fell to **1 in 248** and
-self-correction's trigger set went with it. Nothing broke; both layers still pass
-every test. **A layer with nothing to do is indistinguishable from inside from a
-layer doing nothing.**
+**Only one verdict travels, and it is the free one.** Self-correction writes
+`r2_declined`, voting writes `r3_unanimous_none`, the judge writes `r4_verdict`,
+and the refusal step reads none of those. Rungs 2 and 3 still reach it — but only
+by re-running the free check and overwriting **its** verdict, so what arrives at
+rung 5 is never their reasoning, only rung 1's opinion of whatever code they left
+behind. The judge has no channel at all. No test caught this because each layer
+does exactly what it says; the hole is *between* them.
 
-And one about metrics. Voting overwrote codes without re-validating, so records
-shipped marked *verified* against a code they no longer had. Fixing it moved exact
-F1 from **0.204 to 0.204** — because precision and recall cannot distinguish an
-*unwarranted* answer from an *incorrect* one, which is the entire distinction the
-system exists to make.
+**And one layer was never switched on.** We had assumed self-correction was
+disabled by a fix downstream: extraction improved, a filter dropped ungrounded
+spans at source, and rung 1's rejections fell from **10 of 240** to **1 in 248**.
+But rung 2's firing count across every full-ladder run we have is **0, 0, and 1**
+— it fired zero times when rejections were ten times higher. Every one of those
+rejections was a span the extractor could not locate, which carries no fact to
+state back to a model. **Self-correction was not disabled by the filter. On this
+corpus it was never enabled**, and its trigger set had been empty long before
+anything dropped.
+
+**Then the measurement itself.** Voting overwrote codes without re-validating, so
+records shipped marked *verified* against a code they no longer had — a claim the
+free check had made about something else. Fixing that moved exact F1 from
+**0.204 to 0.204.** Precision and recall cannot distinguish an *unwarranted*
+answer from an *incorrect* one, because a record with a wrong code scores the same
+whether it ships wrong or is withdrawn. **We built seven layers to decide which
+answers are trustworthy, and scored them with a metric that cannot see the
+difference.**
 
 ---
 
-## 9. Did we try making the model better first?
+## 8. Did we try making the model better first?
 
 Yes — about twenty arms. Eight lessons transfer:
 
@@ -1684,7 +1697,7 @@ returned 3 predictions against 226 gold, failing on 36 of 40 documents.
 
 ---
 
-## 10. The division of labour
+## 9. The division of labour
 
 The part another team can use tomorrow:
 
@@ -1819,7 +1832,7 @@ to be worth more than any layer that tried to answer them.
   line by line against their evaluation code, but still a comparison across two
   vocabularies and two test sets.
 - **We never tested how much of this a dictionary could do, and our own
-  conclusion says we should have.** Section 10 argues the model should read the
+  conclusion says we should have.** Section 9 argues the model should read the
   text and nothing else; we applied that to identifiers and to building the
   candidate list, but not to the pick. A one-draw probe — below our own bar, so
   reported here rather than in the body — says detection cannot be replaced
@@ -1847,7 +1860,7 @@ to be worth more than any layer that tried to answer them.
   The fix is a few columns — a per-record, per-rung table with the code, the
   verdict and the outcome — and it is registered. **A rung that cannot say what
   it did to an individual record cannot be credited or blamed for the
-  aggregate**, which is the same defect section 8 describes in the code, one
+  aggregate**, which is the same defect section 7 describes in the code, one
   level up in the measurement.
 - **We assume one code is right, and we have not checked that.** The scorer
   credits only the code in the answer key. But `"knee pain"` coded

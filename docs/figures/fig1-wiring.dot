@@ -1,36 +1,58 @@
+// What actually propagates up the ladder. Redrawn 2026-09-03.
+//
+// THE DEFECT IN THE PREVIOUS VERSION: it drew execution order and data flow as
+// the same kind of arrow, in a diagram whose entire subject is what reads what.
+// A reader could only conclude the judge reads from the vote. It does not: r4's
+// input boundary is ENFORCED to `r1_verdict` and `r1_reason` and nothing else
+// (ladder/rungs/r4.py:24). Execution order is now dotted grey and labelled;
+// every solid arrow is a real read or write.
+//
+// IT ALSO MISSED THE FINDING. The old figure showed three orphaned fields. But
+// rungs 2 and 3 RE-RUN `r1.zone()` after changing a code and overwrite
+// `r1_verdict` (r2.py:451, r3.py:218) — so they do reach rung 5, through the
+// free check's channel rather than their own. Rung 4 alone has no channel.
+//
+// COLOUR KEY: green #2d6a4f the free check and its channel · red #a33333 dead
+// end · grey execution order, which carries no information.
 digraph wiring {
-  rankdir=TB;
-  bgcolor="white";
-  node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=13 margin="0.22,0.14"];
-  edge [fontname="Helvetica" fontsize=11 color="#555555"];
-  graph [nodesep=0.5 ranksep=0.45];
+  rankdir=TB; bgcolor="white"; ranksep=0.34; nodesep=0.5;
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=11
+        fillcolor="#eef1f2" color="#c8d1d5" penwidth=1.2 width=1.5];
+  edge [fontname="Helvetica" fontsize=9];
 
-  R0 [label="0 · extract   ·   bare model   ·   164,897 tokens" fillcolor="#ffffff" color="#444444"];
-  R1 [label="1 · check   ·   vocabulary   ·   0 tokens" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
-  R2 [label="2 · self-correct   ·   fired 1 of 248" fillcolor="#fdf0c8" color="#946c00"];
-  R3 [label="3 · vote   ·   425,355 tokens   ·   152 s p95" fillcolor="#fdf0c8" color="#946c00"];
-  R4 [label="4 · judge   ·   92,687 tokens" fillcolor="#fdf0c8" color="#946c00"];
-  R5 [label="5 · refuse   ·   ships 21%" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
-  R6 [label="6 · person   ·   196 of 248" fillcolor="#ffffff" color="#444444"];
+  R0 [label="0 · extract"];
+  R1 [label="1 · check — free" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  R2 [label="2 · self-correct"];
+  R3 [label="3 · vote"];
+  R4 [label="4 · judge"];
+  R5 [label="5 · refuse" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  R6 [label="6 · person"];
+  R0 -> R1 -> R2 -> R3 -> R4 -> R5 -> R6
+     [style=dotted color="#c3cbcf" arrowsize=0.6 penwidth=1.4];
+  R3 -> R4 [style=dotted color="#c3cbcf" arrowsize=0.6 penwidth=1.4
+            label="  execution order —\l  carries no verdict\l" fontcolor="#8a959a"];
 
-  R0 -> R1 -> R2 -> R3 -> R4 -> R5 -> R6;
+  V [label="r1_verdict\nACCEPT · BAND · REJECT" fillcolor="#e3f0e6"
+     color="#2d6a4f" penwidth=2.5 style="filled" width=2.2];
+  D [label="r4_verdict\nread by nothing" fillcolor="#f7e3e3" color="#a33333"
+     penwidth=2 style="filled" width=1.8];
 
-  F2 [label="r2_declined" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
-  F3 [label="r3_unanimous_none" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
-  F4 [label="r4_verdict" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
-  NR [label="read by nothing" fillcolor="#fbe4e4" color="#a33333" penwidth=2.5 fontsize=13];
+  R1 -> V [color="#2d6a4f" penwidth=2.2 label=" writes" constraint=false];
+  R2 -> V [color="#2d6a4f" penwidth=2.2 label=" re-runs the check\l and overwrites\l" constraint=false];
+  R3 -> V [color="#2d6a4f" penwidth=2.2 label=" re-runs the check\l and overwrites\l" constraint=false];
+  V -> R5 [color="#2d6a4f" penwidth=3 label="the only thing\lrung 5 reads\l" constraint=false labeldistance=2];
+  R4 -> D [color="#a33333" penwidth=2 constraint=false];
 
-  { rank=same; R2; F2; }
-  { rank=same; R3; F3; }
-  { rank=same; R4; F4; }
-
-  R2 -> F2 [style=dashed color="#aaaaaa" label="writes"];
-  R3 -> F3 [style=dashed color="#aaaaaa" label="writes"];
-  R4 -> F4 [style=dashed color="#aaaaaa" label="writes"];
-  F2 -> NR [color="#a33333"];
-  F3 -> NR [color="#a33333"];
-  F4 -> NR [color="#a33333"];
-
-  R1 -> R5 [color="#2d6a4f" penwidth=3 constraint=false
-            label="  the only verdict\l  rung 5 reads\l" fontcolor="#2d6a4f" fontsize=12];
+  note [shape=none margin=0 label=<
+    <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10">Rungs 2 and 3 write verdicts of their own too — <FONT FACE="Courier">r2_declined</FONT>, <FONT FACE="Courier">r3_unanimous_none</FONT> —</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10">and nothing reads those either. They still reach rung 5, but only by</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10">re-running the free check and overwriting <B>its</B> verdict.</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10"><B>Every paid layer&#39;s own reasoning is discarded.</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10">The judge has no channel at all: it may read <FONT FACE="Courier">r1_verdict</FONT> and</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10"><FONT FACE="Courier">r1_reason</FONT> and nothing else — enforced — and writes into a dead end.</FONT></TD></TR>
+    </TABLE>>];
+  R6 -> note [style=invis];
+  {rank=same; R1; V;}
+  {rank=same; R4; D;}
 }
