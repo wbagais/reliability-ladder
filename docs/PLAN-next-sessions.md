@@ -272,19 +272,27 @@ The goal is one article whose every number comes from a run that exists. That
 forces a strict order, because a fix that changes a number invalidates any run
 taken before it.
 
-**PHASE 1 — settle the code and the config. Nothing may be re-run until these
-land, because each one changes a published number.**
+**PHASE 1 — settle the code and the config. DONE 2026-09-03 (commit
+`7457a79`; decisions entry same date).** Each one changed what a run records
+or means, so they landed before the first draw.
 
-| item | what | why it blocks the re-run |
+| item | what | state |
 |---|---|---|
-| **12** | per-record per-rung trace **+ the error budget** | without it the re-run cannot produce the joins four sections need, and we would have to run a third time |
-| **14** | the judge sees the menu and the pick | every rung 4 number is currently a blind-judge measurement |
-| **16** | decide `lexical_mode` on yield, three draws | a shipped-config question; re-running on a default we are actively disputing wastes the run |
-| **17(d)** | retire or defend `tau` | one line, but it is a live key that cannot fire |
+| **12** | per-record per-rung trace **+ the error budget** | **DONE** — `ladder/trace.py`: `<run>.state.jsonl`, `<run>.r<N>.records.jsonl`, `<run>.r<N>.calls.jsonl` (full prompt + raw reply), `<run>.aggregates.json`; budget in `ladder/analysis.py` |
+| **14** | the judge sees the menu and the pick | **DONE, OFF by default** — `rungs.4.menu off\|ranked\|shuffled`, four pinned arm manifests; the judge also gets the pick guidance (smoke run found it failing correct picks on a rule it never saw) |
+| **16** | decide `lexical_mode` on yield, three draws | **ARM BUILT** (`manifest.lexarm.json`); the decision is Phase 2's, on yield |
+| **17(d)** | retire or defend `tau` | **RETIRED** — refused by rung 5, gone from every manifest, sweep deleted, `tests/test_tau_retired.py` |
+| 17(c) | unreviewable records | **DONE** — `R_UNREVIEWABLE`, counted in both modes |
 
 **PHASE 2 — the consolidated re-run (item 0). ONE base run produces every
-descriptive dev-side number in the article.** Do not start it until Phase 1 is
-merged and the manifest is frozen again.
+descriptive dev-side number in the article.** STARTED 2026-09-03 02:47 from
+`7457a79`: `scripts/consolidated_rerun.sh` — three cold draws per corpus
+(`LADDER_LLM_CACHE=.llm_cache.rerun-<corpus>-d<N>`), full ladder, dev only,
+base first then the arms (`judgemenu`, `judgeshuffle`, CADEC `lexarm`) on the
+same cache, plus a zero-model `spine` replay (rungs 5-6 over the rung 1
+snapshot). Run ids `rerun-{cadec,finer}-d{0,1,2}[-<arm>]`; report by
+`scripts/rerun_analysis.py`. Results in `docs/decisions.md` when the draws
+finish.
 
 **PHASE 3 — rewrite the article's numbers against that run**, clear the three
 `[PENDING]` markers, and only then review the takeaways.

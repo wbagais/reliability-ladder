@@ -4801,3 +4801,120 @@ what the review established: self-correct "fired 1 of 248" -> "never had a
 trigger", vote "-0.004" -> "no consistent sign" (the -0.004 is one draw), and
 judge "read by nothing" -> "read by nothing - provisional". `docs/figures/fig0.py`
 regenerated; matplotlib added to the venv, which did not have it.
+
+## 2026-09-03 — PHASE 1 OF THE CONSOLIDATED RE-RUN: the four fixes that had to land before any number could be re-run
+
+Plan item 0b says one base run must produce every descriptive dev-side
+number, and its own order of work says nothing may be re-run until items 12,
+14, 16 and 17(d) land, because each changes what a run records or means. All
+four landed today, TDD'd, 906 tests locally and 879 in the CI-style venv
+(`python:3.12-slim` + requirements + pytest, no numpy/httpx/torch). Committed
+as `7457a79` before the first draw started, so every run stamps a clean sha.
+
+**Item 12 — the per-record, per-rung trace exists (`ladder/trace.py`).**
+`run.run_ladder` now writes, beside the ledger: `<run>.r<N>.records.jsonl`
+(the record set as each rung left it), `<run>.state.jsonl` (one row per
+record per rung: code, span, zone, reason, rung 1 and rung 4 verdicts, rung 0's
+pick lane, `changed_this_rung` with the fields that moved, and the outcome
+against gold under BOTH pairings — exact and overlap — so a boundary miss and
+a detection miss are different rows), `<run>.r<N>.calls.jsonl` (EVERY model
+call the rung made: the full prompt, the raw reply, the normalised reply,
+tokens, latency, temperature, sample index, cached or not, and the document,
+inferred as the longest source text in the prompt because the
+`llm(prompt, text, mode)` contract is frozen with stubs behind it), and
+`<run>.aggregates.json` (each rung's aggregate dict — which until now went to
+stdout and nowhere else — plus the LLM cache directory, git sha and dirty
+flag, models per rung, temperature, start and finish). `outcome` is
+`unmatched` for a prediction on no gold mention, distinct from `incorrect`
+— `score.outcome` pools them because it grades an answer, and the error
+budget must not. A record a rung dropped is still a row (`dropped_this_rung`).
+**The call traces carry corpus text verbatim and live under the gitignored
+`out/`; they are never committed.** Smoke-tested on one dev document, rungs
+0-6, cold cache: 21 state rows, 2 + 6 + 3 traced calls (rung 3's six carry
+sample indices 0-5 at temperature 0.7), doc ids inferred on every call.
+
+**A draw is now a named directory, not a swapped symlink.** `LADDER_LLM_CACHE`
+names the cache for one run, `llm.for_rung` reads it, and the aggregates file
+records it — so "which cache did draw 2 use" has an answer on disk. The
+protocol is `scripts/consolidated_rerun.sh <corpus> <draw>`: it refuses a
+cache directory that already exists, runs the base cold, then the arms on the
+same cache so their rung 0 is byte-identical and only the arm's own calls are
+paid. Arm p95 latencies therefore include cache hits and are not compared.
+
+**Item 14 — the judge is shown what it is judging (`rungs.4.menu`).** Until
+today `r4.judge` formatted `source, text, start, end, sct` and nothing else:
+`code: 1003722009`, no name, no menu, no pick. `menu: ranked` renders the menu
+rung 0 retrieved (`checks.candidates`, through the same `[i] label` renderer),
+the line the extractor chose, the `[denied]` marker with the Phase B
+instruction that a denied mention is still coded, and asks a third question,
+`best`: the line the judge would choose, or null for "not on this list" — the
+verdict that separates a bad pick from a bad menu and that the system could
+not previously express. `shuffled` permutes the menu per record under
+blake2b(seed:record_id) — safe here where B4 found it unsafe in rung 0,
+because the judge sees one record per call and nothing can alias across a
+batch. `off` renders the blind prompt byte-identically (test-pinned), and it
+ships OFF because every published rung 4 number is a blind-judge measurement
+that the arm must be paired against. Four arm manifests
+(`manifest[.finer].judge{menu,shuffle}.json`), one-key diffs, pinned.
+`candidates` and `r0_negated` join `ALLOWED_CHECK_KEYS` — rung 0's own
+output, not the answer key. An S0/S1 record gets the blind prompt and
+`checks.r4_menu = "none"`: the arm couples rung 4 to S2, stated.
+  - **The smoke run found the next defect in the same family within one
+    call.** Shown the menu, granite failed a CORRECT pick — |Rectal bleeding|
+    for "extreme rectal bleed" — with the reason *"does not capture the
+    severity"*. That is CADEC's own convention: the extractor was told to
+    choose the PLAIN concept and drop severity, and the judge was grading
+    against a rule it had never been given. "What the extractor was given"
+    includes the guidance, so the menu prompt now carries the corpus's
+    `pick_guidance` slot, read through rung 0's own slot table so the two
+    rungs cannot drift onto different wordings. FiNER supplies its own.
+
+**Item 17(d) — `tau` is RETIRED.** It was read, and it could never fire: rung
+0 reports >= 0.95 confidence on every record while being right about 40% of
+the time. Gone from all twelve tracked manifests (each `rungs.5` now carries
+`tau_retired` saying why), refused by `r5.decide` and `r5.apply` rather than
+filtered out silently, `sweep`/`aurc`/`free_lunch` deleted with it (they
+existed only to tune it), the two threshold policies dropped from
+`scripts/r5_policy_sweep.py`, `R_LOW_CONFIDENCE` kept in the schema because
+schemas are append-only and old ledgers carry it. `tests/test_tau_retired.py`
+keeps it gone. `preflight_rungs.check_tau` stays: it is the precondition any
+future calibrated input (B7) would have to pass first.
+
+**Item 17(c) — unreviewable records are named and counted.** `r6.unreviewable`
+returns the queued records a span-keyed desk cannot act on — an unlocated
+`(-1, -1)` span, or a span key another queued record shares. Desk mode marks
+them ESCALATE under the new `R_UNREVIEWABLE` reason at zero minutes with
+`minutes_source: unreviewable`; simulated mode still prices them (a person
+receives them either way — the headline is the count routed) and flags them.
+`agg["unreviewable"]` in both modes.
+
+**Item 16 — the arm exists; the decision waits for three draws.**
+`manifest.lexarm.json` is `rungs.1.lexical_mode: contained`, one-key diff,
+pinned. Rung 1 reads no model, so on a shared cache the arm replays a base
+draw with identical model calls and only the lane split differs. Decided on
+YIELD, three paired draws, below.
+
+**Not done, and why.** The B4 result (branch
+`claude/reliability-ladder-b4-slot0-7784eb`, three commits, UNMERGED as of
+today) refutes the 2026-08-30 slot-0 attractor as a model finding: 74 of the
+77 slot-0 predictions on FiNER were `_fill_from_menu`'s fallback rule, not
+the model, and the per-mention shuffle arm was rejected on three
+byte-identical draws (coding 0.425 -> 0.058) because a permutation under a
+BATCHED pick aliases indices across the call. Its decisions entries live on
+that branch; the article's slot-0 claims are corrected below against them
+rather than by merging a branch the owner has not merged.
+
+## 2026-09-03 — `ladder/analysis.py`: the article's numbers from one module with tests, not eighty scratch scripts
+
+Every function the re-run's report needs, with a fixture test each
+(`tests/test_analysis.py`, 13 tests): the error budget on one denominator
+(gold -> matched -> on menu -> correct, pick loss split by lane: model vs
+fallback), rung 1 lanes under both denominators (all records in the lane, and
+overlap-matched — the five-model table's), rung 3 by rung 1 lane with every
+overwrite's votes and outcome transition (item 11), the judge's separation
+plus the menu arm's `not on this list` / `best correct` / `best = pick`, the
+policy row (ships, coverage, accuracy, YIELD, errors per 100, to a person)
+from the final state rows, and the three-draw consensus table with mentions
+grouped by span overlap. `scripts/rerun_analysis.py` loads a run set and
+writes `<out>.json` and `<out>.md`. The point is the one the deleted worktrees
+taught: the numbers must be re-derivable from disk by code that is tracked.
