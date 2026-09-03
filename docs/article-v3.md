@@ -1731,17 +1731,24 @@ The part another team can use tomorrow is the assignment, not the ladder:
 
 | job | whose | evidence |
 |---|---|---|
-| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — detection 0.808 overlap on held-out CADEC, 0.685 on FiNER |
+| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — string matching finds 16.8% of gold spans where the model finds 55.8% |
 | Recall an identifier | **not the model** | F1 0.018 against 0.209 for retrieve-and-pick, at more tokens |
 | Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
 | Order the candidate list | **not the model** | it takes menu line one 19.5% of the time, and only when it is line one |
-| Check its own output | **not the model** | self-correction never had a trigger; voting's sign changed with the draw |
-| Judge whether an answer is right | **not the model** ⚠️ | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but we measured it blind (section 6) |
+| Check its own output | **unproven** | self-correction never fired, so it was never tested; voting's sign changed with the draw |
+| Judge whether an answer is right | **not yet known** | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but we had never shown it what a code means (section 6), so that number is withdrawn |
 | Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right about 40% of the time |
 | Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes, at zero cost |
+| Decide how much to withhold | **you** | three currencies moving in three directions, and a break-even only the deployer has |
 
-> **The model reads. Everything else belongs to something that does not
-> resample.**
+> **The model reads. Almost everything else belongs to something that does not
+> resample — and one job belongs to you.**
+
+Two of those rows are weaker than we would like, and saying so is the point of
+the exercise. We cannot claim the model is bad at checking its own work, because
+the layer that would have tested it never fired. And the judge's number is
+withdrawn: we measured it without ever showing it what a code means. Both are
+open, not settled against the model.
 
 And six practices, each of which we learned by getting it wrong first:
 

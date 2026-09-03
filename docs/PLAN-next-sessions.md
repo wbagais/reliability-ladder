@@ -222,7 +222,7 @@ unverified.
 
 | | section | words | status |
 |---|---|---|---|
-| | Five key takeaways | 179 | **NOT REVIEWED** — deferred to last by the owner; takeaway 5 is known stale (see item 0) |
+| | Five key takeaways | 179 | **NOT REVIEWED** — deferred to last; **three are known stale, see below** |
 | | What an AI reliability ladder is for | 179 | **NOT REVIEWED** |
 | | The task, and the result | 443 | **NOT REVIEWED** |
 | ✅ | 1. The two datasets | 1,523 | reviewed |
@@ -243,6 +243,26 @@ unverified.
 
 "Swept for cuts only" means dead or duplicated material was removed on
 2026-09-03, but no claim in those sections was checked against the code.
+
+**THREE TAKEAWAYS ARE ALREADY KNOWN TO BE STALE**, found while reviewing the
+sections they summarise. Fix them in the takeaways pass, not before — they are
+the last thing to touch:
+
+- **Takeaway 2** — "Recalling an identifier, building the candidate list,
+  ordering it, **checking, judging**, and deciding to abstain each measured
+  better when taken away from the model." Checking and judging did NOT measure
+  better. Self-correction never fired, so it was never tested, and the judge's
+  separation was measured before we found it had never been shown what a code
+  means. §10's table now says `unproven` and `not yet known` for those two rows;
+  the takeaway still claims both.
+- **Takeaway 3** — "A free string comparison beat the LLM judge by 3×." The free
+  check's side is well measured across five model families. **The judge's side
+  was measured blind.** So this compares a good measurement against a withdrawn
+  one, and must say so until item 14 lands.
+- **Takeaway 5** — "Deleting the three paid layers changed one answer out of 43
+  and saved 518,590 tokens." Both halves are true, but the article no longer
+  describes that ablation, and "saved 518,590 tokens" double-counts against §7's
+  own cost column.
 
 ---
 
