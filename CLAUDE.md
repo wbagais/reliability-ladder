@@ -174,7 +174,7 @@
   third family that was installed to fix it (BioMistral-7B, domain-adapted)
   was rejected on the 240-record re-judge — it cannot reliably return the
   judge JSON and its verdicts carry no signal. Read rung 4's numbers with the
-  2B caveat stated; it is the lesser evil until a better third family exists.
+  3.2B caveat stated; it is the lesser evil until a better third family exists.
 - **The LLM cache key covers max_tokens and reasoning_effort.** It did not,
   and rerunning S0 with a new effort served the old truncated entry. A cache
   that survives a parameter change is a stale result. A TIMEOUT is never
