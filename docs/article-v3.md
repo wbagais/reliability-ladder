@@ -1504,24 +1504,6 @@ Three rows from that queue:
 The first is a right answer the system could not corroborate and threw away. The
 third is why it throws them away.
 
-The count is measured. **The minutes are not** — the manifest carries a declared
-2.0 minutes per record, and any total derived from it is an illustration, never
-an observation. We also ran the queue with the gold codes filled in, which is an
-arithmetic ceiling rather than a study of reviewers: it lifts the stack from
-0.131 to **0.444** and no further, because the desk offers a choice of codes and
-has nowhere to put a corrected span. Even flawless code review leaves the
-detection half exactly where rung 0 put it. *(Ceiling from `phaseD-r3-2`; the
-routing counts are `audit-full-dev-1`.)*
-
-One thing this corpus cannot show. In a deployment the resolutions accumulate,
-and they are unusually portable — ids, offsets, codes and vocabulary labels,
-never corpus text, so they travel where CADEC cannot. What they would be worth
-is a question a corpus chosen *because* it has an answer key is the wrong place
-to ask; we note the asset and leave it as future work. If we did aim it, we
-would aim it at the pick — the table in section 10 has four separate rows saying
-that is where this system loses, and a correction records exactly which line of
-the menu was right.
-
 ---
 
 ## 7. What the stack did as a whole

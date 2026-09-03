@@ -3902,3 +3902,31 @@ division of labour; (c) the nine `(-1,-1)` records that are unreviewable by
 construction need a disambiguating key or a counted disposition; (d) `tau` is a
 dial that cannot turn — retire it with a test that keeps it gone, or keep it and
 put the confidence distribution in the manifest note as the reason.
+
+## 2026-09-02 — rung 6's tail cut: it was duplicating §7 and disclaiming a number the article never states
+
+Owner questioned whether the four blocks after rung 6's count were needed. Three
+of the four were not, and checking why found two distinct defects rather than
+mere length:
+
+1. **The oracle sentence duplicated §7.** §7's "None of them can find what rung 0
+   missed" already runs the same oracle, makes the same point (the desk is
+   span-keyed and can only pick codes), and reports the same movement. §6 was
+   the weaker of the two tellings, because §7 states it as the structural
+   finding it is. Cut from §6; §7 keeps it.
+2. **The minutes disclaimer defended against a claim the article does not make.**
+   "The manifest carries a declared 2.0 minutes per record, and any total derived
+   from it is an illustration" was the ONLY place a minutes figure appeared
+   anywhere in the article. Disclaiming a number we never state is defensive
+   writing; the Limitations paragraph ("Human cost is a count of records routed,
+   never minutes") already carries it in one clause.
+3. **The flywheel paragraph was speculation** about work not done, on a corpus
+   where the owner had already observed it does not apply. Cut. The reusable
+   substance — resolutions carry ids, offsets, codes and labels but never corpus
+   text — survives in `ladder/rungs/r6.py`'s docstring and in plan item 17.
+
+A side effect worth recording: cutting the oracle sentence removed a cross-run
+citation. Rung 6's passage now draws on `audit-full-dev-1` alone, which is what
+§6's own opening paragraph declares, so the section no longer mixes runs.
+
+§6 is now 2,298 words, from 3,622 at the start of the day.
