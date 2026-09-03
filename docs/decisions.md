@@ -5089,3 +5089,106 @@ stated.
 repeated N times in one session with and without another model loaded
 between repeats, to test the server-state hypothesis. (b) The lexical rule
 from item 8. (c) `lexical_mode` default: owner's call, numbers above.
+
+## 2026-09-03 — THE CONSOLIDATED RE-RUN, FiNER: three cold draws, byte-identical, and the judge arms on the same cache
+
+Runs `rerun-finer-d{0,1,2}` (base, `manifest.finer.json`, tree clean at
+`c488a46` / `5c9ffd2` — docs-only commits between draws), arms `-judgemenu`,
+`-judgeshuffle`, `-spine`. Dev split, 40 pseudo-documents, **165 scorable gold
+mentions**. Report `out/rerun/finer.{json,md}`. ~2 h 16 min per base draw
+(rung 0 ~38 min, rung 3 ~90 min), ~24 min per judge arm. Every number
+`score_run` span-exact unless it says overlap.
+
+**ALL THREE DRAWS ARE BYTE-IDENTICAL, AND NONE IS A REPLAY.** sha256 `3cde146c`
+three times; 110 rung 0 calls per draw, 0 cached, 110 of 110 raw replies
+identical between any pair. Consensus 298 of 298 mentions (100%). Rung 3's
+samples are real (temperature 0.7): 303 / 299 / 301 calls, tokens 2,631,243 /
+2,613,262 / 2,604,531. So on FiNER the model repeated itself three of three
+today, where the 2026-08-31 set had d1 == d2 and a refusal on d0. Together
+with CADEC's 2-of-3 this is the finding: **the run-to-run variance of
+gpt-oss:20b is whole runs that repeat or do not, and the rate at which they do
+changes between sessions.**
+
+**The determinism probe, run on the idle GPU after the last draw**
+(`scripts/determinism_probe.py`, CADEC `LIPITOR.159` — a document whose find
+reply differed between `rerun-cadec-d0` and `-d2`): the real find prompt sent
+8 times with the disk cache disabled, 4 back-to-back and 4 with one
+granite4:micro-h call between each so the extractor is evicted and reloaded.
+**8 of 8 replies identical** (898 + 529 tokens every time). So the divergence
+is not per-call sampling and it is not model reload. It appears only INSIDE a
+full run, where a document's call arrives after ~50 other requests to two
+models and an embedder; the candidate is server-side batching / prefix-cache
+state that depends on the preceding request sequence, and it is still not
+established. Recorded as narrowed, not solved. One more detail that points the same way:
+the probe's reply (`14648de1`, 529 completion tokens) is draw 2's reply for
+that document, not draw 0/1's (`e8706f74`, 1,434 tokens — a longer chain of
+thought to a different mention list). The isolated answer is the d2 answer;
+the identical pair d0 = d1 produced the OTHER one, inside their runs.
+
+**Rung 0** (all three draws): 304 spans; detection P/R/F1 **0.388 / 0.715 /
+0.503** exact, coding **0.390**, **F1 0.196** [0.105–0.282]; overlap detection
+F1 0.529, coding 0.395, F1 0.209. Recall 0.279 = 0.715 x 0.390.
+
+**The error budget** (165 gold, exact): matched **118**, missed **47**,
+invented **186** (304 predictions against 165 gold — the over-extraction the
+plan's item 5(b) asked to recompute on the reported run: the miss is WHICH
+numbers, not how many); on menu 118 (the whole vocabulary is the menu);
+correct **46**; lost at the pick **72**, of which **56 the model's own choice
+and 16 rung 0's fallback rule** writing menu line one (alphabetical:
+`AccrualForEnvironmentalLossContingencies`) onto mentions the pick reply
+skipped. B4's finding holds on the base run: the fallback lane is a fifth of
+the pick loss. CADEC's shape inverted, measured: find 110 / retrieve 8 / pick
+21 there, find 47 / retrieve 0 / pick 72 here.
+
+**Rung 1 lanes**: ACCEPT **0**, BAND **301** (15.3% correct exact; 38.6% on
+the 127 overlap-matched; 174 sit on no gold mention), REJECT **3** (all
+unlocated spans). Identical on every draw. Coverage 0 -> every record to a
+person, 304 of 304, 608 declared minutes.
+
+**Rung 3 by lane**: changed **74 / 83 / 94** codes, net correct **+6 / +8 /
++8**, destroyed 3 / 2 / 5, gained 9 / 10 / 13; not re-found 10 / 17 / 13
+(mostly invented spans: 9 / 15 / 12 had been unmatched). All changes in BAND,
+because everything is. **Sign-consistent positive on FiNER, three of three**,
+where CADEC read +1 / −1 / −1 — the one corpus where the pick, not the find,
+is the weak half is the one where asking again helps, by 6-8 records in 304,
+at 2.6 million tokens and a 296-356 s p95, and all of it withheld by rung 5
+anyway.
+
+**Rung 4 — the blind judge against the menu-shown judge**, paired per draw:
+| draw | judge | judged | pass / fail | P(correct|pass) | P(correct|fail) | sep. | span_bad | code_bad | not-on-list | best correct | best = pick |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| d0 | blind | 296 | 45 / 251 | 0.444 | 0.124 | 3.60x | 149 | 243 | — | — | — |
+| d0 | menu, ranked | 302 | 190 / 112 | 0.268 | 0.009 | 30.1x | 56 | 100 | 105 | 26 | 115 |
+| d0 | menu, shuffled | 301 | 186 / 115 | 0.274 | 0.009 | 31.5x | 50 | 105 | 109 | 33 | 119 |
+| d1 | blind | 296 | 47 / 249 | 0.404 | 0.137 | 2.96x | 149 | 241 | — | — | — |
+| d1 | menu, ranked | 302 | 192 / 110 | 0.276 | 0.009 | 30.4x | 55 | 95 | 100 | 26 | 117 |
+| d1 | menu, shuffled | 301 | 183 / 118 | 0.284 | 0.017 | 16.8x | 54 | 104 | 111 | 32 | 118 |
+| d2 | blind | 295 | 46 / 249 | 0.370 | 0.145 | 2.56x | 142 | 243 | — | — | — |
+| d2 | menu, ranked | 303 | 204 / 99 | 0.260 | 0.010 | 25.7x | 55 | 89 | 94 | 27 | 120 |
+| d2 | menu, shuffled | 301 | 195 / 106 | 0.272 | 0.009 | 28.8x | 50 | 95 | 99 | 32 | 128 |
+Rung 0 is identical across draws, so the three blind rows are three judge
+draws over the same records: granite is NOT deterministic here (45 / 47 / 46
+pass, separation 3.6 / 3.0 / 2.6x) — the rung 3 changes ahead of it differ,
+and so do its own replies on identical prompts (204 / 230 identical on CADEC
+between d0 and d1). The blind judge fails 84% of everything, which is the
+article's "as little information as passing everything". Shown the menu it
+passes 63-67% and fails 99-118, and **almost nothing it fails is correct** (1
+of ~110 on every draw) — the separation ratio is enormous because the
+denominator is near zero, not because P(correct|pass) rose (0.26-0.28 against
+0.37-0.44 blind; the base rate is 0.15). Read it as: the menu judge's FAIL is
+reliable and its PASS is not, the mirror of the blind judge. `not on this
+list` 94-111 times, `best` correct only 26-33 against the pick's 46; shuffling
+changes little. It reads the corpus's own guidance (WHAT KIND OF QUANTITY) —
+the identifier-readability explanation in article §5 survives: the judge
+engages with FiNER's tags either way, and what the menu adds here is the
+ability to say the answer is not on it.
+
+**Cost per base draw**: rung 0 947,360 tokens / 110 calls / p95 135-143 s;
+rung 3 2.60-2.63 M tokens / ~300 calls / p95 296-356 s; rung 4 ~270 k tokens
+/ 304 calls / p95 2.3 s; rung 2 never fired (REJECT is 3 unlocated spans, no
+fact to state). 304 routed, every draw. The spine ships the same nothing.
+
+**Item 5(b) closed**: FiNER's over-extraction reproduces on the reported run —
+304 proposed against 165 gold, 186 invented, 47 missed. Item 3(a) closed: the
+reported configuration's agreement figures are 100% on three genuine cold
+draws. Item 3(b) (five models on FiNER) remains after the article ships.

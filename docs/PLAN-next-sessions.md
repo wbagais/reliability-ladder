@@ -291,8 +291,12 @@ descriptive dev-side number in the article.** STARTED 2026-09-03 02:47 from
 base first then the arms (`judgemenu`, `judgeshuffle`, CADEC `lexarm`) on the
 same cache, plus a zero-model `spine` replay (rungs 5-6 over the rung 1
 snapshot). Run ids `rerun-{cadec,finer}-d{0,1,2}[-<arm>]`; report by
-`scripts/rerun_analysis.py`. Results in `docs/decisions.md` when the draws
-finish.
+`scripts/rerun_analysis.py`. **DONE 2026-09-03 15:46** — 6 base draws + 17
+arm/spine replays, ~13 h wall clock; reports `out/rerun/{cadec,finer}.{json,md}`;
+archived with checksums to the main checkout's
+`out/archive/reliability-ladder-b2-menu-f77617/` (411 files, 1.1 GB, call
+traces included). Two decisions entries same date ("THE CONSOLIDATED RE-RUN,
+CADEC" / "…FiNER").
 
 **PHASE 3 — rewrite the article's numbers against that run**, clear the
 `[PENDING]` markers, and only then review the takeaways. **CADEC DONE
@@ -300,7 +304,12 @@ finish.
 commits `d430c63`, `fb4e597`): every CADEC dev-side number is now
 `rerun-cadec-d0/d1/d2`, sections 2-4, 6, 7, 11, 12 and the takeaways
 rewritten, figs 1 and 4 refreshed, figs 6/8/11/12/13 keep their runs named in
-the caption. FiNER pending its three draws.
+the caption. **FiNER DONE the same day**: §1, §2 (the tree, fig 5 refreshed),
+§3 (three identical draws), §5 (304 records, 301/3), §6 (rung 3's sign, the
+judge rows). **ZERO `[PENDING]` markers remain.** Takeaways rewritten from the
+base run. Still open, and listed in the article's §11: why the model repeats
+on some runs and not others (probe run, unexplained), and whether `contained`
+should ship (owner's call, numbers in the CADEC entry).
 
 **ANY TIME — no run needed, no ordering constraint:** items 2, 4, 7, 8, 11, 13,
 15, 17(c). (Item 18 is DONE — 2026-09-03.) **Also DONE 2026-09-03: 8
@@ -323,12 +332,12 @@ satisfy; a number with no row here is a number nobody can reproduce.
 | run | what the article uses it for | on disk? | covered by item 0? |
 |---|---|---|---|
 | `phaseF-test-1` | the headline test result, §2, §3 | **no** | **NO — test is spent and cannot be re-run** |
-| `audit-full-dev-1` (248 rec) | §7's role table, all token costs, 196 routed | **no** | yes |
-| `arm-sapbase-d0/d1/d2` (222/232) | §3 draws, §4 lanes, Fig 6, Fig 8, Fig 14 | **yes** | yes |
-| `phaseD-r3-2` (245) | §6's rung 3 figure | **no** | yes |
-| the five-model sweep | §4's ACCEPT-lane invariance table | **no** | item 2 (data exists) / item 9 |
-| FiNER `finer-full-2`, `arm-finer*` | §5 throughout, Fig 9, Fig 10, Fig 13 | partial | item 3 |
-| the judge-arm draws | §6's policy table, bottom row | **no** | item 14 supersedes |
+| **`rerun-cadec-d0/d1/d2`** (230/230/238) | **every CADEC dev-side number since 2026-09-03**: §2 funnel and fig 4, §3 consensus, §4 lanes and the `contained` table, §6 rungs 2-6 and the judge table, §7 role table and costs, takeaways, fig 1 | **yes** + archived | this IS item 0 |
+| **`rerun-finer-d0/d1/d2`** (304) | **every FiNER dev-side number since 2026-09-03**: §2 tree and fig 5, §3, §5 lanes and judge counts, §6 rung 3 and judge rows | **yes** + archived | this IS item 0 |
+| `arm-sapbase-d0` (222) | figs 6, 8, 11, 14 only — captions name it | yes | figures kept, text re-derived |
+| `phaseD-r3-2` (245) | fig 12 only — caption names it | **no** | figure kept, text re-derived |
+| the five-model sweep | §2's five-model table, §4's ACCEPT-lane invariance table (four rows) | **no** | item 9, after the article ships |
+| the judge-arm draws | §6's policy table, bottom row (blind judge) | **no** | superseded in the text by the menu judge; row kept and labelled |
 
 **The consequence to state plainly: `phaseF-test-1` is the one run that cannot be
 regenerated.** The held-out split was spent once by design. So the article's

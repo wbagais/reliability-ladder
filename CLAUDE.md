@@ -148,6 +148,23 @@
 - **Rung 6 counts UNREVIEWABLE records** (plan item 17c): unlocated or
   colliding span keys, `R_UNREVIEWABLE`, zero minutes in desk mode, still
   priced in simulated mode (a person receives them), `agg["unreviewable"]`.
+- **THE CONSOLIDATED RE-RUN IS DONE (2026-09-03, plan item 0b)** — runs
+  `rerun-{cadec,finer}-d{0,1,2}` plus `-judgemenu`, `-judgeshuffle`, CADEC
+  `-lexarm`, and `-spine`; ~13 h; archived with checksums (call traces
+  included) to the main checkout's
+  `out/archive/reliability-ladder-b2-menu-f77617/`. **Every dev-side number
+  in `docs/article-v3.md` comes from it now; zero `[PENDING]` markers.** The
+  two decisions entries carry every per-draw figure. Headlines: CADEC rung 0
+  F1 0.393/0.393/0.434 (d0 = d1 byte-identical, d2 diverged); ACCEPT lane
+  75.5/75.5/82.4% correct; ships 53/53/51 at 0.74-0.82, yield 0.170-0.176,
+  177/177/187 to a person; the menu-shown judge separates 3.4-4.2x against
+  1.7x blind; rung 3 net +1/−1/−1, 22-27 of its 25-28 changes in BAND on
+  invented spans; `contained` wins on yield 3/3 (+0.06) at ~3x errors/100 —
+  **default NOT flipped, owner's call**. FiNER: three draws byte-identical,
+  F1 0.196, find loses 47 / pick 72 (16 the fallback rule), ACCEPT 0, rung 3
+  +6/+8/+8. **Determinism**: a diverging prompt repeated 8x in isolation
+  gives one reply (= d2's); the divergence happens only inside a full run —
+  server state between requests is the remaining suspect, unexplained.
 - **B4 (break the slot-0 prior) is DONE but UNMERGED** on branch
   `claude/reliability-ladder-b4-slot0-7784eb`: the attractor was
   `_fill_from_menu`'s fallback writing menu line 0 (74 of 77 predictions),

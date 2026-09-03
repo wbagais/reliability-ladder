@@ -804,9 +804,13 @@ And note what the identical pair says about the mechanism. The same 64 prompts,
 answered two days earlier on the same machine, differ from these replies on 34.
 Whatever moves this model, it is not per-record sampling noise: it is a whole
 run that either repeats or does not, and which one you get changed between
-sessions and not between consecutive draws. We do not know why. The candidate is
-state the inference server carries between requests, and it is registered as a
-probe rather than asserted.
+sessions and not between consecutive draws. We do not know why. The obvious
+candidates are ruled out: the diverging document's find prompt, sent eight
+times in isolation with the cache disabled — four back to back, four with
+another model loaded and unloaded in between — returned one identical reply
+eight times. The divergence happens only inside a full run, after fifty-odd
+other requests to two models and an embedder, and what the inference server
+carries between those requests is the remaining suspect.
 
 ### On FiNER the same model was sometimes perfectly stable
 
@@ -1483,6 +1487,8 @@ none of them right?* Same records, same 3.2B model, paired on each draw:
 | **shown the menu** | **3.65× · 4.23× · 3.44×** | 0 · 0 · 0 | 11 · 12 · 8 | 93 · 87 · 91 | 70 · 69 · 65 |
 | shown the menu, **shuffled** | 3.51× · 4.07× · 3.61× | 0 · 0 · 0 | 14 · 14 · 10 | 85 · 84 · 89 | 66 · 66 · 65 |
 | *the free check's ACCEPT/BAND, same draws* | *2.7× · 2.7× · 2.8×* | | | | |
+| **FiNER, blind** | 3.60× · 2.96× · 2.56× — fails 84% of everything | 8 · 8 · 9 | 149 · 149 · 142 | 243 · 241 · 243 | — |
+| **FiNER, shown the menu** | 30× · 30× · 26× — but only because 1 of ~110 fails is correct | 2 · 2 · 1 | 56 · 55 · 55 | 100 · 95 · 89 | 105 · 100 · 94 |
 
 Three things. The blind row reproduces the article's original 1.65× on every
 draw — it was a real measurement of a question the judge could not answer. Shown
@@ -1496,6 +1502,16 @@ see. Shuffling the menu changes almost nothing, so there is no line-one
 ratification to break. The judge's own choice of line is right 77 to 85 times
 against the extractor's 87 to 98; it should not replace the pick, and it ratifies
 the pick on about two records in three.
+
+On FiNER the same change reads differently, and the ratio misleads. Blind, the
+judge fails 84% of every record, which carries about as much information as
+passing everything. Shown the menu it passes two thirds and fails a third —
+and almost nothing it fails is correct, one record in about a hundred and ten
+on every draw, which is why the ratio is enormous. Its *pass* is no better than
+before (26–28% correct against a 15% base rate). So on FiNER the menu judge is
+a reliable *no* and an unreliable *yes*, the mirror of CADEC, and the verdict
+it adds — *not on this list* — fires on about a third of the batch, on a menu
+that is the entire vocabulary.
 
 Two caveats travel with the table. It is still a 3.2B model grading a 20B one,
 on the development split. And the separation is a *measurement*, not a shipped
