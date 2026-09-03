@@ -58,7 +58,7 @@ digraph rung1 {
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">is measured afterwards, and is the only reason the sort is worth anything: <B>75% against 27%</B> (82% against 30% on draw 2).</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>REJECT is near-empty, and that is our doing.</B> A rung 0 filter now drops ungrounded spans at source,</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 10 of 240 records into holds 2 invented quotes. Section 7.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 10 of 240 records into holds 2 invented quotes. See “What each layer was for”.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>BAND is where the false positives go</B> — 100 of its 175 sit off the exact gold span, 40 on no gold mention at all.</FONT></TD></TR>
         </TABLE>>];

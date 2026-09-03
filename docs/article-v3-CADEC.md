@@ -56,7 +56,7 @@ rather than as preprocessing. So we built all seven and measured each.
 stack we built, not a proof about stacking — the next section says why the
 distinction matters.
 
-![Figure 2](figures/fig6-spine.png)
+![Figure 2](figures/fig6-spine-cadec.png)
 
 *Fig. 2: How to read this article. One question, three sub-questions, one body of
 evidence under all three. Source: author-created with Graphviz.*

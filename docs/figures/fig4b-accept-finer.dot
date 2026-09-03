@@ -29,18 +29,18 @@ digraph accept_finer {
   rej [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#a33333">
     <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="12" COLOR="#a33333"><B>REJECT · 3 of 304, from the check as shipped</B></FONT></TD></TR>
     <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="11.5" COLOR="#121a1e">the quoted number is not at those characters of the excerpt</FONT></TD></TR>
-    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Span grounding is the only check that can reject here, and it fired once.<BR ALIGN="LEFT"/>The other four cannot: every tag exists, none is retired, none has a hierarchy,<BR ALIGN="LEFT"/>and no number matches a tag name.</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Span grounding is the only check that can reject here, and it fired three times.<BR ALIGN="LEFT"/>The other four cannot: every tag exists, none is retired, none has a hierarchy,<BR ALIGN="LEFT"/>and no number matches a tag name.</FONT><BR ALIGN="LEFT"/></TD></TR>
     </TABLE>>];
 
   rej2 [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#a33333">
-    <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="12" COLOR="#a33333"><B>REJECT · 44 per run, from the check we added</B></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="12" COLOR="#a33333"><B>REJECT · 35 per run, from the check we added</B></FONT></TD></TR>
     <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
       <TR>
-        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the span, in context</FONT><BR/><FONT POINT-SIZE="14"><B>10.85 %</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a percent</FONT></TD>
+        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the span, in context</FONT><BR/><FONT POINT-SIZE="14"><B>37.6 percent</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a percent</FONT></TD>
         <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#a33333"> &#8212;  types contradict  &#8212;&#9654; </FONT></TD>
-        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the tag chosen</FONT><BR/><FONT POINT-SIZE="13"><B>DebtInstrumentFaceAmount</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a money amount</FONT></TD>
+        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the tag chosen</FONT><BR/><FONT POINT-SIZE="13"><B>AccrualForEnvironmental…</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a money amount</FONT></TD>
       </TR></TABLE></TD></TR>
-    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Provably wrong without knowing the right answer &#8212; and <B>35.7% of these rejections were</B><BR ALIGN="LEFT"/><B>themselves wrong</B> on model output, so the check is off. See section 5.</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Provably wrong without knowing the right answer &#8212; and on the base run <B>none of the 10 that sit on a gold mention is wrong</B>; on an earlier run about a third were. The check ships off.</FONT></TD></TR>
     </TABLE>>];
 
   acc -> band [style=invis]; band -> rej [style=invis]; rej -> rej2 [style=invis];

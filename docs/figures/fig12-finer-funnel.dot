@@ -46,12 +46,12 @@ digraph finer_funnel {
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The bottleneck has moved.</B> On CADEC the find step loses 100 of 226 and the pick loses 21.</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Here find loses 52 of 165 and <B>the pick loses 63</B> — more than detection, on a menu that</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The bottleneck has moved.</B> On CADEC the find step loses 110 of 226 and the pick loses 21.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Here find loses 47 of 165 and <B>the pick loses 72</B> — more than detection, on a menu that</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">always holds the right answer. Same pipeline, opposite failure.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">Counts derived from four recorded figures, not re-scored — see the source file. The 52 is</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">recorded independently, which is what makes the arithmetic checkable.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">Every count is measured on rerun-finer-d0 (draws 1 and 2 identical) by ladder/analysis.error_budget;</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">16 of the 72 pick losses are rung 0's own fallback rule.</FONT></TD></TR>
         </TABLE>>];
   fp2 -> note [style=invis];
 }

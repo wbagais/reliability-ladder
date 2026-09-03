@@ -61,7 +61,7 @@ digraph rung3 {
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Every row is now broken down by what rung 0 had said.</B> The 12 it could not re-find were mostly</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">invented spans (9 of 12); 17 of its 25 changes replace one wrong code with another on a span that</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">matches no gold mention. Voting is not fixing what was broken; it is re-coding the</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">extractor's false positives, in the lane where the free check had no opinion. Section 6.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">extractor's false positives, in the lane where the free check had no opinion. See the rung 3 subsection.</FONT></TD></TR>
         </TABLE>>];
   safe -> note [style=invis];
 }

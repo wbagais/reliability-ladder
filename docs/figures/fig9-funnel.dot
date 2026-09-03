@@ -59,11 +59,11 @@ digraph funnel {
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The two counts overlap; they do not sum.</B> The 126 matched spans are one gold mention AND one prediction:</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">219 scored = 126 matched + 93 that hit no gold. &#160; 226 gold = 126 matched + 100 never proposed.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The two counts overlap; they do not sum.</B> The 116 matched spans are one gold mention AND one prediction:</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">217 scored = 116 matched + 101 not on a gold span. &#160; 226 gold = 116 matched + 110 not proposed.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f"><B>TP 92</B></FONT><FONT POINT-SIZE="11" COLOR="#5a6b73">  ·  </FONT><FONT POINT-SIZE="11" COLOR="#a33333"><B>FP 127</B> = 93 wrong span + 22 wrong code + 12 unreachable  ·  <B>FN 134</B> = 100 + 22 + 12</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">precision 92/219 = 0.420   ·   recall 92/226 = 0.407   ·   F1 0.413</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f"><B>TP 87</B></FONT><FONT POINT-SIZE="11" COLOR="#5a6b73">  ·  </FONT><FONT POINT-SIZE="11" COLOR="#a33333"><B>FP 130</B> = 101 wrong span + 21 wrong code + 8 unreachable  ·  <B>FN 139</B> = 110 + 21 + 8</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">precision 87/217 = 0.401   ·   recall 87/226 = 0.385   ·   F1 0.393</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>There is no true negative</B> — the negative class is every possible span in every post.</FONT></TD></TR>
         </TABLE>>];
   fp2 -> note [style=invis];

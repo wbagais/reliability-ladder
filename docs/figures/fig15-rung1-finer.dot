@@ -47,11 +47,11 @@ digraph rung1_finer {
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Compare with the same rung on CADEC:</B> 48 ACCEPT at 85.4% correct, 174 BAND at 29.3%, 0 REJECT.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Compare with the same rung on CADEC:</B> 53 ACCEPT at 75.5% correct, 175 BAND at 26.9%, 2 REJECT (rerun-cadec-d0).</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Same code, same lanes, same string comparison. One variable: the corpus.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>The second check changed nothing that ships.</B> It can only reject, so ACCEPT stays 0 and</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">coverage stays at zero — and its 44 rejections a run landed on records rung 5 was already</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">coverage stays at zero — and its 35 rejections a run landed on records rung 5 was already</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">withholding. It is off.</FONT></TD></TR>
         </TABLE>>];
   rej2 -> note [style=invis];

@@ -26,7 +26,7 @@ digraph rung4 {
     cp [label="pass · 136" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
     cf [label="fail · 87" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     cu [label="unjudged · 7" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    cn [label="span ✗ code ✗ · 41      span ✓ code ✗ · 39\nspan ✓ code ✓ · 136      span ✗ code ✓ · 7\nHanded the number 1003722009 and never the\nconcept name or the menu — section 6 fixes that."
+    cn [label="span ✗ code ✗ · 41      span ✓ code ✗ · 39\nspan ✓ code ✓ · 136      span ✗ code ✓ · 7\nHanded the number 1003722009 and never the\nconcept name or the menu — the rung 4 subsection fixes that."
         fillcolor="#fdf0c8" color="#946c00"];
     { rank=same; cp; cf; cu }
     cp -> cn [style=invis]; cf -> cn [style=invis];
@@ -58,10 +58,10 @@ IS a name: DebtInstrumentFaceAmount."
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">the judge was never shown the concept&#39;s name, the menu, or the line the extractor picked.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 84,000 tokens a run to write</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. Section 7.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. See “What each layer was for”.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333"><B>THESE ARE THE BLIND JUDGE&#39;S COUNTS.</B> Shown the menu, the same model separates 3.4-4.2x on CADEC</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333">against 1.7x here, and stops failing to parse. The paired table is in section 6.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333">against 1.7x here, and stops failing to parse. The paired table is in the rung 4 subsection.</FONT></TD></TR>
         </TABLE>>];
   dead -> note [style=invis];
 }

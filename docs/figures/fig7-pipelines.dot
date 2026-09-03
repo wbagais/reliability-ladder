@@ -36,7 +36,7 @@ digraph pipelines {
 
     <TR>
       <TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>RETRIEVE</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
-      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">embed the span, take the<BR ALIGN="LEFT"/>20 nearest concepts<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ a 20-line menu, 87% of<BR ALIGN="LEFT"/>the time holding the answer</FONT><BR ALIGN="LEFT"/></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">embed the span, take the<BR ALIGN="LEFT"/>20 nearest concepts<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ a 20-line menu, holding the answer for 93%<BR ALIGN="LEFT"/>of the spans the model finds</FONT><BR ALIGN="LEFT"/></TD>
       <TD BGCOLOR="#f7f8f8" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#8a9aa1"><I>no such step —<BR ALIGN="LEFT"/>139 tags fit in the prompt<BR ALIGN="LEFT"/></I></FONT><FONT POINT-SIZE="10.5" COLOR="#8a9aa1">→ the menu is the whole<BR ALIGN="LEFT"/>vocabulary, always complete</FONT><BR ALIGN="LEFT"/></TD>
     </TR>
 
