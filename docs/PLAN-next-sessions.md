@@ -216,7 +216,7 @@ stamina example in §6 that item 7 says is stale.
 ## Required before the article ships
 
 Everything here either blocks a claim the draft makes or removes a caveat it
-carries. Items 1, 3, 5, 6, 9, 10 and 14 need runs; 2, 4, 7, 8, 11 and 15 do not. Item 3 is the only one
+carries. Items 1, 3, 5, 6, 9, 10, 14 and 16 need runs; 2, 4, 7, 8, 11 and 15 do not. Item 3 is the only one
 that goes beyond unblocking — it makes the model findings two-corpus instead of
 one, and the article is shippable without it, with its CADEC-only caveats
 intact.
@@ -680,6 +680,25 @@ intact.
       "a rung that can propose a missed mention" as an open question instead,
       and bound it with an oracle ceiling first, exactly as rung 6 was bounded
       before it was built.
+
+16. **`lexical_mode: exact` MAY BE THE WRONG SHIPPED DEFAULT, and the article's
+    own numbers say so on the article's own rule.** REQUIRES RUNS. Raised
+    2026-09-02 while reframing rung 5 as a policy dial.
+    - On `arm-sapbase-d0` (222 scored): `exact` ships 48 records at 85.4%
+      (41 correct, **yield 0.185**); `contained` ships 88 at 63.6% (56 correct,
+      **yield 0.252**). The looser setting was rejected in §4 for costing 22
+      points of LANE ACCURACY — a precision measure — and on yield it is 36%
+      better.
+    - This is the third instance of one pattern: the article states "abstaining
+      always raises precision; yield cannot be fooled", applies it correctly to
+      the judge arm, and not to rung 5's headline (**now fixed**) or to this
+      config choice (**open**).
+    - **ONE DRAW.** Changing a shipped default on one draw is exactly the error
+      the SapBERT probe made — its go/no-go probe separated over 1,144 documents
+      and the arm ran on 38. Three paired draws before anything moves, and the
+      probe must run on the denominator the arm is scored on.
+    - Composes with item 8, which asks *why* `contained` loses lane accuracy.
+      Item 8 is the mechanism; this is the decision.
 
 ---
 

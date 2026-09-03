@@ -1,0 +1,67 @@
+// Rung 5 on CADEC dev, draw 0 (arm-sapbase-d0) — the refusal rung.
+//
+// ZERO MODEL CALLS. Rung 5 is a pure disposition rule, so its output was
+// REPLAYED from the surviving records file through r5.decide() with the
+// shipped manifest config, not quoted from a run that no longer exists.
+// Replay result over all 232 produced records: BAND 182 -> ABSTAIN,
+// ACCEPT 50 -> VERIFIED. Nothing else fired.
+//
+// The correctness split inside each lane is the SCORED subset (222 of 232;
+// 10 records are unscoreable) and is the same split fig10-rung1 reports.
+//
+// WHY TWO RULES ARE DRAWN OFF: `tau: 0.0` and `abstain_on_judge_fail: false`
+// are the shipped manifest values. They are drawn rather than omitted because
+// their being off is the finding — the textbook abstention method (confidence
+// thresholding) is not merely untuned here, it is inapplicable. Rung 0 reports
+// >= 0.95 confidence on EVERY record (77% report exactly 1.0) while getting
+// ~40% of them right.
+//
+// COLOUR KEY — unchanged from fig1-wiring:
+//   green #2d6a4f ships/correct   amber #946c00 withheld   grey deterministic
+//   NO TEAL ANYWHERE: teal marks a model call, and this rung makes none.
+digraph rung5 {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  in [label="EVERY record still in flight · 222 scored\nrung 1 judged but did not route, so nothing was filtered out\nverdict is CURRENT: rungs 2 and 3 re-run rung 1 after any change"
+      fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+
+  rule [shape=none margin=0 label=<
+    <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#f4f6f7" COLOR="#9aa7ad">
+      <TR><TD COLSPAN="2" BGCOLOR="#e9edef"><FONT POINT-SIZE="13"><B>RUNG 5 · no model call, no answer key</B></FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">1 · verdict is REJECT</FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="11">withhold</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#98a3a8">2 · the judge failed it</FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#98a3a8"><B>OFF</B>  abstain_on_judge_fail</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#98a3a8">3 · confidence below tau</FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#98a3a8"><B>OFF</B>  tau = 0.0</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">4 · verdict is BAND</FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="11">withhold</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">5 · verdict is ACCEPT</FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="11">ship</FONT></TD></TR>
+      <TR><TD COLSPAN="2" BGCOLOR="#e9edef" ALIGN="LEFT"><FONT POINT-SIZE="11"><B>With two rules off, the whole rung is: ship ACCEPT, withhold the rest.</B></FONT></TD></TR>
+    </TABLE>>];
+
+  ship [label="VERIFIED · 48 ship\n41 correct · 1 wrong code · 6 on no gold\naccuracy on what it answers = 85.4%"
+        fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+
+  hold [label="ABSTAIN · 174 withheld → a person\n51 correct · 29 wrong code · 94 on no gold\nreason: unresolved · answer kept in checks.withheld"
+        fillcolor="#fdf0c8" color="#946c00" penwidth=2.5];
+
+  note [shape=none margin=0 label=<
+    <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11"><B>It does not resolve. It sorts.</B> Coverage falls 222 → 48 (21.6%).</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Accuracy on answered records rises 41.4% → <B>85.4%</B> — but it withdrew <B>51 correct answers</B> to remove 123 wrong ones.</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Counted as <B>yield</B> (correct ÷ every record), the same step reads <B>41.4% → 18.5%</B>. Precision rises because abstaining always raises precision.</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11">Withheld, never deleted: the proposed code is preserved so rung 6 can show a person what the system was going to say.</FONT></TD></TR>
+    </TABLE>>];
+
+  in -> rule [penwidth=2];
+  rule -> ship [label="  ACCEPT " color="#2d6a4f" penwidth=2.2];
+  rule -> hold [label="  BAND / REJECT " color="#946c00" penwidth=2.2];
+  ship -> note [style=invis];
+  hold -> note [style=invis];
+  {rank=same; ship; hold;}
+}

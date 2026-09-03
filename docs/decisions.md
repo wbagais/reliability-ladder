@@ -3764,3 +3764,64 @@ names an unproposed mention is extracting with a second model, the same collapse
 the standing rung 0 / rung 2 retry rule already forbids. Registered instead as
 plan item 15: a rung that can propose a missed mention, bounded with an oracle
 ceiling first, exactly as rung 6 was bounded before it was built.
+
+## 2026-09-02 — refusal is a policy dial, not a technique; and the article applied its own yield rule to only one of three decisions
+
+Rewrote §6's rung 5 passage (4 lines -> a full subsection) on the owner's frame:
+rung 5 is the guard in front of rung 6 and how aggressive it should be is the
+deployer's call, not a property of the task. The frame is supported — the
+manifest already exposes four knobs, the article already uses "a number only you
+have" for cost, and the judge arm is an existence proof of the dial being turned
+and measured.
+
+**The frame forced a fix rather than replacing one.** A dial is only choosable if
+every setting is reported on both metrics, so §6's per-layer table now carries a
+YIELD column beside answered accuracy. That exposed an inconsistency the article
+had been carrying: it states the rule sharply — "abstaining always raises
+precision; yield cannot be fooled" — and then applied it to one of three
+decisions.
+
+  judge arm       rejected ON YIELD                     correct
+  rung 5 headline credited +0.437 ON PRECISION          fixed
+  lexical_mode    chosen on lane accuracy ON PRECISION  OPEN, see below
+
+Per-layer table, `audit-full-dev-1`: refusal reads 0.371 -> 0.808 on answered
+accuracy and 0.371 -> 0.170 on yield. Both true. The plot (fig2-flat) shows only
+the flattering column and its caption now says so.
+
+**The open one is a shipped-config question.** On `arm-sapbase-d0`'s own numbers,
+`lexical_mode: contained` ships 88 records at 63.6% (56 correct, yield 0.252)
+against `exact`'s 48 at 85.4% (41 correct, yield 0.185). The looser setting was
+rejected for costing 22 points of LANE ACCURACY — a precision measure — and on
+yield it is 36% better. ONE DRAW, and changing a shipped default on one draw is
+precisely the error the SapBERT probe made, so this is registered rather than
+acted on.
+
+New policy table in §6 gives four settings — ship everything / `contained` /
+ACCEPT only / ACCEPT minus judge fails — at 0.414 / 0.252 / 0.185 / 0.125 yield
+against 0.414 / 0.636 / 0.854 / 0.816 answered accuracy. The two columns are
+monotone in opposite directions over the same four systems. Stated conclusion:
+the rung has no optimum, only a break-even in three currencies we do not have.
+Moving from ship-everything to the shipped policy trades **123 fewer errors, 51
+fewer correct answers, and 174 more records for a person.**
+
+Also recorded, and it retires a technique rather than leaving a key untuned:
+**`tau` is not merely uncalibrated, it is inapplicable.** Rung 0's self-reported
+confidence on `arm-sapbase-d0` is 1.0 on 179 records (77%), 0.99 on 48 and 0.95
+on 5 — **nothing below 0.95**, on a run that is right about 40% of the time. At
+least six in ten answers the model calls near-certain are wrong. The manifest
+note said tau waits for "a real rung-0 confidence distribution"; the distribution
+exists and is degenerate. Confidence thresholding, the textbook abstention
+method, has no threshold to place here.
+
+New figure `docs/figures/fig19-rung5.dot` (Fig. 14), and it is the only figure in
+the article that is REPLAYED rather than quoted: rung 5 is a pure disposition
+rule, so the surviving `arm-sapbase-d0` records were run back through
+`r5.decide()` with the shipped manifest config. Result: BAND 182 -> ABSTAIN,
+ACCEPT 50 -> VERIFIED, nothing else fires. Figures 14-16 renumbered to 15-17.
+
+One correction to the 2026-08-28 audit's phrasing, which said rungs 2, 3 and 4
+each defer to a rung 5 that reads none of them. Rung 5 reads all of them except
+the judge: rungs 2 and 3 RE-RUN `r1.zone()` after changing a code and overwrite
+`r1_verdict` (`ladder/rungs/r2.py:451`, `ladder/rungs/r3.py:218`), so their work
+reaches rung 5 through a recomputed free check. Rung 4 alone has no reader.

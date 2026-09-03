@@ -1415,10 +1415,75 @@ prompt, and it stood for five phases.
 None of which changed a shipped answer, because **nothing reads the verdict.**
 Section 7 is about how that survived five phases of testing.
 
-**Rung 5, refusal.** Resolves nothing. It withdraws what the stack could not
-corroborate and routes the record to a person — and it is the only one that moves
-the number. It **withholds, it does not delete**: the proposed answer stays on
-the record so a reviewer can see what the system was going to say.
+**Rung 5, refusal.** Zero model calls, and no judgement of its own. It reads the
+free check's verdict — recomputed, because rungs 2 and 3 re-run rung 1 after they
+change a code — and disposes of the record:
+
+![Figure 14](figures/fig19-rung5.png)
+
+*Fig. 14: Rung 5 on the development split, `arm-sapbase-d0`. Because the rung is
+a pure disposition rule, this figure is **replayed** — the surviving records were
+run back through `r5.decide()` with the shipped configuration — rather than
+quoted from a run that no longer exists. Source: author-created with Graphviz.*
+
+Ship ACCEPT, withhold everything else. That is the whole rung as shipped. It
+**withholds, it does not delete**: the proposed answer is kept so a reviewer can
+see what the system was going to say.
+
+Two of its four rules never fire, and both silences are results. The judge rule
+is off (above). The other is the one worth pausing on: rung 5 has a confidence
+threshold, `tau`, and **the standard abstention technique is not merely untuned
+here — it is unusable.** Rung 0 reports a confidence on every mention, and the
+distribution is this:
+
+| self-reported confidence | records |
+|---|---|
+| **1.0** | 179 (77%) |
+| 0.99 | 48 |
+| 0.95 | 5 |
+
+Nothing below 0.95, on a run whose answers are right about 40% of the time. **At
+least six in ten of the answers this model calls near-certain are wrong.** There
+is no threshold to place. You cannot ask this model how sure it is, which is a
+one-line argument for the entire project.
+
+### Refusal is not a technique. It is a dial, and you are the one who sets it
+
+Rung 5 is where the system stops deciding and the deployer starts. It is a guard
+in front of rung 6, and how aggressive it should be is not a property of the
+task. Four settings, the first three from the same 222 records:
+
+| policy | ships | accuracy on what it answers | **yield** | to a person |
+|---|---|---|---|---|
+| ship everything — no rung 5 | 100% | 0.414 | **0.414** | 0 |
+| looser lane (`contained`) | 40% | 0.636 | **0.252** | 134 |
+| **ACCEPT only** — *shipped* | 22% | 0.854 | **0.185** | 174 |
+| ACCEPT minus judge fails ⚠️ | 15% | 0.816 | **0.125** | 210 |
+
+⚠️ *a different run — the three-draw judge arm — and the only row not derived
+from the same records as the others. The `contained` row is one draw.*
+
+Read down the two accuracy columns. **They point in opposite directions, and
+they are describing the same four systems.** Precision rises monotonically as the
+policy tightens; yield falls monotonically. Neither column is wrong, and neither
+one alone tells you which row to pick.
+
+What the dial actually trades, moving from the top row to the shipped one:
+
+> **123 fewer errors. 51 fewer correct answers. 174 more records for a person.**
+
+Three currencies moving in three directions at once. That is why we report them
+separately and refuse to fuse them, and it is why this rung has no optimum — only
+a break-even that depends on three numbers we do not have: what a wrong answer
+costs you, what a missing one costs you, and what a review costs you. A hospital
+coding department and a research aggregation pipeline will not put the dial in
+the same place, and neither of them is misusing the system.
+
+One honest limit on that freedom. Every setting we measured ships **either
+everything, or between 15% and 40%.** There is no configuration in our evidence
+that ships most of the batch at usable accuracy, and the dial cannot manufacture
+one — the ceiling is the free check's ability to sort, not the policy on top of
+it.
 
 **Rung 6, the person.** Three rows from the queue — what 196 of 248 records
 actually look like:
@@ -1430,24 +1495,42 @@ actually look like:
 The first is a right answer the system could not corroborate and threw away. The
 third is why it throws them away.
 
-![Figure 14](figures/fig2-flat.png)
+![Figure 15](figures/fig2-flat.png)
 
-*Fig. 14: Accuracy on answered records is flat through four layers and falls at
-voting. It rises only when the system stops answering. Source: author-created with
-Matplotlib.*
+*Fig. 15: Accuracy on answered records is flat through four layers and falls at
+voting. It rises only when the system stops answering. **The plot shows column
+one of the table below — the flattering one.** Plotted as yield, the final step
+falls rather than rises. Source: author-created with Matplotlib.*
 
-| layer (development split) | answered accuracy | bought | tokens | p95 |
-|---|---|---|---|---|
-| bare model | 0.371 | — | 164,897 | *cached* |
-| deterministic checks | 0.371 | +0.000 | **0** | **0** |
-| self-correction | 0.371 | +0.000 | 548 | *cached* |
-| voting | **0.367** | **−0.004** | **425,355** | **152.2 s** |
-| second-model judge | 0.367 | +0.000 | 92,687 | 1.5 s |
-| refusal | ships **0.808** | **+0.437**, at 21% coverage | 0 | 0 |
-| person | — | — | **196 records** | — |
+| layer (development split) | answered accuracy | coverage | **yield** | tokens | p95 |
+|---|---|---|---|---|---|
+| bare model | 0.371 | 1.00 | **0.371** | 164,897 | *cached* |
+| deterministic checks | 0.371 | 1.00 | **0.371** | **0** | **0** |
+| self-correction | 0.371 | 1.00 | **0.371** | 548 | *cached* |
+| voting | **0.367** | 1.00 | **0.367** | **425,355** | **152.2 s** |
+| second-model judge | 0.367 | 1.00 | **0.367** | 92,687 | 1.5 s |
+| refusal | ships **0.808** | **0.21** | **0.170** | 0 | 0 |
+| person | — | — | — | **196 records** | — |
 
-**Accuracy does not move until the refusal step, and then it moves by declining to
-answer.**
+*The yield column is answered accuracy × coverage; only the refusal row has a
+coverage below 1, so only that row's two numbers differ.*
+
+**Three layers cost 518,590 tokens and moved nothing. The fourth moved it
+backwards. And the step that finally changes the headline does not resolve
+anything — it declines.**
+
+Which is where the two accuracy columns part company, and the parting is the
+point. On the metric in column one, refusal is the best thing in the table: it
+takes 0.371 to **0.808**. On the metric in column three it is the worst: 0.371
+down to **0.170**. Column one asks *how often is it right when it speaks*, and
+abstaining always improves that — it is the same trap we caught the judge in one
+subsection ago, and the shipped configuration walks into it too. Column three
+asks *how many of the 248 records got a correct answer*, and by that measure
+every layer in this table is neutral or harmful.
+
+**Nothing in this ladder makes the system better at the task. The best of it
+makes the system better at knowing when not to answer** — and that is worth
+buying only if a wrong answer costs you more than a missing one.
 
 ### We deleted all three and re-ran
 
@@ -1538,9 +1621,9 @@ bounded before it was built. Plan item 15.
 refusal step reads none of the three. No test could catch it, because every layer
 does exactly what its own documentation promises. The hole is *between* them.
 
-![Figure 15](figures/fig1-wiring.png)
+![Figure 16](figures/fig1-wiring.png)
 
-*Fig. 15: Three layers write a verdict; the refusal step reads none of them.
+*Fig. 16: Three layers write a verdict; the refusal step reads none of them.
 Source: author-created with Graphviz.*
 
 **A fix three layers down silently disabled two layers up.** The checks used to
@@ -1630,9 +1713,9 @@ The part another team can use tomorrow:
 No layer announced that it had stopped working. Each ran, returned, wrote its
 field, passed its tests.
 
-![Figure 16](figures/fig3-loop.png)
+![Figure 17](figures/fig3-loop.png)
 
-*Fig. 16: The measurement loop. Every dead layer here was found on it. Source:
+*Fig. 17: The measurement loop. Every dead layer here was found on it. Source:
 author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is
