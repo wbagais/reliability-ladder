@@ -1,0 +1,47 @@
+// What rung 1's verdicts look like on FiNER. ACCEPT is unreachable, so the two
+// live panels are BAND and REJECT — the mirror of the CADEC figure, where
+// REJECT is the empty one.
+//
+// BAND: the universal case, 350 of 351. REJECT: 1 record, and span grounding is
+// the only check that can produce one here. The shape is shown rather than a
+// quoted record — the single rejection's text was not recorded, and data/finer
+// is in no checkout to recover it. The second REJECT panel shows the added type
+// check, whose fact is the one rung 2 was actually handed (decisions 2026-09-02).
+digraph accept_finer {
+  rankdir=TB; bgcolor="white"; nodesep=0.28; ranksep=0.30;
+  node [shape=none fontname="Helvetica" fontsize=12];
+
+  acc [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#c8d1d5" STYLE="dashed">
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fbfbfb"><FONT POINT-SIZE="12" COLOR="#8a9aa1"><B>ACCEPT &#183; 0 of 351</B> &#8212; unreachable by construction</FONT></TD></TR>
+    </TABLE>>];
+
+  band [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#946c00">
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fdf0c8"><FONT POINT-SIZE="12" COLOR="#946c00"><B>BAND · 350 of 351</B></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
+      <TR>
+        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the span</FONT><BR/><FONT POINT-SIZE="15"><B>47.6</B></FONT></TD>
+        <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#946c00"> &#8212;  no shared token, by construction  &#8212;&#9654; </FONT></TD>
+        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the tag's only name</FONT><BR/><FONT POINT-SIZE="13"><B>EffectiveIncomeTaxRate<BR/>ContinuingOperations</B></FONT></TD>
+      </TR></TABLE></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">A number and an English phrase share no tokens, for every run, model and prompt.</FONT></TD></TR>
+    </TABLE>>];
+
+  rej [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#a33333">
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="12" COLOR="#a33333"><B>REJECT · 1 of 351, from the check as shipped</B></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="11.5" COLOR="#121a1e">the quoted number is not at those characters of the excerpt</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Span grounding is the only check that can reject here, and it fired once.<BR ALIGN="LEFT"/>The other four cannot: every tag exists, none is retired, none has a hierarchy,<BR ALIGN="LEFT"/>and no number matches a tag name.</FONT><BR ALIGN="LEFT"/></TD></TR>
+    </TABLE>>];
+
+  rej2 [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#a33333">
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="12" COLOR="#a33333"><B>REJECT · 44 per run, from the check we added</B></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
+      <TR>
+        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the span, in context</FONT><BR/><FONT POINT-SIZE="14"><B>10.85 %</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a percent</FONT></TD>
+        <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#a33333"> &#8212;  types contradict  &#8212;&#9654; </FONT></TD>
+        <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the tag chosen</FONT><BR/><FONT POINT-SIZE="13"><B>DebtInstrumentFaceAmount</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a money amount</FONT></TD>
+      </TR></TABLE></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Provably wrong without knowing the right answer &#8212; and <B>35.7% of these rejections were</B><BR ALIGN="LEFT"/><B>themselves wrong</B> on model output, so the check is off. See section 5.</FONT><BR ALIGN="LEFT"/></TD></TR>
+    </TABLE>>];
+
+  acc -> band [style=invis]; band -> rej [style=invis]; rej -> rej2 [style=invis];
+}

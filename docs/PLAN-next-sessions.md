@@ -410,14 +410,18 @@ intact.
      0 rescued). The CADEC null used to be dismissable as too small a trigger set.
      It is not any more.
 
-7. **§6's stamina example is framed as a coding fix and cannot be one.**
-   Retrieval is deterministic and was replayed 2026-09-01: from the span
-   `"stamina"`, `248277009` |Lack of stamina| is ABSENT from the menu at k=50,
-   while from `"no stamina"` it sits at rank 0. So rung 3 cannot have changed
-   only the code — it must have re-extracted a different span. Either recover
-   the span (needs a re-run; the artifacts are gone) or reframe the example as
-   what it actually demonstrates: **the span decides the menu, and the menu
-   decides which answers are reachable at all.**
+7. **~~§6's stamina example is framed as a coding fix and cannot be one.~~ CLOSED
+   2026-09-02 — the example was removed.** It claimed rung 3 voted `"stamina"`
+   from |Stamina| to |Lack of stamina|. Retrieval is deterministic and was
+   replayed: from the span `"stamina"`, `248277009` is absent from the menu at
+   k=50, so the vote could not have happened that way. The record came from the
+   pre-`rung0_split` configuration, which could only quote the contiguous
+   fragment of a discontinuous gold span; the shipped extractor now emits
+   `"loss of stamina"` and codes it correctly. **Replaced with a real rung 3
+   overwrite from `phaseD-r3-1`** — |Pain| overwritten to |Analgesia|, the
+   absence of pain, on a 1-0 "majority" from the only sample that re-found the
+   mention — which carries both defects the article needs: one vote counted as a
+   majority, and a rung 1 verdict travelling with a code rung 3 had replaced.
 
 8. **WHY `contained` COSTS 22 POINTS OF LANE ACCURACY — measured, never
    explained.** NO RUN NEEDED; the records are on disk. Replaying

@@ -868,6 +868,11 @@ every synonym the vocabulary holds for that code, look for an identical string.
 `"chronic pain"` against |Chronic pain| matches. Nothing else is consulted — no
 model, no embedding, no context.
 
+![Figure 7](figures/fig4a-accept-cadec.png)
+
+*Fig. 7: Rung 1's verdicts on CADEC, one real record each. REJECT is the empty
+lane here. Development split. Source: author-created with Graphviz.*
+
 **How well does it deliver?** **85.4% of what lands in ACCEPT is correct**,
 against 29.3% in BAND. Rung 1 reached that split with no model, no gold, and
 identically on every run.
@@ -964,9 +969,9 @@ paid rungs, which is what the rest of the ladder is for.
 **What that decision looks like on the records themselves.** Replaying the same
 222 records through the same four checks under each setting:
 
-![Figure 7](figures/fig11-lexmode.png)
+![Figure 8](figures/fig11-lexmode.png)
 
-*Fig. 7: The same records, the same rung, the two settings. Correctness is scored
+*Fig. 8: The same records, the same rung, the two settings. Correctness is scored
 afterwards and rung 1 never sees it. Source: author-created with Graphviz.*
 
 | setting | ACCEPT | of those, correct | BAND | of those, correct |
@@ -1086,10 +1091,32 @@ property of the corpus would be the same mistake as reporting a perfect error
 rate over an empty output — which this section is about to catch us doing one
 layer up.
 
-![Figure 8](figures/fig4-precondition.png)
+![Figure 9](figures/fig15-rung1-finer.png)
 
-*Fig. 8: On one corpus the span and the code's name are drawn from the same
-language; on the other they cannot overlap. Source: author-created with Graphviz.*
+*Fig. 9: Rung 1 on FiNER — the same rung as figure 6, on the other corpus, with
+the second free check we built for it. Development split. Source: author-created
+with Graphviz.*
+
+Read it against figure 6 and the only variable is the corpus: same code, same
+three lanes, same string comparison, and here **everything lands in the lane that
+means "no evidence either way".** Rung 5 abstains BAND, so 350 of 351 records are
+withheld and the system ships nothing.
+
+The lower half of that figure is the second check, and it is worth reading for
+what it does *not* move. It found 44 rejections a run where the shipped check
+found one — but **ACCEPT stays at 0, so coverage stays at zero**, and those
+rejections landed on records rung 5 was already withholding. It fired constantly
+and changed nothing that ships.
+
+And the mirror image of figure 7, lane for lane — the empty one has swapped
+ends:
+
+![Figure 10](figures/fig4b-accept-finer.png)
+
+*Fig. 10: The free check's verdicts on FiNER — the mirror of figure 7, with
+ACCEPT as the empty lane instead of REJECT, and both kinds of rejection: the
+ungrounded span the shipped check finds, and the type contradiction the added
+one finds. Source: author-created with Graphviz.*
 
 **The precondition is real, and narrower than we first stated it.** Our test was
 *does the span's text share words with the concept's name?* — and by that test
@@ -1110,13 +1137,28 @@ cannot be**, and then reported the result as though the corpus were at fault.
 > whose spans are bare quantities returns zero whether or not the evidence
 > exists.
 
-**We built the obvious fix, and it failed in a way worth more than the fix.**
-The tag's own type is decidable from the characters around the span — a `%` after
-it, a `$` before it, "shares", "per share" — and a `…Percentage` tag on a span
-followed by "shares" is provably wrong in exactly the sense a nonexistent code is.
-So we wrote that check, measured it on gold first as we had measured everything
-else, and it looked excellent: it could speak about **87.7%** of mentions where
-the lexical check speaks about 0%, at a **1.22%** false-rejection rate.
+**So we tried to build rung 1 again, for this corpus.** Not a replacement — the
+same idea, on the one signal FiNER has that CADEC does not. Both sides of a
+record carry a **type**, and the two can contradict:
+
+> the tag's name ends `…Percentage`, `…Amount`, `…Shares`, `…Date`
+> the text around the span says `1.50 %`, `$ 19.4 million`, `1,350,000 shares`
+
+A `…Percentage` tag on a number followed by "shares" is **provably wrong**, in
+exactly the sense a nonexistent SNOMED code is provably wrong: deterministically,
+at zero model cost, without knowing the right answer. Everything that makes rung
+1 worth having — free, identical every run, able to prove wrongness and never
+rightness — is true of this check too.
+
+(In the code it is a separate rung rather than a branch inside rung 1, for one
+reason worth repeating: folded in, its contribution and the lexical check's
+become a single number that can never be separated again. This article exists
+because three layers turned out to contribute nothing, and that was only
+provable because each was counted on its own.)
+
+We measured it on gold first, as we had measured everything else, and it looked
+excellent: it speaks to **87.7%** of mentions where the lexical check speaks to
+0%, at a **1.22%** false-rejection rate.
 
 Then we ran it on model output.
 
@@ -1140,9 +1182,18 @@ the interval priced only the variation we resampled. Here the false-rejection
 rate priced only the spans we tuned against. **Both were confident, both were
 measured, and both were measuring the thing we had already controlled for.**
 
-So FiNER still has no working rung 1, and the route we thought was open is not.
-A check for this corpus has to be validated on model output from the start — which
-means it cannot be built the way every other check in this project was built.
+And note what it could never have fixed even had it worked. **It can only
+reject.** A record whose types agree is returned unchanged, because agreeing on
+type is weak evidence and calling it ACCEPT would be the endorsement machine of
+the `contained` setting, arriving from a different direction. So it restores rung
+1's ability to say *no* on this corpus and not its ability to say *yes* — and it
+is the second that carries the entire shipped result on CADEC. **FiNER would
+still ship 0% with this check working perfectly.**
+
+So FiNER has no working rung 1, the obvious route is closed, and the route that
+remains — matching the tag's own words against the sentence rather than the span
+— has to be validated on model output from its first measurement. Which means it
+cannot be built the way every other check in this project was built.
 
 So what the numbers below support is narrower than this section's old title: not
 *the corpus where none of it works*, but **the corpus where the check we shipped
@@ -1195,22 +1246,53 @@ run behind every development-side CADEC figure in this article.
 | REJECT | `"severe muscle pain in ankles"` | that text is **not in the post** — the model quoted something it invented |
 
 **Rung 2, self-correction.** States the failure back as a fact, never as a
-question. It fired **once in 248 records** — on that REJECT — and **declined**:
-the fact it was handed was `span_ungrounded`, and a model cannot re-ground a
-quote it made up. Sound mechanism, empty trigger set.
+question. On CADEC it fired **once in 248 records** — on that REJECT — and
+**declined**: the fact it was handed was `span_ungrounded`, and a model cannot
+re-ground a quote it made up.
+
+For most of this project that null had an obvious rebuttal — one firing proves
+nothing. It does not any more. Building a second free check for FiNER gave rung 2
+a real trigger set for the first time, **44 rejections per run instead of one in
+248**, and over **918 firings it rescued nothing**: 789 answers unchanged, 129
+refusals, **0 corrections.** Told a specific, stated fact — *the text "10.85"
+names a percent, but `DebtInstrumentFaceAmount` names a money amount* — the model
+returned the same answer 86% of the time and declined the rest.
+
+![Figure 11](figures/fig13-rung2.png)
+
+*Fig. 11: Rung 2 reads rung 1's verdict and fires on REJECT alone, so ACCEPT and
+BAND are never touched — no model call, no possible change. CADEC left, draw 0;
+FiNER right, pooled over three draws of the arm that finally gave it a trigger
+set. Source: author-created with Graphviz.*
+
+**Stating a correct fact back to a model does not make it produce a different
+answer.** That is the same shape as the three prompt interventions in section 2,
+which found that restating an instruction the model is already ignoring buys
+nothing. Sound mechanism, and now a null measured on hundreds rather than one.
+
+There is also a structural point in that figure worth more than the null.
+**Rung 2 can only act on the lane rung 1 leaves empty.** Its trigger is a REJECT,
+so every record it could improve is one the free check has already proved wrong —
+and the classes a vocabulary can prove wrong are the classes section 4 showed the
+model has stopped producing. The rung is not underperforming. It is correctly
+implemented against a failure mode that no longer occurs.
 
 **Rung 3, voting.** Asks again and takes the majority: 2.6× the extraction token
 budget, 152-second p95, **+5 on the tuning set and 0 out of sample.** The case
-that matters:
+that matters is one it got wrong:
 
-> `"stamina"` — rung 1 **ACCEPT**ed `248276000` \|Stamina\| on an exact word
-> match. Rung 3 voted it to `248277009` \|Lack of stamina\|, **which is the right
-> answer** — and the record shipped still carrying rung 1's verdict, computed
-> against the code rung 3 had replaced.
+> A record rung 1 had **ACCEPT**ed as |Pain| was overwritten by rung 3 to
+> |Analgesia| — *the absence of pain* — on a **1–0 "majority"** from the only
+> sample that re-found the mention at all.
 
-Voting improved the answer and invalidated the evidence for it in one step. The
-voter and the answerer are the same model, so the vote carries no information the
-original answer lacked; it just occasionally lands better.
+Two defects in one record, and we fixed both. A single vote was being counted as
+a majority: 8 of 31 changes that run rested on one re-finding. And the record
+shipped **still carrying rung 1's verdict**, which had been computed against the
+code rung 3 replaced — so a check that had verified |Pain| was travelling with
+|Analgesia|.
+
+The voter and the answerer are the same model, so a vote carries no information
+the original answer lacked. It just occasionally lands somewhere else.
 
 **Rung 4, the judge.** A different family, enforced in code — a model judging its
 own output measures self-consistency, not correctness. It separates 1.65× on
@@ -1231,9 +1313,9 @@ actually look like:
 The first is a right answer the system could not corroborate and threw away. The
 third is why it throws them away.
 
-![Figure 9](figures/fig2-flat.png)
+![Figure 12](figures/fig2-flat.png)
 
-*Fig. 9: Accuracy on answered records is flat through four layers and falls at
+*Fig. 12: Accuracy on answered records is flat through four layers and falls at
 voting. It rises only when the system stops answering. Source: author-created with
 Matplotlib.*
 
@@ -1271,7 +1353,7 @@ hold its base fixed is two experiments wearing one name.**
 
 ### Then we gave the judge the one thing it lacked
 
-The judge's verdict had no reader (§8). The obvious objection is that it would
+The judge's verdict had no reader (section 7). The obvious objection is that it would
 have paid if connected. So we connected it, off by default, and measured three
 draws.
 
@@ -1310,9 +1392,9 @@ summary.**
 refusal step reads none of the three. No test could catch it, because every layer
 does exactly what its own documentation promises. The hole is *between* them.
 
-![Figure 10](figures/fig1-wiring.png)
+![Figure 13](figures/fig1-wiring.png)
 
-*Fig. 10: Three layers write a verdict; the refusal step reads none of them.
+*Fig. 13: Three layers write a verdict; the refusal step reads none of them.
 Source: author-created with Graphviz.*
 
 **A fix three layers down silently disabled two layers up.** The checks used to
@@ -1402,9 +1484,9 @@ The part another team can use tomorrow:
 No layer announced that it had stopped working. Each ran, returned, wrote its
 field, passed its tests.
 
-![Figure 11](figures/fig3-loop.png)
+![Figure 14](figures/fig3-loop.png)
 
-*Fig. 11: The measurement loop. Every dead layer here was found on it. Source:
+*Fig. 14: The measurement loop. Every dead layer here was found on it. Source:
 author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is
