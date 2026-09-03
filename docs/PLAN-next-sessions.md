@@ -93,7 +93,7 @@ article-v3 has three fewer `[PENDING]`s.
 3. **B5 · The FiNER pick call cannot see the sentence, and the sentence is the
    whole answer.** FOUND 2026-09-01 while writing §1; not yet measured. This is
    a defect in our harness, not a limit of the task, and it is the same class as
-   the unported judge prompt §6 already reports.
+   the unported judge prompt §5 already reports.
    - **The evidence, all from the code as it stands.** `r0._blocks` renders one
      pick block as `reaction {idx}: "{rec.text}"` plus the numbered menu, and
      **nothing else**. `context` is collected by the find call and used only by
@@ -134,15 +134,15 @@ article-v3 has three fewer `[PENDING]`s.
      CADEC does not have breaks that comparability. So run the arm on BOTH
      corpora, or report FiNER's improved number as a separate result and keep
      the ported-shape number as the comparable one. Do not quietly replace it.
-   - **What it does to the article if it works.** §6's "the corpus where none of
+   - **What it does to the article if it works.** §5's "the corpus where none of
      it works" survives — the ACCEPT lane is zero for a reason no prompt fixes,
-     because a number shares no token with a tag name. But §6's coding numbers
+     because a number shares no token with a tag name. But §5's coding numbers
      and the slot-0 attractor would need re-reporting against a pick that can
-     actually see the evidence, and §9's "menu order is load-bearing" reads
+     actually see the evidence, and §8's "menu order is load-bearing" reads
      differently once the alternative signal is present.
 
 **Done when:** both arms are measured at three draws, the article's recall
-numbers are re-derived, and §9's claim is either confirmed or rewritten.
+numbers are re-derived, and §8's claim is either confirmed or rewritten.
 **B2 is done; B1 and B5 are what remain of this session.**
 
 ---
@@ -185,10 +185,38 @@ mitigation measured rather than proposed.
 
 ---
 
+## The article was restructured on 2026-09-02 — read this before citing a section number
+
+`docs/article-v3.md` went from ten numbered sections to nine, in a
+section-by-section review with the owner. Every number in sections 1-4 was
+re-derived from surviving run artifacts rather than requoted, which is what
+produced items 4, 8 and 9 below.
+
+| was | is now |
+|---|---|
+| §1 The two datasets | §1, rewritten: explains each corpus and the pipeline **before** limiting them; adds the exclusion criteria and names CADEC v2 |
+| §2 The ground moves… | §2 **Rung 0: what it is, what we tried, what it achieves** — three shapes (S0/S1/S2), seventeen arms, then the funnel |
+| §3 The significance test… | §3 **How much of this is real?** — the bootstrap, the `set()` bug, then the stability investigation as the payoff rather than the prerequisite |
+| §4 The free check | §4 **Rung 1**, restructured lane by lane: each of REJECT / ACCEPT / BAND answers *what does it claim, how well does it deliver, how much lands here* |
+| **§5 The one thing that worked** | **MERGED into §4** as its closing subsection. It had shrunk to 296 words, half of them duplicated by §4, and it contained a line ("you cannot make the model repeatable") that §3 now disproves |
+| §6 → §9 | renumbered **§5 → §8** |
+
+Four figures were added and are committed with their `.dot` sources:
+`fig7-pipelines` (both corpora side by side), `fig9-funnel` (every gold mention
+and prediction through rung 0's stages), `fig10-rung1` (what rung 1 receives and
+how it sorts it), `fig11-lexmode` (the same records under both `lexical_mode`
+settings).
+
+**Sections 5 to 9 have not been reviewed yet.** The walkthrough stopped after
+§4. Anything below §4 is still as it was written on 2026-08-30, including the
+stamina example in §6 that item 7 says is stale.
+
+---
+
 ## Required before the article ships
 
 Everything here either blocks a claim the draft makes or removes a caveat it
-carries. Items 1, 3, 5 and 6 need runs; 2, 4, 7, 8 and 9 do not. Item 3 is the only one
+carries. Items 1, 3, 5, 6, 9 and 10 need runs; 2, 4, 7, 8 and 11 do not. Item 3 is the only one
 that goes beyond unblocking — it makes the model findings two-corpus instead of
 one, and the article is shippable without it, with its CADEC-only caveats
 intact.
@@ -349,48 +377,40 @@ intact.
      and the article now says so. Three draws settle it. Note the cost before
      starting: it is roughly 1.7× the calls and 2.2× the tokens of a baseline
      run, so three paired draws is six expensive runs.
-   - **(b) FiNER's over-extraction, decomposed.** §6 presents FiNER as a recall
+   - **(b) FiNER's over-extraction, decomposed.** §5 presents FiNER as a recall
      problem. The record says the model proposes far MORE spans than gold holds,
      so the miss is *which* numbers rather than how many — a different diagnosis
      pointing at a different fix. That was measured on a single earlier run whose
-     configuration does not match the one §6 reports. Recompute it on the run
-     §6 actually cites, then either rewrite §6's framing or record that the
+     configuration does not match the one §5 reports. Recompute it on the run
+     §5 actually cites, then either rewrite §5's framing or record that the
      earlier finding did not reproduce.
 
-6. **RUNG 1 DOES NOT WORK ON FiNER AND THE ARTICLE NOW SAYS SO — build the
-   version that can.** Not a measurement gap: a defect. Four of rung 1's five
-   checks are vacuous on FiNER by construction (`exists` is always true because
-   the menu IS the vocabulary, `is_active` is documented as "vacuously true",
-   `finding_status` returns FINDING for anything that exists, and
-   `lexical_match` compares a bare number to a tag name so it is always false).
-   Only span-grounding has any power, and rung 0's drop filter already handles
-   that. **`ACCEPT 0` therefore reports our implementation, not the corpus** —
-   the same class of error as an `err_per_100` of 0.0 over an empty output,
-   which §6 catches one layer up. `ladder/vocab_finer.py` says this itself in
-   `terms()`: *"here it is close to a tautology, and the article should say so."*
-   - **The evidence exists; we looked in the wrong place.** The tag's own words
-     sit in the sentence, not in the span: *"the effective income tax rate was
-     47.6 percent"* against `EffectiveIncomeTaxRateContinuingOperations`. The
-     2026-08-30 context probe already showed the signal is real semantically —
-     de-camel-cased tag names against 120 characters either side reach recall@20
-     0.685, median rank 7. The open question is whether a DETERMINISTIC string
-     test finds it too.
-   - **Two candidate checks, both free, both deterministic.** (a) *Context
-     lexical match*: do the tag's de-camel-cased tokens appear in the window
-     around the span? Same comparison rung 1 already does, wider window. (b)
-     *Type consistency*: a tag ending `Percentage` or `Rate` should carry a span
-     in 0-100; one ending `Amount` or `Value` should sit near a currency symbol
-     or a scale word. Both are checkable from the tag name and the text alone.
-   - **Measure them the way `lexical_mode` was measured** — plant near-miss tags
-     into FiNER gold and report, for each candidate, the ACCEPT-lane coverage
-     AND the share of planted near-misses wrongly accepted. That protocol is the
-     one thing in this project that produced a setting nobody had to argue
-     about; reuse it rather than inventing a new one.
-   - **Do not let this become a coverage-chasing exercise.** A check that lifts
-     ACCEPT on FiNER while vouching for near-misses is worse than the vacuous
-     one it replaces, because at least the vacuous one abstains honestly.
+6. **~~A rung 1 that works on FiNER.~~ ATTEMPTED 2026-09-02 AND REJECTED — the
+   type check is built, measured, and off.** `ladder/rungs/r7.py`, 224 tests, arm
+   not enabled. Kept here because the *method* failure is the reusable part and
+   the article now carries it.
+   - **On gold it looked excellent**: speaks to 87.7% of mentions where the
+     lexical check speaks to 0%, false-rejection rate 1.22%. **On model output it
+     rejects a correct answer once in three — 35.71%, twenty-nine times worse.**
+     Pooled over three draws, 42 rejections with gold to check against: 27 right,
+     15 wrong.
+   - **Why gold lied, and this is the transferable part.** The rules read the
+     characters either side of the span. On gold the span is where the annotator
+     put it, so that window is always the right one. The model's spans drift, the
+     rules read the wrong window, and reject confidently on a misreading. **Tuned
+     on gold, validated on gold: the measurement set was the tuning set.**
+   - **What is still open.** FiNER has no working rung 1 and the obvious route is
+     closed. The remaining candidate is the context lexical match — the tag's own
+     de-camel-cased words against the sentence rather than the span. **It must be
+     validated on model output from the first measurement**, which no check in
+     this project has been, and which is the whole lesson above.
+   - Second-order, and it belongs in section 6: giving rung 2 a real trigger set
+     for the first time — 44 rejections per run against CADEC's one in 248 —
+     showed it **rescued nothing over 918 firings** (789 unchanged, 129 declined,
+     0 rescued). The CADEC null used to be dismissable as too small a trigger set.
+     It is not any more.
 
-7. **§7's stamina example is framed as a coding fix and cannot be one.**
+7. **§6's stamina example is framed as a coding fix and cannot be one.**
    Retrieval is deterministic and was replayed 2026-09-01: from the span
    `"stamina"`, `248277009` |Lack of stamina| is ABSENT from the menu at k=50,
    while from `"no stamina"` it sits at rank 0. So rung 3 cannot have changed
@@ -420,7 +440,66 @@ intact.
      rule that recovers coverage while re-admitting near-misses is the setting we
      already rejected, wearing a narrower name.
 
-9. **The FiNER pipeline figure carries one unverified index.**
+9. **THE FIVE-MODEL TABLE (now §4's closing subsection) CANNOT BE REPRODUCED FROM ANYTHING THAT SURVIVES, AND
+   MY BEST ATTEMPT BRACKETS IT WITHOUT MATCHING.** REQUIRES A RUN. This is the
+   article's headline positive claim — the ACCEPT lane at ~85% across five model
+   families — and it is the least checkable number in the piece.
+   - **What was checked (2026-09-02).** The article's table matches
+     `docs/decisions.md` (2026-08-30, five-model table) figure for figure. But
+     the five-model runs were in worktrees deleted 2026-08-31, and only
+     `gpt-oss` has a surviving same-config run (`arm-sapbase-d{0,1,2}`, records
+     verified clean: zone NEW, no nulls, no r3/r4/r5 keys, rung 1 config
+     identical key-for-key).
+   - **Recomputing gpt-oss's lanes on those records, using the scorer's own
+     `_pair`:** ACCEPT **89.1%**, BAND **51.1%** pooled over three draws, against
+     the recorded **84.6 / 35.9**. Restricting instead to every record in the
+     lane rather than the overlap-matched ones gives ACCEPT **78.0**, BAND
+     **35.2** — so BAND matches the record under one denominator and ACCEPT
+     under neither. Two recorded run sets agree with each other (the five-model
+     table, and the 2026-08-28 three-draw re-measure at 83.7-87.2 / 35.9-36.8),
+     so the outlier is the run I can reach, not the record.
+   - **The qualitative claim is not in doubt.** ACCEPT sits far above BAND under
+     every denominator tried — 89 vs 51, 78 vs 35, 85 vs 29 (the exact-span
+     count in §4). What cannot currently be defended to the decimal is the
+     specific pair of numbers the article prints, and the ~85% figure it is
+     named after.
+   - **What to do.** Re-run the five-model sweep on the consolidated footing from
+     item 0, and **record the lane denominator explicitly** — overlap-matched or
+     all-records — because the two differ by 16 points on BAND and the article
+     currently states neither.
+   - Until then, that subsection should carry the denominator the record names ("coding
+     accuracy on overlap-matched spans") rather than leaving it implicit.
+
+10. **THE SHORT-CIRCUIT WE NEVER BUILT: resolve the span by lookup and skip the
+    pick call, where the vocabulary answers uniquely.** REQUIRES RUNS. Probed on
+    one draw 2026-09-02 while reviewing §4; the article reports it under *What
+    we could not settle* and nowhere else, because one draw is below this
+    project's own bar.
+    - **The probe.** Over `arm-sapbase-d0` (dev, 232 records): for **54 (23%)**
+      the span text normalises to exactly one concept in `data/keywords.csv`.
+      Taking that concept with no model call is correct **44/54 = 81.5%**;
+      the model's pick on the same records is **41/54 = 75.9%**. Whether a span
+      resolves uniquely is knowable **before** any model call, so this is a
+      routable short-circuit, not a post-hoc filter.
+    - **The counterpart, and it cuts the other way.** A dictionary DETECTOR —
+      longest-match scan for text that is a concept name — gets **16.8% exact
+      recall at 27.1% precision** against the model's 55.8% / 54.3%. Overlap
+      45.1% / 72.9%, i.e. it lands on the right mentions with the wrong
+      boundaries. **Detection is where the model earns its place**, and this is
+      the first non-model baseline for §8's claim that it does.
+    - **What to measure.** Three draws, both corpora. Report (a) the share of
+      records the short-circuit claims, (b) accuracy on them against the pick,
+      (c) tokens and calls saved, (d) **what it does to the rung 1 lanes** — a
+      record resolved by lookup will land in ACCEPT by construction, so the
+      ACCEPT lane's accuracy is no longer independent evidence for those
+      records, and §4's headline would need restating.
+    - **The caveat that decides how far this generalises.** `keywords.csv`
+      excludes retired concepts, which is why `"knee pain"` resolves uniquely
+      there while SNOMED holds two concepts with that name. Uniqueness is a
+      property of our index, not of the vocabulary. Measure it against the full
+      release too, and report both.
+
+11. **The FiNER pipeline figure carries one unverified index.**
    `docs/figures/fig7-pipelines.dot` shows `choice 41 →
    EffectiveIncomeTaxRateContinuingOperations`. Slot 0 is verified; index 41 is
    not, because `data/finer` is in no checkout. Recompute it, and replace the
