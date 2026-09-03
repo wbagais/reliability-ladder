@@ -4170,3 +4170,33 @@ subject is the same question §7 asks: §7 says the layers did not deliver, and
 this says why nobody could have noticed. §7 is now 1,308 words with three
 subsections; sections renumbered 9->8, 10->9 and all cross-references updated.
 Article 17,916 words, 16 figures.
+
+## 2026-09-03 — §7 cleanup: the meta-commentary cut, the rung 2 paragraph relocated
+
+Owner asked whether everything under "Why none of it showed up in a test" was
+needed. One of its three paragraphs was not. "And one layer was never switched
+on" restated a fact §6 and §7's role table already carry, and the rest of it
+narrated a mistake WE made and corrected — decisions.md material, not article
+material. The one genuinely new thing in it, the 0-at-10-rejects evidence, moved
+into the role table's own cell ("never viable here", with the reason in the
+paragraph below the table).
+
+Cleanup pass over the whole section on the owner's follow-up. What came out was
+throat-clearing, not content — every number and every finding is preserved:
+
+  - the opening's account of a delta table we deleted (the reader never saw it)
+  - "Self-correction's cell needs a word of explanation, because..."
+  - "Voting deserves its wording. It is not that..."
+  - "Neither of those was visible while every layer was being scored on accuracy.
+    They appeared as soon as the layers were laid against the lanes."
+  - "There is a ceiling above all of it, and it is structural rather than
+    empirical."
+  - a stray `---` rule sitting inside the section
+
+The pattern is worth naming, since it recurs across this article: **a sentence
+announcing that the next sentence is important is not a finding.** The two
+load-bearing cells (self-correction "never viable", voting "no consistent
+effect") are now defended in one shared paragraph rather than two apologetic
+ones.
+
+§7: 1,271 -> 1,092 words. Article 17,700.

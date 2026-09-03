@@ -1517,42 +1517,40 @@ third is why it throws them away.
 
 ## 7. What each layer was for, and whether it delivered
 
-The obvious way to summarise a stack like this is a staircase of accuracy
-deltas. We built that table, and it was misleading — not because the numbers
-were wrong, but because **accuracy is the wrong test for four of the six
-layers.** The free check is not trying to raise accuracy; it is trying to sort.
-Refusal makes no claim at all, so it has no accuracy to report. Judging every
-layer by one yardstick told us five of them "did nothing," when what actually
-happened was more specific and more useful.
-
-So: each layer against its own purpose, with what it cost to find out.
+**Accuracy is the wrong test for four of these six layers.** The free check is
+not trying to raise accuracy, it is trying to sort. Refusal makes no claim at
+all, so it has none to report. Scored on one yardstick they mostly read as "did
+nothing" — which is true, and useless. Each against its own purpose instead:
 
 | layer | what it is **for** | did it do that? | cost |
 |---|---|---|---|
-| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — see section 4: the lanes separate ~3× | **0 tokens, 0 s** |
-| **self-correction** | restate a provable failure as a fact | **untestable here** — fired once in 248 records | 548 |
+| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — the lanes separate ~3× (section 4) | **0 tokens, 0 s** |
+| **self-correction** | restate a provable failure as a fact | **never viable here** — fired 0, 0 and 1 times across three runs | 548 |
 | **voting** | catch answers the model cannot reproduce | **no** — no consistent effect in any direction | **425,355**, p95 **152 s** |
 | **second-model judge** | rule on whether an answer is right | **[PENDING]** — every measurement was of a blind judge | 92,687, p95 1.5 s |
 | **refusal** | guard in front of a person | **yes** — ships at 0.808 on 21% of records | 0 |
 | **person** | resolve what the machine cannot | not measured | **196 records** |
 
-Read that way, the result is sharper than "nothing worked." **The two layers that
-did their jobs cost nothing.** The three that cost 518,590 tokens between them
-either could not be tested, could not be shown to help, or were measured wrong —
-and when we removed all three and re-ran, one answer out of 43 changed.
+**The two layers that did their jobs cost nothing.** The three that cost 518,590
+tokens between them either could not be tested, could not be shown to help, or
+were measured wrong — and when we removed all three and re-ran, one answer out of
+43 changed.
 
-Voting deserves its wording. It is not that voting had no effect — it is that it
-had **no consistent one**: −0.004 on the run above, +5 correct answers on another
-development draw, and on the held-out split it re-found 8 previously unanswered
-records of which **all 8 were wrong.** A layer whose sign changes with the draw
-is not a layer you can plan around, and it is the most expensive thing here.
+Two cells claim more than "did not fire", and both are load-bearing.
+**Self-correction was never viable**, not merely idle: every rejection it could
+have acted on, in every run, was a span the extractor could not locate, and an
+unlocatable span carries no fact to state back to a model. It fired zero times
+even when rejections were ten times higher. **Voting had no consistent effect**,
+which is different from no effect — −0.004 on the run above, +5 correct answers
+on another development draw, and on the held-out split it re-found 8 previously
+unanswered records of which all 8 were wrong. A layer whose sign changes with the
+draw is not one you can plan around, and it is the most expensive thing here.
 
 ### We computed a triage signal and then ignored it
 
 The free check sorts every record into a lane, and the lanes have very different
-accuracy — ~85% in ACCEPT against ~29% in BAND. That is a triage signal: it says
-which records need more work. Lay the layers against it and only one of them
-uses it.
+accuracy — ~85% in ACCEPT against ~29% in BAND. That is a triage signal. Only one
+layer uses it.
 
 | lane | share | which layers act on it |
 |---|---|---|
@@ -1560,54 +1558,45 @@ uses it.
 | ACCEPT | ~21% | rung 5 ships it |
 | **BAND** | **~78%** | rung 5 withholds it → a person |
 
-Rung 5 is the only layer that reads the lane. **Rungs 3 and 4 do not** — both
-iterate over every record, so we ran voting and a second-model judge across the
-whole batch, including the fifth of it the free check had already vouched for.
-The two most expensive layers in the system spent tokens on the records least
-likely to need them.
+**Rungs 3 and 4 do not read the lane** — both iterate over every record, so
+voting and the judge ran across the whole batch, including the fifth of it the
+free check had already vouched for. The two most expensive layers spent tokens on
+the records least likely to need them.
 
-Nothing is aimed at *improving* BAND either. Rung 5 does not resolve it, it
-withholds it, and the person at the end is the default destination rather than a
+Nothing is aimed at *improving* BAND either. Rung 5 withholds it rather than
+resolving it, so the person at the end is a default destination rather than a
 chosen one. **That is where the human cost comes from: three quarters of the
 batch, routed by exhaustion.**
 
-Neither of those was visible while every layer was being scored on accuracy.
-They appeared as soon as the layers were laid against the lanes.
-
 ### None of them can find what rung 0 missed
 
-There is a ceiling above all of it, and it is structural rather than empirical.
 **Every rung in this ladder operates on records rung 0 already proposed.** Rung 1
-rejects, rung 2 rewrites a code, rung 3 re-scores spans that already exist, rung
-4 issues a per-record verdict, rung 5 withholds. Not one of them can put a
-mention on the table that the extractor never proposed.
+rejects, rung 2 rewrites a code, rung 3 re-scores existing spans, rung 4 issues a
+per-record verdict, rung 5 withholds. Not one can put a mention on the table that
+the extractor never proposed.
 
 Rung 6 is the surprise. A person is the one layer you would expect to catch a
-miss — and ours cannot, by construction rather than by measurement. The desk
-shows a reviewer a span the system already found and offers a choice of codes for
-it. **There is no control for "you missed one," and none for "these boundaries
-are wrong."** However good the reviewer, detection cannot move.
+miss, and ours cannot — by construction, not by measurement. The desk shows a
+reviewer a span the system already found and offers a choice of codes for it.
+**There is no control for "you missed one," and none for "these boundaries are
+wrong."** However good the reviewer, detection cannot move.
 
 So the ladder's ceiling is rung 0's detection — 0.521 exact on the held-out
-split — and everything built on top of it is a precision instrument. Reliability
+split — and everything above it is a precision instrument. **Reliability
 engineering of this kind makes a system's answers more trustworthy. It does not
-make the system see more.
+make the system see more.**
 
-The obvious repair is to ask the judge what was missed. We think that is the
-wrong place: rung 4 is per-record and the question is per-document, and a judge
-that names a mention nobody proposed is not judging — it is extracting, with a
-second model, which collapses the very measurement the ladder exists to take.
-**[PENDING]** A rung that can propose a missed mention is registered as an open
-question — and one to price against a ceiling before building anything, since
-the layer it would replace is the most expensive one we have. Plan item 15.
-
----
+The obvious repair is to ask the judge what was missed, and we think that is the
+wrong place: rung 4 is per-record where the question is per-document, and a judge
+that names a mention nobody proposed is not judging but extracting, with a second
+model — which collapses the measurement the ladder exists to take. **[PENDING]** A
+rung that can propose a missed mention is registered as an open question, to be
+priced against a ceiling first. Plan item 15.
 
 ### Why none of it showed up in a test
 
-Every layer above passed its own tests, did what its documentation promised, and
-returned. The failures were not in the layers. They were in what happens between
-them.
+Every layer passed its own tests, did what its documentation promised, and
+returned. The failures were not in the layers but in what happens between them.
 
 ![Figure 15](figures/fig1-wiring.png)
 
@@ -1616,30 +1605,19 @@ every solid arrow is a real read or write. Source: author-created with Graphviz.
 
 **Only one verdict travels, and it is the free one.** Self-correction writes
 `r2_declined`, voting writes `r3_unanimous_none`, the judge writes `r4_verdict`,
-and the refusal step reads none of those. Rungs 2 and 3 still reach it — but only
+and the refusal step reads none of them. Rungs 2 and 3 still reach it — but only
 by re-running the free check and overwriting **its** verdict, so what arrives at
 rung 5 is never their reasoning, only rung 1's opinion of whatever code they left
-behind. The judge has no channel at all. No test caught this because each layer
-does exactly what it says; the hole is *between* them.
+behind. The judge has no channel at all. No test caught this, because every layer
+does exactly what it says it does.
 
-**And one layer was never switched on.** We had assumed self-correction was
-disabled by a fix downstream: extraction improved, a filter dropped ungrounded
-spans at source, and rung 1's rejections fell from **10 of 240** to **1 in 248**.
-But rung 2's firing count across every full-ladder run we have is **0, 0, and 1**
-— it fired zero times when rejections were ten times higher. Every one of those
-rejections was a span the extractor could not locate, which carries no fact to
-state back to a model. **Self-correction was not disabled by the filter. On this
-corpus it was never enabled**, and its trigger set had been empty long before
-anything dropped.
-
-**Then the measurement itself.** Voting overwrote codes without re-validating, so
-records shipped marked *verified* against a code they no longer had — a claim the
-free check had made about something else. Fixing that moved exact F1 from
-**0.204 to 0.204.** Precision and recall cannot distinguish an *unwarranted*
-answer from an *incorrect* one, because a record with a wrong code scores the same
-whether it ships wrong or is withdrawn. **We built seven layers to decide which
-answers are trustworthy, and scored them with a metric that cannot see the
-difference.**
+**Then the metric.** Voting overwrote codes without re-validating, so records
+shipped marked *verified* against a code they no longer had — carrying a claim the
+free check had made about something else. Fixing it moved exact F1 from **0.204 to
+0.204**, because precision and recall cannot tell an *unwarranted* answer from an
+*incorrect* one: a record with a wrong code scores the same whether it ships wrong
+or is withdrawn. **We built seven layers to decide which answers are trustworthy,
+then scored them with a metric that cannot see the difference.**
 
 ---
 
