@@ -1685,8 +1685,10 @@ comparison, on the same records, in the same run, and the string comparison won 
 article defends.
 
 **Where we are behind, stated in the right units.** The strongest published system
-on this corpus is CONORM (Yazdani et al., medRxiv `10.1101/2023.09.26.23296150`),
-which fine-tunes on 875 of CADEC's 1,250 files. Its
+on this corpus is [CONORM](https://doi.org/10.1101/2023.09.26.23296150) — Yazdani,
+Rouhizadeh, Bornet and Teodoro, *Context-Aware Entity Normalization for Adverse
+Drug Event Detection*, medRxiv 2023 — which fine-tunes on 875 of CADEC's 1,250
+files. Its
 evaluation code scores a `(type, span, concept)` tuple under the same two
 strategies we use — identical offsets, or overlapping ones — so the metrics line
 up even though the vocabularies do not. Matched on both axes:

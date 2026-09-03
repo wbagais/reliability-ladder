@@ -270,7 +270,9 @@ merged and the manifest is frozen again.
 `[PENDING]` markers, and only then review the takeaways.
 
 **ANY TIME — no run needed, no ordering constraint:** items 2, 4, 7, 8, 11, 13,
-15, 17(c). Good work for a session that cannot afford a run.
+15, 17(c), **18**. Good work for a session that cannot afford a run — and item 18
+is the highest-value of them, since it is the claim an outside reviewer is most
+likely to check first.
 
 **AFTER THE ARTICLE SHIPS:** items 1, 3, 5, 6, 9, 10, 17(a), 17(b). These extend
 the study rather than unblock it.
@@ -825,6 +827,33 @@ intact.
       inert is the same defect one layer along from "declared and never read".
       Either delete it with a test that keeps it gone (the `otel.py` precedent),
       or keep it and put the distribution in the manifest note as the reason.
+
+18. **RE-VERIFY THE CONORM COMPARISON AGAINST THE PAPER ITSELF. It is the
+    article's only external benchmark, its ceiling argument rests on it, and it
+    could not be re-checked from public sources on 2026-09-03.** NO RUN NEEDED,
+    but it needs the PDF.
+    - **The DOI is correct** — `10.1101/2023.09.26.23296150` resolves to Yazdani,
+      Rouhizadeh, Bornet and Teodoro, *CONORM: Context-Aware Entity Normalization
+      for Adverse Drug Event Detection*, medRxiv 2023. Citation in §9 is now a
+      proper link with title and authors.
+    - **What could NOT be confirmed.** §9's table splits CONORM's CADEC results
+      into `detection only` (0.704 exact / 0.891 lenient) and `end-to-end`
+      (<= 0.704 / 0.7245). Public summaries report **70.40% exact and 89.10%
+      lenient on CADEC** without clearly saying whether those are NER-only or
+      end-to-end. medRxiv's full text returns 403 to automated fetch and the
+      `ds4dh/CONORM` repository publishes no results.
+    - **Why it matters.** §9 argues "the ceiling claim survives the check that was
+      meant to break it": that a fully supervised tagger reaching **0.704
+      span-exact ON DETECTION ALONE** is the number CADEC's ~67% boundary
+      determinism predicts. **If 0.704 is instead their end-to-end figure, that
+      argument breaks** — detection-only would be higher, and the coincidence
+      with the predicted ceiling weakens or disappears.
+    - The article states the comparison was "verified line by line against their
+      evaluation code", so this was checked once. The requirement is to record
+      WHERE — table number, row and column of the paper — so the next reader does
+      not have to re-derive it from search summaries.
+    - Do this before the article ships. It is cheap (read one PDF) and it is the
+      claim most exposed to an outside reviewer.
 
 ---
 
