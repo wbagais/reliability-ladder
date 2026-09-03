@@ -107,7 +107,54 @@
 
 ## Current state
 - **All seven rungs exist** (rung 6 landed 2026-08-26, Phase E). The full
-  ladder runs end to end, cold, in order `[0,1,2,3,4,5,6]`. 581 tests, CI green.
+  ladder runs end to end, cold, in order `[0,1,2,3,4,5,6]`. 906 tests, CI green.
+- **EVERY RUN WRITES PER-RUNG ARTIFACTS NOW (2026-09-03, plan item 12,
+  `ladder/trace.py`).** Beside the ledger: `<run>.r<N>.records.jsonl` (the
+  record set as rung N left it), `<run>.state.jsonl` (one row per record per
+  rung: code, span, zone, verdicts, `changed_this_rung`, outcome against gold
+  under BOTH pairings — `unmatched` is a detection miss, `incorrect` a coding
+  miss, never pooled), `<run>.r<N>.calls.jsonl` (EVERY model call: full
+  prompt, raw reply, normalised reply, cost, cached flag, document) and
+  `<run>.aggregates.json` (each rung's aggregate + the LLM cache dir, git sha,
+  dirty flag, models). **The call traces carry corpus text and live under the
+  gitignored `out/` only.** `ladder/analysis.py` + `scripts/rerun_analysis.py`
+  derive every article number from these files — do not write scratch
+  harness scripts for numbers the module can produce; extend it, with a test.
+- **A draw is a NAMED cache directory, not a swapped symlink.**
+  `LADDER_LLM_CACHE=<dir>` is read by `llm.for_rung` and stamped into the
+  aggregates file. `scripts/consolidated_rerun.sh <corpus> <draw>` is the
+  protocol: refuses an existing cache, base cold, then the arms on the same
+  cache (their p95 includes hits — never compared). `scripts/rerun_spine.sh`
+  replays rungs 5-6 over the r1 snapshot at zero model calls.
+- **`rungs.4.menu` is `off | ranked | shuffled`, OFF (2026-09-03, plan item
+  14).** Until then the judge was handed `code: <nine digits>` and nothing
+  else — every rung 4 number before the re-run is a BLIND-judge measurement.
+  `ranked` shows the menu rung 0 retrieved, the line it chose, the `[denied]`
+  marker AND the corpus's pick guidance (the smoke run showed granite failing
+  correct picks on CADEC's plain-concept rule it had never been given), and
+  asks `best` — the line the judge would choose, or null for "not on this
+  list", the verdict that separates a bad pick from a bad menu. `shuffled`
+  permutes per record under blake2b(seed:record_id); safe here because the
+  judge sees one record per call (B4 found per-mention permutation UNSAFE
+  under rung 0's batched pick). Arms: `manifest[.finer].judge{menu,shuffle}.json`,
+  one-key diffs, pinned. Couples rung 4 to S2: S0/S1 records get the blind
+  prompt and `checks.r4_menu = "none"`.
+- **`rungs.5.tau` is RETIRED (2026-09-03, plan item 17d).** Refused by rung 5
+  (not filtered), gone from all manifests (`tau_retired` note in each
+  `rungs.5`), sweep/aurc/free_lunch deleted, `tests/test_tau_retired.py`
+  keeps it gone. Rung 0's confidence is `{1.0, 0.99}`; a calibrated input (B7)
+  would be a different dial. `R_LOW_CONFIDENCE` stays in the schema
+  (append-only).
+- **Rung 6 counts UNREVIEWABLE records** (plan item 17c): unlocated or
+  colliding span keys, `R_UNREVIEWABLE`, zero minutes in desk mode, still
+  priced in simulated mode (a person receives them), `agg["unreviewable"]`.
+- **B4 (break the slot-0 prior) is DONE but UNMERGED** on branch
+  `claude/reliability-ladder-b4-slot0-7784eb`: the attractor was
+  `_fill_from_menu`'s fallback writing menu line 0 (74 of 77 predictions),
+  NOT the model (its own slot-0 rate 1.3% vs 0.72% chance); the shuffle arm
+  was rejected 3/3 because a per-mention permutation under a BATCHED pick
+  aliases indices across the call. The article carries the correction; the
+  code and its two manifests are only on that branch.
 - **Rung 6 is a rung with two modes and no model.** The queue is rung 5's
   abstained residue (`checks.withheld` preserved). `simulated` prices the queue
   at `minutes_per_record` into the ledger's `human_minutes` — no answer
