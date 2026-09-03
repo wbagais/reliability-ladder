@@ -1,4 +1,4 @@
-// Where rung 0's answers go, CADEC dev, draw 0.
+// Where rung 0's answers go, CADEC dev, rerun-cadec-d0 (2026-09-03; draw 1 identical).
 //
 // THE INPUT IS 40 POSTS. Everything else is either something the system
 // produced or something the answer key says. Gold is NOT an input — it is the
@@ -10,8 +10,9 @@
 // FiNER is the exception: its candidates are the numeric tokens, which ARE
 // enumerable, so "correctly tagged nothing" is measurable there.
 //
-// 232 records are emitted; 13 sit on mentions excluded from scoring and are
-// neither credited nor blamed; 219 are scored. Counts are score_run's.
+// 230 records are emitted; 13 sit on mentions excluded from scoring and are
+// neither credited nor blamed; 217 are scored. Counts are score_run's and
+// ladder/analysis.error_budget's (out/rerun/cadec.json).
 //
 // COLOUR KEY — the article's, unchanged:
 //   teal  #0c6469  a model runs here     green #2d6a4f  correct
@@ -24,31 +25,31 @@ digraph funnel {
 
   input [label="INPUT\n40 forum posts" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
   find  [label="MODEL CALL 1 · find\n+ trim, split and the drop filters" fillcolor="#e3eeef" color="#0c6469"];
-  out1  [label="OUTPUT · 232 spans\n219 of them scored\n(13 sit on excluded mentions)" fillcolor="#f4fafa" color="#0c6469"];
+  out1  [label="OUTPUT · 230 spans\n217 of them scored\n(13 sit on excluded mentions)" fillcolor="#f4fafa" color="#0c6469"];
 
   key   [label="ANSWER KEY\n226 gold mentions" fillcolor="#ffffff" color="#8a9aa1"
          style="dashed,rounded" fontsize=12];
   cmp   [label="compare spans" fillcolor="#eef1f2" shape=box];
 
-  found [label="MATCHED\nsame span in both\n126" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-  fp1   [label="FALSE POSITIVE\nspan matches no gold · 93" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
-  fn1   [label="FALSE NEGATIVE\ngold never proposed · 100" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  found [label="MATCHED\nsame span in both\n116" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  fp1   [label="FALSE POSITIVE\nspan matches no gold · 101" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  fn1   [label="FALSE NEGATIVE\ngold never proposed · 110" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   ret    [label="RETRIEVE · no model\n20 nearest concepts" fillcolor="#eef1f2"];
-  onmenu [label="right code on the menu\n114" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-  fn2    [label="FALSE NEGATIVE\nright code absent · 12" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  onmenu [label="right code on the menu\n108" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  fn2    [label="FALSE NEGATIVE\nright code absent · 8" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   pick   [label="MODEL CALL 2 · pick\nchoose a line number" fillcolor="#e3eeef" color="#0c6469"];
-  tp     [label="TRUE POSITIVE\nright span, right code\n92" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5 fontsize=13];
-  fp2    [label="FALSE POSITIVE\nright span, wrong code · 22" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  tp     [label="TRUE POSITIVE\nright span, right code\n87" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5 fontsize=13];
+  fp2    [label="FALSE POSITIVE\nright span, wrong code · 21" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   input -> find -> out1;
-  out1 -> cmp [label="  219"];
+  out1 -> cmp [label="  217"];
   key  -> cmp [label="  226  " style=dashed color="#8a9aa1"];
   cmp -> found; cmp -> fp1; cmp -> fn1;
-  found -> ret [label="  126"];
+  found -> ret [label="  116"];
   ret -> onmenu; ret -> fn2;
-  onmenu -> pick [label="  114"];
+  onmenu -> pick [label="  108"];
   pick -> tp; pick -> fp2;
 
   { rank=same; out1; key }
