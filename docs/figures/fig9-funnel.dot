@@ -33,7 +33,7 @@ digraph funnel {
 
   found [label="MATCHED\nsame span in both\n116" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
   fp1   [label="FALSE POSITIVE\nspan matches no gold · 101" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
-  fn1   [label="FALSE NEGATIVE\ngold never proposed · 110" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  fn1   [label="FALSE NEGATIVE\ngold not proposed · 110\n43 never touched · 67 touched with the wrong boundary" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   ret    [label="RETRIEVE · no model\n20 nearest concepts" fillcolor="#eef1f2"];
   onmenu [label="right code on the menu\n108" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];

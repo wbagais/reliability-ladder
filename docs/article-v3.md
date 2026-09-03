@@ -446,6 +446,19 @@ fallback rule filling an unanswered pick from line one.*
 226 gold mentions and proposes 101 spans that match nothing — more inventions
 than correct answers. Retrieval loses 8 on every draw; the pick 21 to 23.
 
+The 110 are two failures, not one. **43 the model never touched**: single
+words the instruction covers and the model skipped anyway (`"sore"`,
+`"painful"`, `"tingly"`, `"pain"` four times in one post), and named
+conditions the writer mentions in passing (`"gout"`, `"heart disease"`,
+`"diabetic"`, `"MS"`, `"fibromyalgia"`, `"heart attack"`, `"stroke"`) — the
+rule says the condition the drug was taken for and conditions compared to
+count, and the model reads them as background. **67 it touched with the wrong
+boundary**: `"extreme rectal bleed"` for gold's `"rectal bleed"`, `"Entire
+body ached"` for `"body ached"`, `"problems"` for `"problems with memory"`,
+and one quote — `"EXTREME AND EXCRUCIATING MUSCLE PAIN IN SHOULDERS"` —
+covering two gold mentions, neck and hip. Thirty of the 67 carry the right
+code under the wrong span; the exact metric counts them lost twice.
+
 Notice also that the two middle failures are counted twice. A right span with a
 wrong code is a **false positive** — the system asserted something untrue — *and*
 a **false negative**, because the gold mention still went unanswered. That is the
