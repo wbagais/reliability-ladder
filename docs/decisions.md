@@ -4414,3 +4414,32 @@ Four other §12 corrections:
 
 Verified unchanged: the held-out-once claim, the human-cost-as-count rule, the
 licence asymmetry, and the repository URL (matches the `github` remote).
+
+## 2026-09-03 — §12 restructured as a list, and three limitations added that the article had not been carrying
+
+Owner: the paragraph was wordy. It was also incomplete. Rewritten as eight
+scannable bullets — 233 -> 267 words, longer on the page but shorter to read,
+and carrying three things it had been missing.
+
+**ADDED 1 — the multi-run caveat now appears in Limitations.** It was disclosed
+only in a `[PENDING]` box in the front matter (line 77). That is the article's
+largest caveat and a reader who jumps to Limitations, as reviewers do, never saw
+it. Stated in two lines with the base run registered as its fix.
+
+**ADDED 2 — self-correction was never exercised.** It fired 0, 0 and 1 times
+across three runs, so **one rung of seven is unmeasured rather than measured and
+found wanting**. The article draws conclusions about a seven-rung ladder; it owes
+the reader the fact that one of them never ran on this corpus. Previously stated
+only as a table cell in §7.
+
+**ADDED 3 — no reviewer has ever sat at the desk.** The owner had declined this in
+§6, correctly: that passage is about cost and the labels there already carry it.
+Limitations is the conventional home, and §12 previously said "human cost is a
+count of records routed, never minutes", which implies the fact without stating
+it. Now explicit, in one clause, in the one place a reader looks for what the
+study did not do. **Flagged to the owner as reversible** — it is a single clause
+and comes out on request.
+
+Not added, considered: a line noting the article carries eight `[PENDING]`
+markers. They are visible inline at the claims they qualify, and a global count
+in Limitations would age badly as they close.

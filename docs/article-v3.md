@@ -1831,22 +1831,28 @@ thought we were buying.
 
 ## 12. Limitations
 
-The held-out split was spent once, so its intervals are the claim; everything
-after — the removal test, the policy settings, the second corpus — is
-development-side and labelled. **Every judge result here is provisional**: it is a
-3.2B model grading a 20B one, and we found late that we had never shown it what a
-code means, so its numbers measure a judge working blind. Human cost is a
-**count** of records routed, never minutes. **17.3% of the development split's
-gold mentions are discontinuous spans our extractor cannot express** — gold marks
-`"loss of"` and `"strength"` as one mention, and we emit a single segment — so
-every recall number here carries a cap we built rather than one the task imposes,
-and we report it attached rather than subtracted out. The near-miss corruption is
-synthetic. CADEC is public and from 2015 and almost certainly in pretraining,
-which inflates our absolute numbers and, if anything, understates what a
-reliability layer might do on text a model has never seen. Both corpora are public and both arms are reproducible, but not on the
-same terms: FiNER-139 is CC-BY-SA-4.0 and comes down with the code, while CADEC
-is non-transferable, so a reader has to accept CSIRO's licence and fetch it
-themselves. We ship document IDs for the splits, never text.
+- **The held-out split was spent once.** Its intervals are the claim; everything
+  else here is development-side and labelled.
+- **Those development-side figures come from at least four runs** of the same
+  configuration, at 222 to 248 records. Nothing is wrong as reported, but adjacent
+  numbers can come from different draws. One base run to replace them is
+  registered.
+- **Every judge result is provisional** — a 3.2B model grading a 20B one, and we
+  found late that we had never shown it what a code means.
+- **Self-correction was never exercised.** It fired 0, 0 and 1 times across three
+  runs, so one rung of seven is unmeasured rather than measured and found wanting.
+- **Human cost is a count of records routed, never minutes.** No reviewer has sat
+  at the desk: every figure for it is a declared rate or a ceiling derived from
+  gold.
+- **17.3% of the development split's gold mentions are discontinuous** and our
+  extractor emits one segment, so every recall number carries a cap we built
+  rather than one the task imposes. The near-miss corruption is synthetic.
+- **CADEC is from 2015 and almost certainly in pretraining**, which inflates our
+  absolute numbers and, if anything, understates what a reliability layer might do
+  on text a model has not seen.
+- **The two corpora are not reproducible on the same terms.** FiNER-139 is
+  CC-BY-SA-4.0 and ships with the code; CADEC is non-transferable, so a reader
+  must accept CSIRO's licence and fetch it. We ship document IDs, never text.
 
 Code, ledger, decision records, and the source for every figure:
 **https://github.com/wbagais/reliability-ladder**
