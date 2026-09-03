@@ -149,6 +149,10 @@ def analyse(man: dict, prefixes: list[str], arms: list[str], full_vocab: bool) -
             if 4 in a["records"]:
                 entry["r4"] = analysis.judge_summary(a["records"][4],
                                                      analysis.rows_at(a["state"], 4).values())
+            if arm == "lexarm" and 1 in a["records"] and 1 in run["records"]:
+                entry["lane_moves"] = analysis.lane_moves(
+                    run["records"][1], a["records"][1],
+                    analysis.rows_at(a["state"], 1).values(), vocab)
             report["arms"].setdefault(arm, {})[Path(prefix).name] = entry
     if len(draws) >= 2:
         report["consensus"] = analysis.consensus([d["records"][0] for d in draws])
@@ -213,6 +217,16 @@ def fmt(report: dict) -> str:
         for arm, f, sf in rows:
             L.append(f"| {name} | {arm} | {f['n']} | {f['ships']} | {f['coverage']:.3f} | {f['accuracy']:.3f} | **{f['yield']:.3f}** | {f['errors']} | {f['err_per_100']:.1f} | {f['to_person']} | {sf['exact']['f1']:.3f} | {sf['overlap']['f1']:.3f} |")
     L.append("")
+    if "lexarm" in report["arms"]:
+        L.append("## What `contained` admits that `exact` leaves in BAND (item 8)")
+        for name, e in report["arms"]["lexarm"].items():
+            m = e.get("lane_moves")
+            if not m:
+                continue
+            L.append(f"- {name}: moved {m['moved']}; by direction {m['by_direction']}")
+            for r in m["records"]:
+                L.append(f"    - {r['record_id']} \"{r['text']}\" -> {r['sct']} |{r['sct_label']}| via {r['direction']} \"{r['term']}\" extra {r['extra_words']}: {r['outcome']} / {r['outcome_overlap']}")
+        L.append("")
     L.append("## Cost per rung, base draws (tokens / calls / p95 s / human minutes / records routed)")
     for name, d in report["draws"].items():
         cells = "; ".join(f"r{k}: {v['tokens']:,} / {v['api_calls']} / {v['p95_s']} / {v['human_minutes']} / {v['records_routed']}"
