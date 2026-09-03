@@ -1525,13 +1525,25 @@ on the development split. And the separation is a *measurement*, not a shipped
 number: **nothing reads the verdict**, so none of it changed an answer. Section
 7 is about how that survived five phases of testing.
 
+![Figure 14](figures/fig21-r0-r1-r4.png)
+
+*Fig. 14: The same 230 records through rung 0, rung 1 and rung 4, `rerun-cadec-d0`.
+The judge rules inside each of rung 1's lanes; had rung 5 acted on it, the blind
+judge would have withdrawn 14 shipped answers, 10 of them correct, and the
+menu-shown judge 1, wrong. Draw 1 is identical at rungs 0 and 1; draw 2 reads
+51 / 184 / 3. Source: author-created with Graphviz.*
+
+Which puts the judge in its place. On the lane that ships it agrees with the
+free check on 52 of 53 records; its signal lives in BAND, where it mostly flags
+invented spans, and BAND is withheld anyway.
+
 **Rung 5, refusal.** Zero model calls, and no judgement of its own. It reads the
 free check's verdict — recomputed, because rungs 2 and 3 re-run rung 1 after they
 change a code — and disposes of the record:
 
-![Figure 14](figures/fig19-rung5.png)
+![Figure 15](figures/fig19-rung5.png)
 
-*Fig. 14: Rung 5 on the development split, `rerun-cadec-d0`, from the run's own
+*Fig. 15: Rung 5 on the development split, `rerun-cadec-d0`, from the run's own
 state rows. Source: author-created with Graphviz.*
 
 Ship ACCEPT, withhold everything else. That is the whole rung as shipped. It
@@ -1609,6 +1621,43 @@ everything, or between 15% and 40%.** There is no configuration in our evidence
 that ships most of the batch at usable accuracy, and the dial cannot manufacture
 one — the ceiling is the free check's ability to sort, not the policy on top of
 it.
+
+### Every rung's verdict is a setting of the same dial
+
+The policy table above acts on rung 1. Every other rung writes a verdict too,
+and each one can be read as a shipping rule: ship only what the votes agree on,
+ship only what the judge passes. Run each rule over the same records and the
+rungs stop looking like a staircase and start looking like settings, priced:
+
+| ship only when… | ships | accuracy | **yield** | errors | tokens per run |
+|---|---|---|---|---|---|
+| rung 0 says so — everything | 233 | 0.39 | **0.389** | 142 | — |
+| rung 1 says ACCEPT *(shipped)* | 52 | **0.77** | 0.175 | **12** | 0 |
+| rung 3 — every sample voted the same code | 142 | 0.49 | 0.295 | 73 | ~420,000 |
+| rung 3 — at least two samples agree | 186 | 0.43 | 0.341 | 107 | ~420,000 |
+| rung 4 — the blind judge passes | 138 | 0.47 | 0.278 | 74 | ~84,000 |
+| rung 4 — the menu-shown judge passes | 141 | 0.54 | **0.331** | 64 | ~84,000 |
+
+*Means over the three base draws (230, 230 and 238 records); yield is correct
+answers over all records.*
+
+![Figure 16](figures/fig20-dials.png)
+
+*Fig. 16: How each row is reached, on `rerun-cadec-d0`: the same 230 records,
+six shipping rules, the split each one makes and the correct count on each
+side. Source: author-created with Graphviz.*
+
+Three things the table settles. **Every verdict carries information** — filter
+on any of them and accuracy rises above the 0.39 of shipping everything — so the
+paid rungs were not noise, once the judge could see what it was judging. **None
+of them makes the system produce more right answers**; every row ships fewer
+correct answers than rung 0, because every one works by withholding, and the
+choice between rows is the deployer's trade of precision against yield. And
+**they do not stack**: the free check plus the menu judge ships the same 52
+records as the free check alone. What the judge earns is a setting the free
+check cannot give — half the batch at 0.54, the best yield of any filter — at
+84,000 tokens a run. Voting earns a worse setting than the judge at five times
+the price.
 
 **Rung 6, the person.** Rung 5 decides how much to withhold; rung 6 is what
 happens to it, and it is the same decision seen from the other end. It runs no
@@ -1729,9 +1778,9 @@ before it is built — exactly as the human desk was bounded before we built it.
 Every layer passed its own tests, did what its documentation promised, and
 returned. The failures were not in the layers but in what happens between them.
 
-![Figure 15](figures/fig1-wiring.png)
+![Figure 17](figures/fig1-wiring.png)
 
-*Fig. 15: Verdict flow. An arrow exists only where a rung genuinely reads or
+*Fig. 17: Verdict flow. An arrow exists only where a rung genuinely reads or
 writes; execution order is not drawn, because it moves no verdict. Rung 0 is
 absent — it writes no verdict, it produces the records. Source: author-created
 with Graphviz.*
@@ -1761,9 +1810,9 @@ then scored them with a metric that cannot see the difference.**
 None of it came from a failing test. It came from re-measuring things that had
 already looked fine.
 
-![Figure 16](figures/fig3-loop.png)
+![Figure 18](figures/fig3-loop.png)
 
-*Fig. 16: The measurement loop. Every dead layer here was found on it. Source:
+*Fig. 18: The measurement loop. Every dead layer here was found on it. Source:
 author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is

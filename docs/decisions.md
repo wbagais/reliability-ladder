@@ -5217,3 +5217,28 @@ held-out box (Phase F), the S0/S1/S2 study, the twenty-arm table, the
 five-model sweep rows for the four other models, the FiNER refusal set, the
 type-check arm (918 firings), the dictionary and short-circuit probes, and
 CONORM.
+
+## 2026-09-03 — every rung's verdict read as a shipping rule: the rungs are settings of one dial, and the menu judge earns one the free check cannot
+
+Owner asked what each rung would do if we shipped on its verdict alone.
+Computed from the base run's state tables (`rerun-cadec-d{0,1,2}` and the
+`-judgemenu` replays), means over three draws, yield = correct / all records:
+| ship only when… | ships | accuracy | yield | errors |
+|---|---|---|---|---|
+| rung 0, everything | 233 | 0.39 | 0.389 | 142 |
+| rung 1 ACCEPT (shipped) | 52 | 0.77 | 0.175 | 12 |
+| rung 3, every sample the same code | 142 | 0.49 | 0.295 | 73 |
+| rung 3, at least two agree | 186 | 0.43 | 0.341 | 107 |
+| rung 4 blind passes | 138 | 0.47 | 0.278 | 74 |
+| rung 4 menu-shown passes | 141 | 0.54 | 0.331 | 64 |
+Every verdict carries information (all above 0.39); none ships more correct
+answers than rung 0 (all work by withholding); they do not stack (free check +
+menu judge = the free check's 52 records). The menu judge is the one paid
+layer that earns a setting the free check cannot: half the batch at 0.54, the
+highest yield of any filter. Voting earns a worse setting at five times the
+price. Blind, the judge acted on would have withdrawn 14 shipped answers per
+draw, 10 correct (yield 0.17 -> 0.13); shown the menu, 0-1, right about the
+one. Added to the article as §6's closing subsection with two figures:
+`fig21-r0-r1-r4` (rung 0 -> rung 1 lanes -> rung 4 verdicts inside each lane,
+blind and shown the menu) and `fig20-dials` (six panels, one per rule, draw 0
+integers). Figures 14-16 renumbered to 15, 17, 18.

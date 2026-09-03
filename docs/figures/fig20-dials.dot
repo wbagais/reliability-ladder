@@ -1,0 +1,62 @@
+// Every rung's verdict as a shipping rule, CADEC dev, rerun-cadec-d0 (2026-09-03).
+// Six panels, one per "ship only when...". Each panel starts from the same 230
+// records rung 0 produced (87 correct) and shows how the rule splits them into
+// shipped and withheld, with the correct count on each side. Accuracy = correct
+// among shipped; yield = correct shipped / 230. The article's table gives the
+// three-draw means; this figure is draw 0 so that every count is an integer.
+// Rung 3 counts are over the run's own votes (temperature 0.7, k=3): a record
+// ships under "all agree" when every sample that re-found it voted the same code
+// (two or more samples), and under "at least 2 agree" when the winning code got
+// two or more votes with no tie.
+// COLOUR KEY — the article's: green ships · amber withheld · grey a stage
+digraph dials {
+  rankdir=TB; bgcolor="white"; compound=true; newrank=true;
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=11 color="#5a6b73" fillcolor="#f2f4f5"];
+  edge [color="#b3bec3" penwidth=1.3 arrowsize=0.6 fontname="Helvetica" fontsize=9];
+
+  subgraph cluster0 { label="rung 0 · ship everything"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    a0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    a1 [label="SHIP all 230\n87 correct · 143 wrong\naccuracy 0.38 · yield 0.378" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    a0 -> a1;
+  }
+  subgraph cluster1 { label="rung 1 · ship only ACCEPT"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    b0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    b1 [label="do the span's words match\na name of the code? (no model)" fillcolor="#eef1f2"];
+    b2 [label="SHIP · ACCEPT 53\n40 correct · 13 wrong\naccuracy 0.75 · yield 0.174" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    b3 [label="WITHHOLD · BAND 175 + REJECT 2\n47 correct · 130 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    b0 -> b1; b1 -> b2 [label=" yes "]; b1 -> b3 [label=" no "];
+  }
+  subgraph cluster2 { label="rung 3 · ship only when all samples agree"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    c0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    c1 [label="re-extract every post 3× at temperature 0.7\nmatch each sample's mentions to the record" fillcolor="#e3eeef" color="#0c6469"];
+    c2 [label="never re-found 12 · found once 18\n6 correct" fillcolor="#fdf0c8" color="#946c00"];
+    c3 [label="found by 2 or 3 samples · 200" fillcolor="#eef1f2"];
+    c4 [label="SHIP · every vote the same code · 146\n68 correct · 78 wrong\naccuracy 0.47 · yield 0.296" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    c5 [label="WITHHOLD · split 2–1 (39) or tied (15) · 54\n14 correct · 40 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    c0 -> c1; c1 -> c2; c1 -> c3; c3 -> c4; c3 -> c5;
+  }
+  subgraph cluster3 { label="rung 3 · ship only when at least 2 agree"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    d0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    d1 [label="the same 3 samples" fillcolor="#e3eeef" color="#0c6469"];
+    d2 [label="WITHHOLD · never re-found 12 · found once 18 · tied 15\n11 correct · 34 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    d3 [label="SHIP · a code with 2 or 3 votes · 185\n(146 unanimous + 39 split 2–1)\n77 correct · 108 wrong\naccuracy 0.42 · yield 0.335" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    d0 -> d1; d1 -> d2; d1 -> d3;
+  }
+  subgraph cluster4 { label="rung 4 · ship only what the BLIND judge passes"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    e0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    e1 [label="second model reads the post, the span, the bare code\nspan_ok? code_ok?" fillcolor="#e3eeef" color="#0c6469"];
+    e2 [label="SHIP · both ok · 136\n63 correct · 73 wrong\naccuracy 0.46 · yield 0.274" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    e3 [label="WITHHOLD · fail 87 + unparsed 7 · 94\n24 correct · 70 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    e0 -> e1; e1 -> e2; e1 -> e3;
+  }
+  subgraph cluster5 { label="rung 4 · ship only what the MENU-SHOWN judge passes"; fontname="Helvetica-Bold"; fontsize=12; color="#0c6469"; style="rounded";
+    f0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    f1 [label="second model reads the post, the span, the 20-line menu,\nthe line picked, the coding rule · span_ok? code_ok? best line?" fillcolor="#e3eeef" color="#0c6469"];
+    f2 [label="SHIP · both ok · 136\n74 correct · 62 wrong\naccuracy 0.54 · yield 0.322" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    f3 [label="WITHHOLD · fail 94 · unparsed 0\n14 correct · 80 wrong\n(70 of the 94: “not on this list”)" fillcolor="#fdf0c8" color="#946c00"];
+    f0 -> f1; f1 -> f2; f1 -> f3;
+  }
+  { rank=same; a0; b0; c0 }
+  { rank=same; d0; e0; f0 }
+  a1 -> d0 [style=invis]; b3 -> e0 [style=invis]; c5 -> f0 [style=invis];
+}
