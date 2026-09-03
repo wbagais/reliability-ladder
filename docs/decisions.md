@@ -4708,3 +4708,38 @@ shows.
 
 §10 793 -> 971 words; the middle paragraph was cut by half on a second pass
 because it restated §2's table.
+
+## 2026-09-03 — the takeaways REBUILT from the article's argument rather than patched
+
+Owner still did not like them after the morning's repair pass, which is fair: that
+pass fixed five defects without asking whether the five claims were the right
+five. Rebuilt by extracting every bolded claim in the article (97 of them) and
+choosing the load-bearing ones.
+
+**What the new five are, and why:**
+
+  1  the only layer that paid was free — the article's DISTINCTIVE claim (§9: "we
+     have not found that comparison published"), evidenced by the removal test,
+     which is judge-independent
+  2  its precondition, one query, 0 of 351 on FiNER — the honest limit on (1)
+  3  the domain knowledge is in the vocabulary, not the model — the EXPLANATION
+     for (1), added to §10 only today, and the deepest thing the article now says
+  4  nothing above the extractor made the system better, and the number that
+     improved was measuring something else — merges the precision/yield illusion
+     with the structural ceiling, since both are "it looks better than it is"
+  5  every measurement error we made flattered us — carries the noise floor, the
+     reproducibility finding and the self-critique in one
+
+**What was dropped, and where it went.** "Reproducibility is a model choice"
+survives inside (5) as the reason the floor is a choice. "The model should read
+the text and nothing else" survives inside (3), now with the mechanism attached
+rather than asserted. Both were standalone takeaways carrying facts rather than
+arguments.
+
+**Two errors caught while writing, one of them mine.** Takeaway 1 quoted the 3x
+margin without noting the judge was handicapped — now qualified inline, and the
+gap is an upper bound on the free check's advantage rather than a floor. And I
+wrote "0 of 704" for FiNER's ACCEPT lane from memory; **the article reports 351
+records** (ACCEPT 0, BAND 350, REJECT 1), and 704 is a different run. That would
+have been the sixth unsourced number in this article and the first introduced
+during its own review.
