@@ -318,3 +318,29 @@ def test_lane_moves_name_each_admitted_record_with_its_direction():
     assert b["direction"] == "span_in_term" and b["term"] == "knee pain" and b["extra_words"] == ["pain"]
     assert m["by_direction"]["term_in_span"] == {"n": 1, "correct": 1, "on_no_gold": 0}
     assert m["by_direction"]["span_in_term"] == {"n": 1, "correct": 0, "on_no_gold": 1}
+
+
+def test_identical_draws_are_total_consensus_even_with_unlocated_and_overlapping_records():
+    """FiNER's three identical draws read 95.4% until this: a record with an
+    unlocated (-1, -1) span overlaps nothing, not even its own copy in the
+    next draw, and two records that overlap each other WITHIN a draw made a
+    group look like three draws disagreeing on the span."""
+    from ladder import analysis
+
+    d = [rec("D1#0", spans=((0, 5),), sct="1"),
+         rec("D1#1", spans=((3, 9),), sct="2"),        # overlaps D1#0 within the draw
+         rec("D1#2", spans=((-1, -1),), sct="3")]      # unlocated
+    d[2].text = "unlocated"
+    c = analysis.consensus([d, d, d])
+    assert c["found_by_one"] == 0 and c["both_differ"] == 0
+    assert c["consensus_pct"] == 100.0
+
+
+def test_consensus_still_sees_a_real_disagreement_inside_an_overlapping_group():
+    from ladder import analysis
+
+    d0 = [rec("D1#0", spans=((0, 5),), sct="1"), rec("D1#1", spans=((3, 9),), sct="2")]
+    d1 = [rec("D1#0", spans=((0, 5),), sct="1"), rec("D1#1", spans=((3, 9),), sct="9")]
+    c = analysis.consensus([d0, d1])
+    assert c["mentions"] == 1
+    assert c["same_span_diff_code"] == 1 and c["all_agree"] == 0

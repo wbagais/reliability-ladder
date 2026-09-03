@@ -312,6 +312,20 @@ def consensus(draws: list[list[Record]]) -> dict[str, Any]:
             i = parent[i]
         return i
 
+    def _key(r: Record):
+        # An unlocated span, (-1, -1), overlaps nothing — not even its own copy
+        # in the next draw — so those records are matched on their quoted
+        # text instead, which is what they have.
+        located = all(0 <= a < b for a, b in r.spans)
+        return ("span", frozenset((int(a), int(b)) for a, b in r.spans)) if located \
+            else ("text", r.text)
+
+    def _same(ra: Record, rb: Record) -> bool:
+        ka, kb = _key(ra), _key(rb)
+        if ka[0] == "text" or kb[0] == "text":
+            return ka == kb
+        return _overlaps(ra.spans, rb.spans)
+
     by_doc: dict[str, list[int]] = defaultdict(list)
     for i, (_, r) in enumerate(items):
         by_doc[r.doc_id].append(i)
@@ -319,7 +333,7 @@ def consensus(draws: list[list[Record]]) -> dict[str, Any]:
         for a in range(len(idx)):
             for b in range(a + 1, len(idx)):
                 ia, ib = idx[a], idx[b]
-                if items[ia][0] != items[ib][0] and _overlaps(items[ia][1].spans, items[ib][1].spans):
+                if items[ia][0] != items[ib][0] and _same(items[ia][1], items[ib][1]):
                     parent[find(ia)] = find(ib)
     groups: dict[int, list[tuple[int, Record]]] = defaultdict(list)
     for i, it in enumerate(items):
@@ -331,8 +345,13 @@ def consensus(draws: list[list[Record]]) -> dict[str, Any]:
         if len(found) < k:
             c["found_by_two" if len(found) == k - 1 else "found_by_one"] += 1
             continue
-        spans = {frozenset((int(a), int(b)) for a, b in r.spans) for _, r in members}
-        codes = {str(r.sct) for _, r in members}
+        # Compared PER DRAW: two records that overlap each other inside one
+        # draw are that draw's reading of the mention, and the draws agree
+        # when each draw's set of spans (and multiset of codes) is the same.
+        per_draw_spans = {d: frozenset(_key(r) for dd, r in members if dd == d) for d in found}
+        per_draw_codes = {d: tuple(sorted(str(r.sct) for dd, r in members if dd == d)) for d in found}
+        spans = set(per_draw_spans.values())
+        codes = set(per_draw_codes.values())
         same_span, same_code = len(spans) == 1, len(codes) == 1
         same_span_all += same_span
         same_code_given_all += same_code
