@@ -1,23 +1,26 @@
 # The AI Reliability Ladder, Measured Rung by Rung
 
-> **No claim is open.** The two that were at risk have both been checked.
-> CADEC's boundary convention caps span-exact scores near 0.70 — verified
-> against the strongest published system on this corpus, and it held. And
-> §9's *"retrieval is a ceiling"* rested on a general-purpose 30M embedder
-> where this task's literature uses domain-adapted ones; we swapped in
-> SapBERT and measured it. It puts gold on the menu more often across the
-> corpus and made the system **worse**, three draws for three. §9 now carries
-> that result. Everything here is measured, labelled by split, and cited.
+> **Where this stands.** Every number here is measured, labelled by split, and
+> traceable to the run that produced it. Two claims that were at risk have been
+> checked against their sources: the ~0.70 span-exact ceiling holds in the region
+> we predicted, though the strongest supervised tagger on this corpus clears it by
+> four points (section 9); and *"retrieval is a ceiling"* was tested by swapping
+> our general-purpose embedder for the domain-adapted one this literature uses —
+> which puts gold on the menu more often and made the system **worse**, three
+> draws for three (section 2). Seven items remain open, marked **[PENDING]** where
+> they appear. The largest: our second-model judge was measured before we found we
+> had never shown it what a code means, so every result about it is provisional.
 
 **Pushpdeep Mishra · Wejdan Bagais**
 
-*Seven reliability layers around a language model, measured one at a time on two
+*Six reliability layers around a language model, measured one at a time on two
 tasks with real answer keys — what each one bought, and what it charged.*
 
 ![Figure 1](figures/fig0-hero.png)
 
 *Fig. 1: The seven rungs, coloured by what each one bought. The two that mattered
-cost nothing. Source: author-created with Matplotlib.*
+cost nothing; the judge's row is provisional. Source: author-created with
+Matplotlib.*
 
 ---
 

@@ -4767,3 +4767,37 @@ Takeaway 5 rewritten around it. What it displaced — the three named measuremen
 errors, the blind judge, the reranker's one-draw interval, the voting gain that
 reversed — survives as one clause here and in full in §8, which exists to tell
 that story with its examples.
+
+## 2026-09-03 — the header block said "No claim is open" while the article carried seven PENDING markers
+
+Owner asked whether the title block and Figure 1 needed updating after the
+review. Both did, and the header was the worst single line in the article.
+
+**"No claim is open" was false**, and had been since the first PENDING marker
+went in. The article now carries seven, including one that makes every rung 4
+result provisional. Replaced with "Where this stands", which says what is
+settled, what is open, and names the largest open item rather than claiming
+there is none.
+
+**"and it held" was also false as of today.** The ceiling claim was verified
+against CONORM's paper this morning and it held only in the weaker form: three
+fine-tuned taggers score 70.4, 71.7 and 74.4 span-exact on CADEC detection, so
+the best supervised system clears our ~0.70 cap by four points. The header now
+says so.
+
+**Two stale section pointers.** The block cited "§9" twice for the
+retrieval-is-a-ceiling material, which moved to §2 when §8 was deleted into it;
+§9 is now the literature section. Both corrected, and written as "section N"
+rather than "§N" to match the rest of the article's prose.
+
+**"Seven reliability layers around a language model" -> "Six".** The article
+counts six layers ABOVE the model plus rung 0, and says so in the next section.
+The subtitle had been contradicting it since the restructure.
+
+**FIGURE 1 carried the unsourced error pair.** Its refuse row read "62.9 -> 4.0",
+the same numbers removed from takeaway 5 an hour earlier for appearing nowhere in
+the article or in this file. Now "63 -> 4 err / 100". Three other rows updated to
+what the review established: self-correct "fired 1 of 248" -> "never had a
+trigger", vote "-0.004" -> "no consistent sign" (the -0.004 is one draw), and
+judge "read by nothing" -> "read by nothing - provisional". `docs/figures/fig0.py`
+regenerated; matplotlib added to the venv, which did not have it.
