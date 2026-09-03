@@ -1537,8 +1537,9 @@ So: each layer against its own purpose, with what it cost to find out.
 | **person** | resolve what the machine cannot | not measured | **196 records** |
 
 Read that way, the result is sharper than "nothing worked." **The two layers that
-did their jobs cost nothing.** The three that cost 518,590 tokens either could not
-be tested, could not be shown to help, or were measured wrong.
+did their jobs cost nothing.** The three that cost 518,590 tokens between them
+either could not be tested, could not be shown to help, or were measured wrong —
+and when we removed all three and re-ran, one answer out of 43 changed.
 
 Voting deserves its wording. It is not that voting had no effect — it is that it
 had **no consistent one**: −0.004 on the run above, +5 correct answers on another
@@ -1572,25 +1573,6 @@ batch, routed by exhaustion.**
 
 Neither of those was visible while every layer was being scored on accuracy.
 They appeared as soon as the layers were laid against the lanes.
-
-### So we deleted all three
-
-The table above says what each layer did. It cannot answer the question a reader
-actually has, which is whether you could remove them. So we did — same corpus,
-extraction step held **identical** on both sides:
-
-| stack (development split) | F1 exact | overlap | correct | to a person | tokens |
-|---|---|---|---|---|---|
-| full seven rungs | 0.182 | 0.187 | 43 | 196 | **683,488** |
-| spine only | 0.182 | 0.182 | 42 | 196 | **164,898** |
-
-**One overlap-matched answer out of 43, for 518,590 tokens and a 152-second
-p95.** Coverage, error rate and records routed are identical.
-
-One trap nearly reversed it. Our spine config predated a set of extraction
-improvements, so running it as it stood would have compared a stripped stack on a
-*worse* extractor against a full stack on a better one. **An ablation that does
-not hold its base fixed is two experiments wearing one name.**
 
 ### None of them can find what rung 0 missed
 

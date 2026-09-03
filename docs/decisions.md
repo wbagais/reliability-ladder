@@ -4087,3 +4087,38 @@ Not cut, and worth recording as considered: §8 (199 w) and "How we found these"
 (111 w) are dense and every paragraph carries a distinct finding. The literature
 section (481 w) is the only place the supervised comparison and the CONORM
 ceiling check appear.
+
+## 2026-09-03 — the ablation subsection DELETED: its headline number is arithmetic from the table above it
+
+Owner: "there is no stacking, so we compare the same output with itself." Correct,
+and it checks out numerically. The ablation's headline was **518,590 tokens** —
+which is exactly `548 + 425,355 + 92,687`, the sum of the three cost cells in
+§7's role table immediately above. The experiment restated in F1 what the
+cumulative per-layer rows already showed in answered accuracy, and the "saving"
+it reported was addition.
+
+The deeper reason it was redundant is the one the owner named: an ablation
+measures what removing a layer costs, which is only informative if the layers
+interact. §8's finding is that they do not — every deferral terminates in a field
+nothing reads. With no composition there is nothing for a removal test to
+discover, and the per-layer rows are already cumulative.
+
+Kept as one clause in §7's conclusion: "when we removed all three and re-ran, one
+answer out of 43 changed." The fact is worth having; the table and the framing
+were not.
+
+**NOT LOST, RECORDED HERE:** the methodological trap the subsection carried. Our
+spine config predated a set of extraction improvements, so running it as it stood
+would have compared a stripped stack on a WORSE extractor against a full stack on
+a better one. **An ablation that does not hold its base fixed is two experiments
+wearing one name.** Generic experimental-design advice rather than a finding from
+this work, so it comes out of the article and stays in this file.
+
+**FLAGGED FOR THE TAKEAWAYS PASS (deferred to last on the owner's instruction):**
+takeaway 5 reads "Deleting the three paid layers changed one answer out of 43 and
+saved 518,590 tokens". Both halves remain TRUE — the ablation ran, and the run is
+recorded — but the article no longer describes the experiment they come from, and
+"saved 518,590 tokens" now double-counts against the role table's own cost
+column. Rewrite it when the takeaways are reviewed.
+
+§7 is 945 words, from 1,082 at the split. Article 17,752.
