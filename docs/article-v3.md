@@ -1600,16 +1600,20 @@ returned. The failures were not in the layers but in what happens between them.
 
 ![Figure 15](figures/fig1-wiring.png)
 
-*Fig. 15: What propagates. Dotted grey is execution order and carries no verdict;
-every solid arrow is a real read or write. Source: author-created with Graphviz.*
+*Fig. 15: Verdict flow. An arrow exists only where a rung genuinely reads or
+writes; execution order is not drawn, because it moves no verdict. Rung 0 is
+absent — it writes no verdict, it produces the records. Source: author-created
+with Graphviz.*
 
 **Only one verdict travels, and it is the free one.** Self-correction writes
 `r2_declined`, voting writes `r3_unanimous_none`, the judge writes `r4_verdict`,
-and the refusal step reads none of them. Rungs 2 and 3 still reach it — but only
-by re-running the free check and overwriting **its** verdict, so what arrives at
-rung 5 is never their reasoning, only rung 1's opinion of whatever code they left
-behind. The judge has no channel at all. No test caught this, because every layer
-does exactly what it says it does.
+and nothing reads any of them. Rungs 2 and 3 still reach the refusal step — but
+only by re-running the free check and overwriting **its** verdict, so what arrives
+is never their reasoning, only rung 1's opinion of whatever code they left behind.
+Rung 2 depends on that verdict at both ends: it is also the only thing that can
+trigger it. **The judge touches nothing** — it writes into a dead end, and its own
+read of `r1_verdict` feeds a report rather than a decision. No test caught any of
+this, because every layer does exactly what it says it does.
 
 **Then the metric.** Voting overwrote codes without re-validating, so records
 shipped marked *verified* against a code they no longer had — carrying a claim the

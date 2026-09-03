@@ -4200,3 +4200,35 @@ effect") are now defended in one shared paragraph rather than two apologetic
 ones.
 
 §7: 1,271 -> 1,092 words. Article 17,700.
+
+## 2026-09-03 — the wiring figure redrawn a SECOND time: an arrow means a read or a write, nothing else
+
+Owner rejected the first redraw: "if it is not linked to any other rung do not
+link it. The links are if it reads or writes to another rung." Correct, and the
+dotted execution-order spine was still doing the damage the redraw was meant to
+fix — a reader could follow `3 · vote -> 4 · judge` and conclude the judge
+consumes the vote. Execution order is now ABSENT, not merely restyled.
+
+Establishing the real edges corrected the article as well as the figure:
+
+  r1 writes r1_verdict                                   (r1.py)
+  r2 READS it as its only trigger                        (r2.py:347)  <- was missing
+  r2 re-runs the check and overwrites it                 (r2.py:451)
+  r3 re-runs the check and overwrites it                 (r3.py:218)
+  r5 reads it — the whole decision                       (r5.py:82)
+  r6 takes r5's ABSTAIN residue with checks.withheld     (r6.py:94)
+  r4 writes r4_verdict -> no reader unless abstain_on_judge_fail, which ships off
+  r2_declined, r3_unanimous_none -> no reader
+
+Rung 0 is now absent from the figure: it writes no verdict, it produces the
+records every rung operates on. Rung 4's read of `r1_verdict` is deliberately NOT
+drawn — it happens (r4.py:267) but only to build the aggregate report, never to
+judge — so rung 4 appears with no incoming arrow at all, which is the finding
+made visible: **the judge touches nothing.**
+
+The prose gained the one fact the figure exposed: rung 2 depends on rung 1's
+verdict at BOTH ends — it is the only thing that can trigger it, and rung 2's own
+conclusion returns through it.
+
+Also reshaped 3303x467 -> 1298x1059. Both redraws of this figure hit the same
+trap: a seven-node LR graph is unusably wide on a page.
