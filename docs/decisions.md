@@ -4012,3 +4012,37 @@ the strongest evidence in the article and the only place the three paid layers
 are measured by removal rather than by delta.
 
 §7 is 1,109 words.
+
+## 2026-09-03 — the rung 6 oracle is GONE from the article, and the ablation's stated purpose was wrong
+
+**1. The oracle's accuracy numbers are deleted.** Owner: we should not report an
+accuracy for humans. Correct, and the finding does not need them. That the desk
+cannot move detection is true BY CONSTRUCTION, not by measurement — it shows a
+reviewer a span the system already found and offers a choice of codes, so there
+is no control for "you missed one" and none for "these boundaries are wrong."
+Stated as a design fact, which is stronger than the oracle replay and carries no
+claim about what reviewers achieve. `0.291 -> 0.990` is out of the article
+entirely; it survives in this file and in the Phase E entry.
+
+Cascade fixed: §7's open question no longer says "bounded with an oracle ceiling,
+exactly as rung 6 was bounded", since the article no longer describes that.
+
+The measurement itself is untouched and still recorded (2026-08-26). What changed
+is that the article does not publish it — three separate review passes shrank it
+from "the largest movement in the study" to one sentence to nothing, and each cut
+was right for its own reason: it is arithmetic (`detection x coding`), it
+duplicated §7, and it asserts an accuracy for human work we never observed.
+
+**2. The ablation is KEPT but its stated purpose was wrong.** It was introduced
+as "per-layer readings are an argument, the ablation is the measurement", framing
+it as a test of STACKING. There is no stacking to test — §8's whole finding is
+that the rungs do not compose, and the per-layer rows are already cumulative. Its
+real value is the one question the per-layer table cannot answer: **can you
+delete these three and lose nothing?** Retitled "So we deleted all three", opener
+rewritten to say that, `shipped` column dropped as redundant with `to a person`.
+It stays because it is the article's only removal test and the only number a
+reader can act on.
+
+§7 is 1,087 words, from 1,082 at the split — but the content is almost entirely
+different: the delta staircase, the judge arm and the oracle are all gone, and
+the triage-signal finding and the role table are new.

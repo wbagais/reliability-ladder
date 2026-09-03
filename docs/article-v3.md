@@ -1573,21 +1573,21 @@ batch, routed by exhaustion.**
 Neither of those was visible while every layer was being scored on accuracy.
 They appeared as soon as the layers were laid against the lanes.
 
-### We deleted all three and re-ran
+### So we deleted all three
 
-Per-layer readings are an argument. The ablation is the measurement — same
-corpus, extraction step held **identical** on both sides:
+The table above says what each layer did. It cannot answer the question a reader
+actually has, which is whether you could remove them. So we did — same corpus,
+extraction step held **identical** on both sides:
 
-| stack (development split) | F1 exact | overlap | correct | shipped | to a person | tokens |
-|---|---|---|---|---|---|---|
-| full seven rungs | 0.182 | 0.187 | 43 | 52 | 196 | **683,488** |
-| spine only | 0.182 | 0.182 | 42 | 52 | 196 | **164,898** |
+| stack (development split) | F1 exact | overlap | correct | to a person | tokens |
+|---|---|---|---|---|---|
+| full seven rungs | 0.182 | 0.187 | 43 | 196 | **683,488** |
+| spine only | 0.182 | 0.182 | 42 | 196 | **164,898** |
 
-Identical F1, coverage, error rate and records routed. **The entire contribution
-of the three paid model layers is one overlap-matched answer out of 43, for
-518,590 tokens and a 152-second p95.**
+**One overlap-matched answer out of 43, for 518,590 tokens and a 152-second
+p95.** Coverage, error rate and records routed are identical.
 
-One trap nearly reversed this. Our spine config predated a set of extraction
+One trap nearly reversed it. Our spine config predated a set of extraction
 improvements, so running it as it stood would have compared a stripped stack on a
 *worse* extractor against a full stack on a better one. **An ablation that does
 not hold its base fixed is two experiments wearing one name.**
@@ -1600,26 +1600,24 @@ rejects, rung 2 rewrites a code, rung 3 re-scores spans that already exist, rung
 4 issues a per-record verdict, rung 5 withholds. Not one of them can put a
 mention on the table that the extractor never proposed.
 
-Rung 6 is the surprise, and it is the proof. A human reviewer is the one layer
-you would expect to catch a miss — and ours cannot, because the desk is keyed by
-span and only ever offers a choice of codes for spans it was handed. We measured
-that with an oracle: gold codes filled into the queue, on the Phase E residue.
-Coding accuracy on matched spans went **0.291 → 0.990.** Detection did not move
-at all.
+Rung 6 is the surprise. A person is the one layer you would expect to catch a
+miss — and ours cannot, by construction rather than by measurement. The desk
+shows a reviewer a span the system already found and offers a choice of codes for
+it. **There is no control for "you missed one," and none for "these boundaries
+are wrong."** However good the reviewer, detection cannot move.
 
-**Flawless code review left recall exactly where rung 0 put it.** So the ladder's
-ceiling is rung 0's detection — 0.521 exact on the held-out split — and
-everything built on top of it is a precision instrument. Reliability engineering
-of this kind makes a system's answers more trustworthy. It does not make the
-system see more.
+So the ladder's ceiling is rung 0's detection — 0.521 exact on the held-out
+split — and everything built on top of it is a precision instrument. Reliability
+engineering of this kind makes a system's answers more trustworthy. It does not
+make the system see more.
 
 The obvious repair is to ask the judge what was missed. We think that is the
 wrong place: rung 4 is per-record and the question is per-document, and a judge
 that names a mention nobody proposed is not judging — it is extracting, with a
 second model, which collapses the very measurement the ladder exists to take.
 **[PENDING]** A rung that can propose a missed mention is registered as an open
-question, to be bounded with an oracle ceiling first, exactly as rung 6 was
-bounded before it was built. Plan item 15.
+question — and one to price against a ceiling before building anything, since
+the layer it would replace is the most expensive one we have. Plan item 15.
 
 ---
 
