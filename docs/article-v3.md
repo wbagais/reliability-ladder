@@ -683,7 +683,7 @@ on a number nobody had reproduced.
 
 ---
 
-### Where the 2.1 points comes from
+### Where the 4 points come from
 
 One thing is still unexplained: why does an identical configuration move at
 all? We ran at **temperature 0** — not low-temperature sampling but greedy
@@ -703,10 +703,11 @@ repeated itself perfectly; three means no two runs agreed.
 | `mistral:7b-instruct` | dense | **1** | **100%** | not run |
 | `granite4:micro-h` | Mamba/transformer hybrid | **1** | **100%** | not run |
 | `qwen3:8b` | dense, reasoning | **1** | **100%** | not run |
-| `gpt-oss:20b` | **Mixture-of-Experts** | **3** | **62.8%** | 3 or 2, see below |
+| `gpt-oss:20b` | **Mixture-of-Experts** | **3** (sweep) · **2** (base run) | **62.8%** · **65.7%** | 2, see below |
 
-Read the last row across: on CADEC all three of `gpt-oss`'s runs differed; on
-FiNER two of the three came out identical and the third did not.
+Read the last row across: on CADEC all three of `gpt-oss`'s runs differed in the
+2026-08-30 sweep, and two of three were identical in the base run three days
+later; on FiNER two of the three came out identical and the third did not.
 
 **The FiNER column is nearly empty and that is a gap, not a finding.** Only the
 extractor was run three times there; the other four families were probed on a
@@ -1536,7 +1537,7 @@ future work.
 
 Rung 5 is where the system stops deciding and the deployer starts. It is a guard
 in front of rung 6, and how aggressive it should be is not a property of the
-task. Four settings, the first three from the same 222 records:
+task. Four settings, the first three from the same records:
 
 | policy | ships | accuracy on what it answers | **yield** | to a person |
 |---|---|---|---|---|
@@ -1862,7 +1863,7 @@ And six practices, each of which we learned by getting it wrong first:
   precondition before you build.** One query would have told us the free check
   had zero coverage on our second corpus.
 - **Measure your floor before you measure an improvement.** Three identical runs
-  of our unchanged system differ by 2.1 points of F1, which makes most of what we
+  of our unchanged system differ by up to 4 points of F1, which makes most of what we
   tried unreadable on its own. It is easier to state that rule than to obey it:
   two arms we shipped sit below that floor, and their rows say so. The same
   discipline applies to the probe that authorises an arm — run it on the

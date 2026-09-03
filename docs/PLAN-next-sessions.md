@@ -294,11 +294,20 @@ snapshot). Run ids `rerun-{cadec,finer}-d{0,1,2}[-<arm>]`; report by
 `scripts/rerun_analysis.py`. Results in `docs/decisions.md` when the draws
 finish.
 
-**PHASE 3 — rewrite the article's numbers against that run**, clear the three
-`[PENDING]` markers, and only then review the takeaways.
+**PHASE 3 — rewrite the article's numbers against that run**, clear the
+`[PENDING]` markers, and only then review the takeaways. **CADEC DONE
+2026-09-03** (decisions entry "THE CONSOLIDATED RE-RUN, CADEC"; article
+commits `d430c63`, `fb4e597`): every CADEC dev-side number is now
+`rerun-cadec-d0/d1/d2`, sections 2-4, 6, 7, 11, 12 and the takeaways
+rewritten, figs 1 and 4 refreshed, figs 6/8/11/12/13 keep their runs named in
+the caption. FiNER pending its three draws.
 
 **ANY TIME — no run needed, no ordering constraint:** items 2, 4, 7, 8, 11, 13,
-15, 17(c). (Item 18 is DONE — 2026-09-03.)
+15, 17(c). (Item 18 is DONE — 2026-09-03.) **Also DONE 2026-09-03: 8
+(answered on the re-run: 26-27 of the 38-39 admitted records wrap a term in a
+qualifier; the 12 fragments are mostly wrong), 11 (rung 3's changes: 22/27/26
+of 25/28/27 land in BAND, mostly on invented spans), 13 (index 47, real
+excerpt), 15 (stated), 17(c). Items 12, 14, 16, 17(d) were Phase 1.**
 
 **AFTER THE ARTICLE SHIPS:** items 1, 3, 5, 6, 9, 10, 17(a), 17(b). These extend
 the study rather than unblock it.
