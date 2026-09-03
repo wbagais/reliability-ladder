@@ -31,7 +31,7 @@ from ladder import analysis, clean as clean_mod, score  # noqa: E402
 from ladder.ledger import Ledger  # noqa: E402
 from ladder.manifest import load_manifest  # noqa: E402
 from ladder.run import _corpus_for, _corpus_opts, _corpus_root, _vocab_for  # noqa: E402
-from ladder.schema import loads  # noqa: E402
+from ladder.schema import REACTION, loads  # noqa: E402
 
 RUNGS = (0, 1, 2, 3, 4, 5, 6)
 
@@ -93,7 +93,8 @@ def analyse(man: dict, prefixes: list[str], arms: list[str], full_vocab: bool) -
     doc_ids = corpus.read_split(man["corpus"]["splits_dir"], "dev")
     exclude = clean_mod.exclusions_for(man)
     golds = [m for d in doc_ids for m in docs[d].mentions]
-    gold_scored = [g for g in golds if g.record_id not in exclude]
+    gold_scored = [g for g in golds if g.record_id not in exclude
+                   and g.entity_type == REACTION]
     vocab = _vocab_for(man)
     report: dict = {"manifest": man.get("task"), "corpus": man["corpus"]["name"],
                     "n_docs": len(doc_ids), "n_gold_scored": len(gold_scored),

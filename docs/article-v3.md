@@ -28,7 +28,7 @@ Matplotlib.*
 
 1. **The only layer that paid for itself was free.** Self-correction, sampled voting and a second-model judge cost **518,590 tokens** between them; removing all three changed **one answer out of 43**. What did the work was a string comparison against the vocabulary — zero tokens, zero latency — which separated right answers from wrong ones about **3×** better than the judge did — a margin we later found we had flattered by measuring that judge blind (see 5).
 2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 351** records and the system silently shipped nothing. Test this before you build on it.
-3. **The domain knowledge was never in the model, and we could not put it there.** Two domain-adapted models made things worse, not better. Meanwhile the retriever puts the correct concept on a twenty-line menu **87%** of the time and the model picks it about **30%** of the time — taking line one 19.5% of the time largely because it is first. **The expertise lives in the vocabulary. The model's job is to read.**
+3. **The domain knowledge was never in the model, and we could not put it there.** Two domain-adapted models made things worse, not better. Meanwhile the retriever puts the correct concept on a twenty-line menu **87%** of the time and the model picks it about **30%** of the time. **The expertise lives in the vocabulary. The model's job is to read.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.37 to 0.81** and yield from **0.37 to 0.17** on the same records — abstaining always raises precision. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
 5. **Nondeterminism is a model choice, and it lives in what the model finds.** Four of five open-weight models returned byte-identical output across three identical runs. The one we shipped reached full agreement with itself on only **62.8%** of mentions — but where all three runs found the same mention, they chose the same code **83.9%** of the time. What varies is mostly the reading, not the labelling. It cost a **2.1-point** run-to-run spread, wide enough to swallow most of what we tested, and every measurement error we made inside that band flattered us.
 
@@ -475,63 +475,84 @@ of the two corpora whichever half we had picked.
 
 
 
-### Why the choosing arms failed, in one tag
+### Why the choosing arms failed, in one tag — and why the explanation was ours
 
 **Every number in this subsection is FiNER**, and the failure it describes does
-not occur on CADEC at all. It is worth reading anyway, because the *cause* is
-present on both corpora and only the consequence differs.
+not occur on CADEC at all. It is worth reading anyway, because what it turned
+out to be about is present on both corpora.
 
 Decomposing FiNER's mis-codes, one tag stopped looking like the others:
 
 > `AccrualForEnvironmentalLossContingencies` is predicted **57 times in 292
 > records.** The answer key uses it **twice.**
->
-> *(extraction alone, draw 0. The other draws and the full stack agree: 63 of
-> 303, 64 of 292 — between 19.5% and 21.9% of all predictions.)*
 
-It is menu slot 0 — our menu is alphabetical and that tag is first. An arm that
-re-orders the menu by sentence relevance moves it off slot 0, which makes a clean
-natural experiment:
+It is menu slot 0 — our menu is alphabetical and that tag is first. We wrote
+that up as position bias: the model takes line one because it is line one. An
+arm that re-orders the menu by sentence relevance moved the tag to median slot
+92 and its prediction count fell 57 → 3, every one of the three taken while it
+happened to be first. *The model picks it if and only if it is first.* One
+prediction in five going to the first line of a list, in a production pipeline
+with 139 options rather than four in a benchmark.
 
-| | alphabetical menu | re-ordered menu |
+**That was wrong, and the thing that was wrong was ours.**
+
+The obvious next experiment was to break the prior instead of feeding it, so we
+built a per-mention permutation of the menu and pre-registered the prediction:
+the attractor's count should fall from 57 toward the answer key's 2. It fell to
+2 exactly. Then we grouped the predictions by which part of *our own code* wrote
+them:
+
+| | base | permuted menu |
 |---|---|---|
-| its median slot | **0** | 92 |
-| times predicted | **57** | **3** |
-| …taken while sitting at slot 0 | 57 | 3 |
+| times the attractor is predicted | **77** | 2 |
+| …written by our fallback rule | **74** | 0 |
+| …chosen by the model | **3** | 2 |
+| the model's own slot-0 rate | **1.3%** | — |
+| chance rate (1 of 139) | 0.72% | — |
 
-**The model picks it if and only if it is first.** That is roughly **one
-prediction in five** on this corpus going to line one of a list. On a real sentence:
+Rung 0 has a rule that a record must not leave with no answer while its own
+candidate menu sits on it: if the pick reply omits a mention, fill it from
+**menu position 0**. On our first corpus position 0 is the top retrieval hit, so
+the rule is close to free and we measured it that way. On this corpus the menu
+is alphabetical, so position 0 is an accident of the letter A — and the rule
+wrote one literal constant onto 74 of 313 answers, a quarter of the run.
 
-> *"…trade accounts receivable are all due in **12 months** or less."*
-> → `AccrualForEnvironmentalLossContingencies`
+The model's own rate of taking line one is 1.3% against a 0.72% chance rate.
+**There was no position bias. There was a default of ours, in the output,
+wearing the model's clothes.** And the natural experiment that seemed to settle
+it — "predicted 3 times, all 3 while first" — is the same artefact seen from the
+other side: a rule that always writes slot 0 produces slot-0 predictions under
+every ordering you try.
 
-No reading of that sentence brings the tag close. It is the first line of the
-menu. Position bias in option
-lists is documented and we are rediscovering it; what is ours is the setting — 139
-options in a production pipeline, not four in a benchmark.
+The permutation arm itself lost badly — coding accuracy 0.425 → 0.058, exact F1
+0.213 → 0.029, paired −0.184 over documents at byte-identical detection, three
+draws for three — and that too turned out to be ours. Our pick call is *batched*:
+seven mentions in one prompt, and because the menu is the whole vocabulary,
+every mention normally sees the same list, so "choice 42" means one tag
+throughout. Permuting per mention put seven different orderings in one prompt.
+In 26% of the arm's mis-codes the chosen index is one at which the correct tag
+sits in a *sibling mention's* menu — against a 3.7% null. The model reached the
+right concept and read it off the wrong list.
 
-It also cost us the arm. Re-ordering *killed* the attractor and still made the
-system worse — coding accuracy **0.393 → 0.304, 0.421 → 0.263, 0.421 → 0.263**
-across three draws of the extraction step — because it *amplified* the positional
-prior — moving mass off the
-model's own reading and onto the ranker's top slot. **A ranking can carry real
-signal, visibly move the model, and still lose to what it displaced.**
+So the honest version of this section is shorter and less flattering. We found a
+striking pattern in our own output, gave it a mechanism in the model, built an
+arm on that mechanism, and the arm's job — killing the attractor — is what
+revealed the attractor was never the model's. The re-ordering arm's rejection
+stands (coding accuracy **0.393 → 0.304, 0.421 → 0.263, 0.421 → 0.263** across
+three draws), but its mechanism does not, and the generalisable part is not
+about position bias at all:
+
+**A metric computed over a component's output must be decomposed by which lane
+produced each row.** Your own defaults are in that output, and they do not look
+different from the model's answers. The flag we needed was on every record from
+the start; nobody had grouped by it. Section 6's error budget now carries that
+split.
 
 **And CADEC has no attractor**, because nothing about it is alphabetical: its
 menu is ordered by retrieval score, so line one is the best candidate the
-retriever found rather than whichever concept name starts with "A". The pathology
-is FiNER's alone.
-
-The *prior* is not. It is the same model reading the same kind of prompt, and it
-favours line one on both corpora — the difference is only what we put there. On
-CADEC that is a good guess, which is why **alphabetising that menu cost 10 to 12
-points of coding accuracy**: it broke a prior that had been doing free work. On
-FiNER the same behaviour hands a fifth of all predictions to a tag about
-environmental loss contingencies.
-
-So this is one mechanism with two faces, and which face you get is decided by how
-you sorted a list. **A position prior is not a bug you fix. It is a resource you
-are already spending, whether or not you know where.**
+retriever found — which is why **alphabetising that menu cost 10 to 12 points of
+coding accuracy**. The fallback rule is the same on both corpora; what it writes
+is not.
 
 That is the baseline: 41% of gold answered correctly, most of the loss in
 detection, and a set of stages that each fail differently. The obvious next move
@@ -1452,8 +1473,8 @@ Ship ACCEPT, withhold everything else. That is the whole rung as shipped. It
 **withholds, it does not delete**: the proposed answer is kept so a reviewer can
 see what the system was going to say.
 
-Two of its four rules never fire, and both silences are results. The judge rule
-is off (above). The other is the one worth pausing on: rung 5 has a confidence
+Two of its rules never fired, and both silences are results. The judge rule
+is off (above). The other is the one worth pausing on: rung 5 had a confidence
 threshold, `tau`, and **the standard abstention technique is not merely untuned
 here — it is unusable.** Rung 0 reports a confidence on every mention, and the
 distribution is this:
@@ -1467,7 +1488,9 @@ distribution is this:
 Nothing below 0.95, on a run whose answers are right about 40% of the time. **At
 least six in ten of the answers this model calls near-certain are wrong.** There
 is no threshold to place. You cannot ask this model how sure it is, which is a
-one-line argument for the entire project.
+one-line argument for the entire project. We retired the dial rather than leave
+a knob that looks tunable and is not; a calibrated input for it is registered
+future work.
 
 ### Refusal is not a technique. It is a dial, and you are the one who sets it
 
@@ -1622,9 +1645,10 @@ make the system see more.**
 The obvious repair is to ask the judge what was missed, and we think that is the
 wrong place: rung 4 is per-record where the question is per-document, and a judge
 that names a mention nobody proposed is not judging but extracting, with a second
-model — which collapses the measurement the ladder exists to take. **[PENDING]** A
-rung that can propose a missed mention is registered as an open question, to be
-priced against a ceiling first. Plan item 15.
+model — which collapses the measurement the ladder exists to take. So we state it
+as a limitation rather than fix it: **no rung in this ladder can add a mention**,
+and a rung that could is an open question, to be bounded with an oracle ceiling
+before it is built — exactly as the human desk was bounded before we built it.
 
 ### Why none of it showed up in a test
 
@@ -1683,10 +1707,10 @@ prediction*, a formalised field; we compute risk-coverage curves without having
 used its vocabulary. Our weak judge is corroborated, not idiosyncratic — published
 work documents self-inconsistency in LLM judges and an agreeableness bias with
 true-positive rates above 96% against true-negative rates below 25%. Our voting
-result is the same story from the other side. And the slot-0 attractor is a
-rediscovery: position bias in option lists is documented, and *option-order
-randomisation* — the mitigation we arrived at independently — is already the
-recommended one.
+result is the same story from the other side. Position bias in option lists is
+documented too, and *option-order randomisation* is the recommended mitigation
+— we built it, and it showed our "attractor" was a default of our own, not the
+model's (section 2).
 
 **Where we differ is what we compared.** That literature treats the judge and
 self-consistency voting as standard tooling. We priced both against a free string
@@ -1759,9 +1783,8 @@ rows in section 2's table: SapBERT made the system worse, and BioMistral returne
 What actually explains the gap is stranger. **The domain knowledge was never
 missing.** Our retriever puts the correct concept on the twenty-line menu **87%**
 of the time, and the model — looking straight at it — takes the right line about
-**30%** of the time, choosing the first line 19.5% of the time largely because it
-is first. The expertise this task needs is not in the model and we could not put
-it there. It is in the vocabulary. That is why the free check works, and why
+**30%** of the time. The expertise this task needs is not in the model and we
+could not put it there. It is in the vocabulary. That is why the free check works, and why
 every job below except one comes off the model's desk.
 
 The part another team can use tomorrow is the assignment, not the ladder:
@@ -1771,7 +1794,7 @@ The part another team can use tomorrow is the assignment, not the ladder:
 | **Read the prose, propose candidate spans** | **the model** | the one thing it does well — string matching finds 16.8% of gold spans where the model finds 55.8% |
 | Recall an identifier | **not the model** | F1 0.018 against 0.209 for retrieve-and-pick, at more tokens |
 | Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
-| Order the candidate list | **not the model** | it takes menu line one 19.5% of the time, and only when it is line one |
+| Order the candidate list | **not the model** | our own fallback wrote line one onto a quarter of FiNER's answers; the model's slot-0 rate is 1.3%. On CADEC, alphabetising the retrieval order cost 10–12 points |
 | Check its own output | **unproven** | self-correction never fired, so it was never tested; voting's sign changed with the draw |
 | Judge whether an answer is right | **not yet known** | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but we had never shown it what a code means (section 6), so that number is withdrawn |
 | Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right about 40% of the time |
