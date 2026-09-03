@@ -763,8 +763,9 @@ Note what did *not* prevent any of this: narrowing the question. The pick step
 chooses a number from a twenty-line list, about as constrained as a request gets,
 and it is where 9.4% of mentions diverge.
 
-And note what the identical pair says about the mechanism. The same 64 prompts,
-answered two days earlier on the same machine, differ from these replies on 34.
+And note what the identical pair says about the mechanism. The same prompts,
+answered two days earlier on the same machine, differ from these replies on
+about half of them.
 Whatever moves this model, it is not per-record sampling noise: it is a whole
 run that either repeats or does not, and which one you get changed between
 sessions and not between consecutive draws. We do not know why. The obvious
@@ -891,7 +892,7 @@ answer that is *possible and wrong*, and nothing mechanical separates the two.
 **A free check can prove an answer cannot be right. It can never show that it is.**
 
 **How much of the batch lands here?** **Almost none.** REJECT holds 2, 2 and 3
-records across the three draws. Here is one of them:
+records across the three draws. Here is draw 2's third:
 
 > span `"severe muscle pain in ankles"` — **that text is not in the post.**
 > The model quoted something it had composed rather than read, and the check
@@ -937,11 +938,13 @@ one exactly. The check accepts whichever the model picked and has no way to
 prefer the other.
 
 **Whether that is really an error is a fair question we cannot answer.** Gold's
-code here is retired and SNOMED records no successor; ours is active and means
-the same thing to a clinician. Our scorer counts only the code in the answer key,
-so a defensible synonym is filed as wrong. We have not measured how often that
-happens, and it would move the coding numbers in our favour — which is a reason
-to be careful about it, not a reason to skip it. It is on the list at the end.
+code here is retired and SNOMED records no successor, so on the base run this
+record sits on an excluded mention and is neither credited nor blamed; ours is
+active and means the same thing to a clinician. Where the gold code is live the
+scorer counts only the code in the answer key, so a defensible synonym is filed
+as wrong. We have not measured how often that happens, and it would move the
+coding numbers in our favour — which is a reason to be careful about it, not a
+reason to skip it. It is on the list at the end.
 
 **How much lands here?** 53, 53 and 51 of 230, 230 and 238 records, and **43.1%
 of a perfect answer set.** That is the ceiling on how much of the batch this rung
@@ -953,9 +956,11 @@ can settle for free.
 not a negative verdict; it is the lane for records the vocabulary had no opinion
 about, and plenty of correct answers are in it:
 
-> `"extreme rectal bleed"` → `12063002` |Rectorrhagia| — **correct**, and BAND.
-> The vocabulary holds twelve names for that code, among them "rectal bleeding"
-> and "blood per rectum". None is the phrase the patient used.
+> `"extreme rectal bleed"` → `12063002` |Rectorrhagia| — **the right code**, and
+> BAND. The vocabulary holds twelve names for that code, among them "rectal
+> bleeding" and "blood per rectum". None is the phrase the patient used. (It is
+> also a wrong boundary — gold marks `"rectal bleed"` — so the exact metric
+> counts it lost anyway; only the overlap metric credits it.)
 
 Gold's own span for that mention is `"rectal bleed"`, and it lands in BAND too.
 **Even quoting the answer key exactly is not enough**, because "bleed" and
@@ -1284,8 +1289,8 @@ Rung 1 is section 4's and is not repeated. What matters below is that its
 verdicts are what every rung above either acts on or ignores.
 
 **Rung 2, self-correction.** Sends the record back to the same model with the
-check's finding stated as a fact — *"the code 2714004 does not exist in SNOMED
-CT"* — never as a question. Not *are you sure*, which invites a flip whether or
+check's finding stated as a fact — on the base run, *"the quoted text is not in
+the post"* — never as a question. Not *are you sure*, which invites a flip whether or
 not the answer was wrong. The post goes with it, and so does permission to
 abstain.
 
@@ -1413,7 +1418,7 @@ none of them right?* Same records, same 3.2B model, paired on each draw:
 | **blind** — as shipped | **1.68× · 1.65× · 1.69×** | 7 · 4 · 7 | 48 · 48 · 48 | 80 · 81 · 80 | — |
 | **shown the menu** | **3.65× · 4.23× · 3.44×** | 0 · 0 · 0 | 11 · 12 · 8 | 93 · 87 · 91 | 70 · 69 · 65 |
 | shown the menu, **shuffled** | 3.51× · 4.07× · 3.61× | 0 · 0 · 0 | 14 · 14 · 10 | 85 · 84 · 89 | 66 · 66 · 65 |
-| *the free check's ACCEPT/BAND, same draws* | *2.7× · 2.7× · 2.8×* | | | | |
+| *the free check's ACCEPT/BAND, same draws* | *2.8× · 2.8× · 2.7×* | | | | |
 | **FiNER, blind** | 3.60× · 2.96× · 2.56× — fails 84% of everything | 8 · 8 · 9 | 149 · 149 · 142 | 243 · 241 · 243 | — |
 | **FiNER, shown the menu** | 30× · 30× · 26× — but only because 1 of ~110 fails is correct | 2 · 2 · 1 | 56 · 55 · 55 | 100 · 95 · 89 | 105 · 100 · 94 |
 
@@ -1673,7 +1678,7 @@ one layer uses it.
 
 | lane | share | which layers act on it |
 |---|---|---|
-| REJECT | ~0% on CADEC | **rung 2** — the one lane it fires on, and it is empty |
+| REJECT | ~1% | **rung 2** — the one lane it fires on, and it holds two or three invented quotes |
 | ACCEPT | 21–23% | rung 5 ships it |
 | **BAND** | **76–77%** | rung 5 withholds it → a person |
 
@@ -1850,19 +1855,20 @@ on the held-out split it finds four mentions in five and correctly codes about o
 in three of them.
 
 The obvious response is to reach for a domain model. We tried two, and both are
-rows in section 2's table: SapBERT made the system worse, and BioMistral returned
-3 predictions against 226 gold mentions.
+rows in section 2's table: SapBERT made the system worse, and BioMistral could
+barely answer at all.
 
 What actually explains the gap is stranger. **The domain knowledge was never
 missing.** Our retriever puts the correct concept on the twenty-line menu for
-**93%** of the spans the model finds — 87% of all gold mentions, corpus-wide —
-and the model, looking straight at it, takes the right line **81%** of the time.
+**93%** of the spans the model finds, and the model, looking straight at it,
+takes the right line **81%** of the time.
 The expertise this task needs is not in the model and we could not put it
 there; it is in the vocabulary, and the model reads it well enough. What it
 does not do well enough is find the mention in the first place: half of gold
 is not proposed as the annotators marked it, and nearly half of what is
-proposed misses their span — a third of that on nothing they marked at all. It is in the vocabulary. That is why the free check works, and why
-every job below except one comes off the model's desk.
+proposed misses their span — a third of that on nothing they marked at all.
+That is why the free check works, and why every job below except one comes off
+the model's desk.
 
 The part another team can use tomorrow is the assignment, not the ladder:
 
