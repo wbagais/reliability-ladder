@@ -5074,12 +5074,14 @@ VERIFIED. The three layers cost **495,933 / 517,631 / 521,389 tokens**
 minutes at 2.0 per record; the count is the headline.
 
 **Consensus across the three draws** (rung 0, mentions grouped by span
-overlap): 233 mentions; all three agree on span and code **153 (65.7%)**;
-same span, different code 21 (9.0%); same code, different span 3; both
-differ 20; found by two 15; found by one 21. Same span in all three 74.7%;
-same code where all three found it 79.2%. Against the article's 62.8 / 71.5
-/ 83.9 from `arm-sapbase`: within three points on each, with two of today's
-draws identical — so the consensus figure is between-session variance
+overlap, unlocated spans matched on text, overlapping records compared per
+draw — the first cut of this function read identical draws as 95%, fixed in
+`24867eb`): 233 mentions; all three agree on span and code **164 (70.4%)**;
+same span, different code 22 (9.4%); same code, different span 1; both
+differ 10; found by two 15; found by one 21. Same span in all three 79.8%;
+same code where all three found it 83.8%. Against the article's 62.8 / 71.5
+/ 83.9 from `arm-sapbase`: higher on the first two because two of today's
+draws are identical — so the consensus figure is between-session variance
 wearing a three-draw label, and must be reported with the identical pair
 stated.
 

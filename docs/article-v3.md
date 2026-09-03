@@ -32,7 +32,7 @@ Matplotlib.*
 2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 351** records and the system silently shipped nothing. Test this before you build on it.
 3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions never proposed, 101 spans invented. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.38 to 0.74–0.82** and yield from **0.38 to 0.17** on the same records, three draws of three — abstaining always raises precision. The judge, once shown the menu it was judging, separates right from wrong **3.4–4.2×** where it had managed 1.7× blind; nothing reads its verdict. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
-5. **Nondeterminism is a model choice, and it arrives in whole runs.** Four of five open-weight models returned byte-identical output across three identical runs. The one we shipped did so on **two draws of three** — 94 real calls each, replies identical to the byte — and diverged on the third from the first find call onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **79%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
+5. **Nondeterminism is a model choice, and it arrives in whole runs.** Four of five open-weight models returned byte-identical output across three identical runs. The one we shipped did so on **two draws of three** — 94 real calls each, replies identical to the byte — and diverged on the third from the first find call onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **84%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
 
 ---
 
@@ -703,7 +703,7 @@ repeated itself perfectly; three means no two runs agreed.
 | `mistral:7b-instruct` | dense | **1** | **100%** | not run |
 | `granite4:micro-h` | Mamba/transformer hybrid | **1** | **100%** | not run |
 | `qwen3:8b` | dense, reasoning | **1** | **100%** | not run |
-| `gpt-oss:20b` | **Mixture-of-Experts** | **3** (sweep) · **2** (base run) | **62.8%** · **65.7%** | 2, see below |
+| `gpt-oss:20b` | **Mixture-of-Experts** | **3** (sweep) · **2** (base run) | **62.8%** · **70.4%** | 1, see below |
 
 Read the last row across: on CADEC all three of `gpt-oss`'s runs differed in the
 2026-08-30 sweep, and two of three were identical in the base run three days
@@ -760,10 +760,10 @@ one mention, gives 233 mentions across the three runs:
 
 | CADEC — across three identical runs | mentions | |
 |---|---|---|
-| **all three agree — same span, same code** | **153** | **65.7%** |
-| same span, different code | 21 | 9.0% |
-| same code, different span | 3 | 1.3% |
-| both differ | 20 | 8.6% |
+| **all three agree — same span, same code** | **164** | **70.4%** |
+| same span, different code | 22 | 9.4% |
+| same code, different span | 1 | 0.4% |
+| both differ | 10 | 4.3% |
 | found by only two of the three runs | 15 | 6.4% |
 | found by only one of the three runs | 21 | 9.0% |
 
@@ -771,13 +771,13 @@ Three summary numbers fall out, and they are not the same number:
 
 | | |
 |---|---|
-| **consensus** — all three runs, same span *and* same code | **65.7%** |
-| all three runs propose the same span | 74.7% |
-| all three agree on the code, where all three found the mention | 79.2% |
+| **consensus** — all three runs, same span *and* same code | **70.4%** |
+| all three runs propose the same span | 79.8% |
+| all three agree on the code, where all three found the mention | 83.8% |
 
-**Two runs of one frozen configuration reach full consensus on two mentions in
-three.** The rest splits between the two halves of the job: **15.4% of mentions
-are not even found by both**, and **9.0% are found identically and then coded
+**Two runs of one frozen configuration reach full consensus on seven mentions in
+ten.** The rest splits between the two halves of the job: **15.4% of mentions
+are not even found by both**, and **9.4% are found identically and then coded
 differently.**
 
 Both failures are worth seeing, because they look nothing alike. The coding one:
@@ -798,7 +798,7 @@ have, and the one section 1 said exact matching punishes twice.
 
 Note what did *not* prevent any of this: narrowing the question. The pick step
 chooses a number from a twenty-line list, about as constrained as a request gets,
-and it is where 9.0% of mentions diverge.
+and it is where 9.4% of mentions diverge.
 
 And note what the identical pair says about the mechanism. The same 64 prompts,
 answered two days earlier on the same machine, differ from these replies on 34.
@@ -854,7 +854,7 @@ put a language model in a pipeline that has to be auditable, because it will not
 give you the same answer twice.* On this evidence that is false as a general
 claim: four of five open-weight families gave the same answer three times out of
 three, to the byte, and even the one that did not gave it twice out of three and
-agreed with itself on two mentions in three across all of them.
+agreed with itself on seven mentions in ten across all of them.
 
 > **Repeatability is available.** `gpt-oss:20b` buys 6.5 exact points over
 > `llama3.1:8b` and pays its reproducibility for them. That is a purchase, and
