@@ -4678,3 +4678,33 @@ Verified consistent and unchanged: all three uses of 0.204 are the held-out
 result, all eight ~85% claims are the ACCEPT lane, 518,590 and "196 of 248" agree
 across the takeaways and §7, 2.1 points agrees across §2, §3 and §10, and all
 seven remaining [PENDING] markers still describe live gaps.
+
+## 2026-09-03 — the general/domain split named in §10, and our own data says something sharper than the usual claim
+
+Owner's point: domain expertise matters, and a general-purpose LLM finds
+domain-specific questions hard. Supported — and the article had never stated the
+split even though its results are organised around it. Added before §10's table,
+where it makes the table's logic explicit instead of leaving a reader to infer it.
+
+**The split is already in the numbers.** Detection is ordinary English
+comprehension; coding is specialist knowledge. On the held-out split the model
+finds four mentions in five (0.808 overlap) and correctly codes about one in three
+(0.392 exact). Good at the general half, poor at the domain half.
+
+**But the plain version of the claim is one our evidence contradicts.** "Use a
+domain model" was tested twice and failed twice — SapBERT is measurably the better
+retriever and made the system worse; BioMistral returned 3 predictions against 226
+gold. Both are already rows in §2's table, so the paragraph names them in one
+sentence rather than re-arguing them.
+
+**The sharper finding, and the one written:** the domain knowledge was never
+missing. The retriever puts the right concept on the menu 87% of the time and the
+model takes it ~30% of the time, choosing line one 19.5% of the time largely
+because it is first. **The expertise this task needs is not in the model, we could
+not put it there, and it is already in the vocabulary** — which is why the free
+check works and why the division of labour lands where it does. That is a
+stronger claim than "domain questions are hard for LLMs" and it is what our data
+shows.
+
+§10 793 -> 971 words; the middle paragraph was cut by half on a second pass
+because it restated §2's table.

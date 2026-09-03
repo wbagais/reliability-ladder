@@ -1741,6 +1741,26 @@ We set out believing that stacking reliability layers buys reliability. Measured
 end to end, **the layers made errors visible rather than fewer** — worth a great
 deal, and not what they were bought for.
 
+One split runs under everything below, and it is worth naming before the table.
+Our task has a general half and a domain half. Reading a patient's post and
+finding where a reaction is described is ordinary English comprehension; deciding
+that the reaction is |Gonalgia| and not |Pain of knee region| is specialist
+knowledge. **The model is good at the general half and poor at the domain half** —
+on the held-out split it finds four mentions in five and correctly codes about one
+in three of them.
+
+The obvious response is to reach for a domain model. We tried two, and both are
+rows in section 2's table: SapBERT made the system worse, and BioMistral returned
+3 predictions against 226 gold mentions.
+
+What actually explains the gap is stranger. **The domain knowledge was never
+missing.** Our retriever puts the correct concept on the twenty-line menu **87%**
+of the time, and the model — looking straight at it — takes the right line about
+**30%** of the time, choosing the first line 19.5% of the time largely because it
+is first. The expertise this task needs is not in the model and we could not put
+it there. It is in the vocabulary. That is why the free check works, and why
+every job below except one comes off the model's desk.
+
 The part another team can use tomorrow is the assignment, not the ladder:
 
 | job | whose | evidence |
