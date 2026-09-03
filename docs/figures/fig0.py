@@ -9,10 +9,10 @@ GREEN, AMBER, GREY, RED = "#2d9e5f", "#e8b13a", "#c9c9c9", "#c94f4f"
 RUNGS = [
     ("0  extract",      GREY,  ""),
     ("1  check",        GREEN, "free · 85% lane"),
-    ("2  self-correct", GREY,  "never had a trigger"),
-    ("3  vote",         AMBER, "no consistent sign"),
-    ("4  judge",        AMBER, "read by nothing \u00b7 provisional"),
-    ("5  refuse",       GREEN, "63 -> 4 err / 100"),
+    ("2  self-correct", GREY,  "fired 2-3x, rescued none"),
+    ("3  vote",         AMBER, "net +1, -1, -1"),
+    ("4  judge",        AMBER, "3.4-4.2x shown the menu \u00b7 read by nothing"),
+    ("5  refuse",       GREEN, "38-41 -> 4-6 err / 100"),
     ("6  person",       GREY,  "196 of 248"),
 ]
 

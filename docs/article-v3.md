@@ -30,7 +30,7 @@ Matplotlib.*
 
 1. **The only layer that paid for itself was free.** Self-correction, sampled voting and a second-model judge cost **496,000 to 521,000 tokens** per run between them; removing all three changed **one shipped answer out of 53 on one draw and none on the other two**. What did the work was a string comparison against the vocabulary — zero tokens, zero latency — which sorts answers into a lane 75–82% correct and one 27–30% correct, and a later layer declined to ship the second.
 2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 351** records and the system silently shipped nothing. Test this before you build on it.
-3. **The domain knowledge was never in the model, and we could not put it there.** Two domain-adapted models made things worse, not better. Meanwhile the retriever puts the correct concept on a twenty-line menu **87%** of the time and the model picks it about **30%** of the time. **The expertise lives in the vocabulary. The model's job is to read.**
+3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions never proposed, 101 spans invented. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.38 to 0.74–0.82** and yield from **0.38 to 0.17** on the same records, three draws of three — abstaining always raises precision. The judge, once shown the menu it was judging, separates right from wrong **3.4–4.2×** where it had managed 1.7× blind; nothing reads its verdict. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
 5. **Nondeterminism is a model choice, and it arrives in whole runs.** Four of five open-weight models returned byte-identical output across three identical runs. The one we shipped did so on **two draws of three** — 94 real calls each, replies identical to the byte — and diverged on the third from the first find call onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **79%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
 
@@ -1829,10 +1829,13 @@ rows in section 2's table: SapBERT made the system worse, and BioMistral returne
 3 predictions against 226 gold mentions.
 
 What actually explains the gap is stranger. **The domain knowledge was never
-missing.** Our retriever puts the correct concept on the twenty-line menu **87%**
-of the time, and the model — looking straight at it — takes the right line about
-**30%** of the time. The expertise this task needs is not in the model and we
-could not put it there. It is in the vocabulary. That is why the free check works, and why
+missing.** Our retriever puts the correct concept on the twenty-line menu for
+**93%** of the spans the model finds — 87% of all gold mentions, corpus-wide —
+and the model, looking straight at it, takes the right line **81%** of the time.
+The expertise this task needs is not in the model and we could not put it
+there; it is in the vocabulary, and the model reads it well enough. What it
+does not do well enough is find the mention in the first place: half of gold
+is never proposed, and nearly half of what is proposed matches nothing. It is in the vocabulary. That is why the free check works, and why
 every job below except one comes off the model's desk.
 
 The part another team can use tomorrow is the assignment, not the ladder:
