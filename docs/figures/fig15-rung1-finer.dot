@@ -6,9 +6,10 @@
 // records carrying a tag, sct_exists True on all 328. Lane correctness is the
 // run's own answered-accuracy (0.1396) — with 350 of 351 in BAND that is the
 // lane's rate to within one record.
-// The type check: 2026-09-02. 44 rejections per run; pooled over three draws it
-// rejected 42 records with gold to check against, 27 correctly and 15 wrongly —
-// 35.71% false rejections on model output against 1.22% measured on gold.
+// The type check, replayed over the three base draws (2026-09-03): 35 rejections
+// per run, identical on every draw; 25 on nothing gold marks and 10 on a gold
+// mention, all 10 wrongly tagged — 0 false rejections here, against about 1 in 3
+// on an earlier run whose spans drifted differently, and 1.22% measured on gold.
 //
 // COLOUR KEY — the article's zone colours:
 //   green ACCEPT · amber BAND · red REJECT · grey a stage, no verdict
@@ -34,7 +35,7 @@ digraph rung1_finer {
        fillcolor="#f2f4f5" color="#8a9aa1" penwidth=1.6 style="filled,rounded,dashed"];
   acc2[label="ACCEPT · still 0\nit can only reject" fillcolor="#f4f9f6" color="#8a9aa1"
        style="filled,rounded,dashed" penwidth=2];
-  rej2[label="REJECT · 44 per run\nof the 42 checkable against gold:\n27 rightly rejected · 15 WRONGLY\n35.7% false, against 1.22% on gold"
+  rej2[label="REJECT · 35 per run\n25 on nothing gold marks · 10 on a gold mention, all wrongly tagged\n0 false rejections here; about 1 in 3 on an earlier run"
        fillcolor="#fbe4e4" color="#a33333" penwidth=2.5];
 
   in -> chk; chk -> vac [style=dashed color="#c8d1d5"];
