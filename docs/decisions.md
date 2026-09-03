@@ -4542,3 +4542,27 @@ task, the staircase is not there", followed by the caveat, and "what follows is 
 reckoning with the stack we built, not a proof about stacking." The claim the
 article can defend is the narrower one, and stating it in the opening costs
 nothing — §7 already carries the detail.
+
+## 2026-09-03 — "why an LLM at all, when supervised methods do this better" — added to the front matter as scope, not excuse
+
+Owner's question: should the article say the task might suit traditional ML
+better, given the goal is testing LLM reliability? Yes, and the article had no
+answer to the obvious reader objection. Added to "The task, and the result",
+where a reader first asks it.
+
+Framed as the reason for the choice rather than as a defence of the numbers. The
+defensive version ("our scores are low because we used the wrong tool") weakens
+the work; the real version is stronger: **the question is whether the scaffolding
+people already wrap around general-purpose models makes their answers defensible,
+and grading "defensible" needs a task with an answer key and a controlled
+vocabulary.** This task has both, which is why it was chosen. CONORM's 0.72
+against our 0.20 is named up front with a pointer to §9 rather than restated
+without its caveats.
+
+**The second paragraph is the more important one and it was not stated anywhere.**
+The choice bounds the result: the article's strongest finding is that a free
+vocabulary check beats every paid layer above it, and **on a task with no
+vocabulary there is no free check to run.** §11 has the narrower version of this
+(whether the ~85% ACCEPT lane generalises beyond SNOMED) and §5 has the
+precondition, but nothing said plainly in the opening that the headline finding
+is conditional on the task having a checkable answer space at all.

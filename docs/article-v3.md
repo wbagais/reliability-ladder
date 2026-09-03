@@ -69,6 +69,19 @@ prepared to defend each one.
 and cannot tell you *which* 80% is unusable wherever a wrong answer costs
 something.
 
+**A supervised model would do this task better, and we did not use one on
+purpose.** Fine-tuned systems reach 0.72 end-to-end on CADEC against our 0.20,
+and section 9 sets out that comparison with the caveats it needs. We are not
+trying to win this benchmark. The question is whether the reliability scaffolding
+people are already wrapping around general-purpose models — check it, correct it,
+vote, judge, abstain, escalate — makes those models' answers defensible, and that
+question needs a task where "defensible" can be graded. This one has an answer key
+and a controlled vocabulary, which is exactly what it takes to grade it.
+
+That choice also bounds what follows. Our strongest finding is that a free
+vocabulary check outperforms every paid layer above it — and on a task with no
+vocabulary to check against, there is no free check to run.
+
 > **On the held-out split, run once and never re-run:** the system ships **23%**
 > of its answers — 72 records of 314. On those it makes **3.8 errors per 100**,
 > against **59.6** for the bare model. It sends the other **242** to a person.
