@@ -1790,69 +1790,53 @@ thought we were buying.
 
 ## 11. What we could not settle
 
-- **The reproducibility mechanism rests on one sparse model against four dense
-  ones.** Suggestive, not a result. It wants more MoE models, and should fail on a
-  dense model of similar size.
-- **The precondition was found by accident**, after hours of running, when one
-  query would have said it — so we wrote the query down as a tool and checked it
-  against our own wreckage. Run against the code as it stood *before* the audit,
-  its free wiring check names the three orphaned verdict fields we had found by
-  hand and nothing else, leaving 55 diagnostic fields alone. Its ACCEPT-lane
-  check refuses the corpus where the ladder shipped 0%, on a property of the
-  answer key, before a model runs. **What we have not done is use it in
-  anger**: every case above is one we already knew the answer to, and a
-  precondition tool validated only backwards is a hypothesis about the next
-  project, not a result from this one.
-- **We never ran a supervised baseline.** Our distance from a trained system is
-  read off someone else's paper rather than measured on our own splits — verified
-  line by line against their evaluation code, but still a comparison across two
-  vocabularies and two test sets.
-- **We never tested how much of this a dictionary could do, and our own
-  conclusion says we should have.** Our own division-of-labour table argues the model should read the
-  text and nothing else; we applied that to identifiers and to building the
-  candidate list, but not to the pick. A one-draw probe — below our own bar, so
-  reported here rather than in the body — says detection cannot be replaced
-  (string matching finds 16.8% of gold spans against the model's 55.8%), but that
-  **the pick can be, for about a quarter of records**: where a span resolves to
-  exactly one concept in our keyword table, taking it without asking the model is
-  right 81.5% of the time against the model's 75.9%, and which records those are
-  is knowable before any model call. A short-circuit we did not build, on the rung
-  we spent the most effort on, pointed at by our own finding. Registered.
-
-- **No record's history was ever written down, and it cost us four answers in
-  this article.** Our ledger holds one row per record per rung with its verdict,
-  which is how section 4's lanes can be reconstructed at all. But rung 0 and rung
-  3 log one row per *document*, and **correctness is never joined back** — it is
-  computed afterwards against gold and thrown away. So nothing anywhere says
-  *this record, at this rung, held this code, and it was right.*
-
-  The consequence is four questions this article raises and cannot answer.
-  Whether voting's changes landed in the lane that needed them. Whether the 38
-  records it could not re-find were ones the model already had right. What
-  denominator the ACCEPT lane's headline figure used. Whether FiNER's runs agree
-  with each other. **Every one of those is a join we never made**, and every one
-  now needs a re-run instead.
-
-  The fix is a few columns — a per-record, per-rung table with the code, the
-  verdict and the outcome — and it is registered. **A rung that cannot say what
-  it did to an individual record cannot be credited or blamed for the
-  aggregate**, which is the same defect section 7 describes in the code, one
+- **No record's history was ever written down.** Our ledger holds a verdict per
+  record per rung, but rung 0 and rung 3 log per *document*, and correctness is
+  computed against gold afterwards and thrown away. Nothing anywhere says *this
+  record, at this rung, held this code, and it was right.* Two questions in this
+  article are unanswerable for that reason alone — whether voting's changes landed
+  in the lane that needed them, and whether the records it could not re-find were
+  ones the model already had right. The fix is a few columns and it is registered.
+  **A rung that cannot say what it did to an individual record cannot be credited
+  or blamed for the aggregate** — the same defect section 7 finds in the code, one
   level up in the measurement.
-- **We assume one code is right, and we have not checked that.** The scorer
-  credits only the code in the answer key. But `"knee pain"` coded
-  |Pain of knee region| is filed as wrong against a gold |Gonalgia| that is
-  retired, has no recorded successor, and carries "Knee pain" as one of its own
-  names. Some share of what we report as mis-coding is a defensible synonym, and
-  we do not know what share. **The check is straightforward — take every
-  incorrect answer, ask whether its code and gold's are the same concept under
-  SNOMED's own relationships, and report the residue** — and we have not run it.
-  It would move our coding numbers upward, which is why it needs doing carefully
-  rather than not at all. Related and unmeasured: gold sometimes carries two
-  codes for one mention, so "one right answer" is not always the corpus's own
-  assumption either.
-- **The second corpus is a demonstration, not a matched comparison.** A third
-  corpus with a lexical vocabulary would test whether the ~85% ACCEPT lane belongs
-  to controlled vocabularies in general or to SNOMED in particular.
+
+- **We assume exactly one code is right.** The scorer credits only the answer key,
+  so `"knee pain"` coded |Pain of knee region| is filed as wrong against a gold
+  |Gonalgia| that is retired, has no successor, and carries "Knee pain" as one of
+  its own names. Some share of what we report as mis-coding is a defensible
+  synonym and we do not know what share. The check is straightforward — ask
+  whether the two codes are the same concept under SNOMED's own relationships —
+  and we have not run it. It would move our numbers upward, which is why it needs
+  doing carefully rather than not at all.
+
+- **We never ran a supervised baseline.** Our distance from a trained system is
+  read off someone else's paper. We read their evaluation code to confirm the
+  matching strategies line up, but we have not re-confirmed which of their
+  published figures is detection-only — and section 9's ceiling argument turns on
+  that. Registered.
+
+- **We never tested how much of this a dictionary could do**, though our own
+  division-of-labour table points at it. A one-draw probe — below our own bar —
+  says detection cannot be replaced, but that **the pick can be for about a
+  quarter of records**: where a span resolves to exactly one concept in our
+  keyword table, taking it without asking the model is right 81.5% of the time
+  against the model's 75.9%, and those records are identifiable before any model
+  call. A short-circuit we did not build, on the rung we spent the most effort on.
+
+- **The precondition tool has only ever been run backwards.** We wrote the
+  one-query check down after the fact and pointed it at our own wreckage, where it
+  correctly names what we had already found by hand. **A tool validated only
+  against known answers is a hypothesis about the next project, not a result from
+  this one.**
+
+- **The reproducibility mechanism rests on one sparse model against four dense
+  ones.** Suggestive, not a result. It should fail on a dense model of similar
+  size, and nobody has tried.
+
+- **The second corpus is a demonstration, not a matched comparison.** A third,
+  with a lexical vocabulary, would test whether the ~85% ACCEPT lane belongs to
+  controlled vocabularies in general or to SNOMED in particular.
 
 ---
 

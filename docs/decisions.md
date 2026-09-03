@@ -4340,3 +4340,37 @@ alone, which is what makes it a check rather than a grep.
 Verified and unchanged: 2.1 points across three identical runs (§3), the free
 check's 9.3% -> 0.13% error floor from the gold replay, 21% coverage at 4 errors
 per 100 against 60, and the zero-coverage precondition on FiNER (§5).
+
+## 2026-09-03 — §11 rewritten short, and the review had already closed two of the questions it lists as open
+
+770 -> 525 words, reordered so the two items that matter most come first.
+
+**THE REVIEW CLOSED TWO OF ITS OWN OPEN QUESTIONS.** §11 said the missing
+per-record history costs the article "four questions it raises and cannot
+answer". Two of the four are now answered:
+
+  - "What denominator the ACCEPT lane's headline figure used" — CLOSED by this
+    session's recompute from `arm-sapbase-d0`; §4 now says 48 of 222.
+  - "Whether FiNER's runs agree with each other" — CLOSED, and it had been
+    answered in §3 all along ("one run refused a whole document", the draw table
+    at line 771). The item was stale rather than open.
+
+Two remain and are named: whether voting's changes landed in the lane that needed
+them, and whether the records it could not re-find were already right. Both are
+plan items 11 and 12.
+
+**THE CONORM VERIFICATION CLAIM SOFTENED.** §11 asserted the comparison was
+"verified line by line against their evaluation code" — the same claim §9 makes,
+and the one plan item 18 records as unreproducible (medRxiv's full text refuses
+automated fetch; the repository publishes no results). Now: we read their
+evaluation code to confirm the matching strategies line up, but have not
+re-confirmed which of their published figures is detection-only, and §9's ceiling
+argument turns on that. The article should not state as settled a fact its own
+plan lists as unchecked.
+
+**Near-verbatim duplication with §10 removed.** Both sections carried the wiring
+regex result ("named the three orphaned fields... left the 55 alone") and the
+dictionary probe's 16.8%/55.8%. §10 keeps both, because there they are evidence
+for a practice and for a job assignment; §11 now carries only the caveat that is
+its actual point — the precondition tool has only ever been run backwards, and a
+tool validated against known answers is a hypothesis about the next project.
