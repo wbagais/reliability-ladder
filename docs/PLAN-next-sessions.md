@@ -222,7 +222,7 @@ unverified.
 
 | | section | words | status |
 |---|---|---|---|
-| | Five key takeaways | 179 | **NOT REVIEWED** — deferred to last by the owner; takeaway 5 is known stale (see item 0) |
+| ✅ | Five key takeaways | 213 | reviewed 2026-09-03; **two claims stay provisional until item 14** |
 | | What an AI reliability ladder is for | 179 | **NOT REVIEWED** |
 | | The task, and the result | 443 | **NOT REVIEWED** |
 | ✅ | 1. The two datasets | 1,523 | reviewed |
@@ -243,6 +243,26 @@ unverified.
 
 "Swept for cuts only" means dead or duplicated material was removed on
 2026-09-03, but no claim in those sections was checked against the code.
+
+**THE TAKEAWAYS WERE REWRITTEN 2026-09-03** and the three stale claims below are
+fixed. Two of them remain PROVISIONAL in the article's own words until item 14
+lands, and must be re-read after the judge is re-measured:
+
+- **Takeaway 2** — "Recalling an identifier, building the candidate list,
+  ordering it, **checking, judging**, and deciding to abstain each measured
+  better when taken away from the model." Checking and judging did NOT measure
+  better. Self-correction never fired, so it was never tested, and the judge's
+  separation was measured before we found it had never been shown what a code
+  means. §10's table now says `unproven` and `not yet known` for those two rows;
+  the takeaway still claims both.
+- **Takeaway 3** — "A free string comparison beat the LLM judge by 3×." The free
+  check's side is well measured across five model families. **The judge's side
+  was measured blind.** So this compares a good measurement against a withdrawn
+  one, and must say so until item 14 lands.
+- **Takeaway 5** — "Deleting the three paid layers changed one answer out of 43
+  and saved 518,590 tokens." Both halves are true, but the article no longer
+  describes that ablation, and "saved 518,590 tokens" double-counts against §7's
+  own cost column.
 
 ---
 
@@ -270,7 +290,7 @@ merged and the manifest is frozen again.
 `[PENDING]` markers, and only then review the takeaways.
 
 **ANY TIME — no run needed, no ordering constraint:** items 2, 4, 7, 8, 11, 13,
-15, 17(c). Good work for a session that cannot afford a run.
+15, 17(c). (Item 18 is DONE — 2026-09-03.)
 
 **AFTER THE ARTICLE SHIPS:** items 1, 3, 5, 6, 9, 10, 17(a), 17(b). These extend
 the study rather than unblock it.
@@ -309,7 +329,12 @@ that goes beyond unblocking — it makes the model findings two-corpus instead o
 one, and the article is shippable without it, with its CADEC-only caveats
 intact.
 
-0. **THE CONSOLIDATED RE-RUN — one config, one metric, one cache state, one
+0. **NOTE (2026-09-03): the article's front-matter `[PENDING]` box for this item
+   was folded into "The task, and the result" as prose and into §12's Limitations
+   list. The requirement is unchanged; only its two duplicate statements in the
+   article were merged into one.**
+
+0b. **THE CONSOLIDATED RE-RUN — one config, one metric, one cache state, one
    record. Do this FIRST; it subsumes items 1 and 3 and makes 4 unnecessary.**
    Every number in the article was produced across roughly two weeks, in
    worktrees most of which no longer exist, under at least three different F1
@@ -825,6 +850,33 @@ intact.
       inert is the same defect one layer along from "declared and never read".
       Either delete it with a test that keeps it gone (the `otel.py` precedent),
       or keep it and put the distribution in the manifest note as the reason.
+
+18. **~~RE-VERIFY THE CONORM COMPARISON AGAINST THE PAPER ITSELF.~~ DONE 2026-09-03 — three claims confirmed, one FABRICATED, one argument weakened. See docs/decisions.md. Original text below. It is the
+    article's only external benchmark, its ceiling argument rests on it, and it
+    could not be re-checked from public sources on 2026-09-03.** NO RUN NEEDED,
+    but it needs the PDF.
+    - **The DOI is correct** — `10.1101/2023.09.26.23296150` resolves to Yazdani,
+      Rouhizadeh, Bornet and Teodoro, *CONORM: Context-Aware Entity Normalization
+      for Adverse Drug Event Detection*, medRxiv 2023. Citation in §9 is now a
+      proper link with title and authors.
+    - **What could NOT be confirmed.** §9's table splits CONORM's CADEC results
+      into `detection only` (0.704 exact / 0.891 lenient) and `end-to-end`
+      (<= 0.704 / 0.7245). Public summaries report **70.40% exact and 89.10%
+      lenient on CADEC** without clearly saying whether those are NER-only or
+      end-to-end. medRxiv's full text returns 403 to automated fetch and the
+      `ds4dh/CONORM` repository publishes no results.
+    - **Why it matters.** §9 argues "the ceiling claim survives the check that was
+      meant to break it": that a fully supervised tagger reaching **0.704
+      span-exact ON DETECTION ALONE** is the number CADEC's ~67% boundary
+      determinism predicts. **If 0.704 is instead their end-to-end figure, that
+      argument breaks** — detection-only would be higher, and the coincidence
+      with the predicted ceiling weakens or disappears.
+    - The article states the comparison was "verified line by line against their
+      evaluation code", so this was checked once. The requirement is to record
+      WHERE — table number, row and column of the paper — so the next reader does
+      not have to re-derive it from search summaries.
+    - Do this before the article ships. It is cheap (read one PDF) and it is the
+      claim most exposed to an outside reviewer.
 
 ---
 

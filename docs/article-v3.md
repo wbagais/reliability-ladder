@@ -1,33 +1,36 @@
 # The AI Reliability Ladder, Measured Rung by Rung
 
-> **No claim is open.** The two that were at risk have both been checked.
-> CADEC's boundary convention caps span-exact scores near 0.70 — verified
-> against the strongest published system on this corpus, and it held. And
-> §9's *"retrieval is a ceiling"* rested on a general-purpose 30M embedder
-> where this task's literature uses domain-adapted ones; we swapped in
-> SapBERT and measured it. It puts gold on the menu more often across the
-> corpus and made the system **worse**, three draws for three. §9 now carries
-> that result. Everything here is measured, labelled by split, and cited.
+> **Where this stands.** Every number here is measured, labelled by split, and
+> traceable to the run that produced it. Two claims that were at risk have been
+> checked against their sources: the ~0.70 span-exact ceiling holds in the region
+> we predicted, though the strongest supervised tagger on this corpus clears it by
+> four points (section 9); and *"retrieval is a ceiling"* was tested by swapping
+> our general-purpose embedder for the domain-adapted one this literature uses —
+> which puts gold on the menu more often and made the system **worse**, three
+> draws for three (section 2). Seven items remain open, marked **[PENDING]** where
+> they appear. The largest: our second-model judge was measured before we found we
+> had never shown it what a code means, so every result about it is provisional.
 
 **Pushpdeep Mishra · Wejdan Bagais**
 
-*Seven reliability layers around a language model, measured one at a time on two
+*Six reliability layers around a language model, measured one at a time on two
 tasks with real answer keys — what each one bought, and what it charged.*
 
 ![Figure 1](figures/fig0-hero.png)
 
 *Fig. 1: The seven rungs, coloured by what each one bought. The two that mattered
-cost nothing. Source: author-created with Matplotlib.*
+cost nothing; the judge's row is provisional. Source: author-created with
+Matplotlib.*
 
 ---
 
 ## Five key takeaways
 
-1. **Reproducibility is a model choice.** Four of five open-weight models gave byte-identical output across three identical runs. The one that varied bought 6.5 accuracy points and cost a spread wider than every improvement we shipped.
-2. **The model should read the text and nothing else.** Recalling an identifier, building the candidate list, ordering it, checking, judging, and deciding to abstain each measured better when taken away from the model.
-3. **A free string comparison beat the LLM judge by 3×** at identifying which answers were correct — and held at ~85% across five model families spanning 2.8× in accuracy.
-4. **That check has a precondition you can test in one query.** On a corpus where the span is a bare number it has zero coverage, and the system silently ships nothing.
-5. **Deleting the three paid layers changed one answer out of 43 and saved 518,590 tokens** (development split). The layer that cut errors from 62.9 to 4.0 per 100 spent nothing — and charged 196 of 248 records to a person instead.
+1. **The only layer that paid for itself was free.** Self-correction, sampled voting and a second-model judge cost **518,590 tokens** between them; removing all three changed **one answer out of 43**. What did the work was a string comparison against the vocabulary — zero tokens, zero latency — which separated right answers from wrong ones about **3×** better than the judge did — a margin we later found we had flattered by measuring that judge blind (see 5).
+2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 351** records and the system silently shipped nothing. Test this before you build on it.
+3. **The domain knowledge was never in the model, and we could not put it there.** Two domain-adapted models made things worse, not better. Meanwhile the retriever puts the correct concept on a twenty-line menu **87%** of the time and the model picks it about **30%** of the time — taking line one 19.5% of the time largely because it is first. **The expertise lives in the vocabulary. The model's job is to read.**
+4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.37 to 0.81** and yield from **0.37 to 0.17** on the same records — abstaining always raises precision. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
+5. **Nondeterminism is a model choice, and it lives in what the model finds.** Four of five open-weight models returned byte-identical output across three identical runs. The one we shipped reached full agreement with itself on only **62.8%** of mentions — but where all three runs found the same mention, they chose the same code **83.9%** of the time. What varies is mostly the reading, not the labelling. It cost a **2.1-point** run-to-run spread, wide enough to swallow most of what we tested, and every measurement error we made inside that band flattered us.
 
 ---
 
@@ -47,7 +50,9 @@ published is the comparison *between* them: the layers priced against each other
 on the same records, in the same run, with the free one entered as a competitor
 rather than as preprocessing. So we built all seven and measured each.
 
-The staircase is not there.
+**On our task, the staircase is not there.** What follows is a reckoning with the
+stack we built, not a proof about stacking — the next section says why the
+distinction matters.
 
 ![Figure 2](figures/fig6-spine.png)
 
@@ -57,14 +62,22 @@ evidence under all three. Source: author-created with Graphviz.*
 ## The task, and the result
 
 Read a patient's forum post about a drug. Find every adverse reaction. Assign each
-a SNOMED CT code. There is a real answer key — CADEC, 1,250 posts, 9,111
-annotated mentions — and the task is the shape of many production pipelines: pull
-structured records out of prose, normalise against a controlled vocabulary, be
-prepared to defend each one.
+a SNOMED CT code. There is a real answer key — CADEC, 1,250 posts, 9,111 annotated
+mentions — and the task is the shape of many production pipelines: pull structured
+records out of prose, normalise against a controlled vocabulary, be prepared to
+defend each one.
 
-"Be prepared to defend each one" is the harder problem. A system that is 80% right
-and cannot tell you *which* 80% is unusable wherever a wrong answer costs
-something.
+That last part is the hard one. **A system that is 80% right and cannot tell you
+*which* 80% is unusable wherever a wrong answer costs something.**
+
+**A supervised model would do this task better, and we did not use one on
+purpose.** Fine-tuned systems reach 0.72 end-to-end on CADEC against our 0.20,
+and section 9 sets out that comparison with the caveats it needs. We are not
+trying to win this benchmark. The question is whether the reliability scaffolding
+people are already wrapping around general-purpose models — check it, correct it,
+vote, judge, abstain, escalate — makes those models' answers defensible, and that
+question needs a task where "defensible" can be graded. This one has an answer key
+and a controlled vocabulary, which is exactly what it takes to grade it.
 
 > **On the held-out split, run once and never re-run:** the system ships **23%**
 > of its answers — 72 records of 314. On those it makes **3.8 errors per 100**,
@@ -72,30 +85,23 @@ something.
 > End-to-end F1 is **0.204 [0.150–0.260]** span-exact, **0.215** on overlap.
 
 Not a good result. An honest one — and most of this article is about the things we
-built that did not contribute to it.
+built that did not contribute to it. **The error rate fell by a factor of fifteen,
+and not one of the six layers above the model is why.** It fell because a free
+string comparison against the vocabulary sorted the answers, and a later layer
+declined to ship the ones it could not vouch for. Everything that cost tokens
+either could not be tested, could not be shown to help, or turned out to have been
+measured wrongly.
 
-> **[PENDING — one run, for the whole development-side article.]** The held-out
-> box above is a single frozen run and stays as it is. Everything else is not:
-> the development-side figures in this article come from **at least four separate
-> runs of the same configuration**, with 222, 232, 245 and 248 records, all of
-> them "40 development documents". They differ because the model is
-> nondeterministic, which is section 3's finding — but the consequence is that
-> adjacent numbers in one section can come from different draws and quietly
-> disagree. Voting is **+5 answers** on one and **−0.004 accuracy** on another,
-> and both were in this article a paragraph apart before we noticed.
->
-> Nothing here is wrong as reported, and every figure is traceable to a run that
-> produced it. But a reader should be able to hold one set of numbers in their
-> head, and right now cannot. **One base run will produce every descriptive
-> development-side figure**, with the comparisons that genuinely need their own
-> runs — five models, three draws, two stacks, the judge on and off — named as
-> such in their captions. Until that run exists, treat each section's figures as
-> internally consistent and cross-section comparisons as approximate.
-
-The held-out split was spent on that single run, so **every other number in this
-article is development-side.** They are labelled where they appear. We say which
-split a number comes from every time, because the two do not agree and the
-difference is not always in our favour.
+Three things to hold while reading. The held-out split was spent on that single
+run, so **every other number here is development-side** and labelled as such; we
+name the split every time, because the two do not agree and the difference is not
+always in our favour. The development-side figures come from **at least four runs
+of the same configuration** at 222 to 248 records, so adjacent numbers can come
+from different draws — nothing is wrong as reported, but one base run to replace
+them is registered, and section 12 lists what else is provisional. And the choice
+of task bounds the conclusion: our strongest finding is that a free vocabulary
+check beats every paid layer above it, and **on a task with no vocabulary to check
+against, there is no free check to run.**
 
 ---
 
@@ -320,7 +326,7 @@ the real keyword table is 227,554 rows. **A list retrieved per mention is S2.**
 
 Everything section 3 measures is a change *within* S2.
 
-### Seventeen changes to the one we picked
+### Twenty changes to the one we picked
 
 Every result below is judged against one number. **Three identical runs of this
 system differ by 2.1 points of F1** — the same 40 documents answered 92, 98 and
@@ -342,6 +348,9 @@ by which corpus it was measured on:
 | drop repeated spans | both | 39 spans, **0 gold** | shipped |
 | a worked example, FiNER's own | FiNER | — | shipped |
 | drop spans that *are* a date or a clock time | FiNER | 26 false positives, **0 gold** | shipped |
+| a frontier hosted model as the extractor | CADEC | **31 correct vs 31** | **rejected** — identical, at a licence cost |
+| a domain-adapted model as the extractor (BioMistral) | CADEC | **3 predictions against 226 gold** | **rejected** — failed on 36 of 40 documents |
+| retrieving 40 candidates instead of 20 | CADEC | more gold on the menu, **picked worse** | **rejected** |
 | **reranking the menu** | CADEC | **+0.7 pt, sign flips** | **rejected** |
 | three prompt rewrites | CADEC | traded exact for overlap | **rejected** |
 | rewriting the query before retrieval | CADEC | recall 87.0% → 86.5% | **rejected** |
@@ -350,7 +359,7 @@ by which corpus it was measured on:
 | ordering the menu by sentence context | FiNER | **−9 pt** coding | **rejected** |
 | drop any span with no digit in it | FiNER | 14 errors cut, **7 gold destroyed** | **rejected** |
 
-Seventeen changes, ten shipped. **The pattern worth taking is which ones won.**
+Twenty changes, ten shipped. **The pattern worth taking is which ones won.**
 The two largest — a worked example, and telling the model to report denied
 reactions — are both *the prompt describing the task more exactly*. The next
 fixes a structural mismatch: gold marks each reaction separately, and our
@@ -367,6 +376,18 @@ three-draw test; that one did not take it.
 Most rejections are only interpretable because we measured the floor first.
 **+0.7 points looks like a result until you know that three identical runs of the
 unchanged system differ by 2.1.**
+
+**And one caveat that cuts against us.** Two of those rejections say the model is
+not the bottleneck — a frontier reader scored identically on the same menu, and
+neither a domain-adapted encoder nor a domain-adapted generator helped at all. That is a claim about the *division of
+labour*, not about the height of the ceiling, and the height is partly ours:
+SapBERT reaches 88.4% menu recall where our shipped encoder reaches 87.0%, and an
+oracle picking the better of the two per mention reaches **93.6%**. So 87% is this
+encoder's ceiling, not the task's — and raising it is not the same as improving
+the result. The SapBERT arm also caught a flaw in our own method: **the probe that
+authorised it measured recall over 1,144 documents while the arm ran on 38**, and
+on those 38 the sign is negative. A go/no-go probe has to be run on the
+denominator the arm will be scored on.
 
 **The two corpora do not run the same rung 0, and that is deliberate.** Four of
 CADEC's shipped arms were never ported: two are CADEC-specific by construction —
@@ -1414,7 +1435,7 @@ prompt, and it stood for five phases.
 > measure a judge that could not see what it was judging.
 
 None of which changed a shipped answer, because **nothing reads the verdict.**
-Section 8 is about how that survived five phases of testing.
+Section 7 is about how that survived five phases of testing.
 
 **Rung 5, refusal.** Zero model calls, and no judgement of its own. It reads the
 free check's verdict — recomputed, because rungs 2 and 3 re-run rung 1 after they
@@ -1517,42 +1538,44 @@ third is why it throws them away.
 
 ## 7. What each layer was for, and whether it delivered
 
-The obvious way to summarise a stack like this is a staircase of accuracy
-deltas. We built that table, and it was misleading — not because the numbers
-were wrong, but because **accuracy is the wrong test for four of the six
-layers.** The free check is not trying to raise accuracy; it is trying to sort.
-Refusal makes no claim at all, so it has no accuracy to report. Judging every
-layer by one yardstick told us five of them "did nothing," when what actually
-happened was more specific and more useful.
+**Everything in this section is the development split** — 248 records, 40
+documents — so its coverage figures are the 21% of that run, not the 23% the
+held-out box reports.
 
-So: each layer against its own purpose, with what it cost to find out.
+**Accuracy is the wrong test for four of these six layers.** The free check is
+not trying to raise accuracy, it is trying to sort. Refusal makes no claim at
+all, so it has none to report. Scored on one yardstick they mostly read as "did
+nothing" — which is true, and useless. Each against its own purpose instead:
 
 | layer | what it is **for** | did it do that? | cost |
 |---|---|---|---|
-| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — see section 4: the lanes separate ~3× | **0 tokens, 0 s** |
-| **self-correction** | restate a provable failure as a fact | **untestable here** — fired once in 248 records | 548 |
+| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — the lanes separate ~3× (section 4) | **0 tokens, 0 s** |
+| **self-correction** | restate a provable failure as a fact | **never viable here** — fired 0, 0 and 1 times across three runs | 548 |
 | **voting** | catch answers the model cannot reproduce | **no** — no consistent effect in any direction | **425,355**, p95 **152 s** |
 | **second-model judge** | rule on whether an answer is right | **[PENDING]** — every measurement was of a blind judge | 92,687, p95 1.5 s |
 | **refusal** | guard in front of a person | **yes** — ships at 0.808 on 21% of records | 0 |
 | **person** | resolve what the machine cannot | not measured | **196 records** |
 
-Read that way, the result is sharper than "nothing worked." **The two layers that
-did their jobs cost nothing.** The three that cost 518,590 tokens between them
-either could not be tested, could not be shown to help, or were measured wrong —
-and when we removed all three and re-ran, one answer out of 43 changed.
+**The two layers that did their jobs cost nothing.** The three that cost 518,590
+tokens between them either could not be tested, could not be shown to help, or
+were measured wrong — and when we removed all three and re-ran, one answer out of
+43 changed.
 
-Voting deserves its wording. It is not that voting had no effect — it is that it
-had **no consistent one**: −0.004 on the run above, +5 correct answers on another
-development draw, and on the held-out split it re-found 8 previously unanswered
-records of which **all 8 were wrong.** A layer whose sign changes with the draw
-is not a layer you can plan around, and it is the most expensive thing here.
+Two cells claim more than "did not fire", and both are load-bearing.
+**Self-correction was never viable**, not merely idle: every rejection it could
+have acted on, in every run, was a span the extractor could not locate, and an
+unlocatable span carries no fact to state back to a model. It fired zero times
+even when rejections were ten times higher. **Voting had no consistent effect**,
+which is different from no effect — −0.004 on the run above, +5 correct answers
+on another development draw, and on the held-out split it re-found 8 previously
+unanswered records of which all 8 were wrong. A layer whose sign changes with the
+draw is not one you can plan around, and it is the most expensive thing here.
 
 ### We computed a triage signal and then ignored it
 
 The free check sorts every record into a lane, and the lanes have very different
-accuracy — ~85% in ACCEPT against ~29% in BAND. That is a triage signal: it says
-which records need more work. Lay the layers against it and only one of them
-uses it.
+accuracy — ~85% in ACCEPT against ~29% in BAND. That is a triage signal. Only one
+layer uses it.
 
 | lane | share | which layers act on it |
 |---|---|---|
@@ -1560,154 +1583,85 @@ uses it.
 | ACCEPT | ~21% | rung 5 ships it |
 | **BAND** | **~78%** | rung 5 withholds it → a person |
 
-Rung 5 is the only layer that reads the lane. **Rungs 3 and 4 do not** — both
-iterate over every record, so we ran voting and a second-model judge across the
-whole batch, including the fifth of it the free check had already vouched for.
-The two most expensive layers in the system spent tokens on the records least
-likely to need them.
+**Rungs 3 and 4 do not read the lane** — both iterate over every record, so
+voting and the judge ran across the whole batch, including the fifth of it the
+free check had already vouched for. The two most expensive layers spent tokens on
+the records least likely to need them.
 
-Nothing is aimed at *improving* BAND either. Rung 5 does not resolve it, it
-withholds it, and the person at the end is the default destination rather than a
+Nothing is aimed at *improving* BAND either. Rung 5 withholds it rather than
+resolving it, so the person at the end is a default destination rather than a
 chosen one. **That is where the human cost comes from: three quarters of the
 batch, routed by exhaustion.**
 
-Neither of those was visible while every layer was being scored on accuracy.
-They appeared as soon as the layers were laid against the lanes.
-
 ### None of them can find what rung 0 missed
 
-There is a ceiling above all of it, and it is structural rather than empirical.
 **Every rung in this ladder operates on records rung 0 already proposed.** Rung 1
-rejects, rung 2 rewrites a code, rung 3 re-scores spans that already exist, rung
-4 issues a per-record verdict, rung 5 withholds. Not one of them can put a
-mention on the table that the extractor never proposed.
+rejects, rung 2 rewrites a code, rung 3 re-scores existing spans, rung 4 issues a
+per-record verdict, rung 5 withholds. Not one can put a mention on the table that
+the extractor never proposed.
 
 Rung 6 is the surprise. A person is the one layer you would expect to catch a
-miss — and ours cannot, by construction rather than by measurement. The desk
-shows a reviewer a span the system already found and offers a choice of codes for
-it. **There is no control for "you missed one," and none for "these boundaries
-are wrong."** However good the reviewer, detection cannot move.
+miss, and ours cannot — by construction, not by measurement. The desk shows a
+reviewer a span the system already found and offers a choice of codes for it.
+**There is no control for "you missed one," and none for "these boundaries are
+wrong."** However good the reviewer, detection cannot move.
+
+The two halves are also coupled, so a detection error does more than lose one
+mention. Retrieval is deterministic: quote `"stamina"` where the writer described
+the *lack* of it, and the menu comes back `[0] stamina` plus nineteen *stoma* and
+*foramina* near-matches, with |Lack of stamina| absent at any depth we retrieve.
+Quote `"no stamina"` and the same retriever puts it at line 0. **The span chooses
+the menu, so a boundary error deletes the right answer before the model is asked
+to pick.**
 
 So the ladder's ceiling is rung 0's detection — 0.521 exact on the held-out
-split — and everything built on top of it is a precision instrument. Reliability
+split — and everything above it is a precision instrument. **Reliability
 engineering of this kind makes a system's answers more trustworthy. It does not
-make the system see more.
+make the system see more.**
 
-The obvious repair is to ask the judge what was missed. We think that is the
-wrong place: rung 4 is per-record and the question is per-document, and a judge
-that names a mention nobody proposed is not judging — it is extracting, with a
-second model, which collapses the very measurement the ladder exists to take.
-**[PENDING]** A rung that can propose a missed mention is registered as an open
-question — and one to price against a ceiling before building anything, since
-the layer it would replace is the most expensive one we have. Plan item 15.
+The obvious repair is to ask the judge what was missed, and we think that is the
+wrong place: rung 4 is per-record where the question is per-document, and a judge
+that names a mention nobody proposed is not judging but extracting, with a second
+model — which collapses the measurement the ladder exists to take. **[PENDING]** A
+rung that can propose a missed mention is registered as an open question, to be
+priced against a ceiling first. Plan item 15.
 
----
+### Why none of it showed up in a test
 
-## 8. What no single-layer test could see
-
-**Every deferral terminated in a field nothing read.** Self-correction wrote
-`r2_declined`, voting wrote `r3_unanimous_none`, the judge wrote `r4_verdict`. The
-refusal step reads none of the three. No test could catch it, because every layer
-does exactly what its own documentation promises. The hole is *between* them.
+Every layer passed its own tests, did what its documentation promised, and
+returned. The failures were not in the layers but in what happens between them.
 
 ![Figure 15](figures/fig1-wiring.png)
 
-*Fig. 15: Three layers write a verdict; the refusal step reads none of them.
-Source: author-created with Graphviz.*
+*Fig. 15: Verdict flow. An arrow exists only where a rung genuinely reads or
+writes; execution order is not drawn, because it moves no verdict. Rung 0 is
+absent — it writes no verdict, it produces the records. Source: author-created
+with Graphviz.*
 
-**A fix three layers down silently disabled two layers up.** The checks used to
-reject 5.1% of records for an unlocatable span, until extraction improved and a
-filter dropped those at source. The rejection rate fell to **1 in 248** and
-self-correction's trigger set went with it. Nothing broke; both layers still pass
-every test. **A layer with nothing to do is indistinguishable from inside from a
-layer doing nothing.**
+**Only one verdict travels, and it is the free one.** Self-correction writes
+`r2_declined`, voting writes `r3_unanimous_none`, the judge writes `r4_verdict`,
+and nothing reads any of them. Rungs 2 and 3 still reach the refusal step — but
+only by re-running the free check and overwriting **its** verdict, so what arrives
+is never their reasoning, only rung 1's opinion of whatever code they left behind.
+Rung 2 depends on that verdict at both ends: it is also the only thing that can
+trigger it. **The judge touches nothing** — it writes into a dead end, and its own
+read of `r1_verdict` feeds a report rather than a decision. No test caught any of
+this, because every layer does exactly what it says it does.
 
-And one about metrics. Voting overwrote codes without re-validating, so records
-shipped marked *verified* against a code they no longer had. Fixing it moved exact
-F1 from **0.204 to 0.204** — because precision and recall cannot distinguish an
-*unwarranted* answer from an *incorrect* one, which is the entire distinction the
-system exists to make.
-
----
-
-## 9. Did we try making the model better first?
-
-Yes — about twenty arms. Eight lessons transfer:
-
-- **Do not ask the model for an identifier.** Recalling a code from weights scored
-  F1 **0.018**; retrieving candidates and picking scored **0.209**, for fewer
-  tokens. The recall version invented codes and put them beside correct labels.
-- **Retrieval is a ceiling, not a floor.** A frontier hosted model produced **31
-  exactly-correct answers against the local model's 31** — identical. A better
-  reader cannot beat the menu; a worse one can fail to use it.
-- **And a better menu did not beat the pick either.** Our retriever was a
-  general-purpose 30M embedder where this task's literature uses domain-adapted
-  ones, so we swapped in SapBERT — same corpus, same *k*, same answer key, one
-  manifest key. Across all 6,595 gold mentions it *is* the better retriever:
-  menu recall@20 **87.0% → 88.4%**, recall@1 **63.7% → 66.1%**, both separated
-  over 1,144 documents. End to end on three paired draws it **lost**: F1 exact
-  **0.413/0.434/0.423 → 0.405/0.394/0.391**, coding accuracy **0.754/0.778/0.758
-  → 0.738/0.706/0.702**, at byte-identical detection and identical token cost.
-  Two independent tests of the same claim, from opposite ends: a better *reader*
-  scored the same, and a better *menu* scored worse.
-- **Menu order is load-bearing.** Alphabetising cost 10–12 points at
-  byte-identical detection.
-- **Menu recall is not menu accuracy.** Retrieving 40 candidates put more gold on
-  the menu than 20 and picked *worse*.
-- **And the span decides the menu, so a detection error deletes the answer.**
-  Retrieval is deterministic: quote `"stamina"` where the writer described the
-  lack of it and the menu is `[0] stamina` plus nineteen stoma and foramina
-  near-matches, with `248277009` |Lack of stamina| absent at any depth we
-  retrieve. Quote `"no stamina"` and the same retriever puts it at line 0. The
-  20-line menu holds the right concept 87.0% of the time, and which 13% it
-  misses is partly chosen upstream.
-- **Ship only the filters with zero false-rejection cost**, priced against the
-  answer key first. One that cut 14 false positives at the cost of 7 real ones was
-  rejected.
-- **Prompt interventions did nothing** — three for three.
-
-The residual is span boundaries, and those belong to the answer key.
-
-**One caveat we owe the reader, because it cuts against us.** "Retrieval is a
-ceiling" is a claim about the division of labour, not about the height of the
-ceiling — and the height is partly ours. SapBERT reaches 88.4% where our
-shipped encoder reaches 87.0%, and an oracle picking the better of the two per
-mention reaches **93.6%**. So 87% is this encoder's ceiling, not the task's.
-What the arm shows is that raising it is not the same as improving the result.
-
-The arm also caught a flaw in our own method. **The probe that authorised it
-measured recall over 1,144 documents while the arm itself ran on 38** — and on
-those 38 the sign is negative. A go/no-go probe has to be run on the denominator
-the arm will be scored on. And the same claim holds for a domain-adapted
-*generator*, not just a domain-adapted encoder: BioMistral-7B as the extractor
-returned 3 predictions against 226 gold, failing on 36 of 40 documents.
+**Then the metric.** Voting overwrote codes without re-validating, so records
+shipped marked *verified* against a code they no longer had — carrying a claim the
+free check had made about something else. Fixing it moved exact F1 from **0.204 to
+0.204**, because precision and recall cannot tell an *unwarranted* answer from an
+*incorrect* one: a record with a wrong code scores the same whether it ships wrong
+or is withdrawn. **We built seven layers to decide which answers are trustworthy,
+then scored them with a metric that cannot see the difference.**
 
 ---
 
-## 10. The division of labour
+## 8. How we found these
 
-The part another team can use tomorrow:
-
-| job | whose | evidence |
-|---|---|---|
-| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — detection 0.69–0.79 |
-| Recall an identifier | **not the model** | F1 0.018 vs 0.209, at more tokens |
-| Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
-| Order the candidate list | **not the model** | takes line one 19.5% of the time, iff it is line one |
-| Check its own output | **not the model** | self-correction 1 in 248; voting moved accuracy down |
-| Judge whether an answer is right | **not the model** ⚠️ | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but see section 6: it was never shown what a code means |
-| Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right ~40% of the time — a dead dial |
-| Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes |
-
-> **The model reads. Everything else belongs to something that does not
-> resample.**
-
----
-
-## How we found these
-
-No layer announced that it had stopped working. Each ran, returned, wrote its
-field, passed its tests.
+None of it came from a failing test. It came from re-measuring things that had
+already looked fine.
 
 ![Figure 16](figures/fig3-loop.png)
 
@@ -1722,7 +1676,7 @@ second draw, a corrected prompt, or a held-out split.
 
 ---
 
-## Where this sits in the literature
+## 9. Where this sits in the literature
 
 **We mostly agree, and the agreements matter.** Our abstention layer is *selective
 prediction*, a formalised field; we compute risk-coverage curves without having
@@ -1741,8 +1695,10 @@ comparison, on the same records, in the same run, and the string comparison won 
 article defends.
 
 **Where we are behind, stated in the right units.** The strongest published system
-on this corpus is CONORM (Yazdani et al., medRxiv `10.1101/2023.09.26.23296150`),
-which fine-tunes on 875 of CADEC's 1,250 files. Its
+on this corpus is [CONORM](https://doi.org/10.1101/2023.09.26.23296150) — Yazdani,
+Rouhizadeh, Bornet and Teodoro, *Context-Aware Entity Normalization for Adverse
+Drug Event Detection*, medRxiv 2023 — which fine-tunes on 875 of CADEC's 1,250
+files. Its
 evaluation code scores a `(type, span, concept)` tuple under the same two
 strategies we use — identical offsets, or overlapping ones — so the metrics line
 up even though the vocabularies do not. Matched on both axes:
@@ -1751,6 +1707,7 @@ up even though the vocabularies do not. Matched on both axes:
 |---|---|---|
 | CONORM, end-to-end, supervised | ≤ **0.704** | **0.7245** |
 | CONORM, **detection only**, supervised | **0.704** | 0.891 |
+| best supervised detection in their table (GLiNER-L, fine-tuned) | **0.744** | 0.851 |
 | ours, end-to-end, zero-shot, held-out | **0.204** [0.150–0.260] | 0.215 |
 
 We are a long way behind on both, and one number would have hidden by how much. The
@@ -1759,129 +1716,179 @@ cannot exceed detection alone under the same matching, and their published 0.724
 therefore has to be the lenient figure. Their paper reports one end-to-end number
 per corpus without labelling its strategy.
 
-**And the ceiling claim survives the check that was meant to break it.** We claimed
-CADEC's ~67% boundary determinism caps span-exact scores near 0.70. A fully
-supervised tagger, trained on that corpus, scores **0.704 span-exact on detection
-alone** — before it assigns a single code. That is the predicted number, reached by
-the system with every advantage, doing the easier half of the task.
+**And the ceiling claim survives the check that was meant to break it — but only
+in the weaker form.** We claimed CADEC's ~67% boundary determinism caps span-exact
+scores near 0.70. Their table has three fine-tuned taggers on CADEC, scoring
+**70.4, 71.7 and 74.4 span-exact on detection alone**, before any of them assigns
+a code. That is the right region, reached by systems with every advantage doing
+the easier half of the task — and the best of them clears 0.70 by four points, so
+what we described as a cap is better described as where the boundary convention
+puts you. Quoting only the 70.4 would have made our estimate look exact; it is
+not.
 
 Three things travel with the comparison. They normalise to **MedDRA preferred
-terms**, not the 129,675-concept SNOMED graph we code against. They are supervised,
-and their own analysis prices what that buys: stratified by whether the gold
-concept was seen in training, precision falls from **85.8% to 47.1%** on concepts
-it was not — and a zero-shot system is out-of-distribution on every record by
-construction. And their tagger uses a contiguous BIO scheme, so the discontinuous
-mentions our extractor cannot express appear to be beyond theirs too.
+terms**, not the 129,675-concept SNOMED graph we code against. They are supervised
+— 875 of CADEC's 1,250 files for training, against our zero — and on the one
+corpus where they report it, F1 falls from **50.2% to 39.4%** on concepts not seen
+in training, with precision flat, so what supervision buys on unfamiliar concepts
+is recall. A zero-shot system is in that condition on every record by
+construction. And they state plainly that CONORM handles **only continuous ADE
+mentions**, so the discontinuous spans our extractor cannot express are outside
+theirs too.
 
 ---
 
-## What we would tell you
+## 10. What we would tell you
 
 We set out believing that stacking reliability layers buys reliability. Measured
 end to end, **the layers made errors visible rather than fewer** — worth a great
 deal, and not what they were bought for.
 
+One split runs under everything below, and it is worth naming before the table.
+Our task has a general half and a domain half. Reading a patient's post and
+finding where a reaction is described is ordinary English comprehension; deciding
+that the reaction is |Gonalgia| and not |Pain of knee region| is specialist
+knowledge. **The model is good at the general half and poor at the domain half** —
+on the held-out split it finds four mentions in five and correctly codes about one
+in three of them.
+
+The obvious response is to reach for a domain model. We tried two, and both are
+rows in section 2's table: SapBERT made the system worse, and BioMistral returned
+3 predictions against 226 gold mentions.
+
+What actually explains the gap is stranger. **The domain knowledge was never
+missing.** Our retriever puts the correct concept on the twenty-line menu **87%**
+of the time, and the model — looking straight at it — takes the right line about
+**30%** of the time, choosing the first line 19.5% of the time largely because it
+is first. The expertise this task needs is not in the model and we could not put
+it there. It is in the vocabulary. That is why the free check works, and why
+every job below except one comes off the model's desk.
+
+The part another team can use tomorrow is the assignment, not the ladder:
+
+| job | whose | evidence |
+|---|---|---|
+| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — string matching finds 16.8% of gold spans where the model finds 55.8% |
+| Recall an identifier | **not the model** | F1 0.018 against 0.209 for retrieve-and-pick, at more tokens |
+| Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
+| Order the candidate list | **not the model** | it takes menu line one 19.5% of the time, and only when it is line one |
+| Check its own output | **unproven** | self-correction never fired, so it was never tested; voting's sign changed with the draw |
+| Judge whether an answer is right | **not yet known** | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but we had never shown it what a code means (section 6), so that number is withdrawn |
+| Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right about 40% of the time |
+| Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes, at zero cost |
+| Decide how much to withhold | **you** | three currencies moving in three directions, and a break-even only the deployer has |
+
+> **The model reads. Almost everything else belongs to something that does not
+> resample — and one job belongs to you.**
+
+And six practices, each of which we learned by getting it wrong first:
+
 - **Condition your confidence on something that does not resample** — a
-  vocabulary, a schema, a type check, a compiler.
-- **Establish its precondition first.** One query, before you build.
+  vocabulary, a schema, a type check, a compiler — and **establish its
+  precondition before you build.** One query would have told us the free check
+  had zero coverage on our second corpus.
+- **Measure your floor before you measure an improvement.** Three identical runs
+  of our unchanged system differ by 2.1 points of F1, which makes most of what we
+  tried unreadable on its own. It is easier to state that rule than to obey it:
+  two arms we shipped sit below that floor, and their rows say so. The same
+  discipline applies to the probe that authorises an arm — run it on the
+  denominator the arm will be scored on, not a larger one that happens to be
+  available.
 - **Test the free layer against your answer key.** Every rejection there is false
   by construction, so you get its false-positive rate for nothing. Ours went from
-  9.3% to 0.13%.
-- **Grep for the readers of every field you write** — and when you find an orphan,
-  measure it before you adopt it rather than assuming it would have paid. This one
-  is worth automating: forty lines of regex over our own source names all three
-  of the dead layers we had found by hand, and needs no data and no model.
-- **Re-measure the top when you change the bottom**, and **print coverage beside
-  every error rate.**
+  9.3% to 0.13% without touching a model.
+- **Grep for the readers of every field you write**, and when you find an orphan,
+  measure it before you adopt it rather than assuming it would have paid. Forty
+  lines of regex over our own source named all three orphaned fields we had found
+  by hand, and left the 55 live ones alone.
+- **Judge each layer against its own purpose, not against accuracy** — and print
+  coverage and yield beside every accuracy figure. Abstaining always raises
+  precision, so any layer that withdraws answers will look good on the wrong
+  column.
+- **Check that your metric can see the defect you are preventing.** Ours could
+  not: fixing a layer that shipped answers under a warrant that no longer applied
+  moved F1 by nothing, because precision and recall cannot tell an unwarranted
+  answer from an incorrect one.
 
 The system ships about a quarter of its answers, at four errors per hundred
-instead of sixty, and hands the rest to a person. Not what we set out to build. But
-the machinery that makes the other four-fifths *legible* to that person turned out
-to be worth more than any layer that tried to answer them.
-
-## What we could not settle
-
-- **The reproducibility mechanism rests on one sparse model against four dense
-  ones.** Suggestive, not a result. It wants more MoE models, and should fail on a
-  dense model of similar size.
-- **The precondition was found by accident**, after hours of running, when one
-  query would have said it — so we wrote the query down as a tool and checked it
-  against our own wreckage. Run against the code as it stood *before* the audit,
-  its free wiring check names the three orphaned verdict fields we had found by
-  hand and nothing else, leaving 55 diagnostic fields alone. Its ACCEPT-lane
-  check refuses the corpus where the ladder shipped 0%, on a property of the
-  answer key, before a model runs. **What we have not done is use it in
-  anger**: every case above is one we already knew the answer to, and a
-  precondition tool validated only backwards is a hypothesis about the next
-  project, not a result from this one.
-- **We never ran a supervised baseline.** Our distance from a trained system is
-  read off someone else's paper rather than measured on our own splits — verified
-  line by line against their evaluation code, but still a comparison across two
-  vocabularies and two test sets.
-- **We never tested how much of this a dictionary could do, and our own
-  conclusion says we should have.** Section 10 argues the model should read the
-  text and nothing else; we applied that to identifiers and to building the
-  candidate list, but not to the pick. A one-draw probe — below our own bar, so
-  reported here rather than in the body — says detection cannot be replaced
-  (string matching finds 16.8% of gold spans against the model's 55.8%), but that
-  **the pick can be, for about a quarter of records**: where a span resolves to
-  exactly one concept in our keyword table, taking it without asking the model is
-  right 81.5% of the time against the model's 75.9%, and which records those are
-  is knowable before any model call. A short-circuit we did not build, on the rung
-  we spent the most effort on, pointed at by our own finding. Registered.
-
-- **No record's history was ever written down, and it cost us four answers in
-  this article.** Our ledger holds one row per record per rung with its verdict,
-  which is how section 4's lanes can be reconstructed at all. But rung 0 and rung
-  3 log one row per *document*, and **correctness is never joined back** — it is
-  computed afterwards against gold and thrown away. So nothing anywhere says
-  *this record, at this rung, held this code, and it was right.*
-
-  The consequence is four questions this article raises and cannot answer.
-  Whether voting's changes landed in the lane that needed them. Whether the 38
-  records it could not re-find were ones the model already had right. What
-  denominator the ACCEPT lane's headline figure used. Whether FiNER's runs agree
-  with each other. **Every one of those is a join we never made**, and every one
-  now needs a re-run instead.
-
-  The fix is a few columns — a per-record, per-rung table with the code, the
-  verdict and the outcome — and it is registered. **A rung that cannot say what
-  it did to an individual record cannot be credited or blamed for the
-  aggregate**, which is the same defect section 8 describes in the code, one
-  level up in the measurement.
-- **We assume one code is right, and we have not checked that.** The scorer
-  credits only the code in the answer key. But `"knee pain"` coded
-  |Pain of knee region| is filed as wrong against a gold |Gonalgia| that is
-  retired, has no recorded successor, and carries "Knee pain" as one of its own
-  names. Some share of what we report as mis-coding is a defensible synonym, and
-  we do not know what share. **The check is straightforward — take every
-  incorrect answer, ask whether its code and gold's are the same concept under
-  SNOMED's own relationships, and report the residue** — and we have not run it.
-  It would move our coding numbers upward, which is why it needs doing carefully
-  rather than not at all. Related and unmeasured: gold sometimes carries two
-  codes for one mention, so "one right answer" is not always the corpus's own
-  assumption either.
-- **The second corpus is a demonstration, not a matched comparison.** A third
-  corpus with a lexical vocabulary would test whether the ~85% ACCEPT lane belongs
-  to controlled vocabularies in general or to SNOMED in particular.
+instead of sixty, and hands the rest to a person. Not what we set out to build.
+And one limit is worth being plain about, because it is structural rather than a
+shortfall we could engineer away: **nothing above the extractor made the system
+better at the task.** Improving the extractor did — a worked example and a
+negation instruction were worth about six points each — but that is prompt
+engineering, not reliability engineering, and it is the part everyone already
+does. No layer we built can propose a mention the extractor missed — not even
+the human desk, which can only choose codes for spans it was handed. Reliability
+engineering of this kind makes a system's answers more trustworthy. It does not
+make the system see more. That was still worth having, and it is not what we
+thought we were buying.
 
 ---
 
-## Limitations
+## 11. What we could not settle
 
-The held-out split was spent once, so its intervals are the claim; everything
-after — the ablation, the policy settings, the second corpus — is development-side and
-labelled. The judge is a 3.2B model grading a 20B one. Human cost is a **count** of
-records routed, never minutes. **17.3% of CADEC's gold mentions are discontinuous
-spans our extractor cannot express** — gold marks `"loss of"` and `"strength"` as
-one mention, and we emit a single segment — so every recall number here carries a
-cap we built rather than one the task imposes, and we report it attached rather
-than subtracted out. The near-miss corruption is synthetic. CADEC is
-public and from 2015, almost certainly in pretraining, which makes every gain here
-conservative. Both corpora are public and both arms are reproducible, but not on the
-same terms: FiNER-139 is CC-BY-SA-4.0 and comes down with the code, while CADEC
-is non-transferable, so a reader has to accept CSIRO's licence and fetch it
-themselves. We ship document IDs for the splits, never text.
+- **No record's history was ever written down.** Rungs 0 and 3 log per document,
+  and correctness is scored afterwards and discarded, so nothing says *this
+  record, at this rung, held this code, and it was right.* Two questions here are
+  unanswerable for that reason alone: whether voting's changes landed in the lane
+  that needed them, and whether the records it could not re-find were already
+  right. **A rung that cannot say what it did to one record cannot be credited or
+  blamed for the aggregate.**
+
+- **We assume exactly one code is right.** `"knee pain"` coded |Pain of knee
+  region| is scored wrong against a gold |Gonalgia| that is retired and carries
+  "Knee pain" as one of its own names. Some share of our mis-coding is defensible
+  synonymy; we have not measured which share, and the answer moves our numbers
+  upward.
+
+- **We never ran a supervised baseline.** Our distance from a trained system is
+  read off someone else's paper, on a different vocabulary and a different test
+  set — not measured on our own splits.
+
+- **We never tested how much a dictionary could do.** A one-draw probe, below our
+  own bar, says detection cannot be replaced but **the pick can be for about a
+  quarter of records** — where a span resolves to one concept in our keyword
+  table, taking it without asking the model is right 81.5% of the time against
+  the model's 75.9%. A short-circuit we did not build, on the rung we spent the
+  most effort on.
+
+- **The precondition tool has only ever been run backwards**, against wreckage
+  whose answers we already knew. **A tool validated that way is a hypothesis
+  about the next project, not a result from this one.**
+
+- **The reproducibility mechanism rests on one sparse model against four dense
+  ones.** It should fail on a dense model of similar size. Nobody has tried.
+
+- **The second corpus is a demonstration, not a matched comparison.** A third,
+  with a lexical vocabulary, would test whether the ~85% ACCEPT lane belongs to
+  controlled vocabularies in general or to SNOMED in particular.
+
+---
+
+## 12. Limitations
+
+- **The held-out split was spent once.** Its intervals are the claim; everything
+  else here is development-side and labelled.
+- **Those development-side figures come from at least four runs** of the same
+  configuration, at 222 to 248 records. Nothing is wrong as reported, but adjacent
+  numbers can come from different draws. One base run to replace them is
+  registered.
+- **Every judge result is provisional** — a 3.2B model grading a 20B one, and we
+  found late that we had never shown it what a code means.
+- **Self-correction was never exercised.** It fired 0, 0 and 1 times across three
+  runs, so one rung of seven is unmeasured rather than measured and found wanting.
+- **Human cost is a count of records routed, never minutes.** No reviewer has sat
+  at the desk: every figure for it is a declared rate or a ceiling derived from
+  gold.
+- **17.3% of the development split's gold mentions are discontinuous** and our
+  extractor emits one segment, so every recall number carries a cap we built
+  rather than one the task imposes. The near-miss corruption is synthetic.
+- **CADEC is from 2015 and almost certainly in pretraining**, which inflates our
+  absolute numbers and, if anything, understates what a reliability layer might do
+  on text a model has not seen.
+- **The two corpora are not reproducible on the same terms.** FiNER-139 is
+  CC-BY-SA-4.0 and ships with the code; CADEC is non-transferable, so a reader
+  must accept CSIRO's licence and fetch it. We ship document IDs, never text.
 
 Code, ledger, decision records, and the source for every figure:
 **https://github.com/wbagais/reliability-ladder**

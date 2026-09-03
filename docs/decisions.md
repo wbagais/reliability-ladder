@@ -4122,3 +4122,682 @@ recorded — but the article no longer describes the experiment they come from, 
 column. Rewrite it when the takeaways are reviewed.
 
 §7 is 945 words, from 1,082 at the split. Article 17,752.
+
+## 2026-09-03 — §8 reviewed, one claim RETRACTED, the wiring figure redrawn, and §8 merged into §7
+
+Three claims checked against the code and the artifacts. One sound, one stale,
+one **not supported by our own data**.
+
+**RETRACTED — "a fix three layers down silently disabled two layers up."** The
+article said the span filter emptied rung 1's REJECT lane and self-correction's
+trigger set went with it. Rung 2's firing count across every full-ladder run on
+record is **0 (`full-ladder-dev-1`, at 10 rejects of 240), 0 (`phaseF-test-1`, at
+16 of 314), 1 (`audit-full-dev-1`, of 248)**. It fired ZERO when rejections were
+ten times higher. Every rejection in all three runs was `schema_invalid` — a span
+the extractor could not locate — which by design carries no fact to state back.
+**Rung 2 was never disabled; on this corpus it was never enabled.** Replaced with
+that, which is harsher and true.
+
+The numbers were also cross-split: the article's "5.1%" is `phaseF-test-1`
+(**test**) and "1 in 248" is `audit-full-dev-1` (**dev**), presented as a
+before/after from a code change. The matched dev pair (10 of 240 -> 1 of 248) is
+now used instead. Same defect class as the fabricated durations — a comparison
+assembled from whatever numbers were to hand.
+
+**STALE — "the refusal step reads none of the three."** True when the audit found
+it; false since 2026-08-30, when `abstain_on_judge_fail` gave `r4_verdict` a
+reader (off by default). Rewritten around the sharper fact found on 2026-09-02:
+rungs 2 and 3 DO reach rung 5, by re-running `r1.zone()` and overwriting
+`r1_verdict`. **Only one verdict travels up this ladder and it is the free one**
+— every paid layer's own reasoning is written and discarded. The judge is the
+sole layer with no channel at all.
+
+**SOUND — the stale-verdict finding.** Verified exactly against the 2026-08-28
+replay: exact F1 0.204 -> 0.204, overlap 0.215 -> 0.218. Kept as the section's
+close.
+
+**FIGURE 15 REDRAWN (`fig1-wiring.dot`).** Two defects. (a) It drew execution
+order and data flow as the same kind of arrow, in a diagram whose whole subject
+is what reads what — a reader could only conclude the judge reads from the vote,
+which it does not (r4's input boundary is ENFORCED to `r1_verdict` and
+`r1_reason`, `ladder/rungs/r4.py:24`). Execution order is now dotted grey and
+labelled; every solid arrow is a real read or write. (b) It showed three orphaned
+fields and missed the borrowed-channel finding entirely. Also reshaped from
+3394x392 — unusable on a page — to 1079x1208.
+
+**§8 MERGED INTO §7** on the owner's call. At 199 words it was thin, and its
+subject is the same question §7 asks: §7 says the layers did not deliver, and
+this says why nobody could have noticed. §7 is now 1,308 words with three
+subsections; sections renumbered 9->8, 10->9 and all cross-references updated.
+Article 17,916 words, 16 figures.
+
+## 2026-09-03 — §7 cleanup: the meta-commentary cut, the rung 2 paragraph relocated
+
+Owner asked whether everything under "Why none of it showed up in a test" was
+needed. One of its three paragraphs was not. "And one layer was never switched
+on" restated a fact §6 and §7's role table already carry, and the rest of it
+narrated a mistake WE made and corrected — decisions.md material, not article
+material. The one genuinely new thing in it, the 0-at-10-rejects evidence, moved
+into the role table's own cell ("never viable here", with the reason in the
+paragraph below the table).
+
+Cleanup pass over the whole section on the owner's follow-up. What came out was
+throat-clearing, not content — every number and every finding is preserved:
+
+  - the opening's account of a delta table we deleted (the reader never saw it)
+  - "Self-correction's cell needs a word of explanation, because..."
+  - "Voting deserves its wording. It is not that..."
+  - "Neither of those was visible while every layer was being scored on accuracy.
+    They appeared as soon as the layers were laid against the lanes."
+  - "There is a ceiling above all of it, and it is structural rather than
+    empirical."
+  - a stray `---` rule sitting inside the section
+
+The pattern is worth naming, since it recurs across this article: **a sentence
+announcing that the next sentence is important is not a finding.** The two
+load-bearing cells (self-correction "never viable", voting "no consistent
+effect") are now defended in one shared paragraph rather than two apologetic
+ones.
+
+§7: 1,271 -> 1,092 words. Article 17,700.
+
+## 2026-09-03 — the wiring figure redrawn a SECOND time: an arrow means a read or a write, nothing else
+
+Owner rejected the first redraw: "if it is not linked to any other rung do not
+link it. The links are if it reads or writes to another rung." Correct, and the
+dotted execution-order spine was still doing the damage the redraw was meant to
+fix — a reader could follow `3 · vote -> 4 · judge` and conclude the judge
+consumes the vote. Execution order is now ABSENT, not merely restyled.
+
+Establishing the real edges corrected the article as well as the figure:
+
+  r1 writes r1_verdict                                   (r1.py)
+  r2 READS it as its only trigger                        (r2.py:347)  <- was missing
+  r2 re-runs the check and overwrites it                 (r2.py:451)
+  r3 re-runs the check and overwrites it                 (r3.py:218)
+  r5 reads it — the whole decision                       (r5.py:82)
+  r6 takes r5's ABSTAIN residue with checks.withheld     (r6.py:94)
+  r4 writes r4_verdict -> no reader unless abstain_on_judge_fail, which ships off
+  r2_declined, r3_unanimous_none -> no reader
+
+Rung 0 is now absent from the figure: it writes no verdict, it produces the
+records every rung operates on. Rung 4's read of `r1_verdict` is deliberately NOT
+drawn — it happens (r4.py:267) but only to build the aggregate report, never to
+judge — so rung 4 appears with no incoming arrow at all, which is the finding
+made visible: **the judge touches nothing.**
+
+The prose gained the one fact the figure exposed: rung 2 depends on rung 1's
+verdict at BOTH ends — it is the only thing that can trigger it, and rung 2's own
+conclusion returns through it.
+
+Also reshaped 3303x467 -> 1298x1059. Both redraws of this figure hit the same
+trap: a seven-node LR graph is unusably wide on a page.
+
+## 2026-09-03 — §8 "Did we try making the model better first?" DELETED as a duplicate of §2's arms table
+
+Owner asked whether the two were the same. They substantially were. Five of §8's
+eight bullets restated rows already in §2's "Seventeen changes" table — SapBERT,
+alphabetising the menu, the digit filter, the prompt rewrites, and the
+identifier-recall result. The last of those was stated **three times** in the
+article (§2's S0/S1/S2 table, §8, and the division-of-labour table). And §2
+already drew the conclusions, closing with "the pattern worth taking is which
+ones won", so §8 re-concluded from the same data one section later.
+
+Three things in it were unique and were relocated rather than lost:
+
+  - **a frontier hosted extractor, 31 correct vs 31** -> a row in §2's table
+  - **retrieving 40 candidates instead of 20 picked worse** -> a row in §2's table
+  - **BioMistral as the extractor, 3 predictions against 226 gold** -> a row too
+  - the **closing caveat** (SapBERT 88.4% vs 87.0%, the 93.6% two-encoder oracle,
+    and the go/no-go probe measured on 1,144 documents while the arm ran on 38)
+    -> a paragraph under §2's table
+
+The table is now **twenty changes, ten shipped**. Those three arms were always
+changes to rung 0 and belonged in the table of changes to rung 0; they had ended
+up in a separate section because that section was written as a narrative of
+lessons rather than as a record of arms.
+
+**The `"stamina"` example moved to §7's detection-ceiling subsection**, which is
+the one relocation that does real work. In a list of lessons it was an
+illustration; under "None of them can find what rung 0 missed" it explains the
+mechanism — retrieval is deterministic, so quoting `"stamina"` where the writer
+described the *lack* of it returns a menu with |Lack of stamina| absent at any
+depth, while `"no stamina"` puts it at line 0. **The span chooses the menu, so a
+boundary error deletes the right answer before the model is asked to pick.** That
+is why the detection ceiling propagates rather than merely capping.
+
+Sections renumbered 9 -> 8; the article is now eight numbered sections, 17,492
+words, from 18,276 when this review's cutting pass began.
+
+## 2026-09-03 — "The division of labour" merged into "What we would tell you", and the advice rewritten against the whole review
+
+Owner asked whether the division-of-labour section was needed. It was, but not
+where it sat: the article had **two advice sections separated by two other
+sections** (§8's table, then How we found these, then the literature, then the
+bullets). Merged into one closing argument — the table as the assignment, the
+bullets as the practices. The article now has SEVEN numbered sections.
+
+An unsourced number found on the way: the table's first row cited **"detection
+0.69–0.79"**, and that range appears nowhere else in the article and is not
+derivable from anything it reports. The sourced figures are 0.808 overlap /
+0.521 exact on held-out CADEC and 0.685 on FiNER. Replaced with those. Third
+unsourced figure this review has found, after the two fabricated durations.
+
+The bullets were rewritten against everything this review established. Three
+lessons were missing and are now the load-bearing ones:
+
+  - **Measure your floor before you measure an improvement** — three identical
+    runs differ by 2.1 points, so every arm below that was noise we would have
+    shipped. Carries the probe-denominator lesson as its second clause.
+  - **Judge each layer against its own purpose, not against accuracy**, and print
+    coverage and yield beside every accuracy figure, because abstaining always
+    raises precision.
+  - **Check that your metric can see the defect you are preventing** — ours could
+    not.
+
+Two table cells updated to what the review established rather than what was
+originally written: self-correction is now "never had a trigger" rather than
+"1 in 248", and voting is "its sign changed with the draw" rather than "moved
+accuracy down". The judge row keeps its blind-judge caveat.
+
+**The close now states the structural limit**, which the article had never said
+in its own conclusion: no layer we built can propose a mention the extractor
+missed — not even the human desk, which can only choose codes for spans it was
+handed. Reliability engineering of this kind makes answers more trustworthy; it
+does not make the system see more.
+
+One dangling cross-reference fixed ("Section 8 argues..." in What we could not
+settle). Article 17,750 words.
+
+## 2026-09-03 — §10 audited against the rest of the article: the advice was giving rules we had broken and a conclusion wider than our evidence
+
+Owner asked whether the division-of-labour table and the practices still held
+after the review. Four corrections to the table and three to the prose. The table
+ones are in the previous entry; these are the prose.
+
+**1. THE ADVICE GAVE A RULE THE ARTICLE ITSELF BREAKS.** "Measure your floor
+before you measure an improvement. Every arm we ran below that was noise we would
+have shipped" — except §2's table shows we DID ship two arms below the 2.1-point
+floor: the span trimmer at +0.4 and its tuned threshold at +1.4, whose own row
+says "interval contains zero". Rewritten to own it: "It is easier to state that
+rule than to obey it: two arms we shipped sit below that floor, and their rows
+say so." A practice list that describes a discipline the article did not follow
+is worse than no practice list.
+
+**2. THE CLOSING OVERREACHED BY ONE WORD.** "None of this made the system better
+at the task" reads as "nothing we did helped", and §2 records +5.7, +6.2 and
++4.4 points from rung 0 work. Narrowed to "nothing ABOVE THE EXTRACTOR made the
+system better at the task", with the distinction made explicit: improving the
+extractor did work, but that is prompt engineering rather than reliability
+engineering, and it is the part everyone already does. That sharpens the claim
+instead of weakening it — the article's subject is the layers above rung 0, and
+saying so removes the only sentence a hostile reader could call self-refuting.
+
+**3. A slip:** the wiring regex named the three orphaned FIELDS, not the layers.
+Corrected, with the discriminating detail restored — it left the 55 live fields
+alone, which is what makes it a check rather than a grep.
+
+Verified and unchanged: 2.1 points across three identical runs (§3), the free
+check's 9.3% -> 0.13% error floor from the gold replay, 21% coverage at 4 errors
+per 100 against 60, and the zero-coverage precondition on FiNER (§5).
+
+## 2026-09-03 — §11 rewritten short, and the review had already closed two of the questions it lists as open
+
+770 -> 525 words, reordered so the two items that matter most come first.
+
+**THE REVIEW CLOSED TWO OF ITS OWN OPEN QUESTIONS.** §11 said the missing
+per-record history costs the article "four questions it raises and cannot
+answer". Two of the four are now answered:
+
+  - "What denominator the ACCEPT lane's headline figure used" — CLOSED by this
+    session's recompute from `arm-sapbase-d0`; §4 now says 48 of 222.
+  - "Whether FiNER's runs agree with each other" — CLOSED, and it had been
+    answered in §3 all along ("one run refused a whole document", the draw table
+    at line 771). The item was stale rather than open.
+
+Two remain and are named: whether voting's changes landed in the lane that needed
+them, and whether the records it could not re-find were already right. Both are
+plan items 11 and 12.
+
+**THE CONORM VERIFICATION CLAIM SOFTENED.** §11 asserted the comparison was
+"verified line by line against their evaluation code" — the same claim §9 makes,
+and the one plan item 18 records as unreproducible (medRxiv's full text refuses
+automated fetch; the repository publishes no results). Now: we read their
+evaluation code to confirm the matching strategies line up, but have not
+re-confirmed which of their published figures is detection-only, and §9's ceiling
+argument turns on that. The article should not state as settled a fact its own
+plan lists as unchecked.
+
+**Near-verbatim duplication with §10 removed.** Both sections carried the wiring
+regex result ("named the three orphaned fields... left the 55 alone") and the
+dictionary probe's 16.8%/55.8%. §10 keeps both, because there they are evidence
+for a practice and for a job assignment; §11 now carries only the caveat that is
+its actual point — the precondition tool has only ever been run backwards, and a
+tool validated against known answers is a hypothesis about the next project.
+
+## 2026-09-03 — §12 reviewed. THE REPO'S OWN NOTES HAD THE JUDGE'S SIZE WRONG; the article had it right
+
+`ollama show ibm/granite4:micro-h` reports **parameters 3.2B**, architecture
+granitehybrid, Q4_K_M. `CLAUDE.md` and several `docs/decisions.md` entries have
+been saying **2B** — "granite4:micro-h, 2B, judging a 20B extractor", "the
+2B-judging-20B inversion", "read rung 4's numbers with the 2B caveat stated".
+The article said 3.2B in all four of its mentions and was correct. CLAUDE.md
+corrected; the dated decisions entries are left as written, since this file is
+append-only and this entry is the correction of record.
+
+Nothing measured changes — the model is the same file, and no number was derived
+from the parameter count. What it changes is the caveat's force: "a 3.2B model
+grading a 20B one" is a smaller gap than "2B grading 20B", so the judge's
+weakness is slightly less attributable to size than the notes implied. That
+matters now that plan item 14 is going to re-measure it: if a 3.2B judge with the
+menu in front of it still fails, size is a weaker excuse than we had recorded.
+
+Four other §12 corrections:
+
+1. **"the ablation" was a dangling reference** — that subsection was deleted on
+   2026-09-03 and survives only as a clause in §7. Now "the removal test".
+2. **The judge limitation was the wrong limitation.** "The judge is a 3.2B model
+   grading a 20B one" was true and no longer the main point: every judge result
+   in the article measures a judge that was never shown what a code means. §12
+   now leads that item with "every judge result here is provisional".
+3. **"17.3% of CADEC's gold mentions are discontinuous"** generalises a dev-split
+   figure to the whole corpus. Now "the development split's". NOTE FOR ANYONE
+   EDITING THIS: **17.3% appears twice in the article for two unrelated things** —
+   FiNER's tagged-sentence rate (18,789 of 108,378) and CADEC dev's discontinuous
+   share. Both are sourced and correct. It is a coincidence, and it is exactly the
+   shape of a copy error, so check before "fixing" either.
+4. **The contamination caveat asserted a direction without saying why.** "CADEC is
+   almost certainly in pretraining, which makes every gain here conservative" —
+   contamination inflates absolute numbers, which is the opposite of conservative.
+   Rewritten to say both: it inflates our absolute numbers and, if anything,
+   understates what a reliability layer might do on unfamiliar text.
+
+Verified unchanged: the held-out-once claim, the human-cost-as-count rule, the
+licence asymmetry, and the repository URL (matches the `github` remote).
+
+## 2026-09-03 — §12 restructured as a list, and three limitations added that the article had not been carrying
+
+Owner: the paragraph was wordy. It was also incomplete. Rewritten as eight
+scannable bullets — 233 -> 267 words, longer on the page but shorter to read,
+and carrying three things it had been missing.
+
+**ADDED 1 — the multi-run caveat now appears in Limitations.** It was disclosed
+only in a `[PENDING]` box in the front matter (line 77). That is the article's
+largest caveat and a reader who jumps to Limitations, as reviewers do, never saw
+it. Stated in two lines with the base run registered as its fix.
+
+**ADDED 2 — self-correction was never exercised.** It fired 0, 0 and 1 times
+across three runs, so **one rung of seven is unmeasured rather than measured and
+found wanting**. The article draws conclusions about a seven-rung ladder; it owes
+the reader the fact that one of them never ran on this corpus. Previously stated
+only as a table cell in §7.
+
+**ADDED 3 — no reviewer has ever sat at the desk.** The owner had declined this in
+§6, correctly: that passage is about cost and the labels there already carry it.
+Limitations is the conventional home, and §12 previously said "human cost is a
+count of records routed, never minutes", which implies the fact without stating
+it. Now explicit, in one clause, in the one place a reader looks for what the
+study did not do. **Flagged to the owner as reversible** — it is a single clause
+and comes out on request.
+
+Not added, considered: a line noting the article carries eight `[PENDING]`
+markers. They are visible inline at the claims they qualify, and a global count
+in Limitations would age badly as they close.
+
+## 2026-09-03 — CONORM verified against the PDF. Three claims confirmed, ONE FABRICATED, and the ceiling argument weakened
+
+Owner supplied the paper. Plan item 18 is CLOSED. Sources are Table 4 (NER) and
+Table 5 (end-to-end) of the 2025-02-11 version.
+
+**CONFIRMED — the split the whole comparison rests on.**
+  Table 4, CADEC, CONORM FT: lenient F1 **89.10**, exact F1 **70.40** — NER only.
+  Table 5, CADEC, CONORM FT: F1 **72.45** — end-to-end, in a table with a single
+  F1 column and NO matching-strategy split.
+So 0.704 IS detection-only exact, 0.891 IS detection-only lenient, and the
+article's inference that the unlabelled 0.7245 must be lenient holds: end-to-end
+cannot exceed detection under the same matching, and 72.45 > 70.40.
+
+**CONFIRMED — 875 of 1,250 files.** "875 files for training, 187 for validation,
+and 188 for testing."
+
+**CONFIRMED, AND UPGRADED FROM INFERENCE TO CITATION** — the article inferred
+from a BIO scheme that discontinuous mentions were beyond them. The paper says it
+outright: "CONORM focuses solely on continuous ADE mentions."
+
+**FABRICATED — "precision falls from 85.8% to 47.1% on concepts not seen in
+training".** Neither number appears anywhere in the PDF. The paper's actual
+out-of-distribution figures are on SMM4H, not CADEC: overall F1 50.20% / precision
+53.50%, out-of-distribution F1 39.40% / precision **53.10%** — so precision is
+essentially FLAT and the loss is recall, which is close to the opposite of what we
+claimed. Replaced with the real numbers and the real reading. **This is the fourth
+unsourced figure this review has found and the most serious, because it was
+attributed to someone else's paper and used to excuse our own results.**
+
+**WEAKENED — the ceiling argument.** §9 said "the ceiling claim survives the check
+that was meant to break it", citing CONORM's 70.40 as the supervised detection
+number that matches our predicted ~0.70 cap. Table 4 has THREE fine-tuned taggers
+on CADEC: GLiNER-L **74.43**, GLiNER-bi-L **71.67**, CONORM **70.40**. We quoted
+the lowest. The best supervised detector clears our "cap" by four points, so ~0.70
+is where the boundary convention puts you, not a ceiling. §9 now says that, prints
+the GLiNER-L row in the table, and states plainly that quoting only 70.40 would
+have made our estimate look exact.
+
+§11's bullet updated: the detection-only question is settled, so it now says only
+what remains true — the comparison is read off someone else's paper, on a
+different vocabulary and test set.
+
+## 2026-09-03 — §8 reviewed: all three examples verify, and a duplicated opening removed
+
+Every claim in the section checks out against the record, and each example maps
+to a different falsification mechanism, which is the section's actual argument:
+
+  reranker  draw 0 +0.0215 [+0.0000, +0.0433], sign reversed by draw 2  -> a second draw
+  judge     28.0/15.6 -> 25.4/23.6 once the duplicated prompt was fixed -> a corrected prompt
+  voting    +5 correct on dev; on test re-found 8, all 8 wrong          -> a held-out split
+
+**The one defect was a duplicated opening.** §8 began "No layer announced that it
+had stopped working. Each ran, returned, wrote its field, passed its tests" —
+which is §7's closing subsection's premise in different words ("Every layer passed
+its own tests, did what its documentation promised, and returned"), two sections
+apart. §7 keeps it, because it is setting up the wiring finding; §8 now opens on
+its own claim instead: none of it came from a failing test, it came from
+re-measuring things that had already looked fine.
+
+**Kept separate from §7, considered and rejected.** They look adjacent and are
+not: §7 is about STRUCTURAL blindness — nothing read the verdicts — and §8 is
+about MEASUREMENT discipline — good numbers went unexamined. Folding them blurs
+two distinct failure modes into one. At 111 words §8 is the shortest section in
+the article but it is complete rather than a stub: a claim, a figure, three
+verified examples and the line that carries it.
+
+## 2026-09-03 — "What an AI reliability ladder is for" reviewed: FIGURE 2'S SECTION POINTERS WERE ALL STALE
+
+The article's second figure is its navigation aid — "how to read this article" —
+and after today's restructure (four sections merged or deleted, the rest
+renumbered) **every section pointer in it was wrong**:
+
+  Q1 five models      §2       -> §3, 4
+  Q2 seven rungs      §4, 5, 7 -> §4-7
+  Q3 two corpora      §6       -> §4, 5
+  the evidence        §3, 9    -> §2, 3, 8
+  the outcome         §10      -> correct, by luck
+
+A stale pointer in a navigation figure sends a reader to the wrong evidence,
+which is worse than no figure. A comment now sits at the top of the `.dot` saying
+the pointers move when sections do.
+
+Two content corrections in the same figure. **"paid judge separates
+1.1-1.2x"** is the withdrawn blind-judge measurement — now marked "withdrawn,
+§6". **"~20 arms, mostly negative"** — §2 says twenty changes, TEN shipped, so
+"mostly negative" was wrong; now "20 arms, 10 shipped". The outcome box also
+claimed checking and judging belong away from the model, which §10's table has
+since downgraded to `unproven` and `not yet known`; the figure now says
+"Checking and judging: open."
+
+**The prose overclaimed too, in one word.** "The staircase is not there" is the
+article's thesis stated flatly. After this review we know one of the six layers
+never ran on this corpus (self-correction had no trigger) and another was
+measured blind (the judge). So we tested THIS stack, not stacking. Now: "On our
+task, the staircase is not there", followed by the caveat, and "what follows is a
+reckoning with the stack we built, not a proof about stacking." The claim the
+article can defend is the narrower one, and stating it in the opening costs
+nothing — §7 already carries the detail.
+
+## 2026-09-03 — "why an LLM at all, when supervised methods do this better" — added to the front matter as scope, not excuse
+
+Owner's question: should the article say the task might suit traditional ML
+better, given the goal is testing LLM reliability? Yes, and the article had no
+answer to the obvious reader objection. Added to "The task, and the result",
+where a reader first asks it.
+
+Framed as the reason for the choice rather than as a defence of the numbers. The
+defensive version ("our scores are low because we used the wrong tool") weakens
+the work; the real version is stronger: **the question is whether the scaffolding
+people already wrap around general-purpose models makes their answers defensible,
+and grading "defensible" needs a task with an answer key and a controlled
+vocabulary.** This task has both, which is why it was chosen. CONORM's 0.72
+against our 0.20 is named up front with a pointer to §9 rather than restated
+without its caveats.
+
+**The second paragraph is the more important one and it was not stated anywhere.**
+The choice bounds the result: the article's strongest finding is that a free
+vocabulary check beats every paid layer above it, and **on a task with no
+vocabulary there is no free check to run.** §11 has the narrower version of this
+(whether the ~85% ACCEPT lane generalises beyond SNOMED) and §5 has the
+precondition, but nothing said plainly in the opening that the headline finding
+is conditional on the task having a checkable answer space at all.
+
+## 2026-09-03 — "The task, and the result" rewritten to reflect the reviewed article
+
+The section had been written before the review and still framed the article it
+opened as an unqualified one. Rewritten against what the body now says.
+
+**The multi-run `[PENDING]` box shrank from ~180 words to one clause.** It was
+written this morning, and §12's Limitations acquired the same caveat this
+afternoon — so the article was making its largest disclosure twice, at length,
+in two places. The front matter now states it in a sentence and points at §12,
+which is the right division: the opening says a reader cannot yet hold one set of
+numbers in their head, and Limitations lists everything provisional. Article
+PENDING markers 8 -> 7.
+
+**A new paragraph states the result the body actually reached**, which the
+opening had been leaving to the reader to assemble: the error rate fell by a
+factor of fifteen and **not one of the six layers above the model is why** — it
+fell because a free string comparison sorted the answers and a later layer
+declined to ship what it could not vouch for, and everything that cost tokens
+either could not be tested, could not be shown to help, or had been measured
+wrongly. That last clause is the review's own finding about the judge, stated in
+the opening rather than buried in §6.
+
+**The three reading caveats are consolidated into one paragraph** — split
+labelling, the multi-run problem, and the task-choice bound — where they had been
+scattered across a box and two trailing paragraphs.
+
+486 words, from ~560.
+
+## 2026-09-03 — Figure 2 and its section: two more defects created by the day's own deletions
+
+Both were caused by cutting elsewhere, which is the pattern worth recording: a
+deletion in the body leaves a dangling reference in a summary figure, and the
+figure is the last place anyone looks.
+
+1. **"spine = full stack - 518,590 tok" used a term the article no longer
+   contains.** The word "spine" for the stripped stack appeared only in the
+   ablation subsection, deleted this morning; a grep now finds it in the figure's
+   FILENAME and nowhere in the prose. Replaced with the article's current
+   phrasing: "removing all three paid layers: one answer in 43 changed".
+2. **"CADEC ships 21% of answers" is a DEV figure sitting three inches above a
+   front-matter box that says 23% on held-out.** Both correct, different splits,
+   and the figure did not say which — so it read as a contradiction in the two
+   things a reader sees first. Now labelled "(dev)".
+
+Also removed: the caveat added to this section earlier today ("one never ran at
+all on this corpus and one we measured wrongly"). The rewritten "The task, and
+the result", which immediately follows, now says the same thing at more length —
+so the qualifier "On our task" stays, the explanation moves to the section whose
+job it is, and the two front-matter sections stop repeating each other.
+
+## 2026-09-03 — the five takeaways rewritten. Three were stale as flagged; TWO MORE defects were found on the way
+
+The three known ones, all fixed:
+
+  2  claimed CHECKING and JUDGING "measured better when taken away from the
+     model". Neither did — self-correction never fired and the judge was measured
+     blind. Both are now named as open, with the reason.
+  3  "beat the LLM judge by 3x" compared a well-measured free check against a
+     withdrawn one. Now says so in the same sentence.
+  5  cited an ablation the article no longer describes, and "saved 518,590
+     tokens" double-counted against §7's own cost column. Now "for the 518,590
+     tokens they cost", which is the same number as a price rather than a saving.
+
+**TWO MORE, FOUND WHILE REWRITING.**
+
+**Takeaway 1 was FALSE as written.** "The one that varied ... cost a spread wider
+than every improvement we shipped." The spread is 2.1 F1 points; §2's table ships
++4.4, +5.7 and +6.2. The claim is true of two shipped arms and false of three.
+Replaced with what the number actually supports: 2.1 points is "enough noise to
+swallow most of the twenty changes we tested", which is the point that mattered
+and happens to be true.
+
+**Takeaway 5's error rates appear NOWHERE ELSE — 62.9 and 4.0.** Not in the
+article body, not in `docs/decisions.md`. The recorded pair for
+`audit-full-dev-1` is **63.3 -> 4.03**; the body's other pair is 59.6 -> 3.8 on
+test. Rounded to "63 per 100 to 4", which matches the recorded dev run the same
+sentence's 196-of-248 comes from. **Fifth unsourced figure this review has
+found**, and the first to appear in the article's most-read box.
+
+Added to takeaway 5 rather than made a sixth: **none of it made the system better
+at the task, because no layer can propose a mention the extractor missed.** That
+is the article's sharpest structural finding and it was reachable only by reading
+to §7.
+
+## 2026-09-03 — final consistency pass: two defects created by the day's own restructuring
+
+Swept the article for numbers that drifted apart during the review. Two found,
+both caused by edits made today rather than by anything older.
+
+**1. §2's heading still said "Seventeen changes to the one we picked"** while its
+closing paragraph said "Twenty changes, ten shipped". Three arms were added to
+that table today when §8 was deleted into it; the paragraph was updated and the
+heading was not. The table has 20 data rows, so the heading was the wrong one.
+
+**2. §7 DECLARED NO SPLIT.** It carries dev figures throughout — 21% coverage,
+196 of 248 routed, 518,590 tokens, 0.808 answered accuracy — while the front
+matter's result box reports 23% on held-out. §6 opens with "Everything in this
+section is the development split — 248 records, 40 documents"; §7 was split out
+of §6 this morning and **did not inherit that sentence**. So a reader met dev
+coverage in §7 with no label, three sections after a held-out number that
+disagrees with it. §7 now opens with the declaration and names the discrepancy
+explicitly.
+
+That second one is the sharper lesson and belongs with the figure sweep: **when a
+section is split, the scope declarations stay with the half that kept the
+opening.** Nothing warns you — both halves read correctly on their own.
+
+Verified consistent and unchanged: all three uses of 0.204 are the held-out
+result, all eight ~85% claims are the ACCEPT lane, 518,590 and "196 of 248" agree
+across the takeaways and §7, 2.1 points agrees across §2, §3 and §10, and all
+seven remaining [PENDING] markers still describe live gaps.
+
+## 2026-09-03 — the general/domain split named in §10, and our own data says something sharper than the usual claim
+
+Owner's point: domain expertise matters, and a general-purpose LLM finds
+domain-specific questions hard. Supported — and the article had never stated the
+split even though its results are organised around it. Added before §10's table,
+where it makes the table's logic explicit instead of leaving a reader to infer it.
+
+**The split is already in the numbers.** Detection is ordinary English
+comprehension; coding is specialist knowledge. On the held-out split the model
+finds four mentions in five (0.808 overlap) and correctly codes about one in three
+(0.392 exact). Good at the general half, poor at the domain half.
+
+**But the plain version of the claim is one our evidence contradicts.** "Use a
+domain model" was tested twice and failed twice — SapBERT is measurably the better
+retriever and made the system worse; BioMistral returned 3 predictions against 226
+gold. Both are already rows in §2's table, so the paragraph names them in one
+sentence rather than re-arguing them.
+
+**The sharper finding, and the one written:** the domain knowledge was never
+missing. The retriever puts the right concept on the menu 87% of the time and the
+model takes it ~30% of the time, choosing line one 19.5% of the time largely
+because it is first. **The expertise this task needs is not in the model, we could
+not put it there, and it is already in the vocabulary** — which is why the free
+check works and why the division of labour lands where it does. That is a
+stronger claim than "domain questions are hard for LLMs" and it is what our data
+shows.
+
+§10 793 -> 971 words; the middle paragraph was cut by half on a second pass
+because it restated §2's table.
+
+## 2026-09-03 — the takeaways REBUILT from the article's argument rather than patched
+
+Owner still did not like them after the morning's repair pass, which is fair: that
+pass fixed five defects without asking whether the five claims were the right
+five. Rebuilt by extracting every bolded claim in the article (97 of them) and
+choosing the load-bearing ones.
+
+**What the new five are, and why:**
+
+  1  the only layer that paid was free — the article's DISTINCTIVE claim (§9: "we
+     have not found that comparison published"), evidenced by the removal test,
+     which is judge-independent
+  2  its precondition, one query, 0 of 351 on FiNER — the honest limit on (1)
+  3  the domain knowledge is in the vocabulary, not the model — the EXPLANATION
+     for (1), added to §10 only today, and the deepest thing the article now says
+  4  nothing above the extractor made the system better, and the number that
+     improved was measuring something else — merges the precision/yield illusion
+     with the structural ceiling, since both are "it looks better than it is"
+  5  every measurement error we made flattered us — carries the noise floor, the
+     reproducibility finding and the self-critique in one
+
+**What was dropped, and where it went.** "Reproducibility is a model choice"
+survives inside (5) as the reason the floor is a choice. "The model should read
+the text and nothing else" survives inside (3), now with the mechanism attached
+rather than asserted. Both were standalone takeaways carrying facts rather than
+arguments.
+
+**Two errors caught while writing, one of them mine.** Takeaway 1 quoted the 3x
+margin without noting the judge was handicapped — now qualified inline, and the
+gap is an upper bound on the free check's advantage rather than a floor. And I
+wrote "0 of 704" for FiNER's ACCEPT lane from memory; **the article reports 351
+records** (ACCEPT 0, BAND 350, REJECT 1), and 704 is a different run. That would
+have been the sixth unsourced number in this article and the first introduced
+during its own review.
+
+## 2026-09-03 — the stability finding promoted into takeaway 5, and the owner remembered a better number than the one I had used
+
+Owner: the stability result is a good one — four of five models identical across
+three runs, and the fifth agreeing with itself "around 80% of the time". That 80%
+is real and it is **83.9%**, but it is NOT the number the article had been leading
+with. §3 reports three summary figures and they are not interchangeable:
+
+    62.8%  full consensus — same span AND same code
+    71.5%  all three runs propose the same span
+    83.9%  all three agree on the CODE, where all three found the mention
+
+The article's prose used the first ("nearly two mentions in three") and the
+takeaway had inherited nothing at all. **The third is the more informative one**,
+because the pair 62.8 / 83.9 decomposes the instability: where the model finds
+the same mention it usually codes it the same way, so **what varies is mostly the
+reading, not the labelling.** That is the general/domain split from §10 appearing
+in the nondeterminism data, and neither section currently notes that they are the
+same shape.
+
+Takeaway 5 rewritten around it. What it displaced — the three named measurement
+errors, the blind judge, the reranker's one-draw interval, the voting gain that
+reversed — survives as one clause here and in full in §8, which exists to tell
+that story with its examples.
+
+## 2026-09-03 — the header block said "No claim is open" while the article carried seven PENDING markers
+
+Owner asked whether the title block and Figure 1 needed updating after the
+review. Both did, and the header was the worst single line in the article.
+
+**"No claim is open" was false**, and had been since the first PENDING marker
+went in. The article now carries seven, including one that makes every rung 4
+result provisional. Replaced with "Where this stands", which says what is
+settled, what is open, and names the largest open item rather than claiming
+there is none.
+
+**"and it held" was also false as of today.** The ceiling claim was verified
+against CONORM's paper this morning and it held only in the weaker form: three
+fine-tuned taggers score 70.4, 71.7 and 74.4 span-exact on CADEC detection, so
+the best supervised system clears our ~0.70 cap by four points. The header now
+says so.
+
+**Two stale section pointers.** The block cited "§9" twice for the
+retrieval-is-a-ceiling material, which moved to §2 when §8 was deleted into it;
+§9 is now the literature section. Both corrected, and written as "section N"
+rather than "§N" to match the rest of the article's prose.
+
+**"Seven reliability layers around a language model" -> "Six".** The article
+counts six layers ABOVE the model plus rung 0, and says so in the next section.
+The subtitle had been contradicting it since the restructure.
+
+**FIGURE 1 carried the unsourced error pair.** Its refuse row read "62.9 -> 4.0",
+the same numbers removed from takeaway 5 an hour earlier for appearing nowhere in
+the article or in this file. Now "63 -> 4 err / 100". Three other rows updated to
+what the review established: self-correct "fired 1 of 248" -> "never had a
+trigger", vote "-0.004" -> "no consistent sign" (the -0.004 is one draw), and
+judge "read by nothing" -> "read by nothing - provisional". `docs/figures/fig0.py`
+regenerated; matplotlib added to the venv, which did not have it.

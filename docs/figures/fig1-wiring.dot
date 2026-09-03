@@ -1,36 +1,61 @@
-digraph wiring {
-  rankdir=TB;
-  bgcolor="white";
-  node [shape=box style="rounded,filled" fontname="Helvetica" fontsize=13 margin="0.22,0.14"];
-  edge [fontname="Helvetica" fontsize=11 color="#555555"];
-  graph [nodesep=0.5 ranksep=0.45];
+// VERDICT FLOW. Redrawn twice on 2026-09-03.
+//
+// RULE FOR THIS FIGURE, and it is the owner's: an arrow exists only where a rung
+// genuinely READS or WRITES. Execution order is not a link and is not drawn — the
+// previous version drew it as a dotted spine, which made it look as though the
+// judge consumes the vote. It does not.
+//
+// Rung 0 is absent because it writes no verdict; it produces the records every
+// rung then operates on. Rung 4's read of `r1_verdict` is NOT drawn: it happens
+// (r4.py:267) but only to build the aggregate report, never to judge.
+// `r4_verdict` has a reader ONLY under `abstain_on_judge_fail`, which is off in
+// the shipped configuration — drawn dashed and labelled as such.
+//
+// Sources: r1 writes (r1.py) · r2 reads as its trigger (r2.py:347) and rewrites
+// (r2.py:451) · r3 rewrites (r3.py:218) · r5 reads (r5.py:82) · r6 takes r5's
+// ABSTAIN residue with checks.withheld (r6.py:94).
+digraph verdicts {
+  rankdir=TB; bgcolor="white"; ranksep=0.55; nodesep=0.4;
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=11
+        fillcolor="#eef1f2" color="#c8d1d5" penwidth=1.2];
+  edge [fontname="Helvetica" fontsize=9 arrowsize=0.8];
 
-  R0 [label="0 · extract   ·   bare model   ·   164,897 tokens" fillcolor="#ffffff" color="#444444"];
-  R1 [label="1 · check   ·   vocabulary   ·   0 tokens" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
-  R2 [label="2 · self-correct   ·   fired 1 of 248" fillcolor="#fdf0c8" color="#946c00"];
-  R3 [label="3 · vote   ·   425,355 tokens   ·   152 s p95" fillcolor="#fdf0c8" color="#946c00"];
-  R4 [label="4 · judge   ·   92,687 tokens" fillcolor="#fdf0c8" color="#946c00"];
-  R5 [label="5 · refuse   ·   ships 21%" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
-  R6 [label="6 · person   ·   196 of 248" fillcolor="#ffffff" color="#444444"];
+  R1 [label="1 · check\nfree" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  R2 [label="2 · self-correct"];
+  R3 [label="3 · vote"];
+  R4 [label="4 · judge" fillcolor="#f7e3e3" color="#a33333" penwidth=2];
+  R5 [label="5 · refuse" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  R6 [label="6 · person"];
 
-  R0 -> R1 -> R2 -> R3 -> R4 -> R5 -> R6;
+  V [label="r1_verdict\nACCEPT · BAND · REJECT" style=filled fillcolor="#e3f0e6"
+     color="#2d6a4f" penwidth=2.5 shape=box];
+  D2 [label="r2_declined" style=filled fillcolor="#f7e3e3" color="#a33333" penwidth=1.6 fontsize=10];
+  D3 [label="r3_unanimous_none" style=filled fillcolor="#f7e3e3" color="#a33333" penwidth=1.6 fontsize=10];
+  D4 [label="r4_verdict" style=filled fillcolor="#f7e3e3" color="#a33333" penwidth=1.6 fontsize=10];
+  NR [label="no reader" shape=plaintext fontcolor="#a33333" fontsize=11];
 
-  F2 [label="r2_declined" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
-  F3 [label="r3_unanimous_none" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
-  F4 [label="r4_verdict" fillcolor="#f6f6f6" color="#999999" style="rounded,filled,dashed" fontsize=12];
-  NR [label="read by nothing" fillcolor="#fbe4e4" color="#a33333" penwidth=2.5 fontsize=13];
+  R1 -> V  [color="#2d6a4f" penwidth=2.4 label="writes"];
+  V  -> R2 [color="#2d6a4f" penwidth=2.0 label="reads — its only trigger"];
+  R2 -> V  [color="#2d6a4f" penwidth=2.0 label="re-runs the check, overwrites"];
+  R3 -> V  [color="#2d6a4f" penwidth=2.0 label="re-runs the check, overwrites"];
+  V  -> R5 [color="#2d6a4f" penwidth=3.0 label="reads — the whole decision"];
+  R5 -> R6 [color="#2d6a4f" penwidth=2.4 label="the withheld queue"];
 
-  { rank=same; R2; F2; }
-  { rank=same; R3; F3; }
-  { rank=same; R4; F4; }
+  R2 -> D2 [color="#a33333" penwidth=1.6 style=dashed];
+  R3 -> D3 [color="#a33333" penwidth=1.6 style=dashed];
+  R4 -> D4 [color="#a33333" penwidth=1.6 style=dashed];
+  D2 -> NR [color="#a33333" penwidth=1.4 style=dashed];
+  D3 -> NR [color="#a33333" penwidth=1.4 style=dashed];
+  D4 -> NR [color="#a33333" penwidth=1.4 style=dashed
+            label="unless abstain_on_judge_fail,\lwhich ships off\l" fontcolor="#a33333"];
 
-  R2 -> F2 [style=dashed color="#aaaaaa" label="writes"];
-  R3 -> F3 [style=dashed color="#aaaaaa" label="writes"];
-  R4 -> F4 [style=dashed color="#aaaaaa" label="writes"];
-  F2 -> NR [color="#a33333"];
-  F3 -> NR [color="#a33333"];
-  F4 -> NR [color="#a33333"];
-
-  R1 -> R5 [color="#2d6a4f" penwidth=3 constraint=false
-            label="  the only verdict\l  rung 5 reads\l" fontcolor="#2d6a4f" fontsize=12];
+  note [shape=none margin=0 label=<
+    <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10">An arrow is a read or a write. Execution order is not drawn, because it moves no verdict.</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10">Rung 0 is absent: it writes no verdict, it produces the records every rung operates on.</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10"><B>The judge touches nothing.</B> It writes a verdict with no reader and its own reading of</FONT></TD></TR>
+      <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10"><FONT FACE="Courier">r1_verdict</FONT> feeds a report, never a decision — so it is drawn with no incoming arrow at all.</FONT></TD></TR>
+    </TABLE>>];
+  NR -> note [style=invis];
+  {rank=same; D2; D3; D4;}
 }
