@@ -28,7 +28,7 @@ digraph accept_cadec {
         <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#946c00"> &#8212;  no term matches  &#8212;&#9654; </FONT></TD>
         <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">12 names for 12063002, among them</FONT><BR/><FONT POINT-SIZE="13"><B>rectal bleeding &#183; rectorrhagia</B></FONT></TD>
       </TR></TABLE></TD></TR>
-    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#a33333"><B>This answer is CORRECT.</B> <FONT COLOR="#5a6b73">"bleed" and "bleeding" are different strings, so nothing can confirm it.</FONT></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#a33333"><B>The code is right; the boundary is not</B> (gold marks &#8220;rectal bleed&#8221;). <FONT COLOR="#5a6b73">"bleed" and "bleeding" are different strings, so nothing can confirm it.</FONT></FONT></TD></TR>
     </TABLE>>];
 
   rej [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#c8d1d5" STYLE="dashed">
