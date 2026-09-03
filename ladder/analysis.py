@@ -355,3 +355,63 @@ def consensus(draws: list[list[Record]]) -> dict[str, Any]:
         "same_span_all_three_pct": _pct(same_span_all, n),
         "same_code_given_all_found_pct": _pct(same_code_given_all, all_found),
     }
+
+
+# --- item 8: what the looser lexical setting admits ------------------------------
+
+
+def lane_moves(base_records: list[Record], arm_records: list[Record],
+               rows: Iterable[dict[str, Any]], vocab: Any) -> dict[str, Any]:
+    """The records whose rung 1 verdict differs between a base run and the
+    `lexical_mode: contained` arm (plan item 8), each with the vocabulary term
+    the looser test matched and the DIRECTION of the subset: `span_in_term`
+    (the span's words are a subset of a term's) or `term_in_span` (a term's
+    words are a subset of the span's — the model quoted more than the concept
+    names, section 1's boundary problem). Outcomes come from the arm's rung 1
+    state rows, so 'correct' here is span-exact against gold."""
+    from ladder.registry import normalise_term
+
+    state = {r["record_id"]: r for r in rows}
+    base = {r.record_id: r for r in base_records}
+    out = []
+    by_dir: dict[str, dict[str, int]] = {}
+    for rec in arm_records:
+        b = base.get(rec.record_id)
+        before = b.checks.get("r1_verdict") if b else None
+        after = rec.checks.get("r1_verdict")
+        if before == after:
+            continue
+        want = normalise_term(rec.text)
+        toks = set(want.split())
+        # The CLOSEST matching term — fewest extra words — not the first one
+        # the vocabulary happens to list: |Gonalgia| carries both "knee pain"
+        # and "pain of knee region", and only the first says what the span
+        # was one word short of.
+        direction, term, extra = None, None, []
+        best: int | None = None
+        for t in vocab.terms(rec.sct):
+            got = normalise_term(t)
+            other = set(got.split())
+            if got == want:
+                direction, term, extra, best = "exact", t, [], 0
+                break
+            if toks and toks < other:
+                cand = ("span_in_term", t, sorted(other - toks))
+            elif other and other < toks:
+                cand = ("term_in_span", t, sorted(toks - other))
+            else:
+                continue
+            if best is None or len(cand[2]) < best:
+                direction, term, extra = cand
+                best = len(extra)
+        row = state.get(rec.record_id, {})
+        entry = {"record_id": rec.record_id, "text": rec.text, "sct": rec.sct,
+                 "sct_label": rec.sct_label, "before": before, "after": after,
+                 "direction": direction, "term": term, "extra_words": extra,
+                 "outcome": row.get("outcome"), "outcome_overlap": row.get("outcome_overlap")}
+        out.append(entry)
+        d = by_dir.setdefault(direction or "none", {"n": 0, "correct": 0, "on_no_gold": 0})
+        d["n"] += 1
+        d["correct"] += entry["outcome"] == "correct"
+        d["on_no_gold"] += entry["outcome_overlap"] == "unmatched"
+    return {"moved": len(out), "records": out, "by_direction": by_dir}

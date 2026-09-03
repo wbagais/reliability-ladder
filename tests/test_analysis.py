@@ -276,3 +276,45 @@ def test_outcome_counts_tally_a_rung():
             {"rung": 0, "record_id": "b", "outcome": "unmatched"},
             {"rung": 0, "record_id": "c", "outcome": "correct"}]
     assert analysis.outcome_counts(rows, 0) == {"correct": 2, "unmatched": 1}
+
+
+# --- item 8: what the looser lexical setting admits -------------------------
+
+
+class _Vocab:
+    TERMS = {"1": ["drowsy", "drowsiness"], "2": ["pain of knee region", "knee pain"]}
+
+    def terms(self, code):
+        return self.TERMS.get(str(code), [])
+
+
+def test_lane_moves_name_each_admitted_record_with_its_direction():
+    """Plan item 8: `contained` admits 40 records `exact` leaves in BAND — 15
+    correct, 25 not — and nobody had looked at what separates them. Each move
+    is named with the matched term and which way the subset ran: the span's
+    words inside a term (`span_in_term`, "bit drowsy" vs "drowsy" — wait, the
+    other way), or a term's words inside the span (`term_in_span`), which is
+    the suspicious one: the model quoted MORE than the concept names."""
+    from ladder import analysis
+
+    base = [rec("a", sct="1", r1_verdict="BAND"), rec("b", sct="2", r1_verdict="BAND"),
+            rec("c", sct="1", r1_verdict="ACCEPT")]
+    base[0].text = "bit drowsy"          # term "drowsy" ⊆ span  -> term_in_span
+    base[1].text = "knee"                # span ⊆ term "knee pain" -> span_in_term
+    base[2].text = "drowsy"
+    arm = [rec("a", sct="1", r1_verdict="ACCEPT"), rec("b", sct="2", r1_verdict="ACCEPT"),
+           rec("c", sct="1", r1_verdict="ACCEPT")]
+    for r, t in zip(arm, ("bit drowsy", "knee", "drowsy")):
+        r.text = t
+    rows = [{"record_id": "a", "outcome": "correct", "outcome_overlap": "correct"},
+            {"record_id": "b", "outcome": "unmatched", "outcome_overlap": "unmatched"},
+            {"record_id": "c", "outcome": "correct", "outcome_overlap": "correct"}]
+    m = analysis.lane_moves(base, arm, rows, _Vocab())
+    assert m["moved"] == 2
+    a = next(x for x in m["records"] if x["record_id"] == "a")
+    assert a["direction"] == "term_in_span" and a["term"] == "drowsy" and a["extra_words"] == ["bit"]
+    assert a["outcome"] == "correct"
+    b = next(x for x in m["records"] if x["record_id"] == "b")
+    assert b["direction"] == "span_in_term" and b["term"] == "knee pain" and b["extra_words"] == ["pain"]
+    assert m["by_direction"]["term_in_span"] == {"n": 1, "correct": 1, "on_no_gold": 0}
+    assert m["by_direction"]["span_in_term"] == {"n": 1, "correct": 0, "on_no_gold": 1}
