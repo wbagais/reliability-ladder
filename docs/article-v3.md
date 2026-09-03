@@ -1757,17 +1757,19 @@ And six practices, each of which we learned by getting it wrong first:
   precondition before you build.** One query would have told us the free check
   had zero coverage on our second corpus.
 - **Measure your floor before you measure an improvement.** Three identical runs
-  of our unchanged system differ by 2.1 points of F1. Every arm we ran below that
-  was noise we would have shipped. The same discipline applies to the probe that
-  authorises an arm: run it on the denominator the arm will be scored on, not a
-  larger one that happens to be available.
+  of our unchanged system differ by 2.1 points of F1, which makes most of what we
+  tried unreadable on its own. It is easier to state that rule than to obey it:
+  two arms we shipped sit below that floor, and their rows say so. The same
+  discipline applies to the probe that authorises an arm — run it on the
+  denominator the arm will be scored on, not a larger one that happens to be
+  available.
 - **Test the free layer against your answer key.** Every rejection there is false
   by construction, so you get its false-positive rate for nothing. Ours went from
   9.3% to 0.13% without touching a model.
 - **Grep for the readers of every field you write**, and when you find an orphan,
   measure it before you adopt it rather than assuming it would have paid. Forty
-  lines of regex over our own source named all three of the dead layers we had
-  found by hand.
+  lines of regex over our own source named all three orphaned fields we had found
+  by hand, and left the 55 live ones alone.
 - **Judge each layer against its own purpose, not against accuracy** — and print
   coverage and yield beside every accuracy figure. Abstaining always raises
   precision, so any layer that withdraws answers will look good on the wrong
@@ -1780,8 +1782,11 @@ And six practices, each of which we learned by getting it wrong first:
 The system ships about a quarter of its answers, at four errors per hundred
 instead of sixty, and hands the rest to a person. Not what we set out to build.
 And one limit is worth being plain about, because it is structural rather than a
-shortfall we could engineer away: **none of this made the system better at the
-task.** No layer we built can propose a mention the extractor missed — not even
+shortfall we could engineer away: **nothing above the extractor made the system
+better at the task.** Improving the extractor did — a worked example and a
+negation instruction were worth about six points each — but that is prompt
+engineering, not reliability engineering, and it is the part everyone already
+does. No layer we built can propose a mention the extractor missed — not even
 the human desk, which can only choose codes for spans it was handed. Reliability
 engineering of this kind makes a system's answers more trustworthy. It does not
 make the system see more. That was still worth having, and it is not what we

@@ -4308,3 +4308,35 @@ does not make the system see more.
 
 One dangling cross-reference fixed ("Section 8 argues..." in What we could not
 settle). Article 17,750 words.
+
+## 2026-09-03 — §10 audited against the rest of the article: the advice was giving rules we had broken and a conclusion wider than our evidence
+
+Owner asked whether the division-of-labour table and the practices still held
+after the review. Four corrections to the table and three to the prose. The table
+ones are in the previous entry; these are the prose.
+
+**1. THE ADVICE GAVE A RULE THE ARTICLE ITSELF BREAKS.** "Measure your floor
+before you measure an improvement. Every arm we ran below that was noise we would
+have shipped" — except §2's table shows we DID ship two arms below the 2.1-point
+floor: the span trimmer at +0.4 and its tuned threshold at +1.4, whose own row
+says "interval contains zero". Rewritten to own it: "It is easier to state that
+rule than to obey it: two arms we shipped sit below that floor, and their rows
+say so." A practice list that describes a discipline the article did not follow
+is worse than no practice list.
+
+**2. THE CLOSING OVERREACHED BY ONE WORD.** "None of this made the system better
+at the task" reads as "nothing we did helped", and §2 records +5.7, +6.2 and
++4.4 points from rung 0 work. Narrowed to "nothing ABOVE THE EXTRACTOR made the
+system better at the task", with the distinction made explicit: improving the
+extractor did work, but that is prompt engineering rather than reliability
+engineering, and it is the part everyone already does. That sharpens the claim
+instead of weakening it — the article's subject is the layers above rung 0, and
+saying so removes the only sentence a hostile reader could call self-refuting.
+
+**3. A slip:** the wiring regex named the three orphaned FIELDS, not the layers.
+Corrected, with the discriminating detail restored — it left the 55 live fields
+alone, which is what makes it a check rather than a grep.
+
+Verified and unchanged: 2.1 points across three identical runs (§3), the free
+check's 9.3% -> 0.13% error floor from the gold replay, 21% coverage at 4 errors
+per 100 against 60, and the zero-coverage precondition on FiNER (§5).
