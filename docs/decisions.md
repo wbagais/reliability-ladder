@@ -3868,3 +3868,37 @@ the per-record join, plan item 12.
 Also corrected in §9's division-of-labour table: "its confidence was a constant"
 -> "it never reported below 0.95 confidence while being right ~40% of the time",
 which is what the distribution actually shows.
+
+## 2026-09-02 — §6 split in two, three cuts, and rung 5/6 code work registered
+
+§6 had grown to 3,622 words — longer than the whole v2 submission (3,579) — and
+was doing two jobs at once. Split on the owner's call:
+
+  §6  The five resolvers, one at a time   (2,506 w) — rungs 2,3,4,5,6 walked
+  §7  What the stack did as a whole       (1,082 w) — per-layer table, ablation,
+                                                      judge arm, recall ceiling
+
+Sections below renumbered 7->8, 8->9, 9->10, and all five prose cross-references
+updated with them. §6's old title ("What the four paid resolvers bought") was
+already wrong: rungs 5 and 6 cost zero tokens and spend something else.
+
+Three cuts, ~430 words and one figure:
+  1. **fig2-flat DELETED from the article.** Its caption had been amended to say
+     it showed "column one of the table below — the flattering one". A figure
+     that needs a disclaimer, sitting above a table with the same numbers plus
+     coverage, yield, tokens and p95, is redundant. The .png stays on disk,
+     unreferenced. Figures renumbered 16->15, 17->16.
+  2. **The judge-arm's four-row table removed** — every number in it now appears
+     in rung 5's policy table, where it is one row among four settings. Replaced
+     by two sentences carrying the same three draws. The 3.7-correct-destroyed-
+     per-error finding and the three named casualties are kept.
+  3. The recall-ceiling subsection needed no cut; it was already prose.
+
+Registered as plan item 17, the four code changes the review exposed — (a) the
+desk cannot correct a SPAN, which is why the oracle stops at 0.444 and why that
+ceiling is a fact about our tool; (b) run rung 0's pick over GOLD SPANS to turn
+the estimated ~0.291 into a measurement and settle the annotation-vs-coding
+division of labour; (c) the nine `(-1,-1)` records that are unreviewable by
+construction need a disambiguating key or a counted disposition; (d) `tau` is a
+dial that cannot turn — retire it with a test that keeps it gone, or keep it and
+put the confidence distribution in the manifest note as the reason.

@@ -1264,9 +1264,10 @@ read** — and that is a property of our prompt, not of the task.
 
 ---
 
-## 6. What the four paid resolvers bought
+## 6. The five resolvers, one at a time
 
-We built four resolvers on the residue and expected a staircase.
+We built five resolvers on the residue and expected a staircase. Three cost
+tokens; two are free and spend something else.
 
 **Everything in this section is the development split** — 248 records, 40
 documents. The held-out split was spent on one frozen run and cannot arbitrate an
@@ -1413,7 +1414,7 @@ prompt, and it stood for five phases.
 > measure a judge that could not see what it was judging.
 
 None of which changed a shipped answer, because **nothing reads the verdict.**
-Section 7 is about how that survived five phases of testing.
+Section 8 is about how that survived five phases of testing.
 
 **Rung 5, refusal.** Zero model calls, and no judgement of its own. It reads the
 free check's verdict — recomputed, because rungs 2 and 3 re-run rung 1 after they
@@ -1517,16 +1518,17 @@ and they are unusually portable — ids, offsets, codes and vocabulary labels,
 never corpus text, so they travel where CADEC cannot. What they would be worth
 is a question a corpus chosen *because* it has an answer key is the wrong place
 to ask; we note the asset and leave it as future work. If we did aim it, we
-would aim it at the pick — the table in section 9 has four separate rows saying
+would aim it at the pick — the table in section 10 has four separate rows saying
 that is where this system loses, and a correction records exactly which line of
 the menu was right.
 
-![Figure 15](figures/fig2-flat.png)
+---
 
-*Fig. 15: Accuracy on answered records is flat through four layers and falls at
-voting. It rises only when the system stops answering. **The plot shows column
-one of the table below — the flattering one.** Plotted as yield, the final step
-falls rather than rises. Source: author-created with Matplotlib.*
+## 7. What the stack did as a whole
+
+Five resolvers, measured one at a time above. Stacked, they behave differently
+from the sum of those readings — and the three measurements that follow are the
+ones that decide whether any of it was worth building.
 
 | layer (development split) | answered accuracy | coverage | **yield** | tokens | p95 |
 |---|---|---|---|---|---|
@@ -1579,16 +1581,13 @@ hold its base fixed is two experiments wearing one name.**
 
 ### Then we gave the judge the one thing it lacked
 
-The judge's verdict had no reader (section 7). The obvious objection is that it would
+The judge's verdict had no reader (section 8). The obvious objection is that it would
 have paid if connected. So we connected it, off by default, and measured three
 draws.
 
-| | judge off | judge on |
-|---|---|---|
-| coverage | 0.210 / 0.202 / 0.215 | 0.153 / 0.149 / 0.156 |
-| precision on answered | 0.808 / 0.800 / 0.824 | 0.816 / 0.811 / 0.838 |
-| **yield** (correct ÷ all) | 0.169 / 0.161 / 0.177 | **0.125 / 0.121 / 0.131** |
-| to a person | 196 / 198 / 186 | 210 / 211 / 200 |
+Its row is already in the policy table above — the tightest setting, and the
+worst on yield: **0.169 / 0.161 / 0.177 falls to 0.125 / 0.121 / 0.131** across
+three draws, while coverage drops from ~0.21 to ~0.15 and the queue grows.
 
 It withdraws 14, 13, 14 shipped answers to remove **3 errors each time** — about
 **3.7 correct answers destroyed per error caught.** Three it destroyed, all
@@ -1640,16 +1639,16 @@ bounded before it was built. Plan item 15.
 
 ---
 
-## 7. What no single-layer test could see
+## 8. What no single-layer test could see
 
 **Every deferral terminated in a field nothing read.** Self-correction wrote
 `r2_declined`, voting wrote `r3_unanimous_none`, the judge wrote `r4_verdict`. The
 refusal step reads none of the three. No test could catch it, because every layer
 does exactly what its own documentation promises. The hole is *between* them.
 
-![Figure 16](figures/fig1-wiring.png)
+![Figure 15](figures/fig1-wiring.png)
 
-*Fig. 16: Three layers write a verdict; the refusal step reads none of them.
+*Fig. 15: Three layers write a verdict; the refusal step reads none of them.
 Source: author-created with Graphviz.*
 
 **A fix three layers down silently disabled two layers up.** The checks used to
@@ -1667,7 +1666,7 @@ system exists to make.
 
 ---
 
-## 8. Did we try making the model better first?
+## 9. Did we try making the model better first?
 
 Yes — about twenty arms over five months. Six lessons transfer:
 
@@ -1714,7 +1713,7 @@ What the arm shows is that raising it is not the same as improving the result.
 
 ---
 
-## 9. The division of labour
+## 10. The division of labour
 
 The part another team can use tomorrow:
 
@@ -1739,9 +1738,9 @@ The part another team can use tomorrow:
 No layer announced that it had stopped working. Each ran, returned, wrote its
 field, passed its tests.
 
-![Figure 17](figures/fig3-loop.png)
+![Figure 16](figures/fig3-loop.png)
 
-*Fig. 17: The measurement loop. Every dead layer here was found on it. Source:
+*Fig. 16: The measurement loop. Every dead layer here was found on it. Source:
 author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is
@@ -1870,7 +1869,7 @@ to be worth more than any layer that tried to answer them.
   0.017-0.050, a factor of four below the un-adapted `mistral:7b-instruct` on
   the same split. The claim holds in two roles.
 - **We never tested how much of this a dictionary could do, and our own
-  conclusion says we should have.** Section 9 argues the model should read the
+  conclusion says we should have.** Section 10 argues the model should read the
   text and nothing else. We applied that to identifiers and to building the
   candidate list; we did not apply it to the pick. A one-draw probe on the
   development split, run while reviewing this article and reported here rather
@@ -1907,7 +1906,7 @@ to be worth more than any layer that tried to answer them.
   The fix is a few columns — a per-record, per-rung table with the code, the
   verdict and the outcome — and it is registered. **A rung that cannot say what
   it did to an individual record cannot be credited or blamed for the
-  aggregate**, which is the same defect section 7 describes in the code, one
+  aggregate**, which is the same defect section 8 describes in the code, one
   level up in the measurement.
 - **We assume one code is right, and we have not checked that.** The scorer
   credits only the code in the answer key. But `"knee pain"` coded

@@ -216,7 +216,7 @@ stamina example in §6 that item 7 says is stale.
 ## Required before the article ships
 
 Everything here either blocks a claim the draft makes or removes a caveat it
-carries. Items 1, 3, 5, 6, 9, 10, 14 and 16 need runs; 2, 4, 7, 8, 11 and 15 do not. Item 3 is the only one
+carries. Items 1, 3, 5, 6, 9, 10, 14, 16 and 17(a,b) need runs; 2, 4, 7, 8, 11, 15 and 17(c,d) do not. Item 3 is the only one
 that goes beyond unblocking — it makes the model findings two-corpus instead of
 one, and the article is shippable without it, with its CADEC-only caveats
 intact.
@@ -706,6 +706,37 @@ intact.
       probe must run on the denominator the arm is scored on.
     - Composes with item 8, which asks *why* `contained` loses lane accuracy.
       Item 8 is the mechanism; this is the decision.
+
+17. **RUNGS 5 AND 6 AS BUILT: four code changes the §6 review exposed.** Raised
+    2026-09-02. (a) and (b) need runs; (c) and (d) do not.
+    - **(a) THE DESK CANNOT CORRECT A SPAN, AND THAT IS THE CEILING.** `r6` takes
+      `code | concept_less | uphold | skip` — every decision picks a code for a
+      span the system already found. So the oracle stops at 0.444 (`detection
+      0.449 x coding 0.990`) and the residual gap is entirely annotation. Add a
+      span-correction decision and the desk can reach the other half. This is a
+      capability gap, not a bug: the number we publish as a ceiling is a fact
+      about our tool, and the article now says so.
+    - **(b) MEASURE THE OTHER DIVISION OF LABOUR.** Run rung 0's pick step over
+      GOLD SPANS and score the codes alone. That isolates coding, turns the
+      estimated ~0.291 into a measurement, and settles the owner's question —
+      *should the human fix the annotation and let the model code?* — with
+      evidence instead of arithmetic. Cheap: no detection in the loop, no desk.
+      Completes the 2x2 (0.131 measured / 0.444 measured / ~0.291 estimated /
+      1.0 trivial).
+    - **(c) NINE RECORDS ARE UNREVIEWABLE BY CONSTRUCTION.** The schema-invalid
+      residue carries unlocated `(-1,-1)` spans; nine records collapse onto two
+      span keys and a span-keyed desk refuses to guess which resolution belongs
+      to which record, so they stay ESCALATE at zero minutes. Sixteen on test.
+      Needs a disambiguating key, or an explicit "unreviewable" disposition that
+      is counted rather than silently escalated.
+    - **(d) `tau` IS A DIAL THAT CANNOT TURN — retire it or defend it in
+      writing.** It is READ, unlike the five settings the 2026-08-31 audit
+      found, but it can never usefully fire: rung 0 reports >= 0.95 confidence on
+      every record (1.0 on 77%) while being right ~40% of the time, so no
+      threshold separates anything. Leaving a live key that is structurally
+      inert is the same defect one layer along from "declared and never read".
+      Either delete it with a test that keeps it gone (the `otel.py` precedent),
+      or keep it and put the distribution in the manifest note as the reason.
 
 ---
 
