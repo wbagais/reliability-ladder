@@ -4594,3 +4594,25 @@ labelling, the multi-run problem, and the task-choice bound — where they had b
 scattered across a box and two trailing paragraphs.
 
 486 words, from ~560.
+
+## 2026-09-03 — Figure 2 and its section: two more defects created by the day's own deletions
+
+Both were caused by cutting elsewhere, which is the pattern worth recording: a
+deletion in the body leaves a dangling reference in a summary figure, and the
+figure is the last place anyone looks.
+
+1. **"spine = full stack - 518,590 tok" used a term the article no longer
+   contains.** The word "spine" for the stripped stack appeared only in the
+   ablation subsection, deleted this morning; a grep now finds it in the figure's
+   FILENAME and nowhere in the prose. Replaced with the article's current
+   phrasing: "removing all three paid layers: one answer in 43 changed".
+2. **"CADEC ships 21% of answers" is a DEV figure sitting three inches above a
+   front-matter box that says 23% on held-out.** Both correct, different splits,
+   and the figure did not say which — so it read as a contradiction in the two
+   things a reader sees first. Now labelled "(dev)".
+
+Also removed: the caveat added to this section earlier today ("one never ran at
+all on this corpus and one we measured wrongly"). The rewritten "The task, and
+the result", which immediately follows, now says the same thing at more length —
+so the qualifier "On our task" stays, the explanation moves to the section whose
+job it is, and the two front-matter sections stop repeating each other.

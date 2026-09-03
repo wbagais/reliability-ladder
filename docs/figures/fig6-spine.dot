@@ -29,14 +29,14 @@ digraph spine {
       <TR><TD BGCOLOR="#ffffff" ALIGN="LEFT">
           free check separates 3&#8211;6&#215;<BR ALIGN="LEFT"/>
           paid judge 1.1&#8211;1.2&#215; &#8212; withdrawn, &#167;6<BR ALIGN="LEFT"/>
-          spine &#8801; full stack &#8722; 518,590 tok<BR ALIGN="LEFT"/>
+          removing all three paid layers:<BR ALIGN="LEFT"/>&#160;&#160;one answer in 43 changed<BR ALIGN="LEFT"/>
           </TD></TR></TABLE>>];
 
   q3 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
       <TR><TD BGCOLOR="#fdf1e0"><B>Q3 &#183; When does that<BR/>stop working?</B><BR/>
           <FONT POINT-SIZE="11">two corpora &#183; &#167;4, 5</FONT></TD></TR>
       <TR><TD BGCOLOR="#ffffff" ALIGN="LEFT">
-          CADEC ships 21% of answers<BR ALIGN="LEFT"/>
+          CADEC ships 21% of answers (dev)<BR ALIGN="LEFT"/>
           FiNER ships 0%<BR ALIGN="LEFT"/>
           precondition: same language?<BR ALIGN="LEFT"/>
           </TD></TR></TABLE>>];

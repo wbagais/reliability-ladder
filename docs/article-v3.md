@@ -47,10 +47,9 @@ published is the comparison *between* them: the layers priced against each other
 on the same records, in the same run, with the free one entered as a competitor
 rather than as preprocessing. So we built all seven and measured each.
 
-**On our task, the staircase is not there.** One caveat we owe up front, because
-it limits how far that generalises: of the six layers above the model, one never
-ran at all on this corpus and one we measured wrongly. So what follows is a
-reckoning with the stack we built, not a proof about stacking.
+**On our task, the staircase is not there.** What follows is a reckoning with the
+stack we built, not a proof about stacking — the next section says why the
+distinction matters.
 
 ![Figure 2](figures/fig6-spine.png)
 
