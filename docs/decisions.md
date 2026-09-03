@@ -3967,3 +3967,48 @@ audit-full-dev-1: ships 52, routes 196 of 248).
 Section retitled "What each layer was for, and whether it delivered". 1,082 ->
 1,200 words; the growth is the BAND-gap subsection. Kept unchanged: the ablation
 (the strongest evidence in the article), the judge arm, and the recall ceiling.
+
+## 2026-09-03 — the judge-arm subsection CUT (it measured the blind judge), and the BAND finding corrected into a sharper one
+
+Two owner corrections, both right.
+
+**1. "BAND has nothing aimed at it" was wrong.** Rung 5 DOES read the lane —
+`abstain_zones: ["BAND"]` is the routing rule. The accurate and more useful
+finding is one level down, and it was confirmed in the code: **rungs 3 and 4 both
+iterate `for rec in records` with no lane filter.** So voting and the
+second-model judge — the two most expensive layers in the system, 518,590 tokens
+between them — were run across the whole batch, including the ~21% of records the
+free check had already vouched for at ~85% accuracy. **The ladder computes a
+triage signal and then does not use it for triage.** §7's subsection retitled
+"We computed a triage signal and then ignored it".
+
+The second half of the original point survives and is kept: nothing is aimed at
+*improving* BAND. Rung 5 withholds it rather than resolving it, so the person at
+the end is the default destination rather than a chosen one — three quarters of
+the batch, routed by exhaustion.
+
+**2. The judge-arm subsection is DELETED.** It reported that wiring rung 4 to
+rung 5 destroys 3.7 correct answers per error caught. That is a measurement of
+the BLIND judge (2026-09-02: `sct_label` appears nowhere in `r4.py`), and §7's own
+role table now says every judge measurement was of a blind judge. Publishing a
+subsection of its conclusions contradicts that flag and invites the reader to
+conclude "judges do not pay", which we cannot support. It can return when the
+judge is measured with the menu and the pick in front of it (plan item 14).
+
+Rescued from the cut, because the lesson is method rather than judge-specific:
+**"abstaining always raises precision"** now sits in §6 beside the policy table,
+where it explains why the two accuracy columns are monotone in opposite
+directions. It was previously stated only inside the deleted subsection.
+
+The one surviving judge-arm number — the "ACCEPT minus judge fails" row of §6's
+policy table — is KEPT, because it is a real setting a deployer might choose, but
+its footnote now carries the blind-judge caveat explicitly and tells the reader
+to read it as the shape of a tightening policy, not as a verdict on judges. Two
+other stale cross-references to "the judge arm" (the §6 scope note and
+Limitations) updated.
+
+KEPT, and the owner agreed: "We deleted all three and re-ran". The ablation is
+the strongest evidence in the article and the only place the three paid layers
+are measured by removal rather than by delta.
+
+§7 is 1,109 words.

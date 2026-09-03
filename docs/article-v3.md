@@ -1271,7 +1271,7 @@ tokens; two are free and spend something else.
 
 **Everything in this section is the development split** — 248 records, 40
 documents. The held-out split was spent on one frozen run and cannot arbitrate an
-ablation, so the ablation and the judge arm live here and stay labelled.
+ablation, so the ablation lives here and stays labelled.
 
 Rung 1 is section 4's and is not repeated. What matters below is that its
 verdicts are what every rung above either acts on or ignores.
@@ -1461,13 +1461,22 @@ task. Four settings, the first three from the same 222 records:
 | **ACCEPT only** — *shipped* | 22% | 0.854 | **0.185** | 174 |
 | ACCEPT minus judge fails ⚠️ | 15% | 0.816 | **0.125** | 210 |
 
-⚠️ *a different run — the three-draw judge arm — and the only row not derived
-from the same records as the others. The `contained` row is one draw.*
+⚠️ *This row is the one setting that consults the second-model judge, measured
+over three separate draws — and it inherits that judge's defect: it was scored
+before we found that the judge is never shown what a code means (section 6).
+Read it as the shape of a tightening policy, not as a verdict on judges.
+Different records from the rows above; the `contained` row is one draw.*
 
 Read down the two accuracy columns. **They point in opposite directions, and
 they are describing the same four systems.** Precision rises monotonically as the
 policy tightens; yield falls monotonically. Neither column is wrong, and neither
 one alone tells you which row to pick.
+
+The asymmetry is not an accident, and it is the one thing to carry away from this
+table: **abstaining always raises precision.** Any layer that withdraws answers
+will look good on the first column, whatever it withdraws and however badly.
+Yield cannot be fooled that way, which is why we quote it beside every coverage
+figure in this article.
 
 What the dial actually trades, moving from the top row to the shipped one:
 
@@ -1537,23 +1546,32 @@ development draw, and on the held-out split it re-found 8 previously unanswered
 records of which **all 8 were wrong.** A layer whose sign changes with the draw
 is not a layer you can plan around, and it is the most expensive thing here.
 
-### The gap nobody built for
+### We computed a triage signal and then ignored it
 
-Lay the lanes and the layers side by side and something is missing.
+The free check sorts every record into a lane, and the lanes have very different
+accuracy — ~85% in ACCEPT against ~29% in BAND. That is a triage signal: it says
+which records need more work. Lay the layers against it and only one of them
+uses it.
 
-| lane | share of records | what is aimed at it |
+| lane | share | which layers act on it |
 |---|---|---|
-| REJECT | ~0% on CADEC | **rung 2**, self-correction |
+| REJECT | ~0% on CADEC | **rung 2** — the one lane it fires on, and it is empty |
 | ACCEPT | ~21% | rung 5 ships it |
-| **BAND** | **~78%** | **nothing** |
+| **BAND** | **~78%** | rung 5 withholds it → a person |
 
-Rung 2 targets the lane that is empty. Rungs 3 and 4 run over everything
-indiscriminately. Rung 5 does not resolve BAND, it withholds it. **The lane
-holding three quarters of all records has no layer designed for it** — it is
-routed to a person by default, which is why the human cost is what it is.
+Rung 5 is the only layer that reads the lane. **Rungs 3 and 4 do not** — both
+iterate over every record, so we ran voting and a second-model judge across the
+whole batch, including the fifth of it the free check had already vouched for.
+The two most expensive layers in the system spent tokens on the records least
+likely to need them.
 
-That is the clearest thing this table says, and we did not see it until we
-stopped scoring every layer on accuracy.
+Nothing is aimed at *improving* BAND either. Rung 5 does not resolve it, it
+withholds it, and the person at the end is the default destination rather than a
+chosen one. **That is where the human cost comes from: three quarters of the
+batch, routed by exhaustion.**
+
+Neither of those was visible while every layer was being scored on accuracy.
+They appeared as soon as the layers were laid against the lanes.
 
 ### We deleted all three and re-ran
 
@@ -1573,30 +1591,6 @@ One trap nearly reversed this. Our spine config predated a set of extraction
 improvements, so running it as it stood would have compared a stripped stack on a
 *worse* extractor against a full stack on a better one. **An ablation that does
 not hold its base fixed is two experiments wearing one name.**
-
-### Then we gave the judge the one thing it lacked
-
-The judge's verdict had no reader (section 8). The obvious objection is that it
-would have paid if connected. So we connected it, off by default, and measured
-three draws — the tightest row of section 6's policy table, and the worst on
-yield: **0.169 / 0.161 / 0.177 falls to 0.125 / 0.121 / 0.131**, while coverage
-drops from ~0.21 to ~0.15 and the queue grows.
-
-It withdraws 14, 13, 14 shipped answers to remove **3 errors each time** — about
-**3.7 correct answers destroyed per error caught.** Three it destroyed, all three
-of which gold agrees with:
-
-> `"drowsiness"` → |Drowsy| &nbsp;·&nbsp; `"memory loss"` → |Amnesia|
-> &nbsp;·&nbsp; `"pain"` → |Pain|
-
-Its withdrawals are 1.11–1.21× more likely to be wrong than what it keeps; the
-free check, on the same records, separates 3.03–3.15×. Precision rose, which is
-the trap: **abstaining always raises precision.** Yield cannot be fooled that
-way, and it fell 26%.
-
-**A layer that is free in tokens and ruinous in human attention looks like a
-bargain in any single-figure summary** — which is why we report three currencies
-separately and refuse to fuse them.
 
 ### None of them can find what rung 0 missed
 
@@ -1919,7 +1913,7 @@ to be worth more than any layer that tried to answer them.
 ## Limitations
 
 The held-out split was spent once, so its intervals are the claim; everything
-after — the ablation, the judge arm, the second corpus — is development-side and
+after — the ablation, the policy settings, the second corpus — is development-side and
 labelled. The judge is a 3.2B model grading a 20B one. Human cost is a **count** of
 records routed, never minutes. **17.3% of CADEC's gold mentions are discontinuous
 spans our extractor cannot express** — gold marks `"loss of"` and `"strength"` as
