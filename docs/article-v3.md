@@ -696,7 +696,7 @@ on FiNER at F1 0.196. And nothing here establishes *why* the third CADEC draw
 moved; section 11 keeps that open. This section asks only whether the ground
 holds still. Section 4 onward asks whether what stands on it is correct.
 
-### Where the fifth model actually moves
+### Where the model actually moves
 
 It is not a temperature setting. We ran at **temperature 0** — not
 low-temperature sampling but greedy decoding, where the model takes its single
