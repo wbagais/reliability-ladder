@@ -4374,3 +4374,43 @@ dictionary probe's 16.8%/55.8%. §10 keeps both, because there they are evidence
 for a practice and for a job assignment; §11 now carries only the caveat that is
 its actual point — the precondition tool has only ever been run backwards, and a
 tool validated against known answers is a hypothesis about the next project.
+
+## 2026-09-03 — §12 reviewed. THE REPO'S OWN NOTES HAD THE JUDGE'S SIZE WRONG; the article had it right
+
+`ollama show ibm/granite4:micro-h` reports **parameters 3.2B**, architecture
+granitehybrid, Q4_K_M. `CLAUDE.md` and several `docs/decisions.md` entries have
+been saying **2B** — "granite4:micro-h, 2B, judging a 20B extractor", "the
+2B-judging-20B inversion", "read rung 4's numbers with the 2B caveat stated".
+The article said 3.2B in all four of its mentions and was correct. CLAUDE.md
+corrected; the dated decisions entries are left as written, since this file is
+append-only and this entry is the correction of record.
+
+Nothing measured changes — the model is the same file, and no number was derived
+from the parameter count. What it changes is the caveat's force: "a 3.2B model
+grading a 20B one" is a smaller gap than "2B grading 20B", so the judge's
+weakness is slightly less attributable to size than the notes implied. That
+matters now that plan item 14 is going to re-measure it: if a 3.2B judge with the
+menu in front of it still fails, size is a weaker excuse than we had recorded.
+
+Four other §12 corrections:
+
+1. **"the ablation" was a dangling reference** — that subsection was deleted on
+   2026-09-03 and survives only as a clause in §7. Now "the removal test".
+2. **The judge limitation was the wrong limitation.** "The judge is a 3.2B model
+   grading a 20B one" was true and no longer the main point: every judge result
+   in the article measures a judge that was never shown what a code means. §12
+   now leads that item with "every judge result here is provisional".
+3. **"17.3% of CADEC's gold mentions are discontinuous"** generalises a dev-split
+   figure to the whole corpus. Now "the development split's". NOTE FOR ANYONE
+   EDITING THIS: **17.3% appears twice in the article for two unrelated things** —
+   FiNER's tagged-sentence rate (18,789 of 108,378) and CADEC dev's discontinuous
+   share. Both are sourced and correct. It is a coincidence, and it is exactly the
+   shape of a copy error, so check before "fixing" either.
+4. **The contamination caveat asserted a direction without saying why.** "CADEC is
+   almost certainly in pretraining, which makes every gain here conservative" —
+   contamination inflates absolute numbers, which is the opposite of conservative.
+   Rewritten to say both: it inflates our absolute numbers and, if anything,
+   understates what a reliability layer might do on unfamiliar text.
+
+Verified unchanged: the held-out-once claim, the human-cost-as-count rule, the
+licence asymmetry, and the repository URL (matches the `github` remote).

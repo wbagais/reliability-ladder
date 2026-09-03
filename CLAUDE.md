@@ -169,7 +169,7 @@
   starts missing — the same failure in a cheaper coat. The effort also cannot
   differ per step, since scope is identical across S0/S1/S2 by design. The
   cost is reported, not avoided: **a dev-split run takes hours, not minutes.**
-- **The judge is now the WEAKER model** (granite4:micro-h, 2B, judging a 20B
+- **The judge is now the WEAKER model** (granite4:micro-h, 3.2B, judging a 20B
   extractor), and as of Phase C that is a MEASURED choice, not a shortage: the
   third family that was installed to fix it (BioMistral-7B, domain-adapted)
   was rejected on the 240-record re-judge — it cannot reliably return the
@@ -331,7 +331,7 @@ Run each remaining phase in its own session; this section is the handoff.
    unjudged — no separation), confidence flat 0.0 so the tau sweep had
    nothing to sweep (skipped, contingency not met; S2 extractor arm
    declined on the same evidence). Judge REVERTED to granite4:micro-h —
-   the 2B-judging-20B caveat stands as the measured lesser evil. Kept from
+   the 3.2B-judging-20B caveat stands as the measured lesser evil. Kept from
    the phase: the re-judge harness (`scripts/rejudge_r4.py`), the
    post-sent-TWICE fix in rung 4 (r2 has the same defect, flagged for its
    own session), and `Caller._reclose` (counted single-brace repair, like

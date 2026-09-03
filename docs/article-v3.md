@@ -1832,15 +1832,18 @@ thought we were buying.
 ## 12. Limitations
 
 The held-out split was spent once, so its intervals are the claim; everything
-after — the ablation, the policy settings, the second corpus — is development-side and
-labelled. The judge is a 3.2B model grading a 20B one. Human cost is a **count** of
-records routed, never minutes. **17.3% of CADEC's gold mentions are discontinuous
-spans our extractor cannot express** — gold marks `"loss of"` and `"strength"` as
-one mention, and we emit a single segment — so every recall number here carries a
-cap we built rather than one the task imposes, and we report it attached rather
-than subtracted out. The near-miss corruption is synthetic. CADEC is
-public and from 2015, almost certainly in pretraining, which makes every gain here
-conservative. Both corpora are public and both arms are reproducible, but not on the
+after — the removal test, the policy settings, the second corpus — is
+development-side and labelled. **Every judge result here is provisional**: it is a
+3.2B model grading a 20B one, and we found late that we had never shown it what a
+code means, so its numbers measure a judge working blind. Human cost is a
+**count** of records routed, never minutes. **17.3% of the development split's
+gold mentions are discontinuous spans our extractor cannot express** — gold marks
+`"loss of"` and `"strength"` as one mention, and we emit a single segment — so
+every recall number here carries a cap we built rather than one the task imposes,
+and we report it attached rather than subtracted out. The near-miss corruption is
+synthetic. CADEC is public and from 2015 and almost certainly in pretraining,
+which inflates our absolute numbers and, if anything, understates what a
+reliability layer might do on text a model has never seen. Both corpora are public and both arms are reproducible, but not on the
 same terms: FiNER-139 is CC-BY-SA-4.0 and comes down with the code, while CADEC
 is non-transferable, so a reader has to accept CSIRO's licence and fetch it
 themselves. We ship document IDs for the splits, never text.
