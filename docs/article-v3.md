@@ -342,6 +342,9 @@ by which corpus it was measured on:
 | drop repeated spans | both | 39 spans, **0 gold** | shipped |
 | a worked example, FiNER's own | FiNER | — | shipped |
 | drop spans that *are* a date or a clock time | FiNER | 26 false positives, **0 gold** | shipped |
+| a frontier hosted model as the extractor | CADEC | **31 correct vs 31** | **rejected** — identical, at a licence cost |
+| a domain-adapted model as the extractor (BioMistral) | CADEC | **3 predictions against 226 gold** | **rejected** — failed on 36 of 40 documents |
+| retrieving 40 candidates instead of 20 | CADEC | more gold on the menu, **picked worse** | **rejected** |
 | **reranking the menu** | CADEC | **+0.7 pt, sign flips** | **rejected** |
 | three prompt rewrites | CADEC | traded exact for overlap | **rejected** |
 | rewriting the query before retrieval | CADEC | recall 87.0% → 86.5% | **rejected** |
@@ -350,7 +353,7 @@ by which corpus it was measured on:
 | ordering the menu by sentence context | FiNER | **−9 pt** coding | **rejected** |
 | drop any span with no digit in it | FiNER | 14 errors cut, **7 gold destroyed** | **rejected** |
 
-Seventeen changes, ten shipped. **The pattern worth taking is which ones won.**
+Twenty changes, ten shipped. **The pattern worth taking is which ones won.**
 The two largest — a worked example, and telling the model to report denied
 reactions — are both *the prompt describing the task more exactly*. The next
 fixes a structural mismatch: gold marks each reaction separately, and our
@@ -367,6 +370,18 @@ three-draw test; that one did not take it.
 Most rejections are only interpretable because we measured the floor first.
 **+0.7 points looks like a result until you know that three identical runs of the
 unchanged system differ by 2.1.**
+
+**And one caveat that cuts against us.** Two of those rejections say the model is
+not the bottleneck — a frontier reader scored identically on the same menu, and
+neither a domain-adapted encoder nor a domain-adapted generator helped at all. That is a claim about the *division of
+labour*, not about the height of the ceiling, and the height is partly ours:
+SapBERT reaches 88.4% menu recall where our shipped encoder reaches 87.0%, and an
+oracle picking the better of the two per mention reaches **93.6%**. So 87% is this
+encoder's ceiling, not the task's — and raising it is not the same as improving
+the result. The SapBERT arm also caught a flaw in our own method: **the probe that
+authorised it measured recall over 1,144 documents while the arm ran on 38**, and
+on those 38 the sign is negative. A go/no-go probe has to be run on the
+denominator the arm will be scored on.
 
 **The two corpora do not run the same rung 0, and that is deliberate.** Four of
 CADEC's shipped arms were never ported: two are CADEC-specific by construction —
@@ -1581,6 +1596,14 @@ reviewer a span the system already found and offers a choice of codes for it.
 **There is no control for "you missed one," and none for "these boundaries are
 wrong."** However good the reviewer, detection cannot move.
 
+The two halves are also coupled, so a detection error does more than lose one
+mention. Retrieval is deterministic: quote `"stamina"` where the writer described
+the *lack* of it, and the menu comes back `[0] stamina` plus nineteen *stoma* and
+*foramina* near-matches, with |Lack of stamina| absent at any depth we retrieve.
+Quote `"no stamina"` and the same retriever puts it at line 0. **The span chooses
+the menu, so a boundary error deletes the right answer before the model is asked
+to pick.**
+
 So the ladder's ceiling is rung 0's detection — 0.521 exact on the held-out
 split — and everything above it is a precision instrument. **Reliability
 engineering of this kind makes a system's answers more trustworthy. It does not
@@ -1625,61 +1648,7 @@ then scored them with a metric that cannot see the difference.**
 
 ---
 
-## 8. Did we try making the model better first?
-
-Yes — about twenty arms. Eight lessons transfer:
-
-- **Do not ask the model for an identifier.** Recalling a code from weights scored
-  F1 **0.018**; retrieving candidates and picking scored **0.209**, for fewer
-  tokens. The recall version invented codes and put them beside correct labels.
-- **Retrieval is a ceiling, not a floor.** A frontier hosted model produced **31
-  exactly-correct answers against the local model's 31** — identical. A better
-  reader cannot beat the menu; a worse one can fail to use it.
-- **And a better menu did not beat the pick either.** Our retriever was a
-  general-purpose 30M embedder where this task's literature uses domain-adapted
-  ones, so we swapped in SapBERT — same corpus, same *k*, same answer key, one
-  manifest key. Across all 6,595 gold mentions it *is* the better retriever:
-  menu recall@20 **87.0% → 88.4%**, recall@1 **63.7% → 66.1%**, both separated
-  over 1,144 documents. End to end on three paired draws it **lost**: F1 exact
-  **0.413/0.434/0.423 → 0.405/0.394/0.391**, coding accuracy **0.754/0.778/0.758
-  → 0.738/0.706/0.702**, at byte-identical detection and identical token cost.
-  Two independent tests of the same claim, from opposite ends: a better *reader*
-  scored the same, and a better *menu* scored worse.
-- **Menu order is load-bearing.** Alphabetising cost 10–12 points at
-  byte-identical detection.
-- **Menu recall is not menu accuracy.** Retrieving 40 candidates put more gold on
-  the menu than 20 and picked *worse*.
-- **And the span decides the menu, so a detection error deletes the answer.**
-  Retrieval is deterministic: quote `"stamina"` where the writer described the
-  lack of it and the menu is `[0] stamina` plus nineteen stoma and foramina
-  near-matches, with `248277009` |Lack of stamina| absent at any depth we
-  retrieve. Quote `"no stamina"` and the same retriever puts it at line 0. The
-  20-line menu holds the right concept 87.0% of the time, and which 13% it
-  misses is partly chosen upstream.
-- **Ship only the filters with zero false-rejection cost**, priced against the
-  answer key first. One that cut 14 false positives at the cost of 7 real ones was
-  rejected.
-- **Prompt interventions did nothing** — three for three.
-
-The residual is span boundaries, and those belong to the answer key.
-
-**One caveat we owe the reader, because it cuts against us.** "Retrieval is a
-ceiling" is a claim about the division of labour, not about the height of the
-ceiling — and the height is partly ours. SapBERT reaches 88.4% where our
-shipped encoder reaches 87.0%, and an oracle picking the better of the two per
-mention reaches **93.6%**. So 87% is this encoder's ceiling, not the task's.
-What the arm shows is that raising it is not the same as improving the result.
-
-The arm also caught a flaw in our own method. **The probe that authorised it
-measured recall over 1,144 documents while the arm itself ran on 38** — and on
-those 38 the sign is negative. A go/no-go probe has to be run on the denominator
-the arm will be scored on. And the same claim holds for a domain-adapted
-*generator*, not just a domain-adapted encoder: BioMistral-7B as the extractor
-returned 3 predictions against 226 gold, failing on 36 of 40 documents.
-
----
-
-## 9. The division of labour
+## 8. The division of labour
 
 The part another team can use tomorrow:
 
@@ -1814,7 +1783,7 @@ to be worth more than any layer that tried to answer them.
   line by line against their evaluation code, but still a comparison across two
   vocabularies and two test sets.
 - **We never tested how much of this a dictionary could do, and our own
-  conclusion says we should have.** Section 9 argues the model should read the
+  conclusion says we should have.** Section 8 argues the model should read the
   text and nothing else; we applied that to identifiers and to building the
   candidate list, but not to the pick. A one-draw probe — below our own bar, so
   reported here rather than in the body — says detection cannot be replaced

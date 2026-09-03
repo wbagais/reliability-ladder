@@ -4232,3 +4232,39 @@ conclusion returns through it.
 
 Also reshaped 3303x467 -> 1298x1059. Both redraws of this figure hit the same
 trap: a seven-node LR graph is unusably wide on a page.
+
+## 2026-09-03 — §8 "Did we try making the model better first?" DELETED as a duplicate of §2's arms table
+
+Owner asked whether the two were the same. They substantially were. Five of §8's
+eight bullets restated rows already in §2's "Seventeen changes" table — SapBERT,
+alphabetising the menu, the digit filter, the prompt rewrites, and the
+identifier-recall result. The last of those was stated **three times** in the
+article (§2's S0/S1/S2 table, §8, and the division-of-labour table). And §2
+already drew the conclusions, closing with "the pattern worth taking is which
+ones won", so §8 re-concluded from the same data one section later.
+
+Three things in it were unique and were relocated rather than lost:
+
+  - **a frontier hosted extractor, 31 correct vs 31** -> a row in §2's table
+  - **retrieving 40 candidates instead of 20 picked worse** -> a row in §2's table
+  - **BioMistral as the extractor, 3 predictions against 226 gold** -> a row too
+  - the **closing caveat** (SapBERT 88.4% vs 87.0%, the 93.6% two-encoder oracle,
+    and the go/no-go probe measured on 1,144 documents while the arm ran on 38)
+    -> a paragraph under §2's table
+
+The table is now **twenty changes, ten shipped**. Those three arms were always
+changes to rung 0 and belonged in the table of changes to rung 0; they had ended
+up in a separate section because that section was written as a narrative of
+lessons rather than as a record of arms.
+
+**The `"stamina"` example moved to §7's detection-ceiling subsection**, which is
+the one relocation that does real work. In a list of lessons it was an
+illustration; under "None of them can find what rung 0 missed" it explains the
+mechanism — retrieval is deterministic, so quoting `"stamina"` where the writer
+described the *lack* of it returns a menu with |Lack of stamina| absent at any
+depth, while `"no stamina"` puts it at line 0. **The span chooses the menu, so a
+boundary error deletes the right answer before the model is asked to pick.** That
+is why the detection ceiling propagates rather than merely capping.
+
+Sections renumbered 9 -> 8; the article is now eight numbered sections, 17,492
+words, from 18,276 when this review's cutting pass began.
