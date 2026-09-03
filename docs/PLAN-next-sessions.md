@@ -290,9 +290,7 @@ merged and the manifest is frozen again.
 `[PENDING]` markers, and only then review the takeaways.
 
 **ANY TIME — no run needed, no ordering constraint:** items 2, 4, 7, 8, 11, 13,
-15, 17(c), **18**. Good work for a session that cannot afford a run — and item 18
-is the highest-value of them, since it is the claim an outside reviewer is most
-likely to check first.
+15, 17(c). (Item 18 is DONE — 2026-09-03.)
 
 **AFTER THE ARTICLE SHIPS:** items 1, 3, 5, 6, 9, 10, 17(a), 17(b). These extend
 the study rather than unblock it.
@@ -848,7 +846,7 @@ intact.
       Either delete it with a test that keeps it gone (the `otel.py` precedent),
       or keep it and put the distribution in the manifest note as the reason.
 
-18. **RE-VERIFY THE CONORM COMPARISON AGAINST THE PAPER ITSELF. It is the
+18. **~~RE-VERIFY THE CONORM COMPARISON AGAINST THE PAPER ITSELF.~~ DONE 2026-09-03 — three claims confirmed, one FABRICATED, one argument weakened. See docs/decisions.md. Original text below. It is the
     article's only external benchmark, its ceiling argument rests on it, and it
     could not be re-checked from public sources on 2026-09-03.** NO RUN NEEDED,
     but it needs the PDF.

@@ -1697,6 +1697,7 @@ up even though the vocabularies do not. Matched on both axes:
 |---|---|---|
 | CONORM, end-to-end, supervised | ≤ **0.704** | **0.7245** |
 | CONORM, **detection only**, supervised | **0.704** | 0.891 |
+| best supervised detection in their table (GLiNER-L, fine-tuned) | **0.744** | 0.851 |
 | ours, end-to-end, zero-shot, held-out | **0.204** [0.150–0.260] | 0.215 |
 
 We are a long way behind on both, and one number would have hidden by how much. The
@@ -1705,19 +1706,25 @@ cannot exceed detection alone under the same matching, and their published 0.724
 therefore has to be the lenient figure. Their paper reports one end-to-end number
 per corpus without labelling its strategy.
 
-**And the ceiling claim survives the check that was meant to break it.** We claimed
-CADEC's ~67% boundary determinism caps span-exact scores near 0.70. A fully
-supervised tagger, trained on that corpus, scores **0.704 span-exact on detection
-alone** — before it assigns a single code. That is the predicted number, reached by
-the system with every advantage, doing the easier half of the task.
+**And the ceiling claim survives the check that was meant to break it — but only
+in the weaker form.** We claimed CADEC's ~67% boundary determinism caps span-exact
+scores near 0.70. Their table has three fine-tuned taggers on CADEC, scoring
+**70.4, 71.7 and 74.4 span-exact on detection alone**, before any of them assigns
+a code. That is the right region, reached by systems with every advantage doing
+the easier half of the task — and the best of them clears 0.70 by four points, so
+what we described as a cap is better described as where the boundary convention
+puts you. Quoting only the 70.4 would have made our estimate look exact; it is
+not.
 
 Three things travel with the comparison. They normalise to **MedDRA preferred
-terms**, not the 129,675-concept SNOMED graph we code against. They are supervised,
-and their own analysis prices what that buys: stratified by whether the gold
-concept was seen in training, precision falls from **85.8% to 47.1%** on concepts
-it was not — and a zero-shot system is out-of-distribution on every record by
-construction. And their tagger uses a contiguous BIO scheme, so the discontinuous
-mentions our extractor cannot express appear to be beyond theirs too.
+terms**, not the 129,675-concept SNOMED graph we code against. They are supervised
+— 875 of CADEC's 1,250 files for training, against our zero — and on the one
+corpus where they report it, F1 falls from **50.2% to 39.4%** on concepts not seen
+in training, with precision flat, so what supervision buys on unfamiliar concepts
+is recall. A zero-shot system is in that condition on every record by
+construction. And they state plainly that CONORM handles **only continuous ADE
+mentions**, so the discontinuous spans our extractor cannot express are outside
+theirs too.
 
 ---
 
@@ -1805,9 +1812,8 @@ thought we were buying.
   upward.
 
 - **We never ran a supervised baseline.** Our distance from a trained system is
-  read off someone else's paper, and we have not re-confirmed which of their
-  published figures is detection-only — which is what section 9's ceiling
-  argument turns on.
+  read off someone else's paper, on a different vocabulary and a different test
+  set — not measured on our own splits.
 
 - **We never tested how much a dictionary could do.** A one-draw probe, below our
   own bar, says detection cannot be replaced but **the pick can be for about a

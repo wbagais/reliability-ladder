@@ -4443,3 +4443,45 @@ and comes out on request.
 Not added, considered: a line noting the article carries eight `[PENDING]`
 markers. They are visible inline at the claims they qualify, and a global count
 in Limitations would age badly as they close.
+
+## 2026-09-03 — CONORM verified against the PDF. Three claims confirmed, ONE FABRICATED, and the ceiling argument weakened
+
+Owner supplied the paper. Plan item 18 is CLOSED. Sources are Table 4 (NER) and
+Table 5 (end-to-end) of the 2025-02-11 version.
+
+**CONFIRMED — the split the whole comparison rests on.**
+  Table 4, CADEC, CONORM FT: lenient F1 **89.10**, exact F1 **70.40** — NER only.
+  Table 5, CADEC, CONORM FT: F1 **72.45** — end-to-end, in a table with a single
+  F1 column and NO matching-strategy split.
+So 0.704 IS detection-only exact, 0.891 IS detection-only lenient, and the
+article's inference that the unlabelled 0.7245 must be lenient holds: end-to-end
+cannot exceed detection under the same matching, and 72.45 > 70.40.
+
+**CONFIRMED — 875 of 1,250 files.** "875 files for training, 187 for validation,
+and 188 for testing."
+
+**CONFIRMED, AND UPGRADED FROM INFERENCE TO CITATION** — the article inferred
+from a BIO scheme that discontinuous mentions were beyond them. The paper says it
+outright: "CONORM focuses solely on continuous ADE mentions."
+
+**FABRICATED — "precision falls from 85.8% to 47.1% on concepts not seen in
+training".** Neither number appears anywhere in the PDF. The paper's actual
+out-of-distribution figures are on SMM4H, not CADEC: overall F1 50.20% / precision
+53.50%, out-of-distribution F1 39.40% / precision **53.10%** — so precision is
+essentially FLAT and the loss is recall, which is close to the opposite of what we
+claimed. Replaced with the real numbers and the real reading. **This is the fourth
+unsourced figure this review has found and the most serious, because it was
+attributed to someone else's paper and used to excuse our own results.**
+
+**WEAKENED — the ceiling argument.** §9 said "the ceiling claim survives the check
+that was meant to break it", citing CONORM's 70.40 as the supervised detection
+number that matches our predicted ~0.70 cap. Table 4 has THREE fine-tuned taggers
+on CADEC: GLiNER-L **74.43**, GLiNER-bi-L **71.67**, CONORM **70.40**. We quoted
+the lowest. The best supervised detector clears our "cap" by four points, so ~0.70
+is where the boundary convention puts you, not a ceiling. §9 now says that, prints
+the GLiNER-L row in the table, and states plainly that quoting only 70.40 would
+have made our estimate look exact.
+
+§11's bullet updated: the detection-only question is settled, so it now says only
+what remains true — the comparison is read off someone else's paper, on a
+different vocabulary and test set.
