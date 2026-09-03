@@ -281,7 +281,7 @@ and never re-run.
 | Task | find adverse reactions in forum posts, code to SNOMED CT | tag numeric facts in SEC filings with one of 139 XBRL tags |
 | A span looks like | `"bit drowsy"` | `"47.6"` |
 | Vocabulary | 129,675 concepts — too large to show the model | 139 tag names — the whole thing fits in the prompt |
-| We used | 40 dev docs (226 mentions), 60 held out (290) | 40 dev docs (165 mentions), one run |
+| We used | 40 dev docs (226 mentions), 60 held out (290) | 40 dev docs (165 mentions), three draws |
 
 ---
 
@@ -465,23 +465,27 @@ moves the failure into another:
 
 ![Figure 5](figures/fig12-finer-funnel.png)
 
-*Fig. 5: The same decomposition on FiNER. Counts are derived from four recorded
-figures rather than re-scored — `data/finer` is in no checkout — and the
-arithmetic closes against a fifth recorded independently. Source: author-created
-with Graphviz.*
+*Fig. 5: The same decomposition on FiNER, `rerun-finer-d0` — draws 1 and 2 are
+the same file. Counts are `ladder/analysis.error_budget`'s over the 165 scorable
+gold mentions. Source: author-created with Graphviz.*
 
-**Find loses 52 of 165; the pick loses 63.** More is lost choosing than finding,
+**Find loses 47 of 165; the pick loses 72.** More is lost choosing than finding,
 on a menu that always holds the right answer — the exact inverse of CADEC, where
-find loses 100 and the pick loses 21. Same pipeline, same two model calls,
-opposite failure.
+find loses 110 and the pick loses 21. Same pipeline, same two model calls,
+opposite failure. And 16 of those 72 pick losses are not the model's choice at
+all but rung 0's fallback rule writing menu line one — alphabetically,
+`AccrualForEnvironmentalLossContingencies` — onto a mention the pick reply
+skipped, the defect the previous subsection describes.
 
 Which is the argument for splitting every score in two, made twice. FiNER's
-headline recall is **0.303**, and read as one number it says *the model never
-proposes 70% of gold*. It does not: 0.303 is **detection 0.685 × coding 0.446**.
-The model reaches two thirds of the spans and mis-codes most of what it reaches.
-**One recall number for a pipeline that both finds and classifies sends your
-effort to the wrong half** — and it would have sent ours to the wrong half on one
-of the two corpora whichever half we had picked.
+headline recall is **0.279**, and read as one number it says *the model never
+proposes 72% of gold*. It does not: 0.279 is **detection 0.715 × coding 0.390**.
+The model reaches five spans in seven and mis-codes most of what it reaches —
+and it proposes **304 spans against 165 gold**, 186 of them on nothing, so the
+miss is *which* numbers rather than how many. **One recall number for a pipeline
+that both finds and classifies sends your effort to the wrong half** — and it
+would have sent ours to the wrong half on one of the two corpora whichever half
+we had picked.
 
 
 
@@ -567,10 +571,6 @@ is not.
 That is the baseline: 87 to 98 of 226 gold mentions answered correctly, most of
 the loss in detection, and a set of stages that each fail differently. The obvious next move
 is to improve it. Section 3 is what happened when we tried.
-
-> **[PENDING — the same tree for FiNER.]** It cannot be drawn from anything that
-> survives: `data/finer` is in no checkout, so the FiNER records cannot be
-> re-scored against gold. The stage-by-stage split for FiNER is registered work.
 
 ---
 
@@ -810,19 +810,20 @@ probe rather than asserted.
 
 ### On FiNER the same model was sometimes perfectly stable
 
-We have two three-draw sets on FiNER, and they disagree about whether this model
-is reproducible at all.
+We have three three-draw sets on FiNER now, and they disagree about whether this
+model is reproducible at all.
 
-**In one set, all three runs produced the identical file.** Not similar — the
-same SHA-256, and 306 of 306 mentions in full consensus. These were real calls,
-not replays: median 56 seconds per document, no cached responses.
+**In two of them, all three runs produced the identical file.** The base run,
+`rerun-finer-d0/d1/d2`: the same SHA-256 three times, 298 of 298 mentions in
+full consensus, 110 real calls per draw with none served from cache. An earlier
+set of the extraction step alone did the same, 306 of 306.
 
 | FiNER — across three identical runs | mentions | |
 |---|---|---|
-| **all three agree — same span, same code** | **306** | **100%** |
+| **all three agree — same span, same code** | **298** | **100%** |
 | every other category | 0 | 0% |
 
-**In the other set, one run refused a whole document.**
+**In the third set, one run refused a whole document.**
 
 | FiNER, the earlier set | draw 0 | draw 1 | draw 2 |
 |---|---|---|---|
@@ -1170,10 +1171,10 @@ the same rung on FiNER, where it does not run.** Same code, same three lanes,
 same string comparison — we ported everything with sixteen one-line harness edits
 and no changes to rung logic.
 
-The result is not a worse score. It is no score — the full ladder over 351
-records: **ACCEPT 0, BAND 350, REJECT 1.** Coverage 1.0 → 0.0. Every record
-routed to a person. The system that ships 21% of its answers on CADEC ships
-**0%** here.
+The result is not a worse score. It is no score — the full ladder over 304
+records, three draws of three: **ACCEPT 0, BAND 301, REJECT 3.** Coverage 1.0 →
+0.0. Every record routed to a person. The system that ships 21–23% of its
+answers on CADEC ships **0%** here.
 
 **And that zero is a fact about our check, not about the corpus.** It has to be
 said that way round, because the alternative reading is the more flattering one
@@ -1204,7 +1205,7 @@ with Graphviz.*
 
 Read it against figure 6 and the only variable is the corpus: same code, same
 three lanes, same string comparison, and here **everything lands in the lane that
-means "no evidence either way".** Rung 5 abstains BAND, so 350 of 351 records are
+means "no evidence either way".** Rung 5 abstains BAND, so 301 of 304 records are
 withheld and the system ships nothing.
 
 The lower half of that figure is the second check, and it is worth reading for
@@ -1323,7 +1324,8 @@ Fixing the first of those produced a finding about the rung above. On CADEC our
 judge only ever engages with the *span* — whether the text really describes a
 reaction — and says nothing useful about the code, which we had read as the limit
 of a 3.2B model. With its prompt corrected, the same model on FiNER adjudicates
-**both**: span wrong 197 times, code wrong 294, over 351 records.
+**both**: span wrong 149, 149 and 142 times, code wrong 243, 241 and 243, over
+296, 296 and 295 records it returned a verdict on.
 
 The difference is not the judge, and it is not the size of the vocabulary either.
 It is that **FiNER's identifiers are words and CADEC's are numbers.** On FiNER the
@@ -1426,13 +1428,14 @@ draw, were mostly invented spans too. Rung 3 is under-targeted in the sense
 that it could run on the BAND residue alone; it would still be re-coding the
 extractor's false positives at 2.5× the extractor's price.
 
-**On FiNER it goes the other way, and we cannot say why.** The same rung, the
-same 2.7× cost, and answered accuracy moves **0.1396 → 0.1567** — net positive,
-where CADEC's was **0.371 → 0.367**, net negative. One draw each, on a rung whose
-numbers are samples, so it is a difference to note and not to claim. The vote
-spread and the change transitions were never recorded on that corpus at all, so
-the figure above has no FiNER counterpart and the sign flip has no explanation.
-Registered with the same run.
+**On FiNER it goes the other way, three draws of three.** The same rung, at
+**2.6–2.8 million tokens per run** and a five-minute p95, changes 74, 83 and 94
+codes and moves net correct answers by **+6, +8 and +8** — destroying 3, 2 and
+5 right ones on the way — where CADEC's was +1, −1, −1. Every change is in
+BAND, because on FiNER everything is. It is a consistent sign on a corpus where
+the pick, not the find, is the weak half, which is the one condition under
+which asking again could help. It also changes nothing that ships, because rung
+5 withholds all 304 records either way.
 
 The case that matters is one it got wrong:
 
