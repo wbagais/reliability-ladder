@@ -323,7 +323,7 @@ the real keyword table is 227,554 rows. **A list retrieved per mention is S2.**
 
 Everything section 3 measures is a change *within* S2.
 
-### Seventeen changes to the one we picked
+### Twenty changes to the one we picked
 
 Every result below is judged against one number. **Three identical runs of this
 system differ by 2.1 points of F1** — the same 40 documents answered 92, 98 and
@@ -1534,6 +1534,10 @@ third is why it throws them away.
 ---
 
 ## 7. What each layer was for, and whether it delivered
+
+**Everything in this section is the development split** — 248 records, 40
+documents — so its coverage figures are the 21% of that run, not the 23% the
+held-out box reports.
 
 **Accuracy is the wrong test for four of these six layers.** The free check is
 not trying to raise accuracy, it is trying to sort. Refusal makes no claim at

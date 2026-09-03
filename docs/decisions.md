@@ -4650,3 +4650,31 @@ Added to takeaway 5 rather than made a sixth: **none of it made the system bette
 at the task, because no layer can propose a mention the extractor missed.** That
 is the article's sharpest structural finding and it was reachable only by reading
 to §7.
+
+## 2026-09-03 — final consistency pass: two defects created by the day's own restructuring
+
+Swept the article for numbers that drifted apart during the review. Two found,
+both caused by edits made today rather than by anything older.
+
+**1. §2's heading still said "Seventeen changes to the one we picked"** while its
+closing paragraph said "Twenty changes, ten shipped". Three arms were added to
+that table today when §8 was deleted into it; the paragraph was updated and the
+heading was not. The table has 20 data rows, so the heading was the wrong one.
+
+**2. §7 DECLARED NO SPLIT.** It carries dev figures throughout — 21% coverage,
+196 of 248 routed, 518,590 tokens, 0.808 answered accuracy — while the front
+matter's result box reports 23% on held-out. §6 opens with "Everything in this
+section is the development split — 248 records, 40 documents"; §7 was split out
+of §6 this morning and **did not inherit that sentence**. So a reader met dev
+coverage in §7 with no label, three sections after a held-out number that
+disagrees with it. §7 now opens with the declaration and names the discrepancy
+explicitly.
+
+That second one is the sharper lesson and belongs with the figure sweep: **when a
+section is split, the scope declarations stay with the half that kept the
+opening.** Nothing warns you — both halves read correctly on their own.
+
+Verified consistent and unchanged: all three uses of 0.204 are the held-out
+result, all eight ~85% claims are the ACCEPT lane, 518,590 and "196 of 248" agree
+across the takeaways and §7, 2.1 points agrees across §2, §3 and §10, and all
+seven remaining [PENDING] markers still describe live gaps.
