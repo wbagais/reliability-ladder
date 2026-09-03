@@ -1566,7 +1566,7 @@ task. Four settings, the first three from the same records:
 
 | policy | ships | accuracy on what it answers | **yield** | to a person |
 |---|---|---|---|---|
-| ship everything — no rung 5 | 100% | 0.378 · 0.378 · 0.412 | **0.378 · 0.378 · 0.412** | 0 |
+| ship everything — no rung 5 | 100% | 0.383 · 0.374 · 0.408 | **0.383 · 0.374 · 0.408** | 0 |
 | looser lane (`contained`) | 40% · 40% · 38% | 0.582 · 0.582 · 0.656 | **0.230 · 0.230 · 0.248** | 139 · 139 · 148 |
 | **ACCEPT only** — *shipped* | 23% · 23% · 21% | 0.736 · 0.755 · 0.824 | **0.170 · 0.174 · 0.176** | 177 · 177 · 187 |
 | ACCEPT minus judge fails ⚠️ | 15% | 0.816 | **0.125** | 210 |
@@ -1595,7 +1595,7 @@ figure in this article.
 
 What the dial actually trades, moving from the top row to the shipped one:
 
-> **Draw 0: 130 fewer errors. 48 fewer correct answers. 177 more records for a person.**
+> **Draw 0: 128 fewer errors. 49 fewer correct answers. 177 more records for a person.**
 
 Three currencies moving in three directions at once. That is why we report them
 separately and refuse to fuse them, and it is why this rung has no optimum — only
