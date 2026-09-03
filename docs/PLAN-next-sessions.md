@@ -213,6 +213,94 @@ stamina example in §6 that item 7 says is stale.
 
 ---
 
+## REVIEW STATUS — the line, as of 2026-09-03
+
+The section-by-section review of `docs/article-v3.md` reached §7 and stopped.
+Everything above the line was read against the code and the artifacts, corrected,
+and committed; everything below has NOT been reviewed at all and its numbers are
+unverified.
+
+| | section | words | status |
+|---|---|---|---|
+| | Five key takeaways | 179 | **NOT REVIEWED** — deferred to last by the owner; takeaway 5 is known stale (see item 0) |
+| | What an AI reliability ladder is for | 179 | **NOT REVIEWED** |
+| | The task, and the result | 443 | **NOT REVIEWED** |
+| ✅ | 1. The two datasets | 1,523 | reviewed |
+| ✅ | 2. Rung 0 | 2,663 | reviewed |
+| ✅ | 3. How much of this is real? | 2,150 | reviewed |
+| ✅ | 4. Rung 1 on CADEC | 2,590 | reviewed |
+| ✅ | 5. Rung 1 on FiNER | 1,776 | reviewed |
+| ✅ | 6. The five resolvers | 2,393 | reviewed |
+| ✅ | 7. What each layer was for | 945 | reviewed |
+| | **8. What no single-layer test could see** | 199 | **← THE LINE. Resume here.** |
+| | 9. Did we try making the model better first? | 539 | **NOT REVIEWED** (swept for cuts only) |
+| | 10. The division of labour | 222 | **NOT REVIEWED** (swept for cuts only) |
+| | How we found these | 111 | **NOT REVIEWED** |
+| | Where this sits in the literature | 481 | **NOT REVIEWED** — carries the CONORM comparison, the highest-risk unverified claim |
+| | What we would tell you | 235 | **NOT REVIEWED** |
+| | What we could not settle | 770 | **NOT REVIEWED** (swept for cuts only) |
+| | Limitations | 185 | **NOT REVIEWED** |
+
+"Swept for cuts only" means dead or duplicated material was removed on
+2026-09-03, but no claim in those sections was checked against the code.
+
+---
+
+## THE ORDER OF WORK — read this before picking an item
+
+The goal is one article whose every number comes from a run that exists. That
+forces a strict order, because a fix that changes a number invalidates any run
+taken before it.
+
+**PHASE 1 — settle the code and the config. Nothing may be re-run until these
+land, because each one changes a published number.**
+
+| item | what | why it blocks the re-run |
+|---|---|---|
+| **12** | per-record per-rung trace **+ the error budget** | without it the re-run cannot produce the joins four sections need, and we would have to run a third time |
+| **14** | the judge sees the menu and the pick | every rung 4 number is currently a blind-judge measurement |
+| **16** | decide `lexical_mode` on yield, three draws | a shipped-config question; re-running on a default we are actively disputing wastes the run |
+| **17(d)** | retire or defend `tau` | one line, but it is a live key that cannot fire |
+
+**PHASE 2 — the consolidated re-run (item 0). ONE base run produces every
+descriptive dev-side number in the article.** Do not start it until Phase 1 is
+merged and the manifest is frozen again.
+
+**PHASE 3 — rewrite the article's numbers against that run**, clear the three
+`[PENDING]` markers, and only then review the takeaways.
+
+**ANY TIME — no run needed, no ordering constraint:** items 2, 4, 7, 8, 11, 13,
+15, 17(c). Good work for a session that cannot afford a run.
+
+**AFTER THE ARTICLE SHIPS:** items 1, 3, 5, 6, 9, 10, 17(a), 17(b). These extend
+the study rather than unblock it.
+
+---
+
+## NUMBERS IN THE ARTICLE → WHERE THEY COME FROM
+
+Checked 2026-09-03. **The article's numbers come from at least seven runs, four
+of which no longer exist on disk.** This table is the checklist Phase 2 must
+satisfy; a number with no row here is a number nobody can reproduce.
+
+| run | what the article uses it for | on disk? | covered by item 0? |
+|---|---|---|---|
+| `phaseF-test-1` | the headline test result, §2, §3 | **no** | **NO — test is spent and cannot be re-run** |
+| `audit-full-dev-1` (248 rec) | §7's role table, all token costs, 196 routed | **no** | yes |
+| `arm-sapbase-d0/d1/d2` (222/232) | §3 draws, §4 lanes, Fig 6, Fig 8, Fig 14 | **yes** | yes |
+| `phaseD-r3-2` (245) | §6's rung 3 figure | **no** | yes |
+| the five-model sweep | §4's ACCEPT-lane invariance table | **no** | item 2 (data exists) / item 9 |
+| FiNER `finer-full-2`, `arm-finer*` | §5 throughout, Fig 9, Fig 10, Fig 13 | partial | item 3 |
+| the judge-arm draws | §6's policy table, bottom row | **no** | item 14 supersedes |
+
+**The consequence to state plainly: `phaseF-test-1` is the one run that cannot be
+regenerated.** The held-out split was spent once by design. So the article's
+headline numbers stay as reported, and Phase 2 can only make the DEVELOPMENT-side
+numbers consistent around them. Any Phase 1 fix that would change the test result
+must be described as untested on held-out data.
+
+---
+
 ## Required before the article ships
 
 Everything here either blocks a claim the draft makes or removes a caveat it
