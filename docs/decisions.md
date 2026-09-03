@@ -4918,3 +4918,172 @@ from the final state rows, and the three-draw consensus table with mentions
 grouped by span overlap. `scripts/rerun_analysis.py` loads a run set and
 writes `<out>.json` and `<out>.md`. The point is the one the deleted worktrees
 taught: the numbers must be re-derivable from disk by code that is tracked.
+
+## 2026-09-03 — THE CONSOLIDATED RE-RUN, CADEC: three cold draws of the full ladder, every arm on the same cache, every number from one module
+
+Runs `rerun-cadec-d{0,1,2}` (base, `manifest.json` at `7457a79`+docs, tree
+clean), arms `-judgemenu`, `-judgeshuffle`, `-lexarm` (same cache, rung 0
+byte-identical to the base, verified by sha256), `-spine` (rungs 5-6 over the
+rung 1 snapshot, zero model calls). Dev split, 40 documents, **226 scorable
+gold mentions** (414 excluded). Report: `out/rerun/cadec.{json,md}` from
+`scripts/rerun_analysis.py`; per-record state, per-rung snapshots and every
+prompt/reply in the run files. Every F1 below is `score_run`, span-exact,
+exclusions applied, unless it says overlap. Wall clock ~50 min per base draw
+(rung 0 ~17 min, rung 3 ~37 min).
+
+**Rung 0 per draw** (spans / detection P/R/F1 / coding / F1 [CI] — exact;
+then overlap detection F1 / coding / F1):
+| draw | spans | det P/R/F1 | coding | **F1 exact** [95% CI] | det F1 ovl | coding ovl | F1 ovl | sha256(r0) |
+|---|---|---|---|---|---|---|---|---|
+| d0 | 230 | 0.535/0.513/0.524 | 0.750 | **0.393** [0.310–0.468] | 0.804 | 0.590 | 0.474 | `c96289db` |
+| d1 | 230 | 0.535/0.513/0.524 | 0.750 | **0.393** [0.310–0.468] | 0.804 | 0.590 | 0.474 | `c96289db` |
+| d2 | 238 | 0.571/0.571/0.571 | 0.760 | **0.434** [0.360–0.505] | 0.823 | 0.613 | 0.504 | `c3626412` |
+
+**DRAWS 0 AND 1 ARE BYTE-IDENTICAL, AND IT IS NOT A CACHE REPLAY.** The call
+trace shows 94 rung 0 calls per draw, 0 served from cache in either, all 94
+raw replies identical. Draw 2 diverged on 29 of the 69 prompts it shares with
+draw 0 (the rest are downstream of a diverged find). Rung 3's samples are
+real samples (7 of ~270 identical across d0/d1 at temperature 0.7). And the
+same 64 rung 0 prompts answered on 2026-09-01 (`.llm_cache`, `arm-sapbase`)
+disagree with today's replies on 34 — 26 of 40 find calls, 8 of 24 pick
+calls — at the same median latency (15 s) and p95 (~80 s), so partial GPU
+offload is not it. **So the run-to-run variance of gpt-oss:20b on CADEC is
+not a distribution over records; it is whole runs that either repeat exactly
+or do not** — the same shape FiNER showed on 2026-08-31 (d1 == d2, d0
+refused a document). The cause is NOT established; the candidate is
+server-side state (prompt-prefix cache, batch scheduling) that is identical
+for two consecutive draws under the same request sequence and different
+across sessions. A probe is registered below, to be run when the GPU is idle.
+Section 3 of the article must say "two of three draws identical" for CADEC
+now, not "three different files".
+
+**The error budget, one denominator** (226 gold, exact):
+| draw | matched | missed (find) | invented | on menu | lost retrieval | correct | lost pick (model / fallback) |
+|---|---|---|---|---|---|---|---|
+| d0 = d1 | 116 | 110 | 101 | 108 | 8 | 87 | 21 (19 / 2) |
+| d2 | 129 | 97 | 97 | 121 | 8 | 98 | 23 (22 / 1) |
+Detection loses 97-110 of 226 and invents 97-101; retrieval loses 8 on every
+draw; the pick loses 21-23, of which 1-2 are rung 0's own fallback rule. The
+55 / ~13 / ~58 estimate the plan forbade printing is now measured: **110 / 8
+/ 21** (d0), and retrieval is smaller than estimated.
+
+**Rung 1 lanes** (n / correct, exact / on no gold mention; then correct on
+overlap-matched spans, the five-model table's denominator):
+| draw | ACCEPT | BAND | REJECT |
+|---|---|---|---|
+| d0 = d1 | 53 / **75.5%** / 4; ovl 75.5% | 175 / 26.9% / 40; ovl 48.9% | 2 |
+| d2 | 51 / **82.4%** / 2; ovl 79.6% | 184 / 30.4% / 41; ovl 51.1% | 3 |
+The lane separates 2.7-2.8x on exact, 1.5-1.6x on overlap-matched. **ACCEPT
+is 75-82% correct here, not the 85% the article prints** (that figure is
+`arm-sapbase-d0`, 48 records; two of three of today's draws sit 10 points
+under it). BAND 27-30% is as printed.
+
+**Item 8 answered — what `contained` admits.** 38 / 38 / 39 records move
+BAND -> ACCEPT. By direction: `term_in_span` (a vocabulary term's words are a
+subset of the span — the model quoted MORE than the concept names) 26 / 26 /
+27, of which 11 / 11 / 13 correct exact; `span_in_term` (the span is a
+subset of a term, "neck" for |Neck pain|, "dying" for |Thoughts about dying|)
+12 / 12 / 12, of which 4 / 4 / 3 correct. The term_in_span records are
+mostly a qualifier wrapped around the concept — "severe fatigue" |Fatigue|,
+"wild mood swings" |Mood swings|, "EXTREME AND EXCRUCIATING MUSCLE PAIN IN
+NECK" |Neck pain| — and many are `unmatched` on exact and `correct` on
+overlap: the boundary problem of section 1, not a coding error. The
+span_in_term records are the model quoting a fragment and the check finding
+a concept that happens to contain it; 8 of 12 sit on no gold or the wrong
+code. A rule admitting "qualifier + exact term" and refusing "fragment of a
+term" is the candidate section 4 asked for; it is not built.
+
+**Item 16 decided on yield — `contained` wins three of three, and the
+shipped default stays `exact` pending the owner.** Final state rows:
+| draw | setting | ships | coverage | accuracy | **yield** | errors | err/100 | to a person |
+|---|---|---|---|---|---|---|---|---|
+| d0 | exact | 53 | 0.230 | 0.736 | **0.170** | 14 | 6.1 | 177 |
+| d0 | contained | 91 | 0.396 | 0.582 | **0.230** | 38 | 16.5 | 139 |
+| d1 | exact | 53 | 0.230 | 0.755 | **0.174** | 13 | 5.7 | 177 |
+| d1 | contained | 91 | 0.396 | 0.582 | **0.230** | 38 | 16.5 | 139 |
+| d2 | exact | 51 | 0.214 | 0.824 | **0.176** | 9 | 3.8 | 187 |
+| d2 | contained | 90 | 0.378 | 0.656 | **0.248** | 31 | 13.0 | 148 |
+Yield +0.060 / +0.056 / +0.072, sign-consistent; records to a person −38 /
+−38 / −39; errors per 100 shipped-or-not ×2.7 / ×2.9 / ×3.4. On the
+article's own rule (read yield) `contained` is the better setting. It is not
+flipped here because it moves the headline from "ships 23% at 0.74-0.82" to
+"ships 40% at 0.58-0.66", which the article frames as the deployer's dial
+(section 6), and because the held-out run cannot be repeated under it. The
+measurement is complete; the config change is the owner's call.
+
+**Item 11 answered — rung 3 by rung 1 lane.** Changes 25 / 28 / 27 per draw;
+of those in BAND 22 / 27 / 26, in ACCEPT 2 / 1 / 0, in REJECT 1 / 0 / 1. Net
+correct **+1 / −1 / −1**; correct destroyed 2 / 3 / 5; gained 3 / 2 / 4. The
+sign is not consistent and the magnitude is inside one record either way.
+**Most changes are churn on spans that sit on no gold mention** (d0: 17 of
+25 transitions are unmatched -> unmatched). Records rung 3 could not re-find
+(8 / 8 / 9 in BAND, 3-4 in ACCEPT) had been: unmatched 9 / 7 / 9, correct
+2 / 5 / 2, incorrect 1 / 0 / 1 — so the un-re-findable records are mostly
+invented spans, and rung 3's instability there is the extractor's
+instability on its own false positives. Unanimous: BAND 108 / 95 / 102,
+ACCEPT 41 / 39 / 42. So rung 3 IS under-targeted in the sense item 11 asked
+— nearly all its changes land in BAND — and it is still not worth its
+410,638 / 432,341 / 431,518 tokens there, because what it changes in BAND is
+mostly wrong before and after.
+
+**Item 14 answered — the judge, shown the menu, separates 3.4-4.2x against
+1.7x blind.** Same records, same second-family model (granite4:micro-h),
+paired on each draw:
+| draw | judge | judged | pass / fail | P(correct|pass) | P(correct|fail) | **separation** | span_bad | code_bad | not-on-list | best correct | best = pick |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| d0 | blind (shipped) | 223 (7 unparsed) | 136 / 87 | 0.463 | 0.276 | **1.68x** | 48 | 80 | — | — | — |
+| d0 | menu, ranked | 230 (0) | 136 / 94 | 0.544 | 0.149 | **3.65x** | 11 | 93 | 70 | 78 | 145 |
+| d0 | menu, shuffled | 230 (0) | 143 / 87 | 0.524 | 0.149 | **3.51x** | 14 | 85 | 66 | 77 | 150 |
+| d1 | blind | 226 (4) | 137 / 89 | 0.445 | 0.270 | **1.65x** | 48 | 81 | — | — | — |
+| d1 | menu, ranked | 230 (0) | 142 / 88 | 0.528 | 0.125 | **4.23x** | 12 | 87 | 69 | 77 | 147 |
+| d1 | menu, shuffled | 230 (0) | 144 / 86 | 0.521 | 0.128 | **4.07x** | 14 | 84 | 66 | 77 | 153 |
+| d2 | blind | 231 (7) | 142 / 89 | 0.493 | 0.292 | **1.69x** | 48 | 80 | — | — | — |
+| d2 | menu, ranked | 238 (0) | 146 / 92 | 0.562 | 0.163 | **3.44x** | 8 | 91 | 65 | 85 | 152 |
+| d2 | menu, shuffled | 238 (0) | 148 / 90 | 0.561 | 0.156 | **3.61x** | 10 | 89 | 65 | 85 | 153 |
+Three things. (1) The blind judge's 1.65-1.69x reproduces the article's
+1.65x exactly, three of three — it was a real measurement of a question the
+judge could not answer. (2) Shown the menu and the guidance, the same model
+doubles its separation and stops failing to parse (7/4/7 -> 0). Its
+separation now sits inside the free check's range (2.7-2.8x exact here; the
+article's 2.4-6.1x across models). (3) `not on this list` fires 65-70 times
+and 54 of the 70 on d0 are spans that sit on no gold mention: the verdict
+the blind judge could not give is mostly catching INVENTED spans, which is
+the detection failure the ladder otherwise cannot see. The judge's own line
+(`best`) is correct 77-85 times against the pick's 87-98 — it should not
+replace the pick — and it ratifies the pick on 145-153 of 230-238. Shuffling
+the menu changes little (3.5-4.1x): there is no slot-0 ratification to
+break. `span_bad` falls from 48 to 8-14, i.e. the denial note and the
+guidance removed most of the span failures; `code_bad` rises to 84-93. **The
+article's rung 4 section, Figure 13, the 1.65x row and §7's judge row are
+superseded by this table.** Still a 3.2B judge, still unread by rung 5 in
+the shipped config: the separation is a measurement, not a shipped number.
+
+**The shipped result and the spine.** Ships 53 / 53 / 51 at accuracy 0.736 /
+0.755 / 0.824, yield 0.170 / 0.174 / 0.176, errors per 100 records 6.1 / 5.7
+/ 3.8, to a person 177 / 177 / 187; stack F1 exact 0.176 / 0.181 / 0.186
+(overlap 0.172 / 0.176 / 0.186). The spine (rungs 0, 1, 5, 6 — self-correct,
+voting and judge deleted) ships the same 53 / 53 / 51 records with **13 / 13
+/ 9 errors against 14 / 13 / 9**: deleting the three paid layers changed
+**one answer of 53 on d0 and none on d1 or d2** — the one is rung 3's ACCEPT
+overwrite `LIPITOR.8#5`, correct -> incorrect on a 2-0 vote, shipped as
+VERIFIED. The three layers cost **495,933 / 517,631 / 521,389 tokens**
+(rung 2: 1,259 / 1,259 / 1,631 on 2 / 2 / 3 firings; rung 3: 410,638 /
+432,341 / 431,518; rung 4: 84,036 / 84,031 / 88,240). Rung 0: 161,768 /
+161,768 / 155,159 tokens, 94 calls, p95 78.8 / 83.3 / 59.2 s. Rung 3 p95
+118 / 137 / 144 s. Rung 4 p95 1.5 s. Rung 6: 354 / 354 / 374 declared
+minutes at 2.0 per record; the count is the headline.
+
+**Consensus across the three draws** (rung 0, mentions grouped by span
+overlap): 233 mentions; all three agree on span and code **153 (65.7%)**;
+same span, different code 21 (9.0%); same code, different span 3; both
+differ 20; found by two 15; found by one 21. Same span in all three 74.7%;
+same code where all three found it 79.2%. Against the article's 62.8 / 71.5
+/ 83.9 from `arm-sapbase`: within three points on each, with two of today's
+draws identical — so the consensus figure is between-session variance
+wearing a three-draw label, and must be reported with the identical pair
+stated.
+
+**Registered from this run.** (a) The determinism probe: one find prompt,
+repeated N times in one session with and without another model loaded
+between repeats, to test the server-state hypothesis. (b) The lexical rule
+from item 8. (c) `lexical_mode` default: owner's call, numbers above.
