@@ -5242,3 +5242,17 @@ one. Added to the article as §6's closing subsection with two figures:
 `fig21-r0-r1-r4` (rung 0 -> rung 1 lanes -> rung 4 verdicts inside each lane,
 blind and shown the menu) and `fig20-dials` (six panels, one per rule, draw 0
 integers). Figures 14-16 renumbered to 15, 17, 18.
+
+## 2026-09-03 — the six shipping rules on FiNER: the roles swap
+
+Same computation on `rerun-finer-d{0,1,2}` (means; 304 records, 46 correct
+at rung 0 every draw): everything 0.15 / yield 0.151; everything after rung 3
+0.18 / 0.175; ACCEPT 0; rung 3 unanimous 96 at 0.30 / 0.095; rung 3 >=2 agree
+207 at 0.23 / 0.156; blind judge 46 at 0.41 / 0.061; menu judge 195 at 0.27 /
+0.172. Two rows beat rung 0 on yield, both because they are measured after
+rung 3's +6/+8/+8; the menu judge's yield equals shipping everything after the
+vote (0.172 vs 0.175) with 108 records and one correct answer removed — so on
+FiNER voting adds a little, the judge removes errors at almost no yield cost,
+and the free check contributes nothing. The blind judge is the strict setting
+here (46 at 0.41), the role the free check plays on CADEC. Added to the
+article's §6 dial subsection beside the CADEC table.

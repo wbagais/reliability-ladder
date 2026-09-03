@@ -1659,6 +1659,34 @@ check cannot give — half the batch at 0.54, the best yield of any filter — a
 84,000 tokens a run. Voting earns a worse setting than the judge at five times
 the price.
 
+The same six rules on FiNER, where the shipped rule ships nothing:
+
+| ship only when… | ships | accuracy | **yield** | errors |
+|---|---|---|---|---|
+| rung 0 says so — everything | 304 | 0.15 | 0.151 | 258 |
+| everything, after rung 3 has voted | 304 | 0.18 | 0.175 | 251 |
+| rung 1 says ACCEPT *(shipped)* | **0** | — | 0.000 | 0 |
+| rung 3 — every sample voted the same tag | 96 | 0.30 | 0.095 | 67 |
+| rung 3 — at least two samples agree | 207 | 0.23 | 0.156 | 160 |
+| rung 4 — the blind judge passes | 46 | **0.41** | 0.061 | 27 |
+| rung 4 — the menu-shown judge passes | 195 | 0.27 | **0.172** | 143 |
+
+*Means over `rerun-finer-d0/d1/d2`, 304 records each, 46 correct at rung 0 on
+every draw. Rows 4 to 7 are measured after rung 3, which on this corpus adds 6
+to 8 right answers a draw; the second row is what that is worth on its own.*
+
+Read against CADEC, the roles swap. Here the blind judge is the strict
+setting — one record in seven at 0.41, the part the free check plays on CADEC
+— and the menu-shown judge is the loose one, two thirds of the batch at 0.27.
+Two rows sit above shipping rung 0's output on yield, which never happened on
+CADEC, and both are shipping rung 3's gain: the menu judge's 0.172 is the
+0.175 of shipping everything after the vote, with 108 records and one correct
+answer removed. So on FiNER voting adds a little, the judge then removes
+errors at almost no cost in yield, and the free check contributes nothing at
+all. It is the mirror of CADEC, where the free check does the work and the
+paid layers add nothing — and on both corpora the shipped configuration acts
+on rung 1 alone, which on this one means shipping nothing.
+
 **Rung 6, the person.** Rung 5 decides how much to withhold; rung 6 is what
 happens to it, and it is the same decision seen from the other end. It runs no
 model — a simulated desk that needed one would be self-correction wearing a
