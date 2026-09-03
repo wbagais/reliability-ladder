@@ -1648,7 +1648,7 @@ then scored them with a metric that cannot see the difference.**
 
 ---
 
-## How we found these
+## 8. How we found these
 
 No layer announced that it had stopped working. Each ran, returned, wrote its
 field, passed its tests.
@@ -1666,7 +1666,7 @@ second draw, a corrected prompt, or a held-out split.
 
 ---
 
-## Where this sits in the literature
+## 9. Where this sits in the literature
 
 **We mostly agree, and the agreements matter.** Our abstention layer is *selective
 prediction*, a formalised field; we compute risk-coverage curves without having
@@ -1719,7 +1719,7 @@ mentions our extractor cannot express appear to be beyond theirs too.
 
 ---
 
-## What we would tell you
+## 10. What we would tell you
 
 We set out believing that stacking reliability layers buys reliability. Measured
 end to end, **the layers made errors visible rather than fewer** — worth a great
@@ -1780,7 +1780,7 @@ thought we were buying.
 
 ---
 
-## What we could not settle
+## 11. What we could not settle
 
 - **The reproducibility mechanism rests on one sparse model against four dense
   ones.** Suggestive, not a result. It wants more MoE models, and should fail on a
@@ -1848,7 +1848,7 @@ thought we were buying.
 
 ---
 
-## Limitations
+## 12. Limitations
 
 The held-out split was spent once, so its intervals are the claim; everything
 after — the ablation, the policy settings, the second corpus — is development-side and
