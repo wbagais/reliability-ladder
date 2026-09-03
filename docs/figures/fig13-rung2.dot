@@ -1,0 +1,61 @@
+// Rung 2 on both corpora. It reads rung 1's verdict and fires on REJECT alone
+// (r2.py:347 — `if verdict != ZONE_REJECT or reason not in cfg["correctable"]`),
+// so ACCEPT and BAND are never touched: no model call, no possible change.
+//
+// CADEC: draw 0 of arm-sapbase, rung 1 lanes as fig10. REJECT is empty, so the
+// rung has nothing to act on.
+// FiNER: pooled over three draws of the rung 7 arm — the only configuration in
+// which rung 2 has ever had a real trigger set. 918 firings, 0 rescued.
+//
+// COLOUR KEY — the article's zone colours, unchanged:
+//   green ACCEPT · amber BAND · red REJECT · teal a model runs here
+digraph rung2 {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  subgraph cluster_c {
+    label="  CADEC — 222 records  "; fontname="Helvetica"; fontsize=13;
+    color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
+    ca [label="ACCEPT · 48" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    cb [label="BAND · 174" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+    cr [label="REJECT · 0" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    cskip [label="rung 2 never called\n0 model calls" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+    cfire [label="nothing to correct" fillcolor="#fbfbfb" fontcolor="#8a9aa1" style="filled,rounded,dashed"];
+    ca -> cskip; cb -> cskip; cr -> cfire;
+    { rank=same; ca; cb; cr }
+  }
+
+  subgraph cluster_f {
+    label="  FiNER — with a second free check, three draws  "; fontname="Helvetica";
+    fontsize=13; color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
+    fa [label="ACCEPT + BAND" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+    fr [label="REJECT · 44 per run" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    fskip [label="rung 2 never called" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+    f2 [label="RUNG 2 · state the failure back as a fact\n“the text 10.85 names a percent, but\nDebtInstrumentFaceAmount names a money amount”\n918 firings"
+        fillcolor="#e3eeef" color="#0c6469" penwidth=2];
+    unch [label="SAME ANSWER\n789   (86%)" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+    decl [label="DECLINED\n129   (14%)" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+    resc [label="RESCUED\n0" fillcolor="#fbe4e4" color="#a33333" penwidth=2.5];
+    fa -> fskip; fr -> f2;
+    f2 -> unch; f2 -> decl; f2 -> resc;
+    { rank=same; fa; fr }
+    { rank=same; unch; decl; resc }
+  }
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Rung 2 can only act on the lane rung 1 leaves empty.</B> It fires on REJECT alone, so every record it</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">could improve is one the free check has already proved wrong — and on CADEC that lane holds nothing.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Given hundreds of chances, it took none.</B> Told a specific true fact about its own answer,</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">the model repeated itself 86% of the time and refused the rest. It corrected nothing, 918 times.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>Two things keep this from being a clean null.</B> The check supplying the facts is wrong 35.7%</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">of the time on model output, so on roughly a third of these firings the model was told it was wrong</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">when it was right — and holding still was the correct response. On the rest it still rescued nothing.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">And none of it could reach the output: rung 5 was already withholding every record on this corpus.</FONT></TD></TR>
+        </TABLE>>];
+  cskip -> note [style=invis]; resc -> note [style=invis];
+}

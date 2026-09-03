@@ -1,0 +1,53 @@
+// Which rung reads which, and which fire selectively. Conditions from the code:
+//   r1.zone()      every record, always
+//   r7 (arm only)  every record with a code; can only ADD a REJECT
+//   r2.apply       verdict == REJECT and reason in cfg["correctable"]
+//   r3.apply       every DOCUMENT, resampled k times regardless of doubt
+//   r4.apply       every record
+//   r5.decide      every record: REJECT/BAND -> ABSTAIN, ACCEPT -> ships
+//   r6             everything rung 5 abstained
+//
+// COLOUR KEY — the article's:
+//   teal a model runs here · grey free/deterministic · green ships
+//   red  writes a verdict nothing reads
+digraph wiring {
+  rankdir=TB; bgcolor="white"; nodesep=0.30; ranksep=0.34;
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=11.5
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.4 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  r0 [label="0 · extract\nMODEL ×2 per doc" fillcolor="#e3eeef" color="#0c6469" penwidth=2];
+  r1 [label="1 · free check\nevery record\nACCEPT / BAND / REJECT" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+  r7 [label="7 · type check\nARM ONLY, FiNER\ncan only ADD a REJECT" fillcolor="#e3f0e6" color="#2d6a4f" style="filled,rounded,dashed"];
+  r2 [label="2 · self-correct\nMODEL\nfires on REJECT only" fillcolor="#e3eeef" color="#0c6469"];
+  r3 [label="3 · vote\nMODEL ×k\nevery document" fillcolor="#e3eeef" color="#0c6469"];
+  r4 [label="4 · judge\nMODEL\nevery record" fillcolor="#e3eeef" color="#0c6469"];
+  r5 [label="5 · refuse\nreads rung 1's verdict\nREJECT/BAND → abstain\nACCEPT → ships" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+  r6 [label="6 · person\neverything abstained" fillcolor="#eef1f2"];
+  ship [label="SHIPPED\n21%" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
+
+  dead [label="r2_declined · r3_unanimous_none · r4_verdict\nthree verdicts, no reader"
+        fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+
+  r0 -> r1 [label=" every record "];
+  r1 -> r7 [style=dashed label="  arm  "];
+  { rank=same; r1; r7 }
+  r7 -> r2 [style=dashed];
+  r1 -> r2 [label=" REJECT only ", fontcolor="#a33333"];
+  r2 -> r3; r3 -> r4; r4 -> r5;
+  r1 -> r5 [label="  the verdict rung 5 acts on  " color="#2d6a4f" penwidth=3 fontcolor="#2d6a4f" constraint=false];
+  r5 -> ship [color="#2d6a4f" penwidth=2]; r5 -> r6;
+  { rank=same; ship; r6 }
+  r2 -> dead [color="#a33333" style=dashed constraint=false];
+  r3 -> dead [color="#a33333" style=dashed constraint=false];
+  r4 -> dead [color="#a33333" style=dashed constraint=false];
+  { rank=same; r2; dead }
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Read the green path.</B> Rung 1 assigns a verdict and rung 5 acts on it; that is the whole shipped result.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Rungs 2, 3 and 4 sit between them, cost tokens, and write fields nothing downstream reads.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">Rung 2 fires only where rung 1 said REJECT — the one lane rung 1 leaves empty.</FONT></TD></TR>
+        </TABLE>>];
+  ship -> note [style=invis];
+}

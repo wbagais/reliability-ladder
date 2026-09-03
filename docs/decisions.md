@@ -3444,6 +3444,18 @@ real and it describes a set nobody named.
 - 2026-09-01 — **A held-fixed layer and a dead arm look IDENTICAL in a results table, so the B2 arm was checked for being a no-op rather than assumed not to be.** Detection F1 is byte-identical between the two arms at all three draws (0.548/0.558/0.557 exact, 0.809/0.814/0.823 overlap) because `rung0_encoder` changes only the menu handed to S2's PICK call — the FIND prompt carries no menu, so it hashes to the same cache key, and the base was run first at each draw. That is the design, and it is what lets the F1 change be charged to the menu. **But "Δdetection = 0.000" is also what a completely inert arm would print**, which is the same confusion the `rung0_menu_order` arm could have caused. Verified directly on the records: spans and span text identical on 232/238/231 shared ids, **candidate menus differ on 100% of them, and the emitted code differs on 38% / 39% / 42%**. The arm is live; only detection is pinned. Record the absolute detection values alongside the delta whenever an ablation holds a layer fixed — a delta of zero is not self-evidently a controlled variable.
 
 - 2026-09-01 — **CI RED, and it is the SECOND pipeline failure in two days from the same cause: the environment the tests pass in is not the environment CI runs them in.** Two of the new B2 tests failed on the merge request and neither was a production defect. `test_embedder_for_granite_does_not_need_torch` built a real ollama embedder, which imports **httpx** — itself a local-only extra — so it died in CI for a reason that had nothing to do with torch. `test_the_dense_retriever_looks_for_the_encoder_named_in_cfg` let a real `EmbeddingIndex` fail on an absent file, but its first act is importing **numpy**, so the bare environment reported "install numpy" instead of the encoder's path and the assertion checked the wrong message. CI is `python:3.12-slim` with `requirements.txt` (pyyaml) plus pytest and nothing else. **Fixed by STUBBING rather than skipping** — `pytest.importorskip` is the existing convention (`tests/test_embed.py`) and would have been the cheap answer, but a skipped test is a guard nobody has, and both of these pin something worth keeping: the granite path's ROUTING (asserted through a monkeypatched `ollama_embedder`, plus `"torch" not in sys.modules`) and the missing-index MESSAGE (asserted through an `EmbeddingIndex` stubbed to raise). **The fixed tests are strictly stronger**: re-running the mutation pass in both environments, they now catch the dotted-suffix and eager-embedder mutations in CI too, where before they would have failed for the wrong reason. Yesterday's instance was `git check-ignore` in a runner image with no git binary; the shape is identical. `CLAUDE.md` now carries the three-line local CI reproduction, because the lesson has not stuck twice.
+
+- 2026-09-01 — **FOUND WHILE WRITING §1, NOT YET MEASURED: the pick call never receives the sentence, and on FiNER the sentence is the entire signal.** `r0._blocks` renders a pick block as `reaction {idx}: "{rec.text}"` plus the numbered menu and nothing else; the `context` the find call collects is read only by `locate()` and by the rejected `menu_order: "context"` arm, and never reaches the pick prompt. So FiNER's pick sees `reaction 0: "47.6"` and 139 tag names — while its own `pick_guidance`, written against FiNER's gold, says **"The number itself carries no information. The sentence around it decides: measured on gold, 39 numbers take different tags in different places."** The prompt asserts that the sentence decides and then withholds it. `manifest.finer.json`'s `_shape_differences_from_cadec` records the same fact independently ("Tagged tokens are numeric and meaningless in isolation"). **CADEC masked it**: there the span carries its own meaning, so a context-free pick works well enough that nobody looked — which is the second corpus doing exactly the job it was added for. **It PREDICTS the slot-0 attractor rather than competing with it**: a pick with nothing to act on takes line one, measured at 19.5% of all predictions, and it explains why the context menu-order arm lifted slot-0 accuracy 0.087 → 0.373 (it was smuggling context in through the ranking, the only channel available) while still losing overall. **SECOND DEFECT, same root, found the same way: `_blocks` hardcodes the word `reaction` — it is not slotted.** FiNER's pick prompt says *"Each fact has a number after the word \"fact\""* and the data says `reaction 0:`; CADEC is unaffected because its `entity_short` IS "reaction". Same class as the unported rung 4 judge prompt (2026-08-30), which is now two of seven prompt constants that did not survive the port. **Registered as B5 in `docs/PLAN-next-sessions.md`, with the comparability confound stated**: `r0.py` freezes the prompt shape deliberately, so an arm that gives FiNER context CADEC lacks must run on both corpora or report the improved number separately. Nothing changed in production; no number in the article moves on this entry.
+
+- 2026-09-01 — **The "CADEC v3" label was still in four places and it is WRONG; corrected.** The 2026-08-22 "Provenance corrected" entry established the distinction — the **corpus** is **CADEC v2**, the **DAP collection** `csiro:10948` is at **edition v3**, and the collection's own `collection_import_sha256sum.txt` holds exactly `CADEC.v1.zip` and `CADEC.v2.zip`, so no v3 corpus exists — but only the four manifests and `README.md` were ever updated to match. Still saying v3: `docs/licences.md` (its section heading), `docs/plan.html` (two setup steps and a changelog row) and `docs/article.html` (the LIVE published artifact's provenance strip). All corrected; `docs/licences.md` now carries the two-version distinction explicitly at the top of the CADEC section so the next reader cannot repeat it. **`docs/versions/*` archives were deliberately left alone** — they are historical records of what was published, and rewriting them would be falsifying the archive. `docs/decisions.md`'s own 2026-08-22 entry at line 25 also still reads "CADEC v3 = 1,250 posts" and is likewise LEFT AS WRITTEN: this log is append-only and the correction below it is the record. `docs/article-v3.md` now names the version once, in §1, because a reader cannot check provenance against a corpus we never named. Nothing measured changed — this is a labelling fix on 9,111 mentions that were always v2's.
+
+- 2026-09-01 — **MEASURED from surviving artifacts: run-to-run agreement on CADEC holds at ~0.78-0.84 across TWO baselines, and the pick step is measurably unstable at ~9%.** Asked for agreement percentages on both corpora while reviewing article §2. Recomputed pairwise span-set Jaccard over `out/arm-sapbase-d{0,1,2}.records.jsonl` — the SapBERT arm's control, and **its run manifest was diffed key-for-key against the tracked `manifest.json`: the only differences are absolute-versus-relative PATHS to the same files, so this is not a second configuration but the SHIPPED one run three more times four days later.** Three genuinely distinct runs: sha256 differ, rung-0 F1 0.397/0.412/0.407, n_records 232/238/231, p95 78.5/69.8/89.4 s). **Span agreement 0.787 / 0.706 / 0.847, mean 0.780** — against the 2026-08-28 shipped-baseline figure of 1.000 / 0.764 / 0.764, mean 0.842, whose runs are gone. Two independently configured baselines agreeing on the magnitude is worth more than either alone. **NEW, and it fills a cell the article had marked "not recorded": conditional on both runs proposing the SAME span, they assign the same code 0.908 / 0.886 / 0.930, mean 0.908.** So nondeterminism is in BOTH steps, not just the find call as the 2026-08-28 note implied — the model re-reads slightly differently AND re-picks from an identical menu slightly differently, roughly 9% of the time. Script kept in scratch; the numbers are the durable record, per the standing convention.
+- 2026-09-01 — **A TRAP THAT MAKES THREE DRAWS LOOK LIKE THREE MEASUREMENTS WHEN THEY ARE ONE: `out/finer/arm-finerbase-d{0,1,2}` are WARM-CACHE REPLAYS and must not be used for variance.** All three have the **identical sha256** (`f479bd0f156f`), identical `f1_sct_strict` 0.16294, identical 309 spans — and the refused document `FINER.test.0013` carries **27 records in all three**, so the refusal that defines FiNER's entire run-to-run spread is ABSENT. Wall-clock differs (p95 128.1 / 123.1 / 117.9 s), which is exactly what makes it deceptive: they are three real invocations that re-served every completion from cache. Their F1 (0.163) is also not the 0.193/0.205/0.205 the article reports, confirming a different configuration and a different session (the b4-slot0 worktree). **CONSEQUENCE: FiNER's agreement percentage cannot be computed from anything that survives** — the cold-cache draws were in `phase-e-rung-6-human-loop-64ce8e`/`agitated-lewin-346b03`, deleted 2026-08-31 — and article §2 now carries a PENDING saying so rather than quoting a 1.000 that would measure the cache. Registered in `docs/PLAN-next-sessions.md`. **The general rule this earns: a variance measurement is only valid over a COLD cache, and byte-identical output is evidence of reproducibility only when the calls actually happened.** Nothing in a records file announces which it was; check the ledger or the cache state before quoting an agreement figure.
+
+- 2026-09-01 — **CORRECTION to the entry above: `out/finer/arm-finerbase-d{0,1,2}` are NOT warm-cache replays. They are three genuine cold runs that produced byte-identical output, which is a finding rather than an artefact.** The earlier entry inferred "cache" from identical sha256 + the refusal being absent + an F1 that did not match the published 0.193/0.205/0.205. **The ledger refutes it**: 40 rung-0 rows per draw, latency_ms median 55,091-58,162 and max ~230,000, and **zero calls under 50 ms** — every call actually generated. `tokens_out` also differs across draws (64,960 / 65,100 / 65,100), so the generations were not even identical; they parsed to the same records. The F1 mismatch is explained by configuration, not caching: this is the b4-slot0 arm's base, not the run behind the article's FiNER figures. **THE REAL RESULT, and it is more interesting than the trap I thought I had found: `gpt-oss:20b` on FiNER produced 306 of 306 mentions in full three-way consensus in one three-draw set, while an earlier set on the same corpus differed on one refused document.** So this model is reproducible on FiNER *sometimes*, and the comparison that matters is against CADEC, where the same model, same temperature and same two-call pipeline reach only **62.8%** consensus. Whatever makes it unstable is not a property of the model alone; the task decides how much room the instability has, and nothing measured here says why. The general rule from the retracted entry does NOT survive in the form it was written — "byte-identical output is evidence of reproducibility only when the calls actually happened" stands, but **the way to check is the LEDGER's latencies, not an inference from the records file**, and that is the reusable part.
+- 2026-09-01 — **A BUG IN THE CONSENSUS ANALYSIS, caught by running it on a known-identical control, and it had inflated the disagreement.** The first version clustered mentions across draws by transitive span overlap with no constraint on which run contributed, so **two overlapping mentions from the SAME run merged into one cluster and read as a three-way disagreement.** Running it over three byte-identical FiNER files — where the answer must be 100% — returned 97.3%, which is how the bug surfaced. Fixed by allowing at most one mention per run in a cluster; the control then returns exactly 100.0% over 306 clusters. Corrected CADEC figures (shipped config, three draws, `arm-sapbase-d{0,1,2}`): **298 mention clusters — full agreement 187 (62.8%), spans match/codes differ 26 (8.7%), codes match/spans differ 6 (2.0%), both differ 11 (3.7%), found by 2 of 3 runs 35 (11.7%), found by 1 of 3 runs 33 (11.1%).** Summary: consensus **62.8%**, all-three-same-span **71.5%**, same-code-where-all-three-found-it **83.9%**. The superseded figures were 61.5 / 73.2 / 78.8 and must not be requoted. **THE METHOD LESSON: run any agreement metric over a set whose answer you already know before you run it over the set you care about.** A control that must return 100% is free and it is the only thing that would have caught this.
+
+- 2026-09-01 — **THE ARTICLE'S STAMINA EXAMPLE IS STALE AND THE CURRENT CONFIGURATION GETS THAT RECORD RIGHT.** §4 and §7 both used `"stamina"` → `248276000` |Stamina| against gold `248277009` |Lack of stamina| — §4 as a near-miss sitting in ACCEPT, §7 as a code rung 3 voted to fix. Checked against the surviving runs: on `arm-sapbase-d{0,1,2}` the model produces span **`'loss of stamina'` with a DISCONTINUOUS span `[(18,25),(39,46)]` coded 248277009 — the correct answer** — and rung 1 files it BAND (`lexical_match("loss of stamina", 248277009)` is False under both modes). **Gold's own span is discontinuous too** (`LIPITOR.108`, text `'loss of stamina'`), which is why the old single-segment extractor could only quote the contiguous fragment `"stamina"` and coded the concept that fragment names. So the example is an artefact of the pre-`rung0_split` configuration: the coordination splitter now emits multi-segment spans and the near-miss disappears. **REPLACED in §4** with a near-miss that survives the current shipped config and is sharper: `"weight gain"` → `262286000` |Weight increased| where gold says `8943002` |Weight gain| — **both concepts carry "Weight gain" among their terms**, so the span exact-matches BOTH and the lexical check cannot prefer the right one. Two more of the same shape in the same lane: `"knee pain"` → |Pain of knee region| vs gold |Gonalgia|, `"muscle injury"` → |Injury of muscle| vs gold |Traumatic injury of skeletal muscle|. **§7's use of the stamina record is still stale and is registered as plan item 7.** Also verified while there: the article's `"extreme rectal bleed"` → 12063002 BAND example IS reproduced exactly by the current runs (verdict BAND, correct code), and gold's own span `"rectal bleed"` lands in BAND as well, because "bleed" and "bleeding" are different strings — added to §4, since "even quoting the answer key exactly is not enough" is a stronger statement of the same point.
 - 2026-09-01 — **THE ACCEPT LANE FIRES ON A THIRD CORPUS, AND ITS RATE MOVES 6.4 POINTS BETWEEN SPLITS OF THE SAME CORPUS.** GeoWebNews (Gritta et al., GPL-3.0, 200 news articles, 2,399 usable gold toponyms) ported end to end against GeoNames `allCountries`. Rung 1's ACCEPT lane, measured **from gold with no model call**, on `exact` mode: **dev 39.8% (176 of 442), test 46.2% (287 of 621)**. Against FiNER's 0.0% and CADEC dev's 42.4%. **The lane fires on a gazetteer, in a news domain, so the ~85% ACCEPT-lane result is not a property of SNOMED** — that closes the generalisation question `docs/article-v3.md` leaves open. But the 6.4-point dev/test spread inside one corpus means **the lane rate must be quoted with its split named, every time**, exactly as a rung 1 rejection rate must name its vocabulary backend. Some unknown share of CADEC's 42.4% is the same split noise; that figure is dev-only and has never been computed on test. **A prediction of ~40% was written into `manifest.geo.json` before any measurement** and dev confirmed it; test did not, which is B2's own lesson — *a probe has to be run on the denominator the arm will be scored on* — arriving one arm later and from the free side.
 
 - 2026-09-01 — **THE LEXICAL-OVERLAP AXIS IS NOW A CONTROLLED VARIABLE, NOT A COMPARISON BETWEEN CORPORA.** CADEC and FiNER each sit at one point on the axis that decides whether rung 1's free check can fire, so the axis was confounded with task, vocabulary and prompt. GeoWebNews contains all four regimes **at once**, under one model, one prompt and one check. Measured on gold before any code was written: **identical 40.5%** (`Washington Square` → `Washington Square`), **subset 24.8%** (`Britain` → `United Kingdom of Great Britain and Northern Ireland`), **partial 4.9%**, **no shared token 29.9%** (`French` → `Republic of France`). The zero-overlap group is four systematic phenomena, not noise: **demonyms** (the largest by far), **abbreviations** (`US`, `UK`, `EU`, `DPRK`, `N.J.`), **exonyms and transliterations** (`Moscow` → `Moskva`, `Italy` → `Repubblica Italiana`), and **metonymy** (`Congress` → `United States Capitol`, `Oval Office` → `White House` — the annotators resolved the building an institution sits in, which is defensible and permanently invisible to a string comparison). The stratum is carried on `GoldMention.cadec_type`, so the ACCEPT lane's correctness can be computed **per stratum with the model held constant** — the mechanism measured rather than inferred across corpora. Note the prediction that this corpus would show a near-total ACCEPT lane was **falsified before any code existed**: `lexical_match` in `exact` mode requires whole-string equality, so the 24.8% subset stratum cannot reach ACCEPT either, and 39.8% ≈ the identical stratum alone.
@@ -3680,3 +3692,433 @@ real and it describes a set nobody named.
   Two shape notes. LGL and TR-News carry `<gaztag geonameid="…">` on every mention, so the answer key supplies the identifier and there is no resolution step to get wrong — unlike GeoWebNews, whose name-and-coordinates format forced a lookup that picked a Brooklyn in South Africa. And the offset check earned itself twice more: **116 of TR-News's 1,275 spans do not land**, dropped and counted rather than silently mis-scored.
 
   The set still has one corpus each for three of the four shapes. Five entries are not five independent regimes and the calibration record says so.
+
+## 2026-09-02 — rung 4 was never shown what it was judging, and the article's explanation of it was wrong
+
+Found while reviewing §6. `r4.judge` formats its prompt with
+`source, text, start, end, sct` (`ladder/rungs/r4.py:160`) and **`sct_label`
+appears zero times in the file**. The judge is handed `code: 1003722009`, a bare
+nine-digit identifier with no name, and asked whether it is the right SNOMED
+concept. That question cannot be answered by reading; it asks a 3.2B model to
+recite an identifier from memory.
+
+**This overturns the published explanation, which is now corrected in
+`docs/article-v3.md` §5 and §6.** Both sections attributed the CADEC/FiNER judge
+difference to context size — 139 tags fit, 129,675 SNOMED concepts do not. The
+real cause is **identifier readability**: on FiNER `rec.sct` *is* the tag name
+(`DebtInstrumentFaceAmount`), on CADEC it is a number. The judge adjudicates
+codes on FiNER because that corpus's identifiers happen to be words. Nothing
+about context windows. "A judge cannot adjudicate a vocabulary it cannot see"
+read as a property of the task; it was a property of our prompt.
+
+Consequence for the numbers: every rung 4 figure in the draft — the 1.65x and
+1.23x separations, 21.0%/12.7% coding accuracy by verdict, the pass/fail counts
+(146/95/7 CADEC, 48/299/4 FiNER), Figure 13, and §7's dead-verdict finding —
+measures a judge working blind. Reported as observed, but they answer a narrower
+question than we read them as.
+
+Registered as plan item 14, WITH RUNS. The redesign is the standard
+LLM-as-judge setup we never built: give the judge what the extractor was given
+and what it answered, for both of the extractor's two decisions (post -> span,
+menu -> pick). The data is already on disk — `rec.checks["candidates"]` carries
+`{i, code, fsn/label, from_rank}` (`ladder/rungs/r0.py:1260`). It turns the code
+question from recall into comparison, and it buys a verdict the system cannot
+currently express: *the right answer was not in the menu*, which separates a bad
+pick from a bad retrieval.
+
+Three things travel with it. (a) **A live bug found on the way:** the judge has
+no `[denied]` instruction, where rung 0's pick prompt has carried one since
+Phase B (`ladder/rungs/r0.py:479`) because without it the pick declined every
+denied mention it was given. The judge is therefore failing spans CADEC marks
+correct. CADEC only. (b) **Permute the menu under a fixed seed** — the slot-0
+attractor has been found three times and a judge shown a ranked list may ratify
+line 0; this is the same mechanism the registered position-prior experiment
+wants. (c) **It may make the judge worse.** Phase C's lesson was that prompt form
+is load-bearing for small judges. Treat as an experiment, not a fix.
+
+FiNER gets the same change and needs it more: its judge fails 299 of 351
+records, which carries about as little information as passing everything.
+
+## 2026-09-02 — no rung in this ladder can add a mention, and rung 6's oracle already proved it
+
+Raised while considering whether rung 4 should also look for missed mentions.
+It should not, but the question exposed a structural limit the article did not
+state.
+
+Every rung above 0 operates only on records rung 0 proposed: rung 1 rejects,
+rung 2 rewrites a code, rung 3 re-scores existing spans, rung 4 is per-record,
+rung 5 withholds, and **rung 6's desk is span-keyed** — it offers a choice of
+codes for spans it was handed. The proof needs no new run: Phase E's oracle, a
+perfect reviewer on the phaseD-r3-2 residue, moved coding accuracy on matched
+spans 0.291 -> 0.990 **with detection unchanged**. Flawless human review left
+recall exactly where rung 0 put it.
+
+So the ladder's ceiling is rung 0's detection and every technique in it is a
+precision instrument. Added to `docs/article-v3.md` as a new §6 subsection,
+"None of them can find what rung 0 missed".
+
+Rejected as the repair: having rung 4 check for missed mentions. Wrong unit —
+rung 4 is per-record, "what was missed" is per-document, so a 6-mention document
+would be asked six times and could answer six ways. Wrong act — a judge that
+names an unproposed mention is extracting with a second model, the same collapse
+the standing rung 0 / rung 2 retry rule already forbids. Registered instead as
+plan item 15: a rung that can propose a missed mention, bounded with an oracle
+ceiling first, exactly as rung 6 was bounded before it was built.
+
+## 2026-09-02 — refusal is a policy dial, not a technique; and the article applied its own yield rule to only one of three decisions
+
+Rewrote §6's rung 5 passage (4 lines -> a full subsection) on the owner's frame:
+rung 5 is the guard in front of rung 6 and how aggressive it should be is the
+deployer's call, not a property of the task. The frame is supported — the
+manifest already exposes four knobs, the article already uses "a number only you
+have" for cost, and the judge arm is an existence proof of the dial being turned
+and measured.
+
+**The frame forced a fix rather than replacing one.** A dial is only choosable if
+every setting is reported on both metrics, so §6's per-layer table now carries a
+YIELD column beside answered accuracy. That exposed an inconsistency the article
+had been carrying: it states the rule sharply — "abstaining always raises
+precision; yield cannot be fooled" — and then applied it to one of three
+decisions.
+
+  judge arm       rejected ON YIELD                     correct
+  rung 5 headline credited +0.437 ON PRECISION          fixed
+  lexical_mode    chosen on lane accuracy ON PRECISION  OPEN, see below
+
+Per-layer table, `audit-full-dev-1`: refusal reads 0.371 -> 0.808 on answered
+accuracy and 0.371 -> 0.170 on yield. Both true. The plot (fig2-flat) shows only
+the flattering column and its caption now says so.
+
+**The open one is a shipped-config question.** On `arm-sapbase-d0`'s own numbers,
+`lexical_mode: contained` ships 88 records at 63.6% (56 correct, yield 0.252)
+against `exact`'s 48 at 85.4% (41 correct, yield 0.185). The looser setting was
+rejected for costing 22 points of LANE ACCURACY — a precision measure — and on
+yield it is 36% better. ONE DRAW, and changing a shipped default on one draw is
+precisely the error the SapBERT probe made, so this is registered rather than
+acted on.
+
+New policy table in §6 gives four settings — ship everything / `contained` /
+ACCEPT only / ACCEPT minus judge fails — at 0.414 / 0.252 / 0.185 / 0.125 yield
+against 0.414 / 0.636 / 0.854 / 0.816 answered accuracy. The two columns are
+monotone in opposite directions over the same four systems. Stated conclusion:
+the rung has no optimum, only a break-even in three currencies we do not have.
+Moving from ship-everything to the shipped policy trades **123 fewer errors, 51
+fewer correct answers, and 174 more records for a person.**
+
+Also recorded, and it retires a technique rather than leaving a key untuned:
+**`tau` is not merely uncalibrated, it is inapplicable.** Rung 0's self-reported
+confidence on `arm-sapbase-d0` is 1.0 on 179 records (77%), 0.99 on 48 and 0.95
+on 5 — **nothing below 0.95**, on a run that is right about 40% of the time. At
+least six in ten answers the model calls near-certain are wrong. The manifest
+note said tau waits for "a real rung-0 confidence distribution"; the distribution
+exists and is degenerate. Confidence thresholding, the textbook abstention
+method, has no threshold to place here.
+
+New figure `docs/figures/fig19-rung5.dot` (Fig. 14), and it is the only figure in
+the article that is REPLAYED rather than quoted: rung 5 is a pure disposition
+rule, so the surviving `arm-sapbase-d0` records were run back through
+`r5.decide()` with the shipped manifest config. Result: BAND 182 -> ABSTAIN,
+ACCEPT 50 -> VERIFIED, nothing else fires. Figures 14-16 renumbered to 15-17.
+
+One correction to the 2026-08-28 audit's phrasing, which said rungs 2, 3 and 4
+each defer to a rung 5 that reads none of them. Rung 5 reads all of them except
+the judge: rungs 2 and 3 RE-RUN `r1.zone()` after changing a code and overwrite
+`r1_verdict` (`ladder/rungs/r2.py:451`, `ladder/rungs/r3.py:218`), so their work
+reaches rung 5 through a recomputed free check. Rung 4 alone has no reader.
+
+## 2026-09-02 — rung 6 rewritten cost-first; the oracle ceiling is arithmetic, not a discovery
+
+Owner's framing, and it is the right one: rung 6 is rung 5 seen from the other
+end — the same deployer-owned decision — so §6's passage now leads with the bill
+and not with accuracy.
+
+**The oracle ceiling was oversold in review and is now one sentence.** 0.131 ->
+0.444 looked like the largest number movement in the study; it is
+`detection 0.449 x coding 0.990`, which follows once you know the desk fixes
+codes and cannot touch spans. "A perfect reviewer improves things" was never in
+doubt. What survives is the part that is not arithmetic: even flawless code
+review stops at 0.444 because the desk has nowhere to put a corrected span, so
+the residual gap is entirely annotation. Rejected on the same grounds: an oracle
+over BOTH spans and codes. It returns 1.0 and measures gold against gold.
+
+**Rung 6's actual function, and the reason it is a rung:** it is the only place
+the third cost currency gets a number. Tokens and latency are easy to shrug at;
+"196 of 248 records went to a person" is not, and without it rung 5's jump to
+0.808 reads as free.
+
+Kept precise rather than stated: no human desk session has ever run, and the
+owner asked that this not be spelled out in the article. The labels carry it —
+the count is MEASURED, the minutes are DECLARED ("an illustration, never an
+observation"), the accuracy is a CEILING derived from gold — and the desk is
+never described in the present tense as though sessions occur. `docs/decisions.md`
+(Phase E, 2026-08-26) and the Limitations paragraph remain the durable record.
+
+**An error-budget correction the owner made, and it reverses a recommendation I
+had given.** I had proposed aiming future human corrections at the retriever.
+Wrong: the loss decomposes roughly as detection 0.449, retrieval ~13% (menu
+recall@20 87.0%), picking ~58% — when the right code IS on the menu the model
+takes it about one time in three. Retrieval is the SMALLEST of the three, and
+four independent findings already said so (the slot-0 attractor, the alphabetised
+menu at -10-12pt, the FiNER context menu, SapBERT). The flywheel's target is PICK
+SUPERVISION — which line of the menu was right. NOTE: 55/13/58 mixes denominators
+(87.0% is over all 6,595 gold mentions, 0.291 over one run's matched spans), so it
+is an estimate and is NOT printed in the article as measured. Exact split needs
+the per-record join, plan item 12.
+
+Also corrected in §9's division-of-labour table: "its confidence was a constant"
+-> "it never reported below 0.95 confidence while being right ~40% of the time",
+which is what the distribution actually shows.
+
+## 2026-09-02 — §6 split in two, three cuts, and rung 5/6 code work registered
+
+§6 had grown to 3,622 words — longer than the whole v2 submission (3,579) — and
+was doing two jobs at once. Split on the owner's call:
+
+  §6  The five resolvers, one at a time   (2,506 w) — rungs 2,3,4,5,6 walked
+  §7  What the stack did as a whole       (1,082 w) — per-layer table, ablation,
+                                                      judge arm, recall ceiling
+
+Sections below renumbered 7->8, 8->9, 9->10, and all five prose cross-references
+updated with them. §6's old title ("What the four paid resolvers bought") was
+already wrong: rungs 5 and 6 cost zero tokens and spend something else.
+
+Three cuts, ~430 words and one figure:
+  1. **fig2-flat DELETED from the article.** Its caption had been amended to say
+     it showed "column one of the table below — the flattering one". A figure
+     that needs a disclaimer, sitting above a table with the same numbers plus
+     coverage, yield, tokens and p95, is redundant. The .png stays on disk,
+     unreferenced. Figures renumbered 16->15, 17->16.
+  2. **The judge-arm's four-row table removed** — every number in it now appears
+     in rung 5's policy table, where it is one row among four settings. Replaced
+     by two sentences carrying the same three draws. The 3.7-correct-destroyed-
+     per-error finding and the three named casualties are kept.
+  3. The recall-ceiling subsection needed no cut; it was already prose.
+
+Registered as plan item 17, the four code changes the review exposed — (a) the
+desk cannot correct a SPAN, which is why the oracle stops at 0.444 and why that
+ceiling is a fact about our tool; (b) run rung 0's pick over GOLD SPANS to turn
+the estimated ~0.291 into a measurement and settle the annotation-vs-coding
+division of labour; (c) the nine `(-1,-1)` records that are unreviewable by
+construction need a disambiguating key or a counted disposition; (d) `tau` is a
+dial that cannot turn — retire it with a test that keeps it gone, or keep it and
+put the confidence distribution in the manifest note as the reason.
+
+## 2026-09-02 — rung 6's tail cut: it was duplicating §7 and disclaiming a number the article never states
+
+Owner questioned whether the four blocks after rung 6's count were needed. Three
+of the four were not, and checking why found two distinct defects rather than
+mere length:
+
+1. **The oracle sentence duplicated §7.** §7's "None of them can find what rung 0
+   missed" already runs the same oracle, makes the same point (the desk is
+   span-keyed and can only pick codes), and reports the same movement. §6 was
+   the weaker of the two tellings, because §7 states it as the structural
+   finding it is. Cut from §6; §7 keeps it.
+2. **The minutes disclaimer defended against a claim the article does not make.**
+   "The manifest carries a declared 2.0 minutes per record, and any total derived
+   from it is an illustration" was the ONLY place a minutes figure appeared
+   anywhere in the article. Disclaiming a number we never state is defensive
+   writing; the Limitations paragraph ("Human cost is a count of records routed,
+   never minutes") already carries it in one clause.
+3. **The flywheel paragraph was speculation** about work not done, on a corpus
+   where the owner had already observed it does not apply. Cut. The reusable
+   substance — resolutions carry ids, offsets, codes and labels but never corpus
+   text — survives in `ladder/rungs/r6.py`'s docstring and in plan item 17.
+
+A side effect worth recording: cutting the oracle sentence removed a cross-run
+citation. Rung 6's passage now draws on `audit-full-dev-1` alone, which is what
+§6's own opening paragraph declares, so the section no longer mixes runs.
+
+§6 is now 2,298 words, from 3,622 at the start of the day.
+
+## 2026-09-03 — §7 rewritten: each layer judged against its own purpose, and it exposed a gap the delta table hid
+
+Owner's call, and the reasoning is the durable part: **accuracy is the wrong test
+for four of the six layers.** The free check is not trying to raise accuracy, it
+is trying to SORT. Refusal makes no claim at all, so it has no accuracy to
+report — "withheld" is deferred, not wrong. Judging every layer on one yardstick
+reported five of them as "did nothing", which is true and useless.
+
+The staircase-of-deltas table is replaced by a role table: what each layer is
+FOR, whether it did that, and what it cost. Numbers kept — "voting costs more
+than it gives" is an assertion, "425,355 tokens for no consistent effect" is
+evidence, and the cost columns are the only per-layer pricing in the article.
+
+Result reads sharper than the deltas did: **the two layers that did their jobs
+cost nothing** (deterministic checks, refusal); the three that cost 518,590
+tokens either could not be tested (self-correction fired once), could not be
+shown to help (voting), or were measured wrong (the blind judge, [PENDING]).
+
+**Voting's wording corrected to "no consistent effect", not "no effect."** −0.004
+on audit-full-dev-1, +5 correct on phaseD-r3-2, and on the held-out split it
+re-found 8 records of which all 8 were wrong. A layer whose sign changes with the
+draw is not one you can plan around, and it is the most expensive thing here.
+
+**NEW FINDING, and it is the best thing in the section — the BAND lane has no
+layer designed for it.** Rung 2 targets REJECT, which is ~0% of CADEC records.
+Rung 5 ships ACCEPT and withholds BAND. Rungs 3 and 4 run over everything
+indiscriminately. So the lane holding **~78% of all records** has nothing aimed
+at it and is routed to a person by default — which is where the human cost comes
+from. This was invisible while every layer was being scored on accuracy; it
+appeared as soon as the layers were laid against the lanes. Lane shares agree
+across the two dev runs (arm-sapbase-d0: ACCEPT 48 / BAND 174 / REJECT 0 of 222;
+audit-full-dev-1: ships 52, routes 196 of 248).
+
+Section retitled "What each layer was for, and whether it delivered". 1,082 ->
+1,200 words; the growth is the BAND-gap subsection. Kept unchanged: the ablation
+(the strongest evidence in the article), the judge arm, and the recall ceiling.
+
+## 2026-09-03 — the judge-arm subsection CUT (it measured the blind judge), and the BAND finding corrected into a sharper one
+
+Two owner corrections, both right.
+
+**1. "BAND has nothing aimed at it" was wrong.** Rung 5 DOES read the lane —
+`abstain_zones: ["BAND"]` is the routing rule. The accurate and more useful
+finding is one level down, and it was confirmed in the code: **rungs 3 and 4 both
+iterate `for rec in records` with no lane filter.** So voting and the
+second-model judge — the two most expensive layers in the system, 518,590 tokens
+between them — were run across the whole batch, including the ~21% of records the
+free check had already vouched for at ~85% accuracy. **The ladder computes a
+triage signal and then does not use it for triage.** §7's subsection retitled
+"We computed a triage signal and then ignored it".
+
+The second half of the original point survives and is kept: nothing is aimed at
+*improving* BAND. Rung 5 withholds it rather than resolving it, so the person at
+the end is the default destination rather than a chosen one — three quarters of
+the batch, routed by exhaustion.
+
+**2. The judge-arm subsection is DELETED.** It reported that wiring rung 4 to
+rung 5 destroys 3.7 correct answers per error caught. That is a measurement of
+the BLIND judge (2026-09-02: `sct_label` appears nowhere in `r4.py`), and §7's own
+role table now says every judge measurement was of a blind judge. Publishing a
+subsection of its conclusions contradicts that flag and invites the reader to
+conclude "judges do not pay", which we cannot support. It can return when the
+judge is measured with the menu and the pick in front of it (plan item 14).
+
+Rescued from the cut, because the lesson is method rather than judge-specific:
+**"abstaining always raises precision"** now sits in §6 beside the policy table,
+where it explains why the two accuracy columns are monotone in opposite
+directions. It was previously stated only inside the deleted subsection.
+
+The one surviving judge-arm number — the "ACCEPT minus judge fails" row of §6's
+policy table — is KEPT, because it is a real setting a deployer might choose, but
+its footnote now carries the blind-judge caveat explicitly and tells the reader
+to read it as the shape of a tightening policy, not as a verdict on judges. Two
+other stale cross-references to "the judge arm" (the §6 scope note and
+Limitations) updated.
+
+KEPT, and the owner agreed: "We deleted all three and re-ran". The ablation is
+the strongest evidence in the article and the only place the three paid layers
+are measured by removal rather than by delta.
+
+§7 is 1,109 words.
+
+## 2026-09-03 — the rung 6 oracle is GONE from the article, and the ablation's stated purpose was wrong
+
+**1. The oracle's accuracy numbers are deleted.** Owner: we should not report an
+accuracy for humans. Correct, and the finding does not need them. That the desk
+cannot move detection is true BY CONSTRUCTION, not by measurement — it shows a
+reviewer a span the system already found and offers a choice of codes, so there
+is no control for "you missed one" and none for "these boundaries are wrong."
+Stated as a design fact, which is stronger than the oracle replay and carries no
+claim about what reviewers achieve. `0.291 -> 0.990` is out of the article
+entirely; it survives in this file and in the Phase E entry.
+
+Cascade fixed: §7's open question no longer says "bounded with an oracle ceiling,
+exactly as rung 6 was bounded", since the article no longer describes that.
+
+The measurement itself is untouched and still recorded (2026-08-26). What changed
+is that the article does not publish it — three separate review passes shrank it
+from "the largest movement in the study" to one sentence to nothing, and each cut
+was right for its own reason: it is arithmetic (`detection x coding`), it
+duplicated §7, and it asserts an accuracy for human work we never observed.
+
+**2. The ablation is KEPT but its stated purpose was wrong.** It was introduced
+as "per-layer readings are an argument, the ablation is the measurement", framing
+it as a test of STACKING. There is no stacking to test — §8's whole finding is
+that the rungs do not compose, and the per-layer rows are already cumulative. Its
+real value is the one question the per-layer table cannot answer: **can you
+delete these three and lose nothing?** Retitled "So we deleted all three", opener
+rewritten to say that, `shipped` column dropped as redundant with `to a person`.
+It stays because it is the article's only removal test and the only number a
+reader can act on.
+
+§7 is 1,087 words, from 1,082 at the split — but the content is almost entirely
+different: the delta staircase, the judge arm and the oracle are all gone, and
+the triage-signal finding and the role table are new.
+
+## 2026-09-03 — sweep of the unreviewed sections: a fabricated duration, a stale verdict, and two settled items filed under "could not settle"
+
+Owner asked for a pass over everything after §7 to cut what is not needed before
+reviewing it. Five defects, ~410 words removed, article 18,174 -> 17,900.
+
+**1. A FABRICATED DURATION, and it is the second of its kind.** §9 opened "about
+twenty arms over five months". The first commit is **2026-08-16** and today is
+2026-09-03 — **18 days**. Same class as the "four months in" removed earlier in
+this review. Duration dropped entirely rather than corrected: the arm count is
+checkable, the elapsed time adds nothing. **Whatever produces these is not
+catching itself; treat any unsourced duration in this article as suspect.**
+
+**2. §9 said "Six lessons transfer" above EIGHT bullets.** Fixed to eight.
+
+**3. §10's judge row cited a withdrawn measurement.** "1.1-1.2x against a string
+comparison's 3.0-6.1x" is the judge-arm number, and the judge-arm subsection was
+cut yesterday because it measured a blind judge. Row now carries the caveat and
+points at §6.
+
+**4. "What we would tell you" advised measuring orphaned fields because "ours
+cost yield when we connected it"** — the same withdrawn result. Rewritten to
+"measure it before you adopt it rather than assuming it would have paid", which
+is the lesson without the number.
+
+**5. TWO SETTLED ITEMS WERE FILED UNDER "What we could not settle."** The SapBERT
+entry (~180 w) duplicated §9's third bullet nearly line for line; the BioMistral
+entry (~90 w) was a closed negative result. Both cut. Rescued into §9's caveat
+paragraph, where the SapBERT arm already lives: the go/no-go probe lesson (the
+probe measured 1,144 documents, the arm ran on 38) and one clause carrying
+BioMistral's extractor failure. A section named for open questions should not
+carry struck-through closed ones.
+
+**6. The one-draw dictionary probe compressed** 250 -> 130 words. It is below the
+article's own three-draw bar and says so; it does not need both sub-findings at
+full length to make its point.
+
+Not cut, and worth recording as considered: §8 (199 w) and "How we found these"
+(111 w) are dense and every paragraph carries a distinct finding. The literature
+section (481 w) is the only place the supervised comparison and the CONORM
+ceiling check appear.
+
+## 2026-09-03 — the ablation subsection DELETED: its headline number is arithmetic from the table above it
+
+Owner: "there is no stacking, so we compare the same output with itself." Correct,
+and it checks out numerically. The ablation's headline was **518,590 tokens** —
+which is exactly `548 + 425,355 + 92,687`, the sum of the three cost cells in
+§7's role table immediately above. The experiment restated in F1 what the
+cumulative per-layer rows already showed in answered accuracy, and the "saving"
+it reported was addition.
+
+The deeper reason it was redundant is the one the owner named: an ablation
+measures what removing a layer costs, which is only informative if the layers
+interact. §8's finding is that they do not — every deferral terminates in a field
+nothing reads. With no composition there is nothing for a removal test to
+discover, and the per-layer rows are already cumulative.
+
+Kept as one clause in §7's conclusion: "when we removed all three and re-ran, one
+answer out of 43 changed." The fact is worth having; the table and the framing
+were not.
+
+**NOT LOST, RECORDED HERE:** the methodological trap the subsection carried. Our
+spine config predated a set of extraction improvements, so running it as it stood
+would have compared a stripped stack on a WORSE extractor against a full stack on
+a better one. **An ablation that does not hold its base fixed is two experiments
+wearing one name.** Generic experimental-design advice rather than a finding from
+this work, so it comes out of the article and stays in this file.
+
+**FLAGGED FOR THE TAKEAWAYS PASS (deferred to last on the owner's instruction):**
+takeaway 5 reads "Deleting the three paid layers changed one answer out of 43 and
+saved 518,590 tokens". Both halves remain TRUE — the ablation ran, and the run is
+recorded — but the article no longer describes the experiment they come from, and
+"saved 518,590 tokens" now double-counts against the role table's own cost
+column. Rewrite it when the takeaways are reviewed.
+
+§7 is 945 words, from 1,082 at the split. Article 17,752.

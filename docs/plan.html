@@ -566,7 +566,7 @@ Stop at rung 5 and you cannot answer "where does it stop being worth it", becaus
 
 <table>
 <tr><th style="width:10%">Clock</th><th style="width:34%">Person A</th><th style="width:34%">Person B</th><th style="width:22%">Milestone</th></tr>
-<tr><td><b>0:00</b></td><td colspan="2">Joint · download <b>CADEC v3</b>, both accept the licence, confirm it parses. Pin the SNOMED and MedDRA release versions. Splits at seed 42: dev 40, test 60, frozen. <b>Write the gold rule: strict SCT equality on the reaction field.</b></td><td>corpus parses, rule written</td></tr>
+<tr><td><b>0:00</b></td><td colspan="2">Joint · download the <b>csiro:10948</b> collection (edition v3; the corpus inside is <b>CADEC v2</b>), both accept the licence, confirm it parses. Pin the SNOMED and MedDRA release versions. Splits at seed 42: dev 40, test 60, frozen. <b>Write the gold rule: strict SCT equality on the reaction field.</b></td><td>corpus parses, rule written</td></tr>
 <tr><td><b>0:40</b></td><td>Ledger — append-only JSONL + cost meter</td><td>Scorer — <code>reaction_sct_strict</code> + bootstrap</td><td>—</td></tr>
 <tr><td><b>1:20</b></td><td colspan="2">Joint · 10-record fixture through both. Break one deliberately. <b>Agree the rung interface</b> — every rung is <code>fn(records, source) -> records</code>, so the rest slot in without rework.</td><td>harness trusted</td></tr>
 <tr><td><b>1:35</b></td><td><code>registry.py</code> + R1 checks and <code>zone()</code></td><td>R0 prompt, JSON, temp 0, run on test</td><td>—</td></tr>
@@ -621,7 +621,7 @@ Rungs mutate <code>zone</code>, <code>reason</code> and <code>provenance</code>,
 <span class="step-t">Freeze</span><span class="step-w">joint · 0:00–0:40</span></div>
 <div class="step-b">
 <ul>
-<li>Download <b>CADEC v3</b> (<code>csiro:10948</code>). <b>Both accept the CSIRO Data Licence separately</b> — it is non-transferable. <code>.gitignore</code> the corpus directory now, before anything else.</li>
+<li>Download the <b>csiro:10948</b> collection (edition v3; the corpus inside is <b>CADEC v2</b>) (<code>csiro:10948</code>). <b>Both accept the CSIRO Data Licence separately</b> — it is non-transferable. <code>.gitignore</code> the corpus directory now, before anything else.</li>
 <li>Open the annotation files. Confirm reaction codes are <b>SCT and MedDRA</b>, that drugs carry no RxCUI, and find <code>concept_less</code>.</li>
 <li><b>Confirm vocabulary access and pin the release version</b> — BioPortal first, then EBI OLS4. This is the critical-path dependency: without a code-existence lookup, rung 1 does not exist.<p style="margin:.6em 0 0;padding:.55em .8em;border-left:3px solid #b4551f;background:rgba(180,85,31,.07);font-size:.92em"><strong>MEASURED 2026-08-23 — the ordering is backwards.</strong> A <strong>local SNOMED CT-AU RF2 release</strong> is the primary and the only one used in any measured run — no key, no rate limit, no network inside the measurement loop, and the version pin is a directory name rather than a promise. OLS4 is the fallback and it is <strong>lossy</strong>: it reports 23.9% of CADEC gold as nonexistent, including 100% of drug mentions. Reaching for it first would have made rung 1's rejection rate an artefact of the backend. <em>See docs/decisions.md.</em></p></li>
 <li>Splits at seed 42: <b>dev 40, test 60</b>. Write <code>test.json</code> to disk; never regenerate it. Record <code>n</code> in the manifest so iteration 2 can supersede it cleanly.</li>
@@ -2223,7 +2223,7 @@ const ITER=[
 {v:"6",t:"CADEC vocabularies corrected",kind:"fix",when:"data",
  what:"No RxCUIs in CADEC &mdash; reactions normalise to SNOMED CT and MedDRA. RxNorm demoted from scored target to check mechanism. Scoring split by field. <code>concept_less</code> surfaced as a gold-scoreable abstention target.",
  why:"<b>Caught by you, not me.</b> I had assumed a uniform gold code across fields. The band survives untouched, because band membership is a fact about whether RxNorm resolves a string, not about gold. Also logged the ~68.7 strict-span inter-annotator agreement as a ceiling on our own F1 &mdash; without it we would have read a correct result as failure."},
-{v:"7",t:"CADEC v3 and the licence",kind:"fix",when:"data",
+{v:"7",t:"CADEC v2 and the licence",kind:"fix",when:"data",
  what:"Switched to v3 (csiro:10948). Documented the CSIRO Data Licence: non-commercial, <b>non-transferable</b>, no redistribution.",
  why:"Non-transferable means each team member accepts separately. The corpus can never appear in the repo &mdash; including inside committed notebook output cells, which is the trap nobody checks for."},
 {v:"8",t:"Seven-hour cut &mdash; superseded",kind:"cut",when:"scope",
