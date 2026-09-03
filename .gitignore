@@ -83,6 +83,12 @@ public/
 data/*
 !data/splits/
 !data/splits/**
+# Every corpus's splits, not just CADEC's. The original exception named
+# data/splits/ when there was one corpus; FiNER and GeoWebNews put theirs
+# under data/<corpus>/splits/ and were silently ignored. Frozen split ids
+# that are not committed are not frozen.
+!data/*/splits/
+!data/*/splits/**
 
 # Generated wiki output. Source is docs/wiki/content/; rebuild with
 # python docs/wiki/build.py
@@ -96,3 +102,10 @@ docs/wiki/site/
 # mkdir, so a clone without runs/ would crash the runner.
 runs/*
 !runs/.gitkeep
+# runs/archive/ is the EXCEPTION and is tracked: it holds the 29 outputs that
+# were committed before the rule existed plus the pre-rule ledger, restored
+# 2026-09-02. They are a historical record, not scratch — nothing writes here.
+# The negated directory must be un-ignored before its contents, or the contents
+# rule never gets evaluated.
+!runs/archive/
+!runs/archive/**

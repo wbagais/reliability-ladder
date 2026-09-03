@@ -91,6 +91,14 @@ R_LABEL_MISMATCH = "label_mismatch"  # model's own label does not match its code
 # exists so it is nameable and countable, not so it can reject.
 R_CODE_OUTDATED = "code_outdated"  # retired, and SNOMED records what replaced it
 
+#: The span's type contradicts the code's. Added for rung 7 (2026-09-02), which
+#: exists because FiNER's lexical check is a STRUCTURAL zero — a numeral and an
+#: English phrase share no token by construction, so ACCEPT was 0 of 704 and
+#: rungs 2 and 5 went quiet with it. Both sides still carry a TYPE. Measured on
+#: gold before the rung was written: 87.7% coverage at a 1.22% false-rejection
+#: rate, against rung 1's 0.13% on CADEC. Append-only, per the note above.
+R_TYPE_MISMATCH = "type_mismatch"
+
 # R_JUDGE_FAIL: rung 5 only, and only under `abstain_on_judge_fail`. Appended
 # 2026-08-30 when rung 4 was finally wired to a reader. It is NOT a REJECT
 # reason: a second model disagreeing is evidence to withhold on, never proof
@@ -111,6 +119,7 @@ REJECT_REASONS = (
     R_MEDDRA_UNKNOWN,
     R_LABEL_MISMATCH,
     R_CODE_OUTDATED,
+    R_TYPE_MISMATCH,
 )
 
 #: What rung 1 concluded about a record, independent of whether it acted on it.

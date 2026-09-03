@@ -1,0 +1,213 @@
+{
+  "iteration": 1,
+  "frozen": "2026-08-22",
+  "task": "cadec-pharmacovigilance-triage",
+  "gold_rule": "strict = the predicted SNOMED CT code is in the gold code set for that mention; CONCEPT_LESS is correct only against CONCEPT_LESS gold",
+  "gold_rule_note": "CADEC gold is not always a single code: 252 mentions are post-coordinated (A + B) and 3 are disjunctions (A or B). Scoring 'in the gold set' gives credit for either half of a post-coordinated pair. 2.8% of mentions are affected; report them separately.",
+  "unit_of_evaluation": "one mention record",
+  "seed": 0,
+  "corpus": {
+    "adapter": "finer",
+    "name": "FiNER-139",
+    "version": "nlpaueb/finer-139, finer139.zip, CC-BY-SA-4.0",
+    "source": "https://huggingface.co/datasets/nlpaueb/finer-139",
+    "root": "data/finer/extracted",
+    "splits_dir": "data/finer/splits",
+    "_licence": "CC-BY-SA-4.0 \u2014 REDISTRIBUTABLE, unlike CADEC. A reader can reproduce this arm. That is a real difference and the article should say so.",
+    "_loader_note": "The canonical HuggingFace loader is a dataset script and `datasets` 5.x refuses to run those, so load_dataset() fails outright. The adapter reads finer139.zip's JSONL directly. Worth recording: the standard path to this dataset is already broken against current tooling.",
+    "sampling": {
+      "mode": "natural_rate",
+      "sentences_per_document": 10,
+      "documents": 120,
+      "order": "file_order",
+      "_mode_note": "natural_rate | tagged_only. Chosen: natural_rate. 17.3% of test sentences carry any tag (18,789 of 108,378; 31,717 tagged tokens, 1.69 per tagged sentence). Sampling ONLY tagged sentences would give the same gold volume for a fifth of the compute \u2014 and would remove the model's chance to correctly find nothing. CADEC could never test over-extraction, because every post has mentions. FiNER can, and that capability is worth the tokens.",
+      "_grouping_note": "10 consecutive sentences per pseudo-document. 100 documents x 10 = 1,000 sentences, ~173 tagged, ~292 gold spans \u2014 matched to CADEC test's 290 scorable mentions. Grouping is for TWO reasons and both are declared: rung 0 makes 100 calls rather than 1,000 (CADEC phase F was 78 min for 60 docs; 1,000 single-sentence calls would be 3-5 hours), and FiNER tags depend on context rather than on the token, so a sentence in isolation may genuinely lack what is needed to tag it.",
+      "_order_note": "FILE ORDER, not random. Consecutive sentences come from the same filing, so grouping preserves discourse context. Random grouping would be a different task and would have to be declared as one."
+    },
+    "_shape_differences_from_cadec": [
+      "Token-level IOB2, not span-plus-code. The tag IS the answer; there is no separate identifier to normalise to. GoldMention.sct carries the tag name.",
+      "154 distinct labels in test, not 139 \u2014 IOB2 splits each type into B- and I-, and only some types appear with I-.",
+      "Almost every tagged span is a SINGLE token. CADEC had 11.7% discontinuous spans; here span handling is far simpler, which removes a source of difficulty the CADEC numbers include.",
+      "Gold is what the company FILED, audited by professionals \u2014 not an annotator's judgement. Stronger than CADEC, where 2.8% of mentions are post-coordinated or disjunctive and four answer-key codes were found corrupted.",
+      "Tagged tokens are numeric and meaningless in isolation: '47.6' is EffectiveIncomeTaxRateContinuingOperations only because of the sentence around it."
+    ],
+    "n_dev_docs": 40,
+    "n_test_docs": 60,
+    "_split_note": "Matched to CADEC's dev=40 / test=60 so record counts stay comparable. 100 documents total, so POOL IS EMPTY \u2014 FiNER has no few-shot pool arm, and the few-shot examples in the frozen prompts are CADEC posts. The model gets financial filings with medical examples attached. That is a consequence of freezing the config for comparability, and it may well be the dominant reason if this arm underperforms. State it; do not fix it by tuning.",
+    "documents": 120,
+    "prompts": {
+      "_derivation": "Derived from FiNER's own gold over 407 mentions, not invented. Spans are the bare number: 0 of 407 start with '$', none contain '%', 3 of 407 are multi-token and one of those is the word 'two'. 38 texts repeat within a document and each repeat is tagged separately, the same convention CADEC has. 39 numbers carry DIFFERENT tags in different places, which is the whole difficulty of the task.",
+      "entity": "reported financial fact",
+      "entity_short": "fact",
+      "entity_plural": "facts",
+      "author": "the filer",
+      "author_possessive": "the filer's",
+      "source": "the filing excerpt",
+      "vocabulary": "US-GAAP XBRL tag",
+      "vocabulary_short": "tag",
+      "id_name": "tag name",
+      "rules": "\nQuote the NUMBER ONLY. Not the currency symbol, not the unit, not the\nword 'million' or 'percent' \u2014 measured on gold: 0 of 407 spans begin with\n'$' and none contain '%'. A quantity written as a word ('two business\nsegments') is quoted as that word.\n\nReport EVERY tagged figure, working through the whole excerpt. A sentence\noften states two or three.\n\nReport a figure EVERY TIME it appears. If the same number is stated twice,\nreport it twice, each one where it appears \u2014 never merge repeats. Measured:\n38 numbers repeat within a document in the gold.\n\nReport only figures the filing states as facts about itself. A number in a\nheading, a section number, a date or a page reference is not a reported\nfact.\n",
+      "pick_guidance": "Choose the tag that names WHAT KIND OF QUANTITY this number is \u2014 not the\ninstrument or the account it belongs to. For a debt face amount of 40.5 the\nanswer is DebtInstrumentFaceAmount, not NotesPayable: the tag names the\nmeasurement, the instrument is context.\n\nThe number itself carries no information. The sentence around it decides:\nmeasured on gold, 39 numbers take different tags in different places.",
+      "_negation_note": "CADEC's negation rule is DROPPED, not translated. Its gold codes denied reactions and marks them negated:true; FiNER gold shows no denied-figure convention, so `negated` is always false here. Recorded because a silently dropped rule is indistinguishable from an overlooked one.",
+      "vocabulary_qualifier": "US-GAAP tag",
+      "span_question": "really a {entity} the filer reported in this excerpt",
+      "_span_question_note": "The rung 4 judge prompt is the SEVENTH prompt constant and was missed by the 2026-08-29 port: it asked whether an SEC filing described something 'the writer says they EXPERIENCED'. CADEC's phrasing encodes first-person experience, which a filed financial fact does not have \u2014 a filer reports a fact, it does not experience one. Declared here rather than defaulted because it is a claim about this corpus's gold, not a wording preference.",
+      "claim_verb": "was filed",
+      "claim_object": "identifier",
+      "_claim_wording_note": "Without these the rung 4 judge prompt read 'claimed a specific reported financial fact WAS REPORTED, with a US-GAAP XBRL tag TAG NAME' \u2014 CADEC's claim_verb and a derived claim_object colliding with this corpus's own vocabulary noun. Declared rather than derived: only the corpus knows whether its facts are reported, filed or observed."
+    },
+    "r2_prompts": {
+      "vocabulary": "the US-GAAP XBRL tag set",
+      "source_ref": "the filing excerpt",
+      "source_head": "The excerpt",
+      "id_name": "tag",
+      "entity_short": "figure",
+      "_note": "Rung 2's prompt named SNOMED CT at every corpus and it had never mattered, because rung 2 never fired on FiNER \u2014 rung 1 rejected 1 record in 704. Rung 7 wakes it, which is when the wording starts being sent. Third instance of the same defect: r4's judge asked SEC filings about adverse reactions, r0 needed slot templating, now r2. A dead rung's prompt is never wrong, because it is never sent."
+    }
+  },
+  "vocabulary": {
+    "backend": "finer-tags",
+    "lossy": false,
+    "tag_count": 139,
+    "_backend_note": "139 US-GAAP tag names, in memory \u2014 not a database. Implements the same schemas/vocabulary.Vocabulary Protocol as Registry and the OLS4 backend, so tests/test_contracts.py covers it unchanged. exists() is membership in a set of 139. is_finding() is vacuously true: there is no semantic-type hierarchy here, and saying so is better than inventing one.",
+    "_ceiling_note": "CADEC's exact-term retrieval found nothing for 202 of 343 gold spans \u2014 a 59% ceiling on every rung that depends on lookup. There is no such ceiling here: 139 names fit in a prompt and retrieval is not needed. That removes a confound and removes a finding at the same time."
+  },
+  "model": {
+    "extractor": "ollama/gpt-oss:20b",
+    "judge": "ollama/ibm/granite4:micro-h",
+    "temperature": 0,
+    "temperature_note": "Declared 2026-08-31 so this corpus has the same one answer to \"which temperature produced this number\" that manifest.json now has. manifest.model.temperature became load-bearing that day (ladder/llm.py:temperature_for); undeclared, this ran on llm.GREEDY_TEMPERATURE, which is the same 0.0 and NOT the same fact. Zero changes no FiNER number: every run in out/finer/ was produced at an effective 0.0.",
+    "_frozen": "Identical to manifest.json at phase F. NOT tuned for this corpus, deliberately. A model tuned per corpus would make the two arms incomparable, and the prompts were tuned on CADEC's dev split over five phases \u2014 so FiNER runs with prompts fitted to a different domain. State that as a limitation; do not fix it by tuning, which would forfeit the comparison.",
+    "_judge_name_note": "The ollama name carries the ibm/ namespace. Without it this said 'ollama/granite4:micro-h', which does not exist, and the first full FiNER run died at rung 4 after 133 minutes of rung 0 and rung 3 compute. The CADEC manifest always had the right name, so only a second corpus could surface it. llm.check_models now validates every model the run needs before rung 0 starts."
+  },
+  "rung_order": [
+    0,
+    1,
+    7,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "rung_order_note": "Frozen at phase F. Not re-derived for this corpus.",
+  "rung0_mode": "recall",
+  "rung0_mode_note": "recall | search. Plan v16 \u00a72.1 recommends 'recall' for iteration 1 \u2014 the model emits a code from memory, no tools \u2014 because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
+  "ablations": [
+    {
+      "name": "rung0 search vs recall",
+      "rung0_mode": "search",
+      "scope": "R0+R1 only",
+      "why": "POST-HOC ONLY \u2014 the search runs after generation and the model never sees it, so this measures prompt wording plus a coincidence rate, NOT tool access. A real tool loop (model calls search mid-generation) is untested and is the experiment this ablation is often mistaken for."
+    },
+    {
+      "name": "rung order",
+      "rung_order": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        4,
+        6
+      ],
+      "why": "abstention early. Turns 'abstention should run last' from an assertion into a measurement."
+    },
+    {
+      "name": "vocabulary backend",
+      "snomed_backend": "ols4",
+      "scope": "R0+R1 only",
+      "why": "the two backends disagree on 23.9% of gold; this prices that difference in rung-1 terms."
+    }
+  ],
+  "rungs": {
+    "0": {
+      "rung0_offsets": "search",
+      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time.",
+      "rung0_step": "S2",
+      "rung0_step_note": "S0 | S1 | S2 \u2014 the rung 0 prompt-engineering study, added 2026-08-23, FROZEN TO S2 on 2026-08-24 after the dev-split measurement. Scope is identical in all three and only where the CODE comes from changes: S0 recalls label and code from the model's weights, S1 recalls the label and resolves the code through data/keywords.csv, S2 retrieves a shortlist per mention and picks from it. Measured over 40 dev documents and 226 scorable gold reaction mentions with ollama/gpt-oss:20b at reasoning_effort=low \u2014 F1 exact / F1 overlap / calls / tokens / parse failures: S0 0.018 / 0.018 / 40 / 43,998 / 5-of-40; S1 0.171 / 0.305 / 57 / 36,079 / 0; S2 0.209 / 0.310 / 75 / 68,906 / 0. S2 wins exact F1 by 3.8 points and ties S1 on overlap within half a point, AND COSTS 1.9x THE TOKENS \u2014 that is a declared trade, not a free win, and the three cost measures carry it. S0 is not a weaker step but a broken one: an order of magnitude below the others for MORE tokens, and the only step that fails to parse, because its schema demands a nine-digit identifier the model does not have. Frozen because rungs 1-6 must all be measured against ONE rung 0 \u2014 three different ones make nothing above comparable. --rung0-step still overrides for a single run and writes the choice into the manifest copy saved beside the results. `null` is the pre-study A/B mode path, NOT 'the default step'.",
+      "rung0_shortlist_k": 139,
+      "rung0_shortlist_note": "How many CONCEPTS S2 shows (deduped by code since 2026-08-25). Deduped dense recall over the 6,595 coded gold mentions: @20 87.0%, @30 88.9%, @40 90.2%, @60 91.8% \u2014 and k STAYED 20 anyway, because arm 4 (2026-08-25) measured the other side of the trade: at k=40 the pick step lost more than retrieval gained (pick-past-gold 34 -> 47, F1 exact 0.289 -> 0.236). Menu recall is not menu accuracy.",
+      "keyword_table": "data/keywords.csv",
+      "keyword_table_note": "Where rung 0 turns a NAME into a code. Built from the SNOMED release alone by `python -m ladder.keywords --build`; nothing in it reads CADEC or the gold annotations. Findings and disorders only \u2014 resolving through Registry.resolve searched every description in the release, which is what answered |California chicken (organism)| for a rectal bleed and let |Gaseous substance| outrank the right concept for 'gas'. There is NO fallback to the registry when a name is absent: an unresolved name is unresolved, and falling back would reinstate the search this replaces and hide which of the two answered. The registry is still loaded \u2014 rung 1 needs exists/is_active/finding_status/terms over the WHOLE release, and S2's shortlist is retrieved from it.",
+      "rung0_retrieval": "full",
+      "rung0_retrieval_note": "dense | lexical \u2014 which retriever builds S2's candidate menu. NOTE THAT THE TWO ALSO SEARCH DIFFERENT CORPORA: 'lexical' is Registry.shortlist, Jaccard token overlap over the SQLite description table (1,822,645 rows, 721,187 concepts, every semantic type, filtered to findings AFTER ranking); 'dense' is cosine over the embedded keyword table (227,554 rows, 127,515 concepts, findings and disorders, active only, filtered BEFORE ranking; granite-embedding:30m, 384 dims, local). MEASURED 2026-08-24 over the same 6,595 scorable coded gold reaction mentions, with the corpus and the scoring varied SEPARATELY \u2014 recall@20: lexical over descriptions 61.8%, lexical over keywords.csv 65.1%, dense over keywords.csv 86.1%. So embeddings are worth +21.0 points and the cleaner corpus +3.3. At k=1 it inverts (19.5% / 48.6% / 63.8%): +29.1 of corpus against +15.2 of scoring, because filtering to findings before ranking is what clears the top slot. The default moved on that and on nothing else. Two lexical defects dense removes, neither tunable: Jaccard's denominator penalises long terms, so for 'extreme rectal bleed' |Rectal| scores 0.33 and |Rectal hemorrhage| 0.25 and the wrong shorter concept wins; and there is no stemming, so 'bleed' never reaches 'bleeding'. Dense has its own failure mode and it is not hidden: 'gas' returns |gas gangrene| and its variants. Lexical stays reachable because a number produced under one retriever is only interpretable next to the other. Both return the same hit shape (i, code, label, fsn, via) so rung 0's pick logic never branches on which one ran, and the choice is written onto every record as checks.rung0_retrieval.",
+      "embed_prefix": "ladder/cache/keywords",
+      "embed_prefix_note": "Where the dense index lives: <prefix>.vectors.npy (float16, L2-normalised, one row per keyword) and <prefix>.rows.json (keyword,code in MATRIX ORDER). A CACHE, unlike data/keywords.csv \u2014 derived from the table by a fixed function and rebuildable in minutes, so it sits beside snomed.sqlite. REBUILD IT WHENEVER THE KEYWORD TABLE CHANGES: the loader checks the row counts agree, which catches a truncated write but not a stale matrix built from a different table of the same size.",
+      "rung0_fewshot": true,
+      "rung0_fewshot_note": "FLIPPED TRUE 2026-08-25 on the dev measurement (docs/decisions.md same date): the synthetic worked example is +5.7pt exact / +5.3pt overlap F1 over the frozen S2 (0.266/0.363 vs 0.209/0.310) at 1.55x the baseline tokens (106,627 vs 68,906), same call count, zero parse failures. This changes the frozen rung 0, so it was a joint manifest edit; rungs 1-6 must be measured against THIS configuration. The example is synthetic \u2014 never CADEC text, test-enforced \u2014 and False reproduces the pre-example arm.",
+      "rung0_fewshot_docs": [
+        "FINER.test.0051",
+        "FINER.test.0049"
+      ],
+      "rung0_fewshot_docs_note": "FiNER POOL documents, rendered at runtime. Pool only, enforced upstream: a dev or test example would put its own gold answers into the prompt of a scored run. 0051 is 13 mentions over 9 distinct tags (exhaustiveness, repeated tag types); 0049 is 7 over 5. Chosen to mirror CADEC's pairing of one dense example and one moderate. CADEC's examples (ARTHROTEC.22, ARTHROTEC.110) are patient posts and do not exist here \u2014 few-shot examples belong to the CORPUS, which is the same finding as the task prompt one layer down, and it was found the same way: by pointing the harness at a second dataset.",
+      "rung0_trim": true,
+      "rung0_trim_note": "Phase B(d), 2026-08-25. Trim rung 0's spans to the answer key's boundary convention AFTER locate(): rules LEARNED AT RUNTIME from POOL gold only (ladder/trim.py; dev/test refused) - lead/trail tokens gold leaves outside a boundary >=95% of >=20 sightings, plus an interior clause cut at tokens whose inside_rate <= 2% over >= 50 occurrences ('pain that wakes me up' stops at 'that'). Thresholds measured on the baseline dev records: looser cut points bought exact F1 by cutting spans out of their overlap matches and were rejected. Effect on the phaseB-2 dev run: F1 exact 0.358 -> 0.362, overlap byte-identical; the original quote survives on every trimmed record as checks.span_untrimmed. False reproduces the untrimmed arm.",
+      "rung0_retrieval_note_finer": "DEVIATION FROM FROZEN, declared \u2014 the second, after dense -> lexical, and with the same cause. Retrieval is a function of what is being retrieved from, and the two corpora differ by three orders of magnitude. CADEC ranks 20 candidates out of 129,675 concepts because they cannot go in a prompt. FiNER's 139 tag names can, so 'full' offers all of them and does no ranking. MEASURED CAUSE: the FiNER span is a NUMBER, so shortlist('19.8') has no tokens to overlap on and returned [] for every record \u2014 22 of 22 came back with declined_shortlist:true and sct:null, which rung 1 correctly read as BAND rather than as a wrong code. Retrieval by term overlap is meaningless when the span carries no terms. COST: a 139-item menu on every pick call against CADEC's 20. Tokens per record will rise and that belongs in the cost column, not treated as free.",
+      "rung0_shortlist_k_note": "139 = the whole vocabulary, which is the point of rung0_retrieval='full'. The default of 20 is right for CADEC, where the menu is 20 of 129,675 concepts. Here it silently truncated the full menu to the first 20 tags alphabetically, identically for every record, so the right answer was almost never present and the model declined all 704 times. That looked like a finding about abstention and was a config cap.",
+      "rung0_drop_duplicate_spans": true,
+      "rung0_drop_duplicate_spans_note": "ON for FiNER. Measured on the finer-full-2 dev run: the same span key appears twice 39 times ('2:45 p.m.' x3, 'two business days' x4), costing 0 of 165 gold mentions. The arm already existed and was simply never declared here.",
+      "rung0_drop_datelike": true,
+      "rung0_drop_datelike_note": "ON for FiNER. A span that IS a bare year or a clock time is a date, not a reported quantity. Measured on finer-full-2: 22 years + 4 times among 238 false positives, 0 of 165 gold lost. Only a span that IS a date is dropped - '2018 revenues' survives. A third candidate, 'drop any span with NO DIGIT', was measured and REJECTED: 14 predictions cut but 7 gold destroyed, because FiNER spells small counts out ('two' -> NumberOfOperatingSegments). Free filters ship; the one with a false-rejection cost does not.",
+      "_filters_note": "rung0_split and rung0_cut_rate are deliberately NOT declared here: the splitter is a coordination splitter learned on clinical phrases and cut_rate tunes a trimmer whose rules are learned from POOL GOLD at runtime, and FiNER's spans are bare numbers. Porting them unmeasured would declare as measured something never measured on this corpus. rung0_drop_ungrounded and rung0_drop_fragments are also left off: ungrounded costs 1 prediction here and fragments would overlap the rejected no-digit filter. Only what was measured ON THIS CORPUS is declared."
+    },
+    "1": {
+      "mode": "observe",
+      "mode_note": "Rung 1 judges without routing. Its verdicts are recorded, counted and reported, but the record's zone is untouched, so rungs 3-6 see the full unfiltered set and each rung's marginal contribution stays attributable to that rung. Rung 2, which runs last, is where a rung 1 verdict is allowed to cost coverage. Set 'gate' to make rung 1 filter, as the plan's flow implies.",
+      "reject_inactive": false,
+      "check_negation": true,
+      "negation_window": 6,
+      "finding_check": true,
+      "finding_scope": "reaction",
+      "lexical_mode": "exact",
+      "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
+      "meddra_check": "flag",
+      "label_check": "flag",
+      "label_check_note": "off | flag | reject. Rung 0's sct_label against the vocabulary's own words for the code it chose. Catches what exists() cannot: 82249009 is real and active and means |California chicken (organism)|, which granite4:micro-h emitted for 'extreme rectal bleed'. FLAG, not reject \u2014 'rectal bleeding' against |Rectal hemorrhage| is one concept in two wordings, and this check's false-rejection floor has not been measured. Same posture as meddra_check and negation_action, and for the same reason.",
+      "outdated_check": "flag",
+      "outdated_check_note": "off | flag. A retired code SNOMED has since replaced is out of date, not invented: the model named a real concept and lacked the newer release. Rung 1 records sct_outdated and sct_replacement and NEVER rejects on them \u2014 same posture as meddra_check, negation_action and label_check. The successor comes from the association refset (SAME AS / REPLACED BY only; POSSIBLY EQUIVALENT TO and WAS A are excluded on purpose) and is scored as its own outcome in ladder/score.py, never folded into 'correct'. Measured 2026-08-24: only 27.3% of CADEC's 407 retired gold reaction mentions have such a successor at all."
+    },
+    "3": {
+      "k": 3,
+      "temperature": 0.7,
+      "enabled": true,
+      "enabled_note": "DISABLED 2026-08-26 (Phase D step 1) while its sampler was repaired, RE-ENABLED the same day on the measurement. The 2026-08-25 full-ladder dev run measured 206/240 records not_resampled (votes keyed on exact (doc_id, spans), which shift between samples) and 9 of 32 rung-1-verified-ACCEPT codes OVERWRITTEN with memory-recalled hallucinations, because the sampler drew from the legacy recall prompt while rung 0's codes came from the frozen S2 retrieve-and-pick path. Repaired (all TDD'd, tests/test_r3_repair.py): votes matched by span overlap one-to-one per record identity; every sample drawn through rung 0's configured path (r0.prepare + r0.extract_document, S2 retrieve-and-pick, few-shot, trimmer); a change requires seen >= 2 (one counted vote is not a vote \u2014 the k<2 argument); documents sampled in sorted order so the draw sequence is reproducible from the run id. Re-enabled on out/phaseD-r3-2 (dev, 245 records): not_resampled 38/245, ZERO correct codes destroyed (baseline: 11), the only verified-ACCEPT change a genuine 2-1 menu-sourced majority, stack F1 exact 0.335 -> 0.347. A disabled rung remains a RECORDED state: run.py writes a 'disabled' ledger row and aggregate entry, so 'rung 3 did not run' stays distinguishable from 'rung 3 found nothing'."
+    },
+    "5": {
+      "tau": 0.0,
+      "abstain_zones": [
+        "BAND"
+      ],
+      "abstain_on_reject": true,
+      "tau_tuned_on": "dev",
+      "tau_note": "tau is swept on dev only and written here BEFORE the first test run. 0.0 means the confidence gate is off until a real rung-0 confidence distribution exists to calibrate against."
+    },
+    "6": {
+      "mode": "simulated",
+      "minutes_per_record": 2.0,
+      "mode_note": "simulated | desk. Implemented 2026-08-26 (Phase E, ladder/rungs/r6.py). The queue is rung 5's abstained residue, each record still carrying checks.withheld. 'simulated' routes the queue to ESCALATE and PRICES it at minutes_per_record \u2014 no answer is invented, coverage cannot move, and every ledger row carries human_minutes with minutes_source='simulated'; it measures the bill of stopping at rung 5, not the person. 'desk' applies a resolutions file (cfg key 'resolutions') written by a review session at scripts/r6_desk.py \u2014 decisions code|concept_less|uphold|skip, matched to records BY SPAN KEY one-to-one (never by record_id, which is a position), minutes MEASURED from seconds at the desk. Rows carry ids, offsets, codes and vocabulary labels only \u2014 never corpus text. scripts/r6_desk.py --oracle writes the file deterministically from gold: an ORACLE CEILING, labeled resolved_oracle in every ledger row and oracle:true in the aggregate, priced at the simulated rate, and REFUSED on the test split. Rung 6 takes no model \u2014 ROLE_BY_RUNG gives it no role, deliberately. Human minutes are the third cost measure and are never fused with tokens or usd."
+    }
+  },
+  "output": {
+    "dir": "out/finer-typecheck"
+  },
+  "scorer": "ladder.score:reaction_sct_strict",
+  "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align.",
+  "_experiment": "FiNER-139 \u2014 the same ladder, a second corpus. The ONLY thing that varies from manifest.json is the corpus and the vocabulary. Rung order, rung parameters, models, thresholds and prompts are frozen at the phase F configuration, because a second data point is worth nothing if the ladder moved between them.",
+  "_why_this_corpus": "CADEC's findings were all shaped by a knowledge gap: the extractor did not know SNOMED, so it fabricated codes, and every rung's bet was made against that. FiNER-139 has 139 tags. They fit in a prompt. The knowledge gap is GONE, and with it the odds on every rung change at once. That is the contrast \u2014 not replication.",
+  "_prediction": {
+    "_recorded_before_the_run": "2026-08-28. Written down first so the result is a measurement rather than a story told afterwards. Deciding what a run showed after seeing it is the failure this whole project documents.",
+    "rung_1_validate": "WEAKENS. 'Does the code exist' is near-trivial against 139 tags the model can see, so code_unknown should approach zero and rung 1's rejection rate should fall well below CADEC's 5.1%. The deterministic spine has less to do, which is a cost of the closed vocabulary, not a benefit.",
+    "rung_2_repair": "IMPROVES. On CADEC it declined 158 of 158 because the model had no better code to offer. Here it can be told a tag is wrong and pick from a list it can see. If repair ever works, it works here.",
+    "rung_3_vote": "UNCERTAIN, and the interesting one. On CADEC samples did not re-find the same spans, so voting had almost nothing to vote on. Numeric spans are far more stable than patient prose, so the mechanism should at least ENGAGE. Whether agreement means anything is a separate question: errors from a closed choice set are correlated differently from fabrications, and voting bets they are not.",
+    "rung_4_judge": "IMPROVES. A small judge cannot verify a SNOMED code it has never seen. It can plausibly check whether a number in a sentence is an interest rate or a face amount.",
+    "rung_5_abstain": "WEAKENS. It withdrew 242 of 314 on CADEC and that was the layer that worked. With fewer invalid answers upstream there is less to withdraw, so its contribution should shrink \u2014 which, if it happens, is the clearest evidence that abstention's value is a function of what is above it.",
+    "if_nothing_flips": "That is the stronger result, not a failed run: the ordering would be domain-independent. Say so either way."
+  },
+  "_frozen_from": {
+    "manifest": "manifest.json at b7aba48 (Phase F: test split run once)",
+    "_note": "Fill in the SHA from `git rev-parse --short HEAD` at the phase F merge before running. ladder/provenance.py records the SHA of the run itself; this records what it was frozen AGAINST. Both are needed: the ladder is under active development, and a comparison against a moving reference is not a comparison."
+  },
+  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form.",
+  "_arm": "FiNER + rung 7 (type compatibility). ONE change from manifest.finer.json: rung_order gains 7, plus the r2 prompt slots that rung 7 makes reachable. DEV split \u2014 the test split is spent, so this is a development-side result and cannot move a shipped number, same status as the reranker and SapBERT arms."
+}

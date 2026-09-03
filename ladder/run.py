@@ -52,6 +52,9 @@ def _corpus_for(man):
     name = (man.get("corpus") or {}).get("adapter", "cadec")
     if name == "cadec":
         return corpus_mod
+    if name == "geo":
+        from ladder import corpus_geo as mod
+        return mod
     if name == "finer":
         from ladder import corpus_finer
         return corpus_finer
@@ -187,6 +190,14 @@ RUNG_NAMES = {
     4: "LLM judge",
     5: "abstention",
     6: "human loop",
+    # Rung 7 (2026-09-02) is the first rung added since the renumber, and it
+    # found two hardcoded bounds in an extension point this module's own
+    # docstring calls automatic: --rungs defaults to "0-6", so a rung named in
+    # rung_order is silently dropped unless the flag is widened; and this dict
+    # raised KeyError AFTER apply() had run and the ledger row was written, so
+    # the work happened and only the console line failed. Both are cosmetic and
+    # both are the same shape.
+    7: "type check",
 }
 
 
@@ -328,7 +339,7 @@ def run_ladder(
         mod = load_rung(n)
         if mod is None:
             missing.append(n)
-            print(f"[run] rung {n} ({RUNG_NAMES[n]}) — not implemented, skipped")
+            print(f"[run] rung {n} ({RUNG_NAMES.get(n, f'rung {n}')}) — not implemented, skipped")
             continue
         cfg: dict[str, Any] = dict(man["rungs"].get(str(n), {}))
         # A rung disabled in the manifest is a RECORDED state, never a silent
@@ -414,7 +425,7 @@ def run_ladder(
         counts = verdicts if verdicts else Counter(r.zone for r in records)
         label = "judged  " if verdicts and not routed else "routed  "
         print(
-            f"[run] rung {n} ({RUNG_NAMES[n]:14s}) {dt:6.2f}s  {label}"
+            f"[run] rung {n} ({RUNG_NAMES.get(n, f'rung {n}'):14s}) {dt:6.2f}s  {label}"
             + "  ".join(f"{z}={c}" for z, c in sorted(counts.items()))
         )
     ledger.close()
@@ -611,9 +622,17 @@ def cmd_init(a) -> int:
             )
             return 2
         reg = Registry(db)
-        real = "162031009"
+        # A code this vocabulary MUST hold, and one it must NOT. Both are
+        # per-vocabulary facts: 162031009 is SNOMED's |Abdominal pain| and means
+        # nothing to a gazetteer, so the gate asserted a CADEC constant against
+        # every corpus. Declared in the manifest, with the CADEC values as the
+        # default so nothing already frozen moves.
+        _gate = (man.get("vocabulary") or {}).get("gate") or {}
+        real = _gate.get("real", "162031009")
+        fake = _gate.get("fake", "999999999")
         print(f"vocab   : {reg.release}  {reg.stats()}")
-    assert reg.exists(real) and not reg.exists("999999999"), "vocabulary gate FAILED"
+    assert reg.exists(real) and not reg.exists(fake), \
+        f"vocabulary gate FAILED: exists({real})={reg.exists(real)}, exists({fake})={reg.exists(fake)}"
     print("gate    : real code resolves, fake code does not — rung 1 has a vocabulary")
 
     splits_dir = Path(man["corpus"]["splits_dir"])

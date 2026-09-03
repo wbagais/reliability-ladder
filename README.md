@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <a href="docs/article-v2.md">the article</a> ·
+  <a href="docs/article-v3.md">the article</a> ·
   <a href="docs/decisions.md">the decision log</a> ·
   <a href="docs/figures/">figure sources</a>
 </p>
@@ -40,15 +40,19 @@ an effect.
 
 ## The ladder
 
-| Rung | Layer | Mechanism | Extra cost | Owner |
+| Rung | Layer | Mechanism | Extra cost | What it bought |
 |---|---|---|---|---|
-| 0 | bare LLM | one call, JSON, temp 0; emits a code with or without a lookup tool (`rung0_mode`) | 1 call/item | B |
-| 1 | deterministic | schema · span grounding · negation · code exists · semantic type · MedDRA | **none** | A |
-| 2 | abstention | decline anything still unresolved, or below τ | none | A |
-| 3 | self-correction | one bounded retry, fired **only by a rung 1 failure**, reason stated as fact | +1 call | B |
-| 4 | LLM-as-judge | second model, **different family**, scores the record | +1 call | B |
-| 5 | voting | k samples, majority on the **normalised code**, never the string | k calls | B |
-| 6 | human-in-the-loop | a person settles it — simulated, or timed | human minutes | joint |
+| 0 | bare LLM | retrieve candidates, then pick a line number — two calls, and neither ever sees a code | 2 calls/item | the input to everything above |
+| 1 | deterministic | schema · span grounding · negation · code exists · semantic type · lexical match | **none** | the one layer that paid — 80–89% correct in its ACCEPT lane across five model families |
+| 2 | self-correction | one bounded retry, fired **only by a rung 1 rejection**, the reason stated as a fact | +1 call | **nothing.** 0 rescued of 158 on CADEC, 0 of 918 on FiNER |
+| 3 | voting | k samples, majority on the **normalised code**, never the string | k calls | +5 on the tuning set, **0 out of sample**, for 425,355 tokens |
+| 4 | LLM-as-judge | second model, **different family**, scores the record | +1 call | separates 1.23× held out, against the free check’s 2.36–6.12× |
+| 5 | abstention | decline anything rung 1 could not corroborate | none | errors 62.9 → 4.0 per 100, at 79 reviews per 100 |
+| 6 | human-in-the-loop | a person settles it — timed, not simulated | human minutes | the only settling authority, and the cost nothing else prices |
+
+Rung ID equals execution position. **This numbering changed on 2026-08-23**, and
+decision-log entries before that date use the old order (2=abstention,
+3=self-correction, 5=voting) — the mapping is in `docs/decisions.md`.
 
 Rung ID equals execution position, `[0, 1, 2, 3, 4, 5, 6]` — abstaining before you
 have tried correction and voting throws away recoverable records. Order lives in
@@ -75,6 +79,85 @@ from `ladder/models.yaml`. It is never fused into them and no headline is
 reported in it — it exists so a hosted run's bill is recoverable from the
 results rather than reconstructed afterwards.
 
+## Three corpora, and only two of them are yours to run
+
+Deliberately different in the one respect that decides whether the free check can
+work at all — whether the extracted span and the code’s own name are drawn from
+the same language.
+
+| corpus | domain | vocabulary | licence | free check fires |
+|---|---|---|---|---|
+| **CADEC v2** | patient forum posts | SNOMED CT, 129,675 concepts | **non-transferable** — you need your own copy | 42.4% |
+| **FiNER-139** | SEC filings | 139 XBRL tags | CC-BY-SA-4.0, redistributable | **0.0%** |
+| **GeoWebNews** | news geography | GeoNames, 13.4M places | GPL-3.0, redistributable | 39.8% |
+
+FiNER’s zero is structural rather than a low score: the spans are numerals
+(`47.6`) and the tags are English phrases
+(`EffectiveIncomeTaxRateContinuingOperations`), so the two share no token by
+construction — on any run, with any model, forever.
+
+## Run it yourself, without a licence
+
+**Start here.** CADEC cannot be redistributed, so that arm is not reproducible
+from a clean checkout by anyone but you. The FiNER arm is.
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
+```
+
+```bash
+mkdir -p data/finer && cd data/finer
+curl -LO https://huggingface.co/datasets/nlpaueb/finer-139/resolve/main/finer139.zip
+unzip -q finer139.zip -d extracted && cd ../..
+python -m ladder.run init --manifest manifest.finer.json
+```
+
+The free half needs no model and takes seconds:
+
+```bash
+PYTHONPATH=. python3 scripts/preflight_rungs.py --manifest manifest.finer.json --static
+PYTHONPATH=. python3 scripts/relations_report.py --manifest manifest.finer.json
+```
+
+That second command is the shortest route to the central finding. It reports
+that the lexical check has **no signal at all** here, and that a
+type-compatibility check has 87.7% — a layer reported dead means *this check
+found no signal*, never *this corpus has none*.
+
+For the model half you need [ollama](https://ollama.com) and ~14 GB of VRAM:
+
+```bash
+ollama pull gpt-oss:20b && ollama pull ibm/granite4:micro-h
+PYTHONPATH=. python3 -m ladder.run --manifest manifest.finer.json ladder \
+    --split test --limit 3 --plain
+```
+
+Drop `--limit 3` for the full split — 60 documents, roughly 25 minutes on a
+48 GB card, several hours on a laptop.
+
+### Reproduce the article’s findings
+
+Five of them, from gold and source, with no model calls:
+
+```bash
+PYTHONPATH=. python3 scripts/reproduce.py
+```
+
+### The GeoWebNews arm
+
+```bash
+git clone --depth 1 https://github.com/milangritta/Pragmatic-Guide-to-Geoparsing-Evaluation /tmp/gwn
+mkdir -p data/gwn && cp -r /tmp/gwn/data/Geocoding data/gwn/
+curl -O https://download.geonames.org/export/dump/allCountries.zip && unzip -q allCountries.zip
+python3 scripts/build_geo_index.py --dump allCountries.txt --out ladder/cache/geonames.sqlite
+PYTHONPATH=. python3 -m ladder.run --manifest manifest.geo.json init
+```
+
+The index is 13.4M rows and takes about a minute. **This arm uses lexical
+retrieval where CADEC uses dense** — no embedded keyword table exists for a
+gazetteer — and on CADEC that substitution cost 21 points of recall@20. No
+absolute score from the geo arm is comparable with CADEC’s.
+
 ## Quick start
 
 ```bash
@@ -89,7 +172,7 @@ saved beside the results. Per-model request settings — `max_tokens`,
 `sampling`, `reasoning_effort` — live in `ladder/models.yaml`, because a rung
 must never know which family it is calling.
 
-Four preprocessing steps, in order. Each produces gitignored, licence-bound
+Five preprocessing steps, in order. Each produces gitignored, licence-bound
 data; a fresh clone runs all four before any rung.
 
 ```bash
@@ -180,6 +263,12 @@ The build log — including every place the plan and the corpus disagreed — is
 [docs/article-iterations.md](docs/article-iterations.md).
 
 ## What the full ladder measured
+
+> **These are the FIRST dev-split figures, from 2026-08-20, and they are
+> superseded.** Kept because the decision log refers to them. The shipped numbers
+> are on the frozen test split — exact F1 0.204, coding accuracy 0.392, rung 5
+> dropping errors from 59.6 to 3.8 per 100 at 77.1 reviews per 100 — and the
+> cross-corpus results are in [docs/article-v3.md](docs/article-v3.md).
 
 Dev split, 40 documents, `granite4:micro-h` extractor, `llama3.2:3b` judge,
 SNOMED CT-AU `AU1000036_20260731`, local GPU.

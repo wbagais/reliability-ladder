@@ -59,6 +59,7 @@ from ladder.schema import (
     R_CODE_INACTIVE,
     R_CODE_UNKNOWN,
     R_SPAN_OUT_OF_RANGE,
+    R_TYPE_MISMATCH,
     R_SPAN_UNGROUNDED,
     R_WRONG_SEMANTIC_TYPE,
     Record,
@@ -74,7 +75,11 @@ DEFAULTS = {
     # Only failures that yield a STATABLE FACT. A reason the model cannot act
     # on produces a re-roll, not a correction.
     "correctable": (R_CODE_UNKNOWN, R_CODE_INACTIVE, R_WRONG_SEMANTIC_TYPE,
-                    R_SPAN_UNGROUNDED, R_SPAN_OUT_OF_RANGE),
+                    R_SPAN_UNGROUNDED, R_SPAN_OUT_OF_RANGE,
+                    # Emitted only by rung 7, which is only in rung_order on
+                    # the arm that enables it, over a vocabulary that
+                    # implements code_type(). Unreachable on CADEC.
+                    R_TYPE_MISMATCH),
     # NO max_attempts AND NO allow_withdrawal. Both were declared here from
     # 158d8bf and read by nobody (found 2026-08-31 by the audit that started
     # with manifest.model.temperature): `_attempt` runs exactly once, and
@@ -104,7 +109,60 @@ FACTS = {
         'The offsets {start}-{end} fall outside the post, which is {n_source} '
         'characters long.'
     ),
+    # Rung 7's reason (2026-09-02). Present tense, specific, no hedging — the
+    # same shape as the five above. The two types are named rather than the
+    # rule that derived them: "your answer is a percentage tag" is a fact the
+    # model can act on, and "the type check disagreed" is not.
+    R_TYPE_MISMATCH: (
+        'The text "{text}" names a {span_type}, but {sct} names a {code_type}. '
+        'A {span_type} cannot be coded to a {code_type}.'
+    ),
 }
+
+#: CADEC's wording, as slot values. `prompt(None)` renders EXACTLY the PROMPT
+#: constant below, and tests/test_r2_prompt_slots.py asserts that byte for byte
+#: — the constant is kept solely as that test's reference. Same method
+#: scripts/port_prompt_constants.py used to prove rung 0's six constants had not
+#: moved during the FiNER port.
+R2_PROMPT_SLOTS = {
+    "vocabulary": "SNOMED CT",
+    "source_ref": "the source post",
+    "source_head": "The post",
+    "id_name": "code",
+    "entity_short": "reaction",
+}
+
+
+def prompt(slots: dict | None = None) -> str:
+    """The correction prompt for one corpus. None keeps CADEC's wording.
+
+    Rung 2 had never needed this because it had never fired outside CADEC: on
+    FiNER rung 1 rejected 1 record in 704, so `correct()` was never called and
+    a prompt naming SNOMED CT at a model reading SEC filings was never sent.
+    Rung 7 gives FiNER a rejection class, which wakes rung 2, which is when the
+    wording starts to matter.
+    """
+    s = {**R2_PROMPT_SLOTS, **{k: v for k, v in (slots or {}).items() if v is not None}}
+    return (
+        f"""One of your answers was checked against {s['vocabulary']} and {s['source_ref']}, and is wrong.
+
+FACT: {{fact}}
+
+{s['source_head']}:
+{{source}}
+
+Your answer was:
+  span_text: {{text}}
+  start,end: {{start}},{{end}}
+  {s['id_name']}:      {{sct}}
+
+Correct it. If no {s['vocabulary']} {s['id_name']} is right for this {s['entity_short']}, set {s['id_name']} to null —
+do not substitute a {s['id_name']} you are unsure of.
+
+Return JSON only: {{{{"span_text":..,"start":..,"end":..,"{s['id_name']}":..,"confidence":..}}}}
+"""
+    )
+
 
 PROMPT = """One of your answers was checked against SNOMED CT and the source post, and is wrong.
 
@@ -172,13 +230,35 @@ def _verdict(rec: Record) -> tuple[str | None, str | None]:
     return v, rec.checks.get("r1_reason")
 
 
+
+_WORDS = {"high": 0.9, "medium": 0.6, "moderate": 0.6, "low": 0.3, "none": 0.0}
+
+
+def _confidence(v) -> float:
+    """A float, whatever the model returned. Never raises."""
+    if isinstance(v, (int, float)):
+        return float(v)
+    if isinstance(v, str):
+        try:
+            return float(v.strip())
+        except ValueError:
+            return _WORDS.get(v.strip().lower(), 0.0)
+    return 0.0
+
+
 def build_fact(rec: Record, reason: str, n_source: int = 0) -> str | None:
     tpl = FACTS.get(reason)
     if tpl is None:
         return None
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
+    # Rung 7's fact names both types, and rung 7 wrote them onto the record.
+    # Passed here rather than recomputed: a fact derived twice can disagree
+    # with the verdict that produced it, and then the prompt states something
+    # the check did not conclude.
     return tpl.format(sct=rec.sct, text=rec.text, start=s, end=e,
-                      n_source=n_source)
+                      n_source=n_source,
+                      span_type=rec.checks.get("r7_span_type", "value"),
+                      code_type=rec.checks.get("r7_code_type", "value"))
 
 
 def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Record | None, dict]:
@@ -189,12 +269,16 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
         return None, {**meta, "skipped": "no fact for this reason"}
 
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
-    prompt = PROMPT.format(fact=fact, source=source, text=rec.text,
-                           start=s, end=e, sct=rec.sct)
+    # PROMPT is now the CADEC reference the byte-identity test compares
+    # against; the call site renders from slots so a second corpus does
+    # not receive a prompt naming SNOMED CT.
+    tpl = prompt((cfg.get("manifest") or {}).get("corpus", {}).get("r2_prompts"))
+    prompt_text = tpl.format(fact=fact, source=source, text=rec.text,
+                                  start=s, end=e, sct=rec.sct)
     # The template above embeds the post; passing it as `text` too made Caller
     # append it again as a POST section, doubling every correction prompt
     # (same defect rung 4 had, fixed 2026-08-25).
-    raw, usage = llm(prompt, "", "correct")
+    raw, usage = llm(prompt_text, "", "correct")
     meta["tokens_in"] = usage.get("in", 0)
     meta["tokens_out"] = usage.get("out", 0)
     # The caller already priced the call from models.yaml. Dropping it here
@@ -215,7 +299,12 @@ def correct(rec: Record, source: str, reason: str, llm, cfg: dict) -> tuple[Reco
         text=m.get("span_text", rec.text),
         spans=[(start, end)] if isinstance(start, int) and isinstance(end, int) else [],
         sct=(str(m["code"]) if m.get("code") is not None else None),
-        confidence=float(m.get("confidence", 0) or 0),
+        # A model that answers "high" or "low" instead of 0.8 is not a parse
+        # failure: the span and the code are still usable, and the confidence
+        # field is measured elsewhere to be a dead dial anyway (rung 0 emits
+        # {1.0, 0.99} and nothing else). This crashed the first time rung 2
+        # ever ran on a second corpus — never wrong before, because never run.
+        confidence=_confidence(m.get("confidence")),
     )
     return cand, meta
 
