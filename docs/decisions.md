@@ -5256,3 +5256,49 @@ FiNER voting adds a little, the judge removes errors at almost no yield cost,
 and the free check contributes nothing. The blind judge is the strict setting
 here (46 at 0.41), the role the free check plays on CADEC. Added to the
 article's §6 dial subsection beside the CADEC table.
+
+## 2026-09-03 — the article re-evaluated against the base run alone: what moved when earlier-run numbers were removed
+
+Owner asked that no number from a previous run remain and that any logic
+resting on one be updated. Done in `6f37ecc`. What was removed, what
+replaced it, and what changed in the argument:
+
+- **Removed without replacement** (named in prose, figures left to this log):
+  the twenty-arm effect sizes (§2 table now lists shipped/rejected only), the
+  five-model sweep tables in §2 and §4, the reranker's bootstrap figures in
+  §3 (story kept in words), the FiNER refusal set's per-draw numbers, the
+  dictionary/short-circuit probe figures, the earlier rung 3 destroyed/1-0
+  counts, the judge-arm draws' policy row, "133 minutes", "5.1%".
+- **Replaced from the base run:** the attractor subsection — on the base
+  run `AccrualForEnvironmentalLossContingencies` is written **73 times of
+  304, all 73 by the fallback rule, none by the model** (gold: 2); the
+  judge-acting policy row (17% / 0.74-0.84 / yield 0.126-0.134 / 191-200 to
+  a person, replayed from the blind judge's own verdicts); the rung 3
+  overwrite example (`LIPITOR.8#5`, |Pain| -> |Increased pain| on a 2-0 vote,
+  shipped VERIFIED); §10's detection evidence (178 of 226 on overlap, 116
+  exact); FiNER false positives (177 on no gold, 60 tagged elsewhere in the
+  corpus — the earlier "77%" does not reproduce as stated); §3's
+  reproducibility table (CADEC 2 files of 3, FiNER 1).
+- **NOT REPRODUCED and dropped:** "76.8% of menus hold two concepts with an
+  identical label" — on the base run 0 of 230 menus do, by either the
+  `label` or the `fsn` key. The sentence now gives the design reason
+  (positions cannot be misspelled).
+- **THE TYPE CHECK, REPLAYED OVER THE BASE RUN** (`rerun-finer-d{0,1,2}-typecheck`,
+  rungs 7,2,3,4,5,6 over each draw's rung 1 snapshot, same cache): rung 7
+  rejects **35 of 304 on every draw**, 25 on nothing gold marks and 10 on a
+  gold mention, **all 10 wrongly tagged — 0 false rejections**, against
+  about 1 in 3 on the 2026-09-02 arm. It could type both sides for 243 of
+  304. Most of the 35 are the fallback's *Amount* constant on percentages
+  and counts. Rung 2: **35 attempted / 0 rescued / 29 declined / 6 unparsed
+  per draw** (105 firings, 0 corrections pooled), 31,070 prompt tokens per
+  draw; ACCEPT stays 0. **Logic change in §5:** the earlier claim "tuned on
+  gold, validated on gold, 29x worse on model output" is kept as what the
+  earlier run showed and paired with the base run's 0 of 10; which you get
+  depends on which spans arrive, and a check validated on gold cannot tell
+  you in advance. **Logic change in §6:** rung 2's null no longer has the
+  "the facts were a third wrong" excuse — every fact it was handed on the
+  base run was true, and it still held still.
+- **S0 and S1 re-measured** (below, when the draws finish): the only
+  remaining earlier-run numbers were §2's three-shape table and §10's
+  "0.018 against 0.209"; both are being replaced from three cold draws of
+  each step on the current frozen configuration, rung 0 only.
