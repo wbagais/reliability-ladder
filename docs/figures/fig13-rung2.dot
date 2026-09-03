@@ -49,8 +49,13 @@ digraph rung2 {
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Rung 2 can only act on the lane rung 1 leaves empty.</B> It fires on REJECT alone, so every record it</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">could improve is one the free check has already proved wrong — and on CADEC that lane holds nothing.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Given hundreds of chances, it took none.</B> Told a specific true fact about its own answer, the</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">model repeated itself 86% of the time and refused the rest. It corrected nothing, 918 times.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Given hundreds of chances, it took none.</B> Told a specific true fact about its own answer,</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">the model repeated itself 86% of the time and refused the rest. It corrected nothing, 918 times.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>Two things keep this from being a clean null.</B> The check supplying the facts is wrong 35.7%</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">of the time on model output, so on roughly a third of these firings the model was told it was wrong</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">when it was right — and holding still was the correct response. On the rest it still rescued nothing.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">And none of it could reach the output: rung 5 was already withholding every record on this corpus.</FONT></TD></TR>
         </TABLE>>];
   cskip -> note [style=invis]; resc -> note [style=invis];
 }

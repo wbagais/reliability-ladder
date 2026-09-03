@@ -216,7 +216,7 @@ stamina example in §6 that item 7 says is stale.
 ## Required before the article ships
 
 Everything here either blocks a claim the draft makes or removes a caveat it
-carries. Items 1, 3, 5, 6, 9 and 10 need runs; 2, 4, 7, 8 and 11 do not. Item 3 is the only one
+carries. Items 1, 3, 5, 6, 9, 10 and 14 need runs; 2, 4, 7, 8, 11 and 15 do not. Item 3 is the only one
 that goes beyond unblocking — it makes the model findings two-corpus instead of
 one, and the article is shippable without it, with its CADEC-only caveats
 intact.
@@ -233,6 +233,25 @@ intact.
    - **Scope: DEVELOPMENT SPLIT ONLY.** Three cold draws of the full ladder and
      of rung 0 alone, on CADEC dev and FiNER dev, from the tracked manifests with
      no override.
+   - **ONE BASE RUN MUST PRODUCE EVERY DESCRIPTIVE DEV-SIDE NUMBER.** This is the
+     requirement, not a preference. Today the CADEC dev story is told from at
+     least four runs with four different record counts — `audit-full-dev-1` (248
+     records: the per-layer table, 0.371 -> 0.367, every token cost),
+     `phaseD-r3-2` (245: rung 3's tree and its +5), `arm-sapbase-d0` (222: rung
+     1's lanes, the funnel, the agreement figures) and the five-model sweep (232:
+     the model table). All four are "40 development documents"; they differ
+     because the model is nondeterministic, which is the finding of section 3.
+     **The result is that adjacent numbers in one section come from different
+     draws and quietly disagree** — rung 3 is +5 on one and -0.004 on another,
+     and the article had both, unlabelled, a paragraph apart.
+   - **What cannot come from the base run, and must be named as an arm:** the
+     five-model table (five models), the noise floor (three draws of one config),
+     the ablation (two stacks), the judge arm (paired on/off). Each keeps its own
+     run id in the caption. The Phase F test box is frozen and is never re-run.
+   - **Every figure and table caption carries its run id.** A number whose
+     provenance is not on the page is a number the next reader cannot check, and
+     this review found four that disagreed because nobody could see they came
+     from different places.
    - **THE HELD-OUT SPLIT IS NOT IN SCOPE AND MUST NOT BE TOUCHED.** Phase F was
      run once, on 2026-08-26, and `CLAUDE.md` is explicit: *nothing is re-run
      after Phase F.* The test numbers (F1 0.204 [0.150-0.260], 242 of 314 to a
@@ -503,13 +522,164 @@ intact.
       property of our index, not of the vocabulary. Measure it against the full
       release too, and report both.
 
-11. **The FiNER pipeline figure carries one unverified index.**
+11. **RUNG 3'S CHANGES WERE NEVER CROSS-TABBED AGAINST RUNG 1'S LANES.** REQUIRES
+    A RUN — no surviving artifact carries rung 3 output, checked 2026-09-02.
+    Rung 3 re-extracts every document and never reads rung 1's verdict, so the
+    obvious question has never been asked: **do its changes land in BAND, where
+    the free check had no opinion and a vote might add something — or in ACCEPT,
+    where it overwrites an answer already backed by evidence?**
+    - What is recorded (`phaseD-r3-2`): 245 records, 38 never re-found, 188 with
+      >=2 votes, unanimity 56.4%, 31 changes, +5 net correct, 0 correct
+      destroyed. One verified-ACCEPT record was changed, on a genuine 2-1
+      majority. None of it is broken down by lane.
+    - **Why it matters beyond curiosity.** If the changes cluster in BAND, rung 3
+      is under-targeted rather than useless and could be run on the BAND residue
+      alone at a fraction of 425,355 tokens. If they cluster in ACCEPT, it is
+      spending its budget overwriting the one lane that was already 85% correct.
+      The article can currently say neither.
+    - **What is already derivable, and it narrows the question:** a record with
+      no code lands in BAND by construction (`r1.zone`), so all four
+      "abstained →" transitions were BAND records — three to correct, one to
+      incorrect. The changes we can place are in the right lane. The other 27
+      are the ones that decide it.
+    - **THE SPECIFICATION, and it is wider than "per lane": break every node of
+      the rung 3 tree down by what rung 0 had already said about those records.**
+      For the 38 it never re-found, were they records rung 0 had right, or wrong,
+      or had never coded? Same for the 188 it voted on, the 106 unanimous, the 49
+      split. Today only the 31 changes carry that, and only 25 of those. Without
+      it the figure cannot answer the question it exists for — **is voting fixing
+      what was broken, or churning what was already fine?**
+    - Record per change: the record's rung 1 verdict, the vote spread, and the
+      outcome transition. Same run should also fill the section 6 per-layer
+      table's rung 3 row with its run id attached.
+    - **DO THE SAME ON FiNER, where even less was recorded.** No vote spread, no
+      transitions, no change count — only that answered accuracy moved 0.1396 ->
+      0.1567, **net positive, the opposite sign to CADEC's 0.371 -> 0.367**, at
+      the same 2.7x cost. One draw each on a sampling rung, so the flip is a
+      difference to note and not to claim — and with no per-vote detail on either
+      side there is currently no way to explain it. The article says so and
+      carries no FiNER counterpart to the CADEC figure.
+
+12. **THE ROOT CAUSE OF ITEMS 9, 11 AND HALF OF 3: NOTHING RECORDS A RECORD'S
+    STATE AT EACH RUNG.** This is the infrastructure item, and doing it first
+    makes several others cheap instead of impossible.
+    - **What exists.** `out/*.ledger.jsonl` has one row per record per rung with
+      `verdict`, `zone`, `outcome`, `reason` and the cost fields. That is real
+      and it is why rung 1's lanes can be recovered at all.
+    - **What it cannot answer, and why.** Rung 0 and rung 3 log **one row per
+      DOCUMENT**, not per record — rung 3's samples are summed into a document
+      cost row by design, so a record's before-and-after code is nowhere.
+      And **correctness is not in the ledger at all**: it is computed afterwards
+      by `score_run` against gold, and never joined back. So no row anywhere says
+      *this record, at this rung, held this code, and it was right.*
+    - **The consequence, hit four times in this review.** Rung 3's changes cannot
+      be cross-tabbed against rung 1's lanes. The 38 records rung 3 never
+      re-found cannot be checked against whether rung 0 had them right. The
+      ACCEPT-lane figures cannot be reproduced under a stated denominator. FiNER
+      has no agreement figures. Every one of those needs a re-run, and every one
+      would have been a join.
+    - **What to build:** a per-record, per-rung state table written at run time —
+      `record_id x rung -> (code, span, verdict, changed_this_rung, outcome
+      against gold)`. One row per record per rung, correctness included, written
+      beside the records file. It is a few columns and it retires four open
+      items.
+    - **The standing rule it should carry:** a rung that cannot say what it did
+      to an individual record cannot be credited or blamed for the aggregate. The
+      article already argues this about dead fields in section 7; this is the
+      same defect one level up, in the measurement rather than the code.
+
+13. **The FiNER pipeline figure carries one unverified index.**
    `docs/figures/fig7-pipelines.dot` shows `choice 41 →
    EffectiveIncomeTaxRateContinuingOperations`. Slot 0 is verified; index 41 is
    not, because `data/finer` is in no checkout. Recompute it, and replace the
    illustrative excerpt with a real one — FiNER is CC-BY-SA-4.0, so unlike
    CADEC there is no reason for that cell to be illustrative. Both are flagged
    in the `.dot` header.
+
+14. **THE JUDGE WAS NEVER SHOWN WHAT IT WAS JUDGING. Rung 4 asks an
+    unanswerable question, and every rung 4 number in the article measures a
+    blindfolded judge.** Found 2026-09-02 while reviewing §6. REQUIRES RUNS.
+    - **The defect.** `r4.judge` formats the prompt with
+      `source, text, start, end, sct` and nothing else
+      ([r4.py:160](ladder/rungs/r4.py:160)); `sct_label` appears **zero times**
+      in the file. So the judge is handed `code: 1003722009` — a bare
+      nine-digit number with no name — and asked "is this the right SNOMED CT
+      concept?". It cannot answer that, and the pass/fail split it returns is
+      a measurement of a question that could not be answered.
+    - **THIS OVERTURNS THE ARTICLE'S EXPLANATION.** §5 and §6 both attribute
+      the CADEC/FiNER judge difference to context size — 139 tags fit, 129,675
+      SNOMED concepts do not. The real cause is **identifier readability**: on
+      FiNER `rec.sct` *is* the tag name (`DebtInstrumentFaceAmount`), on CADEC
+      it is a number. The judge engages with codes on FiNER because that
+      corpus's identifiers happen to be words. Nothing about context windows.
+      Correct both sections.
+    - **The redesign, and it is the standard LLM-as-judge setup we never
+      built.** Give the judge what the extractor was given and what it
+      answered, for both of the extractor's two decisions:
+      post → span (call 1), menu → pick (call 2). The data is already on
+      disk: `rec.checks["candidates"]` carries `{i, code, fsn/label,
+      from_rank}` ([r0.py:1260](ladder/rungs/r0.py:1260)) and `_menu` renders
+      it. This turns the code question from **recall** ("is 1003722009 right?")
+      into **comparison** ("was line 7 the best of these 20?"), which is
+      readable, and which is the same task the extractor faced.
+    - **It buys a verdict the system cannot currently express:** *the right
+      answer was not in the menu*. A code failure today is ambiguous between a
+      bad pick and a bad menu, and those need opposite fixes — re-asking helps
+      the first, only retrieval helps the second. Same detection/coding
+      decomposition §3 uses, one level down.
+    - **FIX FiNER TOO. It needs it more.** Its judge fails **299 of 351**
+      records; a judge that fails 85% of everything carries about as little
+      information as one that passes everything. Its identifier is readable but
+      its menu is just as absent. And the slot-0 attractor is a FiNER finding
+      (19.5% of predictions were menu line 0), so a judge shown the menu either
+      catches it or inherits it — both results are worth having.
+    - **CARRY THE `[denied]` MARKER, AND NOTE IT IS A LIVE BUG TODAY.** Rung 0's
+      pick prompt says a denied reaction *"is still coded"*
+      ([r0.py:479](ladder/rungs/r0.py:479)), added in Phase B because without it
+      the pick declined every denied mention it was given. The judge has no such
+      instruction, so it is currently failing spans like "no gastric problems"
+      that CADEC marks correct. Same trap, one rung up. CADEC only — FiNER has
+      no negation.
+    - **PERMUTE THE MENU UNDER A FIXED SEED.** The slot-0 attractor has been
+      found three times (FiNER context menu, SapBERT, the reranker). A judge
+      shown a ranked list may simply ratify line 0. This is the same mechanism
+      the registered "break the position prior" experiment wants, so run them
+      together.
+    - **RISKS, both real.** (a) It couples rung 4 to S2 — S0 and S1 have no
+      menu. S2 is the frozen shipped config so this is tolerable, but rung 4
+      stops being step-agnostic and the article must say so. (b) **It may make
+      the judge worse.** Phase C's lesson was *prompt form is load-bearing for
+      small judges* — granite lost its pass/fail separation when a duplicated
+      post was removed. A 2B model given a longer, richer prompt is not
+      reliably a better judge, and the honest outcome may be "this judge is too
+      small," which is the parked remote-model question. Treat as an
+      experiment, not a fix. Three draws, both corpora, paired against the
+      current prompt.
+    - **INVALIDATES ON LANDING:** every rung 4 figure in the draft — the 1.65x
+      and 1.23x separations, 21.0%/12.7%, the pass/fail counts (146/95/7 CADEC,
+      48/299/4 FiNER), Figure 13, and §7's dead-verdict finding. All are
+      measurements of the blindfolded judge. They are not wrong as reported;
+      they answer a different question than the article says they do.
+    - Cost: roughly +160 tokens of menu per record on top of 92,687.
+
+15. **NO RUNG IN THIS LADDER CAN ADD A MENTION — state it as a limitation.**
+    NO RUN NEEDED; the proof is already in the artifacts. Raised 2026-09-02.
+    Every rung above 0 operates only on records rung 0 already proposed: rung 1
+    rejects, rung 2 fixes codes, rung 3 re-scores existing spans, rung 4 judges
+    per record, rung 5 withholds, rung 6's desk is **span-keyed** and picks
+    codes. The demonstration is Phase E's oracle: a perfect reviewer moved
+    coding accuracy 0.291 -> 0.990 **with detection unchanged**. Flawless human
+    review left recall exactly where rung 0 put it.
+    - So the ladder's ceiling is rung 0's recall, structurally, and every
+      technique in it is a precision instrument. The draft does not say this
+      outright and it is one of the sharper findings available.
+    - **Do NOT solve it by having rung 4 look for missed mentions.** Wrong unit
+      (rung 4 is per-record, "what was missed" is per-document) and wrong act
+      (a judge that names an unproposed mention is extracting, not judging —
+      the same collapse the rung 0/rung 2 retry rule already forbids). Register
+      "a rung that can propose a missed mention" as an open question instead,
+      and bound it with an oracle ceiling first, exactly as rung 6 was bounded
+      before it was built.
 
 ---
 

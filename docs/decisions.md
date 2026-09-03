@@ -3692,3 +3692,75 @@ real and it describes a set nobody named.
   Two shape notes. LGL and TR-News carry `<gaztag geonameid="…">` on every mention, so the answer key supplies the identifier and there is no resolution step to get wrong — unlike GeoWebNews, whose name-and-coordinates format forced a lookup that picked a Brooklyn in South Africa. And the offset check earned itself twice more: **116 of TR-News's 1,275 spans do not land**, dropped and counted rather than silently mis-scored.
 
   The set still has one corpus each for three of the four shapes. Five entries are not five independent regimes and the calibration record says so.
+
+## 2026-09-02 — rung 4 was never shown what it was judging, and the article's explanation of it was wrong
+
+Found while reviewing §6. `r4.judge` formats its prompt with
+`source, text, start, end, sct` (`ladder/rungs/r4.py:160`) and **`sct_label`
+appears zero times in the file**. The judge is handed `code: 1003722009`, a bare
+nine-digit identifier with no name, and asked whether it is the right SNOMED
+concept. That question cannot be answered by reading; it asks a 3.2B model to
+recite an identifier from memory.
+
+**This overturns the published explanation, which is now corrected in
+`docs/article-v3.md` §5 and §6.** Both sections attributed the CADEC/FiNER judge
+difference to context size — 139 tags fit, 129,675 SNOMED concepts do not. The
+real cause is **identifier readability**: on FiNER `rec.sct` *is* the tag name
+(`DebtInstrumentFaceAmount`), on CADEC it is a number. The judge adjudicates
+codes on FiNER because that corpus's identifiers happen to be words. Nothing
+about context windows. "A judge cannot adjudicate a vocabulary it cannot see"
+read as a property of the task; it was a property of our prompt.
+
+Consequence for the numbers: every rung 4 figure in the draft — the 1.65x and
+1.23x separations, 21.0%/12.7% coding accuracy by verdict, the pass/fail counts
+(146/95/7 CADEC, 48/299/4 FiNER), Figure 13, and §7's dead-verdict finding —
+measures a judge working blind. Reported as observed, but they answer a narrower
+question than we read them as.
+
+Registered as plan item 14, WITH RUNS. The redesign is the standard
+LLM-as-judge setup we never built: give the judge what the extractor was given
+and what it answered, for both of the extractor's two decisions (post -> span,
+menu -> pick). The data is already on disk — `rec.checks["candidates"]` carries
+`{i, code, fsn/label, from_rank}` (`ladder/rungs/r0.py:1260`). It turns the code
+question from recall into comparison, and it buys a verdict the system cannot
+currently express: *the right answer was not in the menu*, which separates a bad
+pick from a bad retrieval.
+
+Three things travel with it. (a) **A live bug found on the way:** the judge has
+no `[denied]` instruction, where rung 0's pick prompt has carried one since
+Phase B (`ladder/rungs/r0.py:479`) because without it the pick declined every
+denied mention it was given. The judge is therefore failing spans CADEC marks
+correct. CADEC only. (b) **Permute the menu under a fixed seed** — the slot-0
+attractor has been found three times and a judge shown a ranked list may ratify
+line 0; this is the same mechanism the registered position-prior experiment
+wants. (c) **It may make the judge worse.** Phase C's lesson was that prompt form
+is load-bearing for small judges. Treat as an experiment, not a fix.
+
+FiNER gets the same change and needs it more: its judge fails 299 of 351
+records, which carries about as little information as passing everything.
+
+## 2026-09-02 — no rung in this ladder can add a mention, and rung 6's oracle already proved it
+
+Raised while considering whether rung 4 should also look for missed mentions.
+It should not, but the question exposed a structural limit the article did not
+state.
+
+Every rung above 0 operates only on records rung 0 proposed: rung 1 rejects,
+rung 2 rewrites a code, rung 3 re-scores existing spans, rung 4 is per-record,
+rung 5 withholds, and **rung 6's desk is span-keyed** — it offers a choice of
+codes for spans it was handed. The proof needs no new run: Phase E's oracle, a
+perfect reviewer on the phaseD-r3-2 residue, moved coding accuracy on matched
+spans 0.291 -> 0.990 **with detection unchanged**. Flawless human review left
+recall exactly where rung 0 put it.
+
+So the ladder's ceiling is rung 0's detection and every technique in it is a
+precision instrument. Added to `docs/article-v3.md` as a new §6 subsection,
+"None of them can find what rung 0 missed".
+
+Rejected as the repair: having rung 4 check for missed mentions. Wrong unit —
+rung 4 is per-record, "what was missed" is per-document, so a 6-mention document
+would be asked six times and could answer six ways. Wrong act — a judge that
+names an unproposed mention is extracting with a second model, the same collapse
+the standing rung 0 / rung 2 retry rule already forbids. Registered instead as
+plan item 15: a rung that can propose a missed mention, bounded with an oracle
+ceiling first, exactly as rung 6 was bounded before it was built.

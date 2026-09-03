@@ -74,6 +74,24 @@ something.
 Not a good result. An honest one — and most of this article is about the things we
 built that did not contribute to it.
 
+> **[PENDING — one run, for the whole development-side article.]** The held-out
+> box above is a single frozen run and stays as it is. Everything else is not:
+> the development-side figures in this article come from **at least four separate
+> runs of the same configuration**, with 222, 232, 245 and 248 records, all of
+> them "40 development documents". They differ because the model is
+> nondeterministic, which is section 3's finding — but the consequence is that
+> adjacent numbers in one section can come from different draws and quietly
+> disagree. Voting is **+5 answers** on one and **−0.004 accuracy** on another,
+> and both were in this article a paragraph apart before we noticed.
+>
+> Nothing here is wrong as reported, and every figure is traceable to a run that
+> produced it. But a reader should be able to hold one set of numbers in their
+> head, and right now cannot. **One base run will produce every descriptive
+> development-side figure**, with the comparisons that genuinely need their own
+> runs — five models, three draws, two stacks, the judge on and off — named as
+> such in their captions. Until that run exists, treat each section's figures as
+> internally consistent and cross-section comparisons as approximate.
+
 The held-out split was spent on that single run, so **every other number in this
 article is development-side.** They are labelled where they appear. We say which
 split a number comes from every time, because the two do not agree and the
@@ -851,8 +869,15 @@ The difference is not one of degree. The four it catches are answers that are
 answer that is *possible and wrong*, and nothing mechanical separates the two.
 **A free check can prove an answer cannot be right. It can never show that it is.**
 
-**How much of the batch lands here?** **None.** REJECT holds 0, 2 and 2 records
-across the three draws. It used to hold 5.1% — until a rung 0 filter began
+**How much of the batch lands here?** **Almost none.** REJECT holds 0, 2 and 2
+records across the three draws. Here is one of them:
+
+> span `"severe muscle pain in ankles"` — **that text is not in the post.**
+> The model quoted something it had composed rather than read, and the check
+> located the quote and found nothing there.
+
+That is the entire rejection class in practice: not wrong codes, but invented
+quotes. It used to hold 5.1% — until a rung 0 filter began
 dropping ungrounded spans at source and the class arrived already empty. The
 checks still run, still pass their tests, and have nothing left to find. Section
 7 is about what that did to the rung above.
@@ -1218,11 +1243,24 @@ Fixing the first of those produced a finding about the rung above. On CADEC our
 judge only ever engages with the *span* — whether the text really describes a
 reaction — and says nothing useful about the code, which we had read as the limit
 of a 3.2B model. With its prompt corrected, the same model on FiNER adjudicates
-**both**: span wrong 197 times, code wrong 294, over 351 records. The difference
-is not the judge. It is that FiNER's entire answer space is 139 tags and fits in
-its context, where SNOMED's 129,675 concepts do not. **A judge cannot adjudicate
-a vocabulary it cannot see** — which is a property of the task, and section 6
-reads differently once you know it.
+**both**: span wrong 197 times, code wrong 294, over 351 records.
+
+The difference is not the judge, and it is not the size of the vocabulary either.
+It is that **FiNER's identifiers are words and CADEC's are numbers.** On FiNER the
+code the judge is shown is `DebtInstrumentFaceAmount`. On CADEC it is
+`1003722009`, and we never send the concept's name alongside it. So the question
+"is this the right SNOMED concept?" asks a 3.2B model to recite a nine-digit
+identifier from memory. **A judge cannot adjudicate an identifier it cannot
+read** — and that is a property of our prompt, not of the task.
+
+> **[PENDING — this is our defect and it is being fixed.]** Found 2026-09-02:
+> `sct_label` appears nowhere in rung 4, so the judge is handed a bare code with
+> no name. The fix is to give it what the extractor was given and what the
+> extractor answered — the post and the proposed span, then the twenty-line menu
+> and the line that was picked — which turns the code question from recall into
+> comparison. Every rung 4 number below is a measurement of a judge working
+> blind. They are reported as observed, but they answer a narrower question than
+> we first read them as. Plan item 14.
 
 ---
 
@@ -1234,52 +1272,92 @@ We built four resolvers on the residue and expected a staircase.
 documents. The held-out split was spent on one frozen run and cannot arbitrate an
 ablation, so the ablation and the judge arm live here and stay labelled.
 
-Each is followed by what it actually did to a real record, from the full-ladder
-run behind every development-side CADEC figure in this article.
+Rung 1 is section 4's and is not repeated. What matters below is that its
+verdicts are what every rung above either acts on or ignores.
 
-**Rung 1, the free checks.** Three verdicts, three records:
-
-| verdict | record | |
-|---|---|---|
-| ACCEPT | `"spotting"` → \|Menstrual spotting\| | the vocabulary uses this very word |
-| BAND | `"extreme rectal bleed"` → \|Rectal hemorrhage\| | plausible, no lexical evidence |
-| REJECT | `"severe muscle pain in ankles"` | that text is **not in the post** — the model quoted something it invented |
-
-**Rung 2, self-correction.** States the failure back as a fact, never as a
-question. On CADEC it fired **once in 248 records** — on that REJECT — and
-**declined**: the fact it was handed was `span_ungrounded`, and a model cannot
-re-ground a quote it made up.
-
-For most of this project that null had an obvious rebuttal — one firing proves
-nothing. It does not any more. Building a second free check for FiNER gave rung 2
-a real trigger set for the first time, **44 rejections per run instead of one in
-248**, and over **918 firings it rescued nothing**: 789 answers unchanged, 129
-refusals, **0 corrections.** Told a specific, stated fact — *the text "10.85"
-names a percent, but `DebtInstrumentFaceAmount` names a money amount* — the model
-returned the same answer 86% of the time and declined the rest.
+**Rung 2, self-correction.** Sends the record back to the same model with the
+check's finding stated as a fact — *"the code 2714004 does not exist in SNOMED
+CT"* — never as a question. Not *are you sure*, which invites a flip whether or
+not the answer was wrong. The post goes with it, and so does permission to
+abstain.
 
 ![Figure 11](figures/fig13-rung2.png)
 
-*Fig. 11: Rung 2 reads rung 1's verdict and fires on REJECT alone, so ACCEPT and
-BAND are never touched — no model call, no possible change. CADEC left, draw 0;
-FiNER right, pooled over three draws of the arm that finally gave it a trigger
-set. Source: author-created with Graphviz.*
+*Fig. 11: Rung 2 fires on REJECT alone, so ACCEPT and BAND are never touched.
+CADEC left, draw 0; FiNER right, pooled over three draws of the arm that finally
+gave it a trigger set. Source: author-created with Graphviz.*
 
-**Stating a correct fact back to a model does not make it produce a different
-answer.** That is the same shape as the three prompt interventions in section 2,
-which found that restating an instruction the model is already ignoring buys
-nothing. Sound mechanism, and now a null measured on hundreds rather than one.
+**It can only act on the lane rung 1 leaves empty** — and section 4 showed that
+lane holds nothing, because the classes a vocabulary can prove wrong are the ones
+the model stopped producing. On CADEC it fired once in 248 records and declined.
 
-There is also a structural point in that figure worth more than the null.
-**Rung 2 can only act on the lane rung 1 leaves empty.** Its trigger is a REJECT,
-so every record it could improve is one the free check has already proved wrong —
-and the classes a vocabulary can prove wrong are the classes section 4 showed the
-model has stopped producing. The rung is not underperforming. It is correctly
-implemented against a failure mode that no longer occurs.
+That null was always dismissable on sample size until we built a second free
+check for FiNER and handed rung 2 a real trigger set. **918 firings, 0
+corrections**: the model repeated itself 86% of the time and refused the rest.
 
-**Rung 3, voting.** Asks again and takes the majority: 2.6× the extraction token
-budget, 152-second p95, **+5 on the tuning set and 0 out of sample.** The case
-that matters is one it got wrong:
+Two caveats, both ours. The check supplying those facts is wrong 35.7% of the
+time on model output, so on about a third of the firings holding still was the
+*correct* response. And rung 5 was already withholding every record on that
+corpus, so a rescue would have been withheld too. **We measured whether the model
+changes its mind, not whether doing so would have helped.**
+
+What survives is narrow and worth having: told a specific, machine-verified fact
+about its own answer, with the evidence supplied, it corrected itself zero times
+in 918. Same shape as the prompt interventions in section 2 — **restating
+something the model is already ignoring buys nothing.**
+
+**Rung 3, voting.** Asks again *k* times and takes the majority. It is the most
+expensive thing in the ladder by a wide margin — **425,355 tokens, 2.6× the whole
+extraction step, and a 152-second p95** — and it is the one rung whose numbers
+are a *sample* rather than a property of the input, so each comes with its run id.
+
+On development (`phaseD-r3-2`) it bought **+5 net correct answers**, moving stack
+F1 from 0.335 to 0.347. On the held-out split (`phaseF-test-1`) it re-found
+**8 previously unanswered records and every one of them was wrong**: coverage
+rose 0.904 → 0.930, correct answers stayed at 105, and accuracy fell **0.370 →
+0.360.** The dev gain did not transfer. **Out of sample it was not neutral, it
+was slightly negative** — and one draw of a sampling rung is one draw, which is
+the caveat that has to travel with both numbers.
+
+![Figure 12](figures/fig16-rung3.png)
+
+*Fig. 12: Rung 3 on the development split, run `phaseD-r3-2`. Every figure is
+from the decision record; no surviving run carries rung 3 output, so nothing here
+is recomputed. Source: author-created with Graphviz.*
+
+**Did voting ever take a right answer and make it wrong?** In the run we ship,
+no — `correct → incorrect` is 0. But that is a repair, not a property. The
+baseline destroyed **11 correct answers**, and an earlier fix left one path open
+that overwrote 9 of 32 verified codes on a 1–0 "majority". **A resampling layer
+destroys right answers by default, and stops only when you make it stop** — here
+by requiring two samples to agree, and by drawing every sample through rung 0's
+own retrieval rather than a recall prompt.
+
+**Four of those changes can be placed without a run, and they land well.** A
+record with no code goes to BAND by construction — there is nothing to look up,
+so nothing to accept. All four transitions out of "abstained" were therefore BAND
+records: three became correct, one became incorrect. **The changes we can locate
+are in the lane where the free check had no opinion, which is where a vote is
+worth having.**
+
+> **[PENDING — the other 27.]** Rung 3 never reads rung 1's verdict, so whether
+> its remaining changes landed in BAND or in ACCEPT is the question that decides
+> what this rung is. If they cluster in BAND, rung 3 is **under-targeted rather
+> than useless** — it could run on that residue alone at a fraction of 425,355
+> tokens. If they cluster in ACCEPT, it is spending its whole budget churning the
+> one lane that was already 85% correct. The cross-tab was never recorded and the
+> run is gone. It is registered, and it is the only open item that could rescue a
+> rung this section otherwise writes off.
+
+**On FiNER it goes the other way, and we cannot say why.** The same rung, the
+same 2.7× cost, and answered accuracy moves **0.1396 → 0.1567** — net positive,
+where CADEC's was **0.371 → 0.367**, net negative. One draw each, on a rung whose
+numbers are samples, so it is a difference to note and not to claim. The vote
+spread and the change transitions were never recorded on that corpus at all, so
+the figure above has no FiNER counterpart and the sign flip has no explanation.
+Registered with the same run.
+
+The case that matters is one it got wrong:
 
 > A record rung 1 had **ACCEPT**ed as |Pain| was overwritten by rung 3 to
 > |Analgesia| — *the absence of pain* — on a **1–0 "majority"** from the only
@@ -1294,9 +1372,48 @@ code rung 3 replaced — so a check that had verified |Pain| was travelling with
 The voter and the answerer are the same model, so a vote carries no information
 the original answer lacked. It just occasionally lands somewhere else.
 
-**Rung 4, the judge.** A different family, enforced in code — a model judging its
-own output measures self-consistency, not correctness. It separates 1.65× on
-tuning, **1.23×** held out, against the free check's 2.36–6.12×.
+**Rung 4, the judge.** A second model reads each answer and rules on it. The
+family is required to differ from the extractor's, enforced in code rather than
+by convention — a model judging its own output measures self-consistency, not
+correctness. It costs **92,687 tokens** per run.
+
+![Figure 13](figures/fig18-rung4.png)
+
+*Fig. 13: Rung 4 on both corpora. Each panel is one run and names it. Source:
+author-created with Graphviz.*
+
+The question a judge exists to answer is whether its verdict tells you anything
+about correctness. Ours does, faintly:
+
+| | separation | measured on |
+|---|---|---|
+| the judge's pass/fail | **1.65×** dev · **1.23×** held out | **one draw per split** |
+| the free check's ACCEPT/BAND | **2.36–6.12×** | three draws, two configurations, five models |
+
+Those two rows are not equally solid, and the difference matters more than the
+gap between them. The free check's separation is the one claim in this project
+strong enough to state without a sampling caveat. **The judge's is a single
+measurement on each split, and it falls by a third between them** — 1.65× where
+we tuned, 1.23× where it counted. A number that moves that much between its only
+two observations has not been established in either direction.
+
+**But the judge is not weak. It is blindfolded, and we are the ones who tied
+it.** Section 5 found the same model, with its prompt corrected, adjudicating
+*both* span and code on FiNER. On CADEC it engages only with the span — because
+the only thing we ever send it about the code is the number. Rung 4 formats its
+prompt from the post, the span, the offsets and `sct`; the concept's *name* is on
+the record, produced by rung 0 and already checked by rung 1, and rung 4 never
+reads it. We asked a 3.2B model whether `1003722009` was correct and recorded its
+inability to answer as a finding about small judges. It was a finding about our
+prompt, and it stood for five phases.
+
+> **[PENDING]** The redesign — post, span, menu, pick — is plan item 14, and it
+> invalidates every figure in this subsection when it lands: the separations, the
+> pass/fail counts, and Figure 13. Not because they are wrong, but because they
+> measure a judge that could not see what it was judging.
+
+None of which changed a shipped answer, because **nothing reads the verdict.**
+Section 7 is about how that survived five phases of testing.
 
 **Rung 5, refusal.** Resolves nothing. It withdraws what the stack could not
 corroborate and routes the record to a person — and it is the only one that moves
@@ -1313,9 +1430,9 @@ actually look like:
 The first is a right answer the system could not corroborate and threw away. The
 third is why it throws them away.
 
-![Figure 12](figures/fig2-flat.png)
+![Figure 14](figures/fig2-flat.png)
 
-*Fig. 12: Accuracy on answered records is flat through four layers and falls at
+*Fig. 14: Accuracy on answered records is flat through four layers and falls at
 voting. It rises only when the system stops answering. Source: author-created with
 Matplotlib.*
 
@@ -1383,6 +1500,35 @@ currencies separately and refuse to fuse them. **A layer that is free in tokens
 and ruinous in human attention looks like a bargain in any single-figure
 summary.**
 
+### None of them can find what rung 0 missed
+
+There is a ceiling above all four, and it is structural rather than empirical.
+**Every rung in this ladder operates on records rung 0 already proposed.** Rung 1
+rejects, rung 2 rewrites a code, rung 3 re-scores spans that already exist, rung
+4 issues a per-record verdict, rung 5 withholds. Not one of them can put a
+mention on the table that the extractor never proposed.
+
+Rung 6 is the surprise, and it is the proof. A human reviewer is the one layer
+you would expect to catch a miss — and ours cannot, because the desk is keyed by
+span and only ever offers a choice of codes for spans it was handed. We measured
+that with an oracle: a perfect reviewer, given gold-derived resolutions, on the
+Phase E queue. Coding accuracy on matched spans went **0.291 → 0.990.** Detection
+did not move at all.
+
+**Flawless review left recall exactly where rung 0 put it.** So the ladder's
+ceiling is rung 0's detection — 0.521 exact on the held-out split — and
+everything built on top of it is a precision instrument. Reliability engineering
+of this kind makes a system's answers more trustworthy. It does not make the
+system see more.
+
+The obvious repair is to ask the judge what was missed. We think that is the
+wrong place: rung 4 is per-record and the question is per-document, and a judge
+that names a mention nobody proposed is not judging — it is extracting, with a
+second model, which collapses the very measurement the ladder exists to take.
+**[PENDING]** A rung that can propose a missed mention is registered as an open
+question, to be bounded with an oracle ceiling first, exactly as rung 6 was
+bounded before it was built. Plan item 15.
+
 ---
 
 ## 7. What no single-layer test could see
@@ -1392,9 +1538,9 @@ summary.**
 refusal step reads none of the three. No test could catch it, because every layer
 does exactly what its own documentation promises. The hole is *between* them.
 
-![Figure 13](figures/fig1-wiring.png)
+![Figure 15](figures/fig1-wiring.png)
 
-*Fig. 13: Three layers write a verdict; the refusal step reads none of them.
+*Fig. 15: Three layers write a verdict; the refusal step reads none of them.
 Source: author-created with Graphviz.*
 
 **A fix three layers down silently disabled two layers up.** The checks used to
@@ -1484,9 +1630,9 @@ The part another team can use tomorrow:
 No layer announced that it had stopped working. Each ran, returned, wrote its
 field, passed its tests.
 
-![Figure 14](figures/fig3-loop.png)
+![Figure 16](figures/fig3-loop.png)
 
-*Fig. 14: The measurement loop. Every dead layer here was found on it. Source:
+*Fig. 16: The measurement loop. Every dead layer here was found on it. Source:
 author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is
@@ -1635,6 +1781,25 @@ to be worth more than any layer that tried to answer them.
   - So there is a short-circuit we did not build, on the rung we spent the most
     effort on, pointed at by our own finding. It wants three draws and a
     measurement of what it does to the lanes above it. It is registered.
+- **No record's history was ever written down, and it cost us four answers in
+  this article.** Our ledger holds one row per record per rung with its verdict,
+  which is how section 4's lanes can be reconstructed at all. But rung 0 and rung
+  3 log one row per *document*, and **correctness is never joined back** — it is
+  computed afterwards against gold and thrown away. So nothing anywhere says
+  *this record, at this rung, held this code, and it was right.*
+
+  The consequence is four questions this article raises and cannot answer.
+  Whether voting's changes landed in the lane that needed them. Whether the 38
+  records it could not re-find were ones the model already had right. What
+  denominator the ACCEPT lane's headline figure used. Whether FiNER's runs agree
+  with each other. **Every one of those is a join we never made**, and every one
+  now needs a re-run instead.
+
+  The fix is a few columns — a per-record, per-rung table with the code, the
+  verdict and the outcome — and it is registered. **A rung that cannot say what
+  it did to an individual record cannot be credited or blamed for the
+  aggregate**, which is the same defect section 7 describes in the code, one
+  level up in the measurement.
 - **We assume one code is right, and we have not checked that.** The scorer
   credits only the code in the answer key. But `"knee pain"` coded
   |Pain of knee region| is filed as wrong against a gold |Gonalgia| that is

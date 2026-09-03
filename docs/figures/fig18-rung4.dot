@@ -1,0 +1,61 @@
+// Rung 4 on both corpora. One model call per record; the judge is required to be
+// a different family from the extractor, enforced in run.py.
+//
+// CADEC: out/audit-full-dev-1 (dev, 248 records) — pass 146 / fail 95 / 7
+// unjudged. FiNER: out/finer-full-2 (dev, 351 records) — pass 48 / fail 299 /
+// 4 unjudged, decomposing to (span_ok, code_ok) as shown. Each panel is ONE run
+// and says which; the pass/fail correctness separation (21.0% vs 12.7%) comes
+// from a different dev draw and is deliberately NOT mixed in here.
+//
+// COLOUR KEY — the article's: teal a model runs here · green pass · red fail
+digraph rung4 {
+  rankdir=TB; bgcolor="white"; nodesep=0.30; ranksep=0.34;
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=11.5
+        color="#c8d1d5" penwidth=1.2];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  in [label="EVERY record, every lane\n+ the whole source text"
+      fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+  j  [label="MODEL · a DIFFERENT family, enforced in code\n“You are checking another system's work.”\nspan — is this really a reaction the writer had?\ncode — is this the right SNOMED concept for it?"
+      fillcolor="#e3eeef" color="#0c6469" penwidth=2];
+
+  subgraph cluster_c {
+    label="  CADEC · audit-full-dev-1 · 248 records  "; fontname="Helvetica"; fontsize=12;
+    color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
+    cp [label="pass · 146" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    cf [label="fail · 95" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    cu [label="unjudged · 7" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+    cn [label="It rules on the SPAN and says nothing useful\nabout the code — 129,675 concepts do not fit\nin its context, so it cannot check one."
+        fillcolor="#fdf0c8" color="#946c00"];
+    { rank=same; cp; cf; cu }
+    cp -> cn [style=invis]; cf -> cn [style=invis];
+  }
+
+  subgraph cluster_f {
+    label="  FiNER · finer-full-2 · 351 records · prompt corrected  "; fontname="Helvetica";
+    fontsize=12; color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
+    fp [label="pass · 48" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    ff [label="fail · 299" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    fu [label="unjudged · 4" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+    fn [label="span ✗ code ✗ · 192      span ✓ code ✗ · 102\nspan ✓ code ✓ ·  48      span ✗ code ✓ ·   5\nIt answers BOTH questions — the whole\nanswer space is 139 tags and fits."
+        fillcolor="#e3f0e6" color="#2d6a4f"];
+    { rank=same; fp; ff; fu }
+    fp -> fn [style=invis]; ff -> fn [style=invis];
+  }
+
+  dead [label="r4_verdict\nONE reader in the whole system, and it is off by default"
+        fillcolor="#fbe4e4" color="#a33333" penwidth=2.5];
+
+  in -> j; j -> cp; j -> cf; j -> cu; j -> fp; j -> ff; j -> fu;
+  cn -> dead [style=dashed color="#a33333"]; fn -> dead [style=dashed color="#a33333"];
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Same model, same rung, two corpora — and only on one of them can it do its job.</B></FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">We read that as the limit of a 3.2B judge for five phases. It is a property of the vocabulary.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 92,687 tokens a run to write</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. Section 7.</FONT></TD></TR>
+        </TABLE>>];
+  dead -> note [style=invis];
+}
