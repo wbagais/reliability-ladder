@@ -1744,12 +1744,6 @@ The part another team can use tomorrow is the assignment, not the ladder:
 > **The model reads. Almost everything else belongs to something that does not
 > resample — and one job belongs to you.**
 
-Two of those rows are weaker than we would like, and saying so is the point of
-the exercise. We cannot claim the model is bad at checking its own work, because
-the layer that would have tested it never fired. And the judge's number is
-withdrawn: we measured it without ever showing it what a code means. Both are
-open, not settled against the model.
-
 And six practices, each of which we learned by getting it wrong first:
 
 - **Condition your confidence on something that does not resample** — a
