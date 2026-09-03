@@ -23,11 +23,11 @@ cost nothing. Source: author-created with Matplotlib.*
 
 ## Five key takeaways
 
-1. **Reproducibility is a model choice.** Four of five open-weight models gave byte-identical output across three identical runs. The one that varied bought 6.5 accuracy points and cost a spread wider than every improvement we shipped.
-2. **The model should read the text and nothing else.** Recalling an identifier, building the candidate list, ordering it, checking, judging, and deciding to abstain each measured better when taken away from the model.
-3. **A free string comparison beat the LLM judge by 3×** at identifying which answers were correct — and held at ~85% across five model families spanning 2.8× in accuracy.
-4. **That check has a precondition you can test in one query.** On a corpus where the span is a bare number it has zero coverage, and the system silently ships nothing.
-5. **Deleting the three paid layers changed one answer out of 43 and saved 518,590 tokens** (development split). The layer that cut errors from 62.9 to 4.0 per 100 spent nothing — and charged 196 of 248 records to a person instead.
+1. **Reproducibility is a model choice.** Four of five open-weight models gave byte-identical output across three identical runs. The one that varied bought 6.5 exact points and paid a run-to-run spread of 2.1 F1 points for them — enough noise to swallow most of the twenty changes we tested.
+2. **The model should read the text and little else.** Recalling an identifier, building the candidate list, ordering it, and deciding when to abstain each measured better when taken away from the model. Two more jobs — checking its own output, and judging whether an answer is right — are still open: one layer never fired, and we measured the other wrong.
+3. **A free string comparison separated right answers from wrong ones ~3× better than our LLM judge**, and held at ~85% across five model families spanning 2.8× in accuracy. The judge's half of that comparison is provisional — we found late that we had never shown it what a code means.
+4. **That free check has a precondition you can test in one query.** On a corpus where the span is a bare number it has zero coverage, and the system silently ships nothing.
+5. **Removing all three paid layers changed one answer out of 43**, for the 518,590 tokens they cost. What cut errors from 63 per 100 to 4 was free — and charged 196 of 248 records to a person instead. None of it made the system better at the task: no layer we built can propose a mention the extractor missed.
 
 ---
 

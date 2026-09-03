@@ -4616,3 +4616,37 @@ all on this corpus and one we measured wrongly"). The rewritten "The task, and
 the result", which immediately follows, now says the same thing at more length —
 so the qualifier "On our task" stays, the explanation moves to the section whose
 job it is, and the two front-matter sections stop repeating each other.
+
+## 2026-09-03 — the five takeaways rewritten. Three were stale as flagged; TWO MORE defects were found on the way
+
+The three known ones, all fixed:
+
+  2  claimed CHECKING and JUDGING "measured better when taken away from the
+     model". Neither did — self-correction never fired and the judge was measured
+     blind. Both are now named as open, with the reason.
+  3  "beat the LLM judge by 3x" compared a well-measured free check against a
+     withdrawn one. Now says so in the same sentence.
+  5  cited an ablation the article no longer describes, and "saved 518,590
+     tokens" double-counted against §7's own cost column. Now "for the 518,590
+     tokens they cost", which is the same number as a price rather than a saving.
+
+**TWO MORE, FOUND WHILE REWRITING.**
+
+**Takeaway 1 was FALSE as written.** "The one that varied ... cost a spread wider
+than every improvement we shipped." The spread is 2.1 F1 points; §2's table ships
++4.4, +5.7 and +6.2. The claim is true of two shipped arms and false of three.
+Replaced with what the number actually supports: 2.1 points is "enough noise to
+swallow most of the twenty changes we tested", which is the point that mattered
+and happens to be true.
+
+**Takeaway 5's error rates appear NOWHERE ELSE — 62.9 and 4.0.** Not in the
+article body, not in `docs/decisions.md`. The recorded pair for
+`audit-full-dev-1` is **63.3 -> 4.03**; the body's other pair is 59.6 -> 3.8 on
+test. Rounded to "63 per 100 to 4", which matches the recorded dev run the same
+sentence's 196-of-248 comes from. **Fifth unsourced figure this review has
+found**, and the first to appear in the article's most-read box.
+
+Added to takeaway 5 rather than made a sixth: **none of it made the system better
+at the task, because no layer can propose a mention the extractor missed.** That
+is the article's sharpest structural finding and it was reachable only by reading
+to §7.

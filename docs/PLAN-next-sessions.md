@@ -222,7 +222,7 @@ unverified.
 
 | | section | words | status |
 |---|---|---|---|
-| | Five key takeaways | 179 | **NOT REVIEWED** — deferred to last; **three are known stale, see below** |
+| ✅ | Five key takeaways | 213 | reviewed 2026-09-03; **two claims stay provisional until item 14** |
 | | What an AI reliability ladder is for | 179 | **NOT REVIEWED** |
 | | The task, and the result | 443 | **NOT REVIEWED** |
 | ✅ | 1. The two datasets | 1,523 | reviewed |
@@ -244,9 +244,9 @@ unverified.
 "Swept for cuts only" means dead or duplicated material was removed on
 2026-09-03, but no claim in those sections was checked against the code.
 
-**THREE TAKEAWAYS ARE ALREADY KNOWN TO BE STALE**, found while reviewing the
-sections they summarise. Fix them in the takeaways pass, not before — they are
-the last thing to touch:
+**THE TAKEAWAYS WERE REWRITTEN 2026-09-03** and the three stale claims below are
+fixed. Two of them remain PROVISIONAL in the article's own words until item 14
+lands, and must be re-read after the judge is re-measured:
 
 - **Takeaway 2** — "Recalling an identifier, building the candidate list,
   ordering it, **checking, judging**, and deciding to abstain each measured
