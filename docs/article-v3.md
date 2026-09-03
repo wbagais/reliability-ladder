@@ -1506,93 +1506,101 @@ third is why it throws them away.
 
 ---
 
-## 7. What the stack did as a whole
+## 7. What each layer was for, and whether it delivered
 
-Five resolvers, measured one at a time above. Stacked, they behave differently
-from the sum of those readings — and the three measurements that follow are the
-ones that decide whether any of it was worth building.
+The obvious way to summarise a stack like this is a staircase of accuracy
+deltas. We built that table, and it was misleading — not because the numbers
+were wrong, but because **accuracy is the wrong test for four of the six
+layers.** The free check is not trying to raise accuracy; it is trying to sort.
+Refusal makes no claim at all, so it has no accuracy to report. Judging every
+layer by one yardstick told us five of them "did nothing," when what actually
+happened was more specific and more useful.
 
-| layer (development split) | answered accuracy | coverage | **yield** | tokens | p95 |
-|---|---|---|---|---|---|
-| bare model | 0.371 | 1.00 | **0.371** | 164,897 | *cached* |
-| deterministic checks | 0.371 | 1.00 | **0.371** | **0** | **0** |
-| self-correction | 0.371 | 1.00 | **0.371** | 548 | *cached* |
-| voting | **0.367** | 1.00 | **0.367** | **425,355** | **152.2 s** |
-| second-model judge | 0.367 | 1.00 | **0.367** | 92,687 | 1.5 s |
-| refusal | ships **0.808** | **0.21** | **0.170** | 0 | 0 |
-| person | — | — | — | **196 records** | — |
+So: each layer against its own purpose, with what it cost to find out.
 
-*The yield column is answered accuracy × coverage; only the refusal row has a
-coverage below 1, so only that row's two numbers differ.*
+| layer | what it is **for** | did it do that? | cost |
+|---|---|---|---|
+| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — see section 4: the lanes separate ~3× | **0 tokens, 0 s** |
+| **self-correction** | restate a provable failure as a fact | **untestable here** — fired once in 248 records | 548 |
+| **voting** | catch answers the model cannot reproduce | **no** — no consistent effect in any direction | **425,355**, p95 **152 s** |
+| **second-model judge** | rule on whether an answer is right | **[PENDING]** — every measurement was of a blind judge | 92,687, p95 1.5 s |
+| **refusal** | guard in front of a person | **yes** — ships at 0.808 on 21% of records | 0 |
+| **person** | resolve what the machine cannot | not measured | **196 records** |
 
-**Three layers cost 518,590 tokens and moved nothing. The fourth moved it
-backwards. And the step that finally changes the headline does not resolve
-anything — it declines.**
+Read that way, the result is sharper than "nothing worked." **The two layers that
+did their jobs cost nothing.** The three that cost 518,590 tokens either could not
+be tested, could not be shown to help, or were measured wrong.
 
-Which is where the two accuracy columns part company, and the parting is the
-point. On the metric in column one, refusal is the best thing in the table: it
-takes 0.371 to **0.808**. On the metric in column three it is the worst: 0.371
-down to **0.170**. Column one asks *how often is it right when it speaks*, and
-abstaining always improves that — it is the same trap we caught the judge in one
-subsection ago, and the shipped configuration walks into it too. Column three
-asks *how many of the 248 records got a correct answer*, and by that measure
-every layer in this table is neutral or harmful.
+Voting deserves its wording. It is not that voting had no effect — it is that it
+had **no consistent one**: −0.004 on the run above, +5 correct answers on another
+development draw, and on the held-out split it re-found 8 previously unanswered
+records of which **all 8 were wrong.** A layer whose sign changes with the draw
+is not a layer you can plan around, and it is the most expensive thing here.
 
-**Nothing in this ladder makes the system better at the task. The best of it
-makes the system better at knowing when not to answer** — and that is worth
-buying only if a wrong answer costs you more than a missing one.
+### The gap nobody built for
+
+Lay the lanes and the layers side by side and something is missing.
+
+| lane | share of records | what is aimed at it |
+|---|---|---|
+| REJECT | ~0% on CADEC | **rung 2**, self-correction |
+| ACCEPT | ~21% | rung 5 ships it |
+| **BAND** | **~78%** | **nothing** |
+
+Rung 2 targets the lane that is empty. Rungs 3 and 4 run over everything
+indiscriminately. Rung 5 does not resolve BAND, it withholds it. **The lane
+holding three quarters of all records has no layer designed for it** — it is
+routed to a person by default, which is why the human cost is what it is.
+
+That is the clearest thing this table says, and we did not see it until we
+stopped scoring every layer on accuracy.
 
 ### We deleted all three and re-ran
 
-Per-layer deltas are an argument. The ablation is the measurement — same corpus,
-extraction step held **identical** on both sides:
+Per-layer readings are an argument. The ablation is the measurement — same
+corpus, extraction step held **identical** on both sides:
 
 | stack (development split) | F1 exact | overlap | correct | shipped | to a person | tokens |
 |---|---|---|---|---|---|---|
 | full seven rungs | 0.182 | 0.187 | 43 | 52 | 196 | **683,488** |
 | spine only | 0.182 | 0.182 | 42 | 52 | 196 | **164,898** |
 
-Identical F1, coverage, error rate and records routed. **The entire contribution of
-the three paid model layers is one overlap-matched answer out of 43, for 518,590
-tokens and a 152-second p95.**
+Identical F1, coverage, error rate and records routed. **The entire contribution
+of the three paid model layers is one overlap-matched answer out of 43, for
+518,590 tokens and a 152-second p95.**
 
 One trap nearly reversed this. Our spine config predated a set of extraction
 improvements, so running it as it stood would have compared a stripped stack on a
-*worse* extractor against a full stack on a better one. **An ablation that does not
-hold its base fixed is two experiments wearing one name.**
+*worse* extractor against a full stack on a better one. **An ablation that does
+not hold its base fixed is two experiments wearing one name.**
 
 ### Then we gave the judge the one thing it lacked
 
-The judge's verdict had no reader (section 8). The obvious objection is that it would
-have paid if connected. So we connected it, off by default, and measured three
-draws.
-
-Its row is already in the policy table above — the tightest setting, and the
-worst on yield: **0.169 / 0.161 / 0.177 falls to 0.125 / 0.121 / 0.131** across
-three draws, while coverage drops from ~0.21 to ~0.15 and the queue grows.
+The judge's verdict had no reader (section 8). The obvious objection is that it
+would have paid if connected. So we connected it, off by default, and measured
+three draws — the tightest row of section 6's policy table, and the worst on
+yield: **0.169 / 0.161 / 0.177 falls to 0.125 / 0.121 / 0.131**, while coverage
+drops from ~0.21 to ~0.15 and the queue grows.
 
 It withdraws 14, 13, 14 shipped answers to remove **3 errors each time** — about
-**3.7 correct answers destroyed per error caught.** Three it destroyed, all
-three of which gold agrees with:
+**3.7 correct answers destroyed per error caught.** Three it destroyed, all three
+of which gold agrees with:
 
 > `"drowsiness"` → |Drowsy| &nbsp;·&nbsp; `"memory loss"` → |Amnesia|
-> &nbsp;·&nbsp; `"pain"` → |Pain| Its withdrawals are 1.11–1.21×
-more likely to be wrong than what it keeps; the free check, same records,
-separates 3.03–3.15×.
+> &nbsp;·&nbsp; `"pain"` → |Pain|
 
-Precision rose, which is the trap: **abstaining always raises precision.** Yield
-cannot be fooled that way, and it fell 26%.
+Its withdrawals are 1.11–1.21× more likely to be wrong than what it keeps; the
+free check, on the same records, separates 3.03–3.15×. Precision rose, which is
+the trap: **abstaining always raises precision.** Yield cannot be fooled that
+way, and it fell 26%.
 
-The exchange rate nobody prices is the real one: **0.437 accuracy for 196 of 248
-records referred to a person.** Whether that is worth paying depends on what a
-wrong answer costs you — a number only you have. Which is why we report three
-currencies separately and refuse to fuse them. **A layer that is free in tokens
-and ruinous in human attention looks like a bargain in any single-figure
-summary.**
+**A layer that is free in tokens and ruinous in human attention looks like a
+bargain in any single-figure summary** — which is why we report three currencies
+separately and refuse to fuse them.
 
 ### None of them can find what rung 0 missed
 
-There is a ceiling above all four, and it is structural rather than empirical.
+There is a ceiling above all of it, and it is structural rather than empirical.
 **Every rung in this ladder operates on records rung 0 already proposed.** Rung 1
 rejects, rung 2 rewrites a code, rung 3 re-scores spans that already exist, rung
 4 issues a per-record verdict, rung 5 withholds. Not one of them can put a
@@ -1601,11 +1609,11 @@ mention on the table that the extractor never proposed.
 Rung 6 is the surprise, and it is the proof. A human reviewer is the one layer
 you would expect to catch a miss — and ours cannot, because the desk is keyed by
 span and only ever offers a choice of codes for spans it was handed. We measured
-that with an oracle: a perfect reviewer, given gold-derived resolutions, on the
-Phase E queue. Coding accuracy on matched spans went **0.291 → 0.990.** Detection
-did not move at all.
+that with an oracle: gold codes filled into the queue, on the Phase E residue.
+Coding accuracy on matched spans went **0.291 → 0.990.** Detection did not move
+at all.
 
-**Flawless review left recall exactly where rung 0 put it.** So the ladder's
+**Flawless code review left recall exactly where rung 0 put it.** So the ladder's
 ceiling is rung 0's detection — 0.521 exact on the held-out split — and
 everything built on top of it is a precision instrument. Reliability engineering
 of this kind makes a system's answers more trustworthy. It does not make the

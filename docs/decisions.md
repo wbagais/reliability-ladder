@@ -3930,3 +3930,40 @@ citation. Rung 6's passage now draws on `audit-full-dev-1` alone, which is what
 §6's own opening paragraph declares, so the section no longer mixes runs.
 
 §6 is now 2,298 words, from 3,622 at the start of the day.
+
+## 2026-09-03 — §7 rewritten: each layer judged against its own purpose, and it exposed a gap the delta table hid
+
+Owner's call, and the reasoning is the durable part: **accuracy is the wrong test
+for four of the six layers.** The free check is not trying to raise accuracy, it
+is trying to SORT. Refusal makes no claim at all, so it has no accuracy to
+report — "withheld" is deferred, not wrong. Judging every layer on one yardstick
+reported five of them as "did nothing", which is true and useless.
+
+The staircase-of-deltas table is replaced by a role table: what each layer is
+FOR, whether it did that, and what it cost. Numbers kept — "voting costs more
+than it gives" is an assertion, "425,355 tokens for no consistent effect" is
+evidence, and the cost columns are the only per-layer pricing in the article.
+
+Result reads sharper than the deltas did: **the two layers that did their jobs
+cost nothing** (deterministic checks, refusal); the three that cost 518,590
+tokens either could not be tested (self-correction fired once), could not be
+shown to help (voting), or were measured wrong (the blind judge, [PENDING]).
+
+**Voting's wording corrected to "no consistent effect", not "no effect."** −0.004
+on audit-full-dev-1, +5 correct on phaseD-r3-2, and on the held-out split it
+re-found 8 records of which all 8 were wrong. A layer whose sign changes with the
+draw is not one you can plan around, and it is the most expensive thing here.
+
+**NEW FINDING, and it is the best thing in the section — the BAND lane has no
+layer designed for it.** Rung 2 targets REJECT, which is ~0% of CADEC records.
+Rung 5 ships ACCEPT and withholds BAND. Rungs 3 and 4 run over everything
+indiscriminately. So the lane holding **~78% of all records** has nothing aimed
+at it and is routed to a person by default — which is where the human cost comes
+from. This was invisible while every layer was being scored on accuracy; it
+appeared as soon as the layers were laid against the lanes. Lane shares agree
+across the two dev runs (arm-sapbase-d0: ACCEPT 48 / BAND 174 / REJECT 0 of 222;
+audit-full-dev-1: ships 52, routes 196 of 248).
+
+Section retitled "What each layer was for, and whether it delivered". 1,082 ->
+1,200 words; the growth is the BAND-gap subsection. Kept unchanged: the ablation
+(the strongest evidence in the article), the judge arm, and the recall ceiling.
