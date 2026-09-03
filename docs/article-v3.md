@@ -1650,7 +1650,7 @@ system exists to make.
 
 ## 9. Did we try making the model better first?
 
-Yes — about twenty arms over five months. Six lessons transfer:
+Yes — about twenty arms. Eight lessons transfer:
 
 - **Do not ask the model for an identifier.** Recalling a code from weights scored
   F1 **0.018**; retrieving candidates and picking scored **0.209**, for fewer
@@ -1693,6 +1693,13 @@ shipped encoder reaches 87.0%, and an oracle picking the better of the two per
 mention reaches **93.6%**. So 87% is this encoder's ceiling, not the task's.
 What the arm shows is that raising it is not the same as improving the result.
 
+The arm also caught a flaw in our own method. **The probe that authorised it
+measured recall over 1,144 documents while the arm itself ran on 38** — and on
+those 38 the sign is negative. A go/no-go probe has to be run on the denominator
+the arm will be scored on. And the same claim holds for a domain-adapted
+*generator*, not just a domain-adapted encoder: BioMistral-7B as the extractor
+returned 3 predictions against 226 gold, failing on 36 of 40 documents.
+
 ---
 
 ## 10. The division of labour
@@ -1706,7 +1713,7 @@ The part another team can use tomorrow:
 | Decide the candidate list | **not the model** | a frontier model scored identically on the same menu; a better encoder scored worse |
 | Order the candidate list | **not the model** | takes line one 19.5% of the time, iff it is line one |
 | Check its own output | **not the model** | self-correction 1 in 248; voting moved accuracy down |
-| Judge whether an answer is right | **not the model** | 1.1–1.2× against a string comparison's 3.0–6.1× |
+| Judge whether an answer is right | **not the model** ⚠️ | it separated 1.1–1.2× against a string comparison's 3.0–6.1× — but see section 6: it was never shown what a code means |
 | Decide when to abstain | **not the model** | it never reported below 0.95 confidence while being right ~40% of the time — a dead dial |
 | Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes |
 
@@ -1799,7 +1806,7 @@ deal, and not what they were bought for.
   by construction, so you get its false-positive rate for nothing. Ours went from
   9.3% to 0.13%.
 - **Grep for the readers of every field you write** — and when you find an orphan,
-  measure it before you adopt it. Ours cost yield when we connected it. This one
+  measure it before you adopt it rather than assuming it would have paid. This one
   is worth automating: forty lines of regex over our own source names all three
   of the dead layers we had found by hand, and needs no data and no model.
 - **Re-measure the top when you change the bottom**, and **print coverage beside
@@ -1829,48 +1836,18 @@ to be worth more than any layer that tried to answer them.
   read off someone else's paper rather than measured on our own splits — verified
   line by line against their evaluation code, but still a comparison across two
   vocabularies and two test sets.
-- **~~Our retriever is a general-purpose 30M embedding model.~~ CLOSED
-  2026-09-01, and the answer has two halves.** SapBERT — domain-adapted, the
-  field standard for biomedical entity linking — was run as an off-by-default
-  arm on the same dev split, three paired draws. It **is** the better retriever
-  corpus-wide (menu recall@20 87.0% → 88.4%, separated over 1,144 documents) and
-  it made the system **worse** (F1 exact −0.027 pooled, coding accuracy −0.048,
-  sign-consistent three for three at byte-identical detection). So the ceiling
-  we attribute to the task *is* partly ours — an oracle over the two encoders
-  reaches 93.6% — and moving it did not move the result. **What the arm also
-  exposed is a flaw in our own method:** the probe that authorised it measured
-  recall over 1,144 documents while the arm ran on 38, and on those 38 the sign
-  is negative. A go/no-go probe has to be run on the denominator the arm will be
-  scored on.
-- **~~We tested a domain-adapted model in one role only.~~ CLOSED 2026-08-31.**
-  BioMistral-7B has now been run as the *extractor* on the same dev split and
-  frozen config, three draws: 3 predictions against 226 gold, F1 exact 0.0087,
-  36 of 40 documents returning `" {"` and end-of-sequence — the identical
-  signature to its judge failure, in the role whose prompts are 2-3x longer.
-  Raising the temperature to 1.0 escapes the greedy EOS and still lands at F1
-  0.017-0.050, a factor of four below the un-adapted `mistral:7b-instruct` on
-  the same split. The claim holds in two roles.
 - **We never tested how much of this a dictionary could do, and our own
   conclusion says we should have.** Section 10 argues the model should read the
-  text and nothing else. We applied that to identifiers and to building the
-  candidate list; we did not apply it to the pick. A one-draw probe on the
-  development split, run while reviewing this article and reported here rather
-  than in the body because one draw is below our own bar:
-  - **Detection cannot be replaced.** Scanning each post for text that *is* a
-    concept name finds 16.8% of gold spans exactly, at 27.1% precision, against
-    the model's 55.8% and 54.3%. It lands on the right mentions with the wrong
-    boundaries — matching `pain` inside `"extreme rectal bleed"` — which is the
-    same colloquial-versus-vocabulary gap section 1 describes. **The model is
-    three times better at the one job we say it should keep.**
-  - **The pick can be, for about a quarter of records.** For 54 of 232 records
-    the span's text resolves to exactly one concept in our own keyword table.
-    On those, taking that concept without asking the model is correct **81.5%**
-    of the time against the model's **75.9%** — and which records those are is
-    knowable before any model call. The three-record difference is not
-    significant at that size; the token saving is certain.
-  - So there is a short-circuit we did not build, on the rung we spent the most
-    effort on, pointed at by our own finding. It wants three draws and a
-    measurement of what it does to the lanes above it. It is registered.
+  text and nothing else; we applied that to identifiers and to building the
+  candidate list, but not to the pick. A one-draw probe — below our own bar, so
+  reported here rather than in the body — says detection cannot be replaced
+  (string matching finds 16.8% of gold spans against the model's 55.8%), but that
+  **the pick can be, for about a quarter of records**: where a span resolves to
+  exactly one concept in our keyword table, taking it without asking the model is
+  right 81.5% of the time against the model's 75.9%, and which records those are
+  is knowable before any model call. A short-circuit we did not build, on the rung
+  we spent the most effort on, pointed at by our own finding. Registered.
+
 - **No record's history was ever written down, and it cost us four answers in
   this article.** Our ledger holds one row per record per rung with its verdict,
   which is how section 4's lanes can be reconstructed at all. But rung 0 and rung

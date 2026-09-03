@@ -4046,3 +4046,44 @@ reader can act on.
 §7 is 1,087 words, from 1,082 at the split — but the content is almost entirely
 different: the delta staircase, the judge arm and the oracle are all gone, and
 the triage-signal finding and the role table are new.
+
+## 2026-09-03 — sweep of the unreviewed sections: a fabricated duration, a stale verdict, and two settled items filed under "could not settle"
+
+Owner asked for a pass over everything after §7 to cut what is not needed before
+reviewing it. Five defects, ~410 words removed, article 18,174 -> 17,900.
+
+**1. A FABRICATED DURATION, and it is the second of its kind.** §9 opened "about
+twenty arms over five months". The first commit is **2026-08-16** and today is
+2026-09-03 — **18 days**. Same class as the "four months in" removed earlier in
+this review. Duration dropped entirely rather than corrected: the arm count is
+checkable, the elapsed time adds nothing. **Whatever produces these is not
+catching itself; treat any unsourced duration in this article as suspect.**
+
+**2. §9 said "Six lessons transfer" above EIGHT bullets.** Fixed to eight.
+
+**3. §10's judge row cited a withdrawn measurement.** "1.1-1.2x against a string
+comparison's 3.0-6.1x" is the judge-arm number, and the judge-arm subsection was
+cut yesterday because it measured a blind judge. Row now carries the caveat and
+points at §6.
+
+**4. "What we would tell you" advised measuring orphaned fields because "ours
+cost yield when we connected it"** — the same withdrawn result. Rewritten to
+"measure it before you adopt it rather than assuming it would have paid", which
+is the lesson without the number.
+
+**5. TWO SETTLED ITEMS WERE FILED UNDER "What we could not settle."** The SapBERT
+entry (~180 w) duplicated §9's third bullet nearly line for line; the BioMistral
+entry (~90 w) was a closed negative result. Both cut. Rescued into §9's caveat
+paragraph, where the SapBERT arm already lives: the go/no-go probe lesson (the
+probe measured 1,144 documents, the arm ran on 38) and one clause carrying
+BioMistral's extractor failure. A section named for open questions should not
+carry struck-through closed ones.
+
+**6. The one-draw dictionary probe compressed** 250 -> 130 words. It is below the
+article's own three-draw bar and says so; it does not need both sub-findings at
+full length to make its point.
+
+Not cut, and worth recording as considered: §8 (199 w) and "How we found these"
+(111 w) are dense and every paragraph carries a distinct finding. The literature
+section (481 w) is the only place the supervised comparison and the CONORM
+ceiling check appear.
