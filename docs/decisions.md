@@ -4743,3 +4743,27 @@ wrote "0 of 704" for FiNER's ACCEPT lane from memory; **the article reports 351
 records** (ACCEPT 0, BAND 350, REJECT 1), and 704 is a different run. That would
 have been the sixth unsourced number in this article and the first introduced
 during its own review.
+
+## 2026-09-03 — the stability finding promoted into takeaway 5, and the owner remembered a better number than the one I had used
+
+Owner: the stability result is a good one — four of five models identical across
+three runs, and the fifth agreeing with itself "around 80% of the time". That 80%
+is real and it is **83.9%**, but it is NOT the number the article had been leading
+with. §3 reports three summary figures and they are not interchangeable:
+
+    62.8%  full consensus — same span AND same code
+    71.5%  all three runs propose the same span
+    83.9%  all three agree on the CODE, where all three found the mention
+
+The article's prose used the first ("nearly two mentions in three") and the
+takeaway had inherited nothing at all. **The third is the more informative one**,
+because the pair 62.8 / 83.9 decomposes the instability: where the model finds
+the same mention it usually codes it the same way, so **what varies is mostly the
+reading, not the labelling.** That is the general/domain split from §10 appearing
+in the nondeterminism data, and neither section currently notes that they are the
+same shape.
+
+Takeaway 5 rewritten around it. What it displaced — the three named measurement
+errors, the blind judge, the reranker's one-draw interval, the voting gain that
+reversed — survives as one clause here and in full in §8, which exists to tell
+that story with its examples.
