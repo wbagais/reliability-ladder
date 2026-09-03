@@ -30,7 +30,7 @@ author-created with Matplotlib.*
 
 1. **The only layer that paid for itself was free.** Self-correction, sampled voting and a second-model judge cost **496,000 to 521,000 tokens** per run between them; removing all three changed **one shipped answer out of 53 on one draw and none on the other two**. What did the work was a string comparison against the vocabulary — zero tokens, zero latency — which sorts answers into a lane 75–82% correct and one 27–30% correct, and a later layer declined to ship the second.
 2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 304** records, three draws of three, and the system silently shipped nothing. Test this before you build on it.
-3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions never proposed, 101 spans invented. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
+3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions not proposed as gold marks them, 31 spans invented outright. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.38 to 0.74–0.82** and yield from **0.38 to 0.17** on the same records, three draws of three — abstaining always raises precision. The judge, once shown the menu it was judging, separates right from wrong **3.4–4.2×** where it had managed 1.7× blind; nothing reads its verdict. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
 5. **Nondeterminism is a model choice, and it arrives in whole runs.** Four of five open-weight models returned byte-identical output across three identical runs. The one we shipped did so on **two draws of three** — 94 real calls each, replies identical to the byte — and diverged on the third from the first find call onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **84%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
 
@@ -443,8 +443,8 @@ Of the 21 pick losses, 19 are the model's own choice and 2 are rung 0's
 fallback rule filling an unanswered pick from line one.*
 
 **Detection is where almost all of the loss is, on both sides.** It misses 110 of
-226 gold mentions and proposes 101 spans that match nothing — more inventions
-than correct answers. Retrieval loses 8 on every draw; the pick 21 to 23.
+226 gold mentions and proposes 101 spans that sit on no gold span. Retrieval
+loses 8 on every draw; the pick 21 to 23.
 
 The 110 are two failures, not one. **43 the model never touched**: single
 words the instruction covers and the model skipped anyway (`"sore"`,
@@ -458,6 +458,17 @@ body ached"` for `"body ached"`, `"problems"` for `"problems with memory"`,
 and one quote — `"EXTREME AND EXCRUCIATING MUSCLE PAIN IN SHOULDERS"` —
 covering two gold mentions, neck and hip. Twenty-two of the 67 carry the right
 code under the wrong span; the exact metric counts them lost twice.
+
+The 101 on the prediction side split the same way: **70 touch a gold mention
+with the wrong boundary** — the other end of the 67 above — and **31 sit on
+nothing the annotators marked**. Those 31 are the model's own inventions, and
+they are not random: fragments of a real reaction (`"neck"`, `"severe
+shoulder"`, `"pain"`) and figures of speech read literally (`"at my wits end"`
+→ |Wanders at night|, `"truck hit"` → |Injury due to motor vehicle accident|,
+`"worse than"` → |Melioidosis|, `"dying"` → |Thoughts about dying|). A further
+13 predictions land on gold mentions the answer key excludes for carrying a
+retired code — `"weight gain"`, `"tiredness"`, `"weak legs"` — and are
+neither credited nor blamed.
 
 Notice also that the two middle failures are counted twice. A right span with a
 wrong code is a **false positive** — the system asserted something untrue — *and*
@@ -1953,7 +1964,8 @@ and the model, looking straight at it, takes the right line **81%** of the time.
 The expertise this task needs is not in the model and we could not put it
 there; it is in the vocabulary, and the model reads it well enough. What it
 does not do well enough is find the mention in the first place: half of gold
-is never proposed, and nearly half of what is proposed matches nothing. It is in the vocabulary. That is why the free check works, and why
+is not proposed as the annotators marked it, and nearly half of what is
+proposed misses their span — a third of that on nothing they marked at all. It is in the vocabulary. That is why the free check works, and why
 every job below except one comes off the model's desk.
 
 The part another team can use tomorrow is the assignment, not the ladder:
