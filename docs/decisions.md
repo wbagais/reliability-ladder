@@ -4509,3 +4509,36 @@ about MEASUREMENT discipline — good numbers went unexamined. Folding them blur
 two distinct failure modes into one. At 111 words §8 is the shortest section in
 the article but it is complete rather than a stub: a claim, a figure, three
 verified examples and the line that carries it.
+
+## 2026-09-03 — "What an AI reliability ladder is for" reviewed: FIGURE 2'S SECTION POINTERS WERE ALL STALE
+
+The article's second figure is its navigation aid — "how to read this article" —
+and after today's restructure (four sections merged or deleted, the rest
+renumbered) **every section pointer in it was wrong**:
+
+  Q1 five models      §2       -> §3, 4
+  Q2 seven rungs      §4, 5, 7 -> §4-7
+  Q3 two corpora      §6       -> §4, 5
+  the evidence        §3, 9    -> §2, 3, 8
+  the outcome         §10      -> correct, by luck
+
+A stale pointer in a navigation figure sends a reader to the wrong evidence,
+which is worse than no figure. A comment now sits at the top of the `.dot` saying
+the pointers move when sections do.
+
+Two content corrections in the same figure. **"paid judge separates
+1.1-1.2x"** is the withdrawn blind-judge measurement — now marked "withdrawn,
+§6". **"~20 arms, mostly negative"** — §2 says twenty changes, TEN shipped, so
+"mostly negative" was wrong; now "20 arms, 10 shipped". The outcome box also
+claimed checking and judging belong away from the model, which §10's table has
+since downgraded to `unproven` and `not yet known`; the figure now says
+"Checking and judging: open."
+
+**The prose overclaimed too, in one word.** "The staircase is not there" is the
+article's thesis stated flatly. After this review we know one of the six layers
+never ran on this corpus (self-correction had no trigger) and another was
+measured blind (the judge). So we tested THIS stack, not stacking. Now: "On our
+task, the staircase is not there", followed by the caveat, and "what follows is a
+reckoning with the stack we built, not a proof about stacking." The claim the
+article can defend is the narrower one, and stating it in the opening costs
+nothing — §7 already carries the detail.
