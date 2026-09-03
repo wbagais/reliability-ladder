@@ -329,7 +329,12 @@ that goes beyond unblocking — it makes the model findings two-corpus instead o
 one, and the article is shippable without it, with its CADEC-only caveats
 intact.
 
-0. **THE CONSOLIDATED RE-RUN — one config, one metric, one cache state, one
+0. **NOTE (2026-09-03): the article's front-matter `[PENDING]` box for this item
+   was folded into "The task, and the result" as prose and into §12's Limitations
+   list. The requirement is unchanged; only its two duplicate statements in the
+   article were merged into one.**
+
+0b. **THE CONSOLIDATED RE-RUN — one config, one metric, one cache state, one
    record. Do this FIRST; it subsumes items 1 and 3 and makes 4 unnecessary.**
    Every number in the article was produced across roughly two weeks, in
    worktrees most of which no longer exist, under at least three different F1

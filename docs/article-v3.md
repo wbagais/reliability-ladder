@@ -60,14 +60,13 @@ evidence under all three. Source: author-created with Graphviz.*
 ## The task, and the result
 
 Read a patient's forum post about a drug. Find every adverse reaction. Assign each
-a SNOMED CT code. There is a real answer key — CADEC, 1,250 posts, 9,111
-annotated mentions — and the task is the shape of many production pipelines: pull
-structured records out of prose, normalise against a controlled vocabulary, be
-prepared to defend each one.
+a SNOMED CT code. There is a real answer key — CADEC, 1,250 posts, 9,111 annotated
+mentions — and the task is the shape of many production pipelines: pull structured
+records out of prose, normalise against a controlled vocabulary, be prepared to
+defend each one.
 
-"Be prepared to defend each one" is the harder problem. A system that is 80% right
-and cannot tell you *which* 80% is unusable wherever a wrong answer costs
-something.
+That last part is the hard one. **A system that is 80% right and cannot tell you
+*which* 80% is unusable wherever a wrong answer costs something.**
 
 **A supervised model would do this task better, and we did not use one on
 purpose.** Fine-tuned systems reach 0.72 end-to-end on CADEC against our 0.20,
@@ -78,40 +77,29 @@ vote, judge, abstain, escalate — makes those models' answers defensible, and t
 question needs a task where "defensible" can be graded. This one has an answer key
 and a controlled vocabulary, which is exactly what it takes to grade it.
 
-That choice also bounds what follows. Our strongest finding is that a free
-vocabulary check outperforms every paid layer above it — and on a task with no
-vocabulary to check against, there is no free check to run.
-
 > **On the held-out split, run once and never re-run:** the system ships **23%**
 > of its answers — 72 records of 314. On those it makes **3.8 errors per 100**,
 > against **59.6** for the bare model. It sends the other **242** to a person.
 > End-to-end F1 is **0.204 [0.150–0.260]** span-exact, **0.215** on overlap.
 
 Not a good result. An honest one — and most of this article is about the things we
-built that did not contribute to it.
+built that did not contribute to it. **The error rate fell by a factor of fifteen,
+and not one of the six layers above the model is why.** It fell because a free
+string comparison against the vocabulary sorted the answers, and a later layer
+declined to ship the ones it could not vouch for. Everything that cost tokens
+either could not be tested, could not be shown to help, or turned out to have been
+measured wrongly.
 
-> **[PENDING — one run, for the whole development-side article.]** The held-out
-> box above is a single frozen run and stays as it is. Everything else is not:
-> the development-side figures in this article come from **at least four separate
-> runs of the same configuration**, with 222, 232, 245 and 248 records, all of
-> them "40 development documents". They differ because the model is
-> nondeterministic, which is section 3's finding — but the consequence is that
-> adjacent numbers in one section can come from different draws and quietly
-> disagree. Voting is **+5 answers** on one and **−0.004 accuracy** on another,
-> and both were in this article a paragraph apart before we noticed.
->
-> Nothing here is wrong as reported, and every figure is traceable to a run that
-> produced it. But a reader should be able to hold one set of numbers in their
-> head, and right now cannot. **One base run will produce every descriptive
-> development-side figure**, with the comparisons that genuinely need their own
-> runs — five models, three draws, two stacks, the judge on and off — named as
-> such in their captions. Until that run exists, treat each section's figures as
-> internally consistent and cross-section comparisons as approximate.
-
-The held-out split was spent on that single run, so **every other number in this
-article is development-side.** They are labelled where they appear. We say which
-split a number comes from every time, because the two do not agree and the
-difference is not always in our favour.
+Three things to hold while reading. The held-out split was spent on that single
+run, so **every other number here is development-side** and labelled as such; we
+name the split every time, because the two do not agree and the difference is not
+always in our favour. The development-side figures come from **at least four runs
+of the same configuration** at 222 to 248 records, so adjacent numbers can come
+from different draws — nothing is wrong as reported, but one base run to replace
+them is registered, and section 12 lists what else is provisional. And the choice
+of task bounds the conclusion: our strongest finding is that a free vocabulary
+check beats every paid layer above it, and **on a task with no vocabulary to check
+against, there is no free check to run.**
 
 ---
 

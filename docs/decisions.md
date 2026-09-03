@@ -4566,3 +4566,31 @@ vocabulary there is no free check to run.** §11 has the narrower version of thi
 (whether the ~85% ACCEPT lane generalises beyond SNOMED) and §5 has the
 precondition, but nothing said plainly in the opening that the headline finding
 is conditional on the task having a checkable answer space at all.
+
+## 2026-09-03 — "The task, and the result" rewritten to reflect the reviewed article
+
+The section had been written before the review and still framed the article it
+opened as an unqualified one. Rewritten against what the body now says.
+
+**The multi-run `[PENDING]` box shrank from ~180 words to one clause.** It was
+written this morning, and §12's Limitations acquired the same caveat this
+afternoon — so the article was making its largest disclosure twice, at length,
+in two places. The front matter now states it in a sentence and points at §12,
+which is the right division: the opening says a reader cannot yet hold one set of
+numbers in their head, and Limitations lists everything provisional. Article
+PENDING markers 8 -> 7.
+
+**A new paragraph states the result the body actually reached**, which the
+opening had been leaving to the reader to assemble: the error rate fell by a
+factor of fifteen and **not one of the six layers above the model is why** — it
+fell because a free string comparison sorted the answers and a later layer
+declined to ship what it could not vouch for, and everything that cost tokens
+either could not be tested, could not be shown to help, or had been measured
+wrongly. That last clause is the review's own finding about the judge, stated in
+the opening rather than buried in §6.
+
+**The three reading caveats are consolidated into one paragraph** — split
+labelling, the multi-run problem, and the task-choice bound — where they had been
+scattered across a box and two trailing paragraphs.
+
+486 words, from ~560.
