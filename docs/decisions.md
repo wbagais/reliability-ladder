@@ -4485,3 +4485,27 @@ have made our estimate look exact.
 §11's bullet updated: the detection-only question is settled, so it now says only
 what remains true — the comparison is read off someone else's paper, on a
 different vocabulary and test set.
+
+## 2026-09-03 — §8 reviewed: all three examples verify, and a duplicated opening removed
+
+Every claim in the section checks out against the record, and each example maps
+to a different falsification mechanism, which is the section's actual argument:
+
+  reranker  draw 0 +0.0215 [+0.0000, +0.0433], sign reversed by draw 2  -> a second draw
+  judge     28.0/15.6 -> 25.4/23.6 once the duplicated prompt was fixed -> a corrected prompt
+  voting    +5 correct on dev; on test re-found 8, all 8 wrong          -> a held-out split
+
+**The one defect was a duplicated opening.** §8 began "No layer announced that it
+had stopped working. Each ran, returned, wrote its field, passed its tests" —
+which is §7's closing subsection's premise in different words ("Every layer passed
+its own tests, did what its documentation promised, and returned"), two sections
+apart. §7 keeps it, because it is setting up the wiring finding; §8 now opens on
+its own claim instead: none of it came from a failing test, it came from
+re-measuring things that had already looked fine.
+
+**Kept separate from §7, considered and rejected.** They look adjacent and are
+not: §7 is about STRUCTURAL blindness — nothing read the verdicts — and §8 is
+about MEASUREMENT discipline — good numbers went unexamined. Folding them blurs
+two distinct failure modes into one. At 111 words §8 is the shortest section in
+the article but it is complete rather than a stub: a claim, a figure, three
+verified examples and the line that carries it.

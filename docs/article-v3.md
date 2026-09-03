@@ -1650,8 +1650,8 @@ then scored them with a metric that cannot see the difference.**
 
 ## 8. How we found these
 
-No layer announced that it had stopped working. Each ran, returned, wrote its
-field, passed its tests.
+None of it came from a failing test. It came from re-measuring things that had
+already looked fine.
 
 ![Figure 16](figures/fig3-loop.png)
 
