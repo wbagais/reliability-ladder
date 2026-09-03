@@ -46,6 +46,18 @@ DEFAULT_MAX_TOKENS = 2000
 DEFAULT_TIMEOUT_S = 120
 DEFAULT_CACHE_DIR = Path(__file__).parent.parent / ".llm_cache"
 
+#: A DRAW is a run against a COLD cache. Until 2026-09-03 that meant swapping
+#: a symlink between three directories, and no run file recorded which one a
+#: draw used. `LADDER_LLM_CACHE` names the directory for one run; `for_rung`
+#: reads it and `run.run_ladder` stamps it into <run>.aggregates.json.
+CACHE_ENV = "LADDER_LLM_CACHE"
+
+
+def cache_dir_for() -> Path:
+    """The LLM cache directory this process uses: the env setting, else the
+    default beside the package."""
+    return Path(os.environ[CACHE_ENV]) if os.environ.get(CACHE_ENV) else DEFAULT_CACHE_DIR
+
 #: The temperature every rung calls at unless it says otherwise. Greedy
 #: decoding is a project-wide choice: two runs of the same configuration must
 #: not disagree because of sampling noise. Rung 3 is the one exception and
@@ -317,6 +329,10 @@ class Caller:
         self.unwrapped = 0
         self.unclosed = 0
         self.prosed = 0
+        #: A `trace.CallTrace`, or None. Set by run.run_ladder per rung so the
+        #: full prompt and raw reply of every call — cache hits included —
+        #: land beside the records (plan item 12, 2026-09-03).
+        self.trace = None
         if not self.client.info.local and os.environ.get("LADDER_ALLOW_REMOTE") != "1":
             raise SystemExit(
                 f"{spec} is a hosted provider, and rung prompts contain CADEC post\n"
@@ -481,8 +497,13 @@ class Caller:
         # fence, close a missing brace, lift the JSON out of surrounding prose
         # (this branch), and only then wrap a bare array in the envelope the
         # CALL expects (main). A model can do all four at once.
-        return (self._unwrap_array(
-            self._reclose(self._unwrap(self._unfence(resp.text))), mode), usage)
+        out = self._unwrap_array(
+            self._reclose(self._unwrap(self._unfence(resp.text))), mode)
+        if self.trace is not None:
+            self.trace.record(content=content, raw=resp.text, normalised=out,
+                              mode=mode, usage=usage, temperature=temperature,
+                              sample_index=sample_index)
+        return out, usage
 
     def sampler(self, temperature: float):
         """A callable that draws a DIFFERENT sample each time it is called.
@@ -642,7 +663,7 @@ def check_models(manifest: dict, rungs, available: list[str] | None = None) -> l
 
 
 def for_rung(n: int, manifest: dict | None = None, override: str | None = None,
-             cache_dir: Path | str = DEFAULT_CACHE_DIR) -> Caller | None:
+             cache_dir: Path | str | None = None) -> Caller | None:
     """The Caller a rung should be handed, or None if that rung needs no model.
 
     The ONE place a model is resolved, and therefore the one place its
@@ -653,4 +674,5 @@ def for_rung(n: int, manifest: dict | None = None, override: str | None = None,
     if role is None:
         return None
     return Caller(resolve(role, manifest, override), role=role,
-                  cache_dir=cache_dir, temperature=temperature_for(manifest))
+                  cache_dir=cache_dir_for() if cache_dir is None else cache_dir,
+                  temperature=temperature_for(manifest))

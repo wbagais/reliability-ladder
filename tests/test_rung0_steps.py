@@ -361,7 +361,7 @@ def test_the_step_flag_reaches_the_rung_config(monkeypatch):
 
     seen = {}
 
-    def fake(man, split, rungs, records, sources, registry, out_dir, run_id, meddra=None):
+    def fake(man, split, rungs, records, sources, registry, out_dir, run_id, meddra=None, gold=None):
         seen.update(man["rungs"]["0"])
         raise SystemExit(0)
 

@@ -161,6 +161,7 @@ def _vocab_for(man):
     check_snomed_backend(man)
     return Registry(man["vocabulary"]["snomed_db"])
 from ladder import llm as llm_mod
+from ladder import trace as trace_mod
 from ladder.ledger import Ledger
 from ladder.manifest import friendly, load_manifest
 from ladder.registry import MeddraTable, Registry
@@ -295,10 +296,33 @@ def run_ladder(
     out_dir: Path,
     run_id: str,
     meddra: MeddraTable | None = None,
+    gold: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Run `rungs` in manifest order over `records`, writing every artifact.
+
+    Beside the ledger, the run leaves (plan item 12, 2026-09-03):
+      <run>.r<N>.records.jsonl  the record set as rung N left it
+      <run>.state.jsonl         one row per record per rung, scored against
+                                `gold` when given — ladder/trace.py
+      <run>.r<N>.calls.jsonl    every model call rung N made, prompt and reply
+      <run>.aggregates.json     each rung's aggregate, plus run metadata:
+                                the LLM cache directory, git sha, models,
+                                start and finish times
+    `gold` is the exclusion-applied answer key `cmd_ladder` builds — the SAME
+    dict the results rows use, so a state row and a results row can never
+    disagree about what was correct.
+    """
     order = [n for n in man["rung_order"] if n in rungs]
     _ledger_path = out_dir / f"{run_id}.ledger.jsonl"
     ledger = Ledger(_ledger_path, run_id=run_id)
+    started_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    state_path = out_dir / f"{run_id}.state.jsonl"
+    if state_path.exists():
+        state_path.unlink()
+    # The record set as the previous rung left it, so rung 1's rows on a
+    # --predictions run are not filed as creations.
+    prev: dict[str, Record] = {r.record_id: r.copy() for r in records}
+    wall: dict[int, float] = {}
 
     global _MON
     if _TUI_REQUESTED and _MON is None:
@@ -361,6 +385,10 @@ def run_ladder(
         caller = llm_mod.for_rung(n, man)
         if caller is not None:
             callers[n] = caller
+            caller.trace = trace_mod.CallTrace(
+                out_dir / f"{run_id}.r{n}.calls.jsonl", rung=n, sources=sources,
+                role=caller.role, spec=caller.spec,
+            )
             print(f"[run] rung {n} model={caller.spec} ({caller.role})")
         if _MON is not None:
             _MON.mark_running(n, f"{caller.spec}" if caller else "")
@@ -419,7 +447,20 @@ def run_ladder(
         else:
             records = out
         dt = time.perf_counter() - t0
+        wall[n] = dt
+        if caller is not None and caller.trace is not None:
+            caller.trace.close()
         snapshots[n] = [r.copy() for r in records]
+        # The three per-rung artifacts. Written HERE, after every rung, so a
+        # run that dies at rung 3 still leaves rungs 0-2 on disk.
+        (out_dir / f"{run_id}.r{n}.records.jsonl").write_text(
+            dumps(records), encoding="utf-8")
+        trace_mod.write_rows(
+            state_path,
+            trace_mod.state_rows(n, prev, records, gold=gold, vocab=registry,
+                                 run_id=run_id),
+        )
+        prev = {r.record_id: r.copy() for r in records}
         verdicts = ledger.verdicts(n)
         routed = any(p.get("rung") == n for r in records for p in r.provenance)
         counts = verdicts if verdicts else Counter(r.zone for r in records)
@@ -431,6 +472,37 @@ def run_ladder(
     ledger.close()
     if _MON is not None:
         _MON.stop()
+
+    # Every rung's aggregate used to go to stdout and nowhere else. Now it is
+    # a file, with the run metadata a reader needs to know WHICH run it was.
+    for n in order:
+        if n in wall:
+            aggregates.setdefault(n, {})
+            aggregates[n].setdefault("seconds", round(wall[n], 3))
+            aggregates[n]["wall_s"] = round(wall[n], 3)
+    try:
+        from ladder import provenance
+        git = provenance.git()
+    except Exception:  # pragma: no cover - provenance is best effort
+        git = {"sha": None, "dirty": None}
+    summary = {
+        "run_id": run_id,
+        "split": split,
+        "order": order,
+        "missing_rungs": missing,
+        "n_records": len(records),
+        "n_documents": len(sources),
+        "llm_cache": str(llm_mod.cache_dir_for()),
+        "models": {str(n): c.spec for n, c in callers.items()},
+        "temperature": llm_mod.temperature_for(man),
+        "git": git,
+        "started_utc": started_utc,
+        "finished_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "rungs": {str(n): a for n, a in aggregates.items()},
+    }
+    (out_dir / f"{run_id}.aggregates.json").write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False, default=str),
+        encoding="utf-8")
 
     return {
         "run_id": run_id,
@@ -715,25 +787,11 @@ def cmd_ladder(a) -> int:
         not getattr(a, "plain", False)
         and sys.stdout.isatty()          # never in a pipe, a log or CI
     )
-    # A monitor that hides a traceback is worse than no monitor: rich.Live
-    # owns the terminal and the next frame overwrites whatever was printed.
-    # Stop it first, then let the exception through untouched.
-    try:
-        result = run_ladder(
-            man, a.split, rungs, records, sources, registry, out_dir, run_id,
-            meddra=meddra,
-        )
-    except BaseException:
-        global _MON
-        if _MON is not None:
-            _MON.stop()
-            _MON = None
-        raise
-
     # Declared exclusions are applied to the ANSWER KEY, once, here — see
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
     # only invalid codes, 4 quote text that is not at their offsets). They are
-    # excluded and counted, never corrected.
+    # excluded and counted, never corrected. Built BEFORE the run since
+    # 2026-09-03, because every rung's state row is scored against it.
     excluded = clean_mod.exclusions_for(man)
     gold = {
         m.record_id: m
@@ -742,6 +800,21 @@ def cmd_ladder(a) -> int:
     }
     if excluded:
         print(f"[run] gold exclusions applied: {len(excluded)}")
+    # A monitor that hides a traceback is worse than no monitor: rich.Live
+    # owns the terminal and the next frame overwrites whatever was printed.
+    # Stop it first, then let the exception through untouched.
+    try:
+        result = run_ladder(
+            man, a.split, rungs, records, sources, registry, out_dir, run_id,
+            meddra=meddra, gold=gold,
+        )
+    except BaseException:
+        global _MON
+        if _MON is not None:
+            _MON.stop()
+            _MON = None
+        raise
+
     scorer = load_scorer(a.scorer)
     rows = results_rows(
         result, is_correct=scorer, gold=gold,
@@ -789,18 +862,6 @@ def cmd_ablate(a) -> int:
     out_dir = Path(man["output"]["dir"])
     run_id = a.run_id or f"{a.split}_{a.source}_ablate_{time.strftime('%Y%m%d-%H%M%S')}"
 
-    if a.source == "gold":
-        base = gold_as_records(docs, doc_ids)
-    elif a.predictions:
-        base = read_predictions(a.predictions, set(doc_ids))
-    else:
-        if load_rung(0) is None:
-            raise SystemExit(NO_RUNG0)
-        seed = run_ladder(
-            man, a.split, [0], [], sources, registry, out_dir, f"{run_id}.r0", meddra=meddra
-        )
-        base = seed["records"]
-
     # Declared exclusions are applied to the ANSWER KEY, once, here — see
     # ladder/clean.py. 7 of 7,311 reaction mentions cannot be answered (3 carry
     # only invalid codes, 4 quote text that is not at their offsets). They are
@@ -813,6 +874,20 @@ def cmd_ablate(a) -> int:
     }
     if excluded:
         print(f"[run] gold exclusions applied: {len(excluded)}")
+
+    if a.source == "gold":
+        base = gold_as_records(docs, doc_ids)
+    elif a.predictions:
+        base = read_predictions(a.predictions, set(doc_ids))
+    else:
+        if load_rung(0) is None:
+            raise SystemExit(NO_RUNG0)
+        seed = run_ladder(
+            man, a.split, [0], [], sources, registry, out_dir, f"{run_id}.r0",
+            meddra=meddra, gold=gold,
+        )
+        base = seed["records"]
+
     scorer = load_scorer(a.scorer)
     outcome_fn = load_outcome()
     rows = [
@@ -843,6 +918,7 @@ def cmd_ablate(a) -> int:
             out_dir,
             f"{run_id}.r{n}",
             meddra=meddra,
+            gold=gold,
         )
         rows.extend(results_rows(
             result, is_correct=scorer, gold=gold,

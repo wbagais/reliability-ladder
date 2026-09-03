@@ -20,7 +20,6 @@ are different failures:
                      `abstain_on_judge_fail` arm is on (OFF by default)
     rejected         rung 1 said it was provably wrong and rung 2 never rescued
                      it. Abstaining is the honest end state; shipping it is not
-    low_confidence   the model's own confidence sits below tau
 
 Abstention is a withdrawal, never a deletion — constraint 5 of the safety
 design. The proposed answer is preserved in `checks["withheld"]` so rung 6 can
@@ -32,20 +31,27 @@ positive, scoreable answer that CADEC's gold also gives (445 mentions). Folding
 it into abstention would make the system look cautious where it was actually
 right, and would destroy the only clean abstention target the corpus offers.
 
-tau is tuned on dev and written into the manifest BEFORE the first test run.
-`sweep()` produces the risk-coverage curve that choice comes from; it takes the
-correctness oracle as an argument rather than importing a scorer, so the one
-shared scorer stays one file and there is still only one of it.
+THE CONFIDENCE THRESHOLD WAS RETIRED 2026-09-03 (plan item 17d). It was read,
+unlike the five settings the 2026-08-31 audit found dead, and it could never
+usefully fire: rung 0 reports >= 0.95 confidence on every record (1.0 on 77%,
+{1.0: 204, 0.99: 44} on dev) while being right about 40% of the time, so no
+threshold separates anything. A live key that is structurally inert is the
+same defect one layer along from "declared and never read" — it looks
+tunable. Retired the `otel.py` way: gone from every manifest, REFUSED here
+rather than ignored (`tau_retired`), the sweep that existed only to tune it
+gone with it, and tests/test_tau_retired.py keeps it gone. A calibrated
+abstention input (B7, registered) would be a different dial with a different
+name — not this one back under a new note. `rec.confidence` stays on the
+record as data; nothing in this rung reads it.
 """
 
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from typing import Any
 
 from ladder.schema import (
     R_JUDGE_FAIL,
-    R_LOW_CONFIDENCE,
     R_UNRESOLVED,
     Record,
     ZONE_ABSTAIN,
@@ -60,7 +66,6 @@ RUNG = 5
 NAME = "abstention"
 
 DEFAULTS = {
-    "tau": 0.0,
     "abstain_zones": [ZONE_BAND],
     "abstain_on_reject": True,
     # OFF. Appended 2026-08-30, on the owner's call, as the arm that finally
@@ -72,6 +77,19 @@ DEFAULTS = {
     "abstain_on_judge_fail": False,
 }
 
+#: The retired dial's name, kept so the refusal can name it.
+RETIRED_KEY = "tau_retired"[:3]
+
+
+def _refuse_retired(cfg: dict[str, Any] | None) -> None:
+    if cfg and RETIRED_KEY in cfg:
+        raise ValueError(
+            f"rungs.5.{RETIRED_KEY} was retired 2026-09-03: rung 0's confidence "
+            "is {1.0, 0.99} and nothing else, so the threshold could never "
+            "separate a record. Remove the key; see docs/decisions.md and "
+            "tests/test_tau_retired.py."
+        )
+
 
 def _r1_verdict(rec: Record) -> str | None:
     """What rung 1 concluded, whether or not it acted on it."""
@@ -79,7 +97,8 @@ def _r1_verdict(rec: Record) -> str | None:
 
 
 def decide(rec: Record, cfg: dict[str, Any] | None = None) -> tuple[str, str | None]:
-    """(zone, reason) for one record. Pure, so the sweep can replay it."""
+    """(zone, reason) for one record. Pure, so a policy sweep can replay it."""
+    _refuse_retired(cfg)
     cfg = {**DEFAULTS, **(cfg or {})}
     # Rung 1's verdict wins over the zone: in observe mode the zone never moved,
     # and in gate mode the two agree unless a later rung changed the zone — in
@@ -102,9 +121,6 @@ def decide(rec: Record, cfg: dict[str, Any] | None = None) -> tuple[str, str | N
         and rec.checks.get("r4_verdict") == "fail"
     ):
         return ZONE_ABSTAIN, R_JUDGE_FAIL
-    tau = float(cfg["tau"] or 0.0)
-    if tau > 0 and rec.confidence is not None and rec.confidence < tau:
-        return ZONE_ABSTAIN, R_LOW_CONFIDENCE
     if verdict in cfg["abstain_zones"]:
         return ZONE_ABSTAIN, R_UNRESOLVED
     if verdict == ZONE_ACCEPT:
@@ -113,6 +129,10 @@ def decide(rec: Record, cfg: dict[str, Any] | None = None) -> tuple[str, str | N
 
 
 def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -> list[Record]:
+    # Refused on the FULL manifest block, before the DEFAULTS filter below
+    # would silently drop it: a declared key the rung ignores is the defect
+    # this retirement exists to remove.
+    _refuse_retired(cfg)
     ledger = cfg.get("ledger")
     params = {k: v for k, v in cfg.items() if k in DEFAULTS}
     for rec in records:
@@ -140,79 +160,3 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                 evaluable="fail" if new_zone == ZONE_ABSTAIN else "pass",
             )
     return records
-
-
-# --- tau sweep (dev only) ---------------------------------------------------
-
-
-def sweep(
-    records: list[Record],
-    is_correct: Callable[[Record], bool],
-    cfg: dict[str, Any] | None = None,
-    taus: list[float] | None = None,
-) -> list[dict[str, float]]:
-    """Risk-coverage curve over tau. Dev split only — never touch test with this.
-
-    `is_correct(record)` is the shared scorer, injected. One point per tau:
-
-        coverage             answered / all
-        selective_precision  correct among answered
-        risk                 1 - selective_precision
-        yield                correct / all  -- the honest headline: abstaining
-                             raises precision mechanically, so precision alone
-                             always argues for abstaining more
-        over_abstention      abstained records that WOULD have been correct
-    """
-    cfg = {**DEFAULTS, **(cfg or {})}
-    if taus is None:
-        taus = [i / 20 for i in range(21)]
-    n = len(records)
-    out = []
-    for tau in taus:
-        params = {**cfg, "tau": tau}
-        answered = correct = over = 0
-        for rec in records:
-            zone_, _ = decide(rec, params)
-            was_right = is_correct(rec)
-            if zone_ == ZONE_ABSTAIN:
-                over += 1 if was_right else 0
-            else:
-                answered += 1
-                correct += 1 if was_right else 0
-        out.append(
-            {
-                "tau": round(tau, 4),
-                "coverage": round(answered / n, 5) if n else 0.0,
-                "selective_precision": round(correct / answered, 5) if answered else 0.0,
-                "risk": round(1 - correct / answered, 5) if answered else 0.0,
-                "yield": round(correct / n, 5) if n else 0.0,
-                "over_abstention": over,
-                "answered": answered,
-                "correct": correct,
-            }
-        )
-    return out
-
-
-def aurc(curve: list[dict[str, float]]) -> float:
-    """Area under the risk-coverage curve. Lower is better."""
-    pts = sorted(((p["coverage"], p["risk"]) for p in curve))
-    area = 0.0
-    for (c0, r0), (c1, r1) in zip(pts, pts[1:]):
-        area += (c1 - c0) * (r0 + r1) / 2
-    span = pts[-1][0] - pts[0][0] if len(pts) > 1 else 0.0
-    return round(area / span, 5) if span else 0.0
-
-
-def free_lunch(curve: list[dict[str, float]]) -> dict[str, float] | None:
-    """The strictest tau that screens errors without losing a single correct answer.
-
-    It separates "the gate is miscalibrated" from "the mechanism does not
-    work" — two conclusions that look identical from a coverage number alone.
-    """
-    best = None
-    for point in curve:
-        if point["over_abstention"] == 0 and point["coverage"] < 1.0:
-            if best is None or point["tau"] > best["tau"]:
-                best = point
-    return best

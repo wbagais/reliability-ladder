@@ -1,5 +1,6 @@
 {
   "iteration": 1,
+  "_judgeshuffle_note": "Plan item 14, 2026-09-03. manifest.finer.json with ONE key changed: rungs.4.menu off -> shuffled. tests/test_r4_menu.py pins the diff.",
   "frozen": "2026-08-22",
   "task": "cadec-pharmacovigilance-triage",
   "gold_rule": "strict = the predicted SNOMED CT code is in the gold code set for that mention; CONCEPT_LESS is correct only against CONCEPT_LESS gold",
@@ -55,14 +56,6 @@
       "claim_verb": "was filed",
       "claim_object": "identifier",
       "_claim_wording_note": "Without these the rung 4 judge prompt read 'claimed a specific reported financial fact WAS REPORTED, with a US-GAAP XBRL tag TAG NAME' \u2014 CADEC's claim_verb and a derived claim_object colliding with this corpus's own vocabulary noun. Declared rather than derived: only the corpus knows whether its facts are reported, filed or observed."
-    },
-    "r2_prompts": {
-      "vocabulary": "the US-GAAP XBRL tag set",
-      "source_ref": "the filing excerpt",
-      "source_head": "The excerpt",
-      "id_name": "tag",
-      "entity_short": "figure",
-      "_note": "Rung 2's prompt named SNOMED CT at every corpus and it had never mattered, because rung 2 never fired on FiNER \u2014 rung 1 rejected 1 record in 704. Rung 7 wakes it, which is when the wording starts being sent. Third instance of the same defect: r4's judge asked SEC filings about adverse reactions, r0 needed slot templating, now r2. A dead rung's prompt is never wrong, because it is never sent."
     }
   },
   "vocabulary": {
@@ -83,7 +76,6 @@
   "rung_order": [
     0,
     1,
-    7,
     2,
     3,
     4,
@@ -174,7 +166,7 @@
       "enabled_note": "DISABLED 2026-08-26 (Phase D step 1) while its sampler was repaired, RE-ENABLED the same day on the measurement. The 2026-08-25 full-ladder dev run measured 206/240 records not_resampled (votes keyed on exact (doc_id, spans), which shift between samples) and 9 of 32 rung-1-verified-ACCEPT codes OVERWRITTEN with memory-recalled hallucinations, because the sampler drew from the legacy recall prompt while rung 0's codes came from the frozen S2 retrieve-and-pick path. Repaired (all TDD'd, tests/test_r3_repair.py): votes matched by span overlap one-to-one per record identity; every sample drawn through rung 0's configured path (r0.prepare + r0.extract_document, S2 retrieve-and-pick, few-shot, trimmer); a change requires seen >= 2 (one counted vote is not a vote \u2014 the k<2 argument); documents sampled in sorted order so the draw sequence is reproducible from the run id. Re-enabled on out/phaseD-r3-2 (dev, 245 records): not_resampled 38/245, ZERO correct codes destroyed (baseline: 11), the only verified-ACCEPT change a genuine 2-1 menu-sourced majority, stack F1 exact 0.335 -> 0.347. A disabled rung remains a RECORDED state: run.py writes a 'disabled' ledger row and aggregate entry, so 'rung 3 did not run' stays distinguishable from 'rung 3 found nothing'."
     },
     "4": {
-      "menu": "off",
+      "menu": "shuffled",
       "menu_note": "off | ranked | shuffled. Appended 2026-09-03 (plan item 14). Until then the judge was handed `code: <nine digits>` and no name, no menu, no pick, and asked whether it was the right SNOMED CT concept - a question it could not answer, so every published rung 4 number is a blind-judge measurement (on FiNER rec.sct IS the tag name, which is why the judge engaged there: identifier readability, not context size). With `ranked` the judge is shown the menu rung 0 retrieved (checks.candidates, rendered as rung 0 rendered it), the line the extractor chose, the [denied] marker where rung 0 claimed one, and asked a third question, `best`: the line it would choose or null for 'not on this list' - the verdict that separates a bad pick from a bad menu. `shuffled` permutes the menu per record under manifest.seed (blake2b of seed:record_id), because a judge shown a ranked list may ratify line 0; safe here, unlike rung 0's B4 arm, because the judge sees one record per call. OFF because the arm must be paired against exactly what was published; the arms are manifest.judgemenu.json and manifest.judgeshuffle.json (CADEC) and manifest.finer.judgemenu.json / manifest.finer.judgeshuffle.json (FiNER), one-key diffs pinned by tests/test_r4_menu.py. Couples rung 4 to S2 - an S0/S1 record gets the blind prompt and checks.r4_menu = 'none'."
     },
     "5": {
@@ -191,7 +183,7 @@
     }
   },
   "output": {
-    "dir": "out/finer-typecheck"
+    "dir": "out/finer"
   },
   "scorer": "ladder.score:reaction_sct_strict",
   "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align.",
@@ -210,6 +202,5 @@
     "manifest": "manifest.json at b7aba48 (Phase F: test split run once)",
     "_note": "Fill in the SHA from `git rev-parse --short HEAD` at the phase F merge before running. ladder/provenance.py records the SHA of the run itself; this records what it was frozen AGAINST. Both are needed: the ladder is under active development, and a comparison against a moving reference is not a comparison."
   },
-  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form.",
-  "_arm": "FiNER + rung 7 (type compatibility). ONE change from manifest.finer.json: rung_order gains 7, plus the r2 prompt slots that rung 7 makes reachable. DEV split \u2014 the test split is spent, so this is a development-side result and cannot move a shipped number, same status as the reranker and SapBERT arms."
+  "_inherits": "manifest.json at b7aba48 (phase F), then the corpus, vocabulary, model and output blocks replaced. Everything else \u2014 rungs, gold_rule, scorer, unit_of_evaluation, ablations \u2014 is inherited UNCHANGED. An earlier version of this file carried an empty rungs block as a statement that nothing was overridden; it meant nothing was CONFIGURED, so rung 0 ran without rung0_offsets='search' and every span came back ungrounded. A manifest that says 'same as that one except these' is the only safe form."
 }

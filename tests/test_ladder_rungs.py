@@ -224,39 +224,8 @@ def test_accepted_records_are_verified_not_abstained(tmp_path):
     assert r.zone == ZONE_VERIFIED and r.sct == "271782001"
 
 
-def test_tau_gate_is_off_at_zero():
-    r = rec(sct="271782001", confidence=0.01)
-    r.mark(1, ZONE_ACCEPT)
-    assert r5.decide(r, {"tau": 0.0})[0] == ZONE_VERIFIED
-    assert r5.decide(r, {"tau": 0.5})[0] == ZONE_ABSTAIN
-
-
-def test_sweep_is_monotone_in_coverage_and_finds_the_free_lunch():
-    records = []
-    for i in range(10):
-        r = rec(sct="271782001", confidence=0.9 if i < 7 else 0.3)
-        r.mark(1, ZONE_ACCEPT)
-        r.record_id = f"D1#{i}"
-        records.append(r)
-    wrong = {"D1#7", "D1#8", "D1#9"}  # exactly the low-confidence ones
-
-    curve = r5.sweep(records, is_correct=lambda r: r.record_id not in wrong)
-    coverages = [p["coverage"] for p in curve]
-    assert coverages == sorted(coverages, reverse=True)
-    assert curve[0]["coverage"] == 1.0 and curve[0]["selective_precision"] == 0.7
-
-    lunch = r5.free_lunch(curve)
-    assert lunch is not None
-    assert lunch["over_abstention"] == 0 and lunch["selective_precision"] == 1.0
-    assert 0.3 < lunch["tau"] <= 0.9
-    assert r5.aurc(curve) >= 0.0
-
-
-def test_sweep_never_touches_the_records_it_scores():
-    r = rec(sct="271782001", confidence=0.1)
-    r.mark(1, ZONE_ACCEPT)
-    r5.sweep([r], is_correct=lambda _r: True)
-    assert r.zone == ZONE_ACCEPT and r.sct == "271782001"
+# The confidence threshold (`tau`) and its sweep were RETIRED 2026-09-03 —
+# tests/test_tau_retired.py keeps them gone.
 
 
 # --- rung 1 judges; whether it routes is a setting ---------------------------
