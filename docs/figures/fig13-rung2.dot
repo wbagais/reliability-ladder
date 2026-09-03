@@ -2,8 +2,8 @@
 // (r2.py:347 — `if verdict != ZONE_REJECT or reason not in cfg["correctable"]`),
 // so ACCEPT and BAND are never touched: no model call, no possible change.
 //
-// CADEC: draw 0 of arm-sapbase, rung 1 lanes as fig10. REJECT is empty, so the
-// rung has nothing to act on.
+// CADEC: rerun-cadec-d0, rung 1 lanes as fig10. REJECT holds two invented
+// quotes; rung 2 fired twice (1,259 tokens) and rescued neither.
 // FiNER: pooled over three draws of the rung 7 arm — the only configuration in
 // which rung 2 has ever had a real trigger set. 918 firings, 0 rescued.
 //
@@ -16,13 +16,13 @@ digraph rung2 {
   edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
 
   subgraph cluster_c {
-    label="  CADEC — 222 records  "; fontname="Helvetica"; fontsize=13;
+    label="  CADEC — rerun-cadec-d0 · 230 records  "; fontname="Helvetica"; fontsize=13;
     color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
-    ca [label="ACCEPT · 48" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-    cb [label="BAND · 174" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
-    cr [label="REJECT · 0" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    ca [label="ACCEPT · 53" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    cb [label="BAND · 175" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+    cr [label="REJECT · 2" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     cskip [label="rung 2 never called\n0 model calls" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    cfire [label="nothing to correct" fillcolor="#fbfbfb" fontcolor="#8a9aa1" style="filled,rounded,dashed"];
+    cfire [label="fired 2 · 1,259 tokens · rescued 0\n(an invented quote carries no fact to state back)" fillcolor="#fbfbfb" fontcolor="#8a9aa1" style="filled,rounded,dashed"];
     ca -> cskip; cb -> cskip; cr -> cfire;
     { rank=same; ca; cb; cr }
   }
@@ -47,7 +47,7 @@ digraph rung2 {
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Rung 2 can only act on the lane rung 1 leaves empty.</B> It fires on REJECT alone, so every record it</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">could improve is one the free check has already proved wrong — and on CADEC that lane holds nothing.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">could improve is one the free check has already proved wrong — and on CADEC that lane holds two invented quotes.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Given hundreds of chances, it took none.</B> Told a specific true fact about its own answer,</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">the model repeated itself 86% of the time and refused the rest. It corrected nothing, 918 times.</FONT></TD></TR>

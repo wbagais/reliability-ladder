@@ -5192,3 +5192,28 @@ fact to state). 304 routed, every draw. The spine ships the same nothing.
 304 proposed against 165 gold, 186 invented, 47 missed. Item 3(a) closed: the
 reported configuration's agreement figures are 100% on three genuine cold
 draws. Item 3(b) (five models on FiNER) remains after the article ships.
+
+## 2026-09-03 — every figure and every number in the article re-derived from the base run
+
+Owner asked for all numbers updated. Full read of `docs/article-v3.md`
+against `out/rerun/{cadec,finer}.json`. Text: the confidence table (now 1.0
+×151 / 0.99 ×59 / 0.95–0.98 ×13 / 0.90 ×7 of 230, nothing below 0.9, right
+38% of the time), the `contained` table restated at rung 1 (60.4 / 60.4 /
+64.4% against the section 6 policy table's post-rung-3 58.2 / 58.2 / 65.6%,
+both stated), BAND's composition (100 of 175 off the exact span, 40 on no
+gold), §9's narrow claim (blind 1.7× vs the check's 2.7×; shown the menu
+3.4–4.2×, at 84,000 tokens against zero, read by nothing), §10's judge and
+abstention rows, §8's "2:1", "four errors per hundred instead of sixty" →
+4–6 against 38–41 on development. Figures 6, 8, 11, 12, 13, 14 regenerated
+from `rerun-cadec-d0` (rung 1 lanes 53/175/2 with 40/47 correct; the
+lexical split 53→91; rung 2 fired 2; rung 3's tree 12 / 4 / 214 → 149 / 25 /
+15, 25 changed by lane and by prior state; rung 4 blind 136/87/7 and
+45/251/8 with the span/code decomposition; rung 5 53 shipped at 73.6%, 177
+withheld with 49 correct), figures 9 and 10 to 304 / 301 / 3, and every
+note block under them rewritten — the notes had kept "+5 net correct",
+"destroys none", "EVERY COUNT PROVISIONAL" after the diagrams were changed.
+Numbers deliberately NOT changed, each now labelled with its source: the
+held-out box (Phase F), the S0/S1/S2 study, the twenty-arm table, the
+five-model sweep rows for the four other models, the FiNER refusal set, the
+type-check arm (918 firings), the dictionary and short-circuit probes, and
+CONORM.

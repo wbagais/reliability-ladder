@@ -1,5 +1,5 @@
 // What rung 1's verdicts look like on CADEC. Two panels, because REJECT is
-// empty on this corpus — 0, 2 and 2 records across three draws.
+// near-empty on this corpus — 2, 2 and 3 records across the three base draws.
 //
 // Both records are real and were replayed 2026-09-02 through r1.zone with the
 // shipped lexical_mode=exact: "chronic pain" matches a term for 82423001;

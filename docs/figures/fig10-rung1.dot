@@ -1,4 +1,4 @@
-// Rung 1 on CADEC dev, draw 0. Every record rung 0 emitted, sorted into three
+// Rung 1 on CADEC dev, rerun-cadec-d0 (2026-09-03; draw 1 identical). Every record rung 0 emitted, sorted into three
 // lanes by deterministic checks alone — no model call, identical every run.
 //
 // WHAT ENTERS: everything. Rung 1 judges without routing, so it sees the false
@@ -9,7 +9,7 @@
 // is assigned from the vocabulary alone, and the accuracy inside it is what
 // makes the lane worth anything.
 //
-// Draws 1 and 2: ACCEPT 85.7% / 85.1%, BAND 29.9% / 31.2%, REJECT 2 / 2.
+// Draw 2: ACCEPT 82.4%, BAND 30.4%, REJECT 3. Counts from out/rerun/cadec.json.
 //
 // THE REJECT NOTE IS A DEV-TO-DEV COMPARISON and must stay one. It read "5.1% of
 // records" until 2026-09-03; that is phaseF-test-1, the TEST split, and pairing
@@ -25,24 +25,24 @@ digraph rung1 {
         color="#c8d1d5" penwidth=1.2];
   edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
 
-  in [label="EVERY record rung 0 produced\n222 scored\n(126 matched a gold mention, 96 did not)"
+  in [label="EVERY record rung 0 produced\n230\n(116 sit exactly on a gold mention, 114 do not)"
       fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
 
   chk [label="RUNG 1 · four checks, no model call\ndoes the code exist? · is the span really in the post?\nis it the right kind of concept? · do the words match?"
        fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
 
-  acc [label="ACCEPT · 48\nthe vocabulary uses these very words"
+  acc [label="ACCEPT · 53\nthe vocabulary uses these very words"
        fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
-  band[label="BAND · 174\nplausible, and nothing can confirm it"
+  band[label="BAND · 175\nplausible, and nothing can confirm it"
        fillcolor="#fdf0c8" color="#946c00" penwidth=2.5];
-  rej [label="REJECT · 0\nprovably wrong"
+  rej [label="REJECT · 2\nprovably wrong"
        fillcolor="#fbe4e4" color="#a33333" penwidth=2.5];
 
-  accd [label="41 correct · 1 wrong code · 6 on no gold\n= 85.4% correct"
+  accd [label="40 correct · 1 wrong code · 12 off the gold span (4 on no gold)\n= 75.5% correct"
         fillcolor="#f4f9f6" color="#2d6a4f"];
-  bandd[label="51 correct · 29 wrong code · 94 on no gold\n= 29.3% correct"
+  bandd[label="47 correct · 28 wrong or no code · 100 off the gold span (40 on no gold)\n= 26.9% correct"
         fillcolor="#fdfaf0" color="#946c00"];
-  rejd [label="the class is empty — see below"
+  rejd [label="2 invented quotes — text not in the post"
         fillcolor="#fbfbfb" color="#c8d1d5"];
 
   in -> chk;
@@ -55,12 +55,12 @@ digraph rung1 {
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The lanes are assigned without an answer key.</B> Rung 1 never sees gold; the accuracy inside each lane</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">is measured afterwards, and is the only reason the sort is worth anything: <B>85% against 29%</B>.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">is measured afterwards, and is the only reason the sort is worth anything: <B>75% against 27%</B> (82% against 30% on draw 2).</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>REJECT is empty, and that is our doing.</B> A rung 0 filter now drops ungrounded spans at source,</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 10 of 240 records into arrives already empty. Section 7.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>REJECT is near-empty, and that is our doing.</B> A rung 0 filter now drops ungrounded spans at source,</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">so the class rung 1 used to reject 10 of 240 records into holds 2 invented quotes. Section 7.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>BAND is where the false positives go</B> — 94 of its 174 sit on no gold mention at all.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>BAND is where the false positives go</B> — 100 of its 175 sit off the exact gold span, 40 on no gold mention at all.</FONT></TD></TR>
         </TABLE>>];
   bandd -> note [style=invis];
 }
