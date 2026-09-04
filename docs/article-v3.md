@@ -242,7 +242,7 @@ experiment rather than a second data point.
 **The system can fail at either half, so we score them separately.**
 *Detection* is whether it found the right words; *coding* is whether it named the
 right concept. They fail for different reasons and want different fixes, and one
-combined number sends your effort to the wrong half — section 5 catches us doing
+combined number sends your effort to the wrong half — section 2 catches us doing
 exactly that.
 
 **Scoring happens once, at the end.** It is not a step in the pipeline and the
@@ -446,7 +446,7 @@ negative class is every possible span in every post — unbounded, so it cannot 
 counted. That is why extraction is scored with precision, recall and F1, none of
 which reference TN. FiNER is the exception, and it is a useful one: its
 candidates are the numeric tokens in the text, which *are* enumerable, so
-"correctly tagged nothing" is measurable there and section 5 uses it.
+"correctly tagged nothing" is measurable there and section 2's FiNER tree rests on it.
 
 The three stages lose very different amounts, and the ranking is not the one the
 project spent its effort on:
@@ -497,8 +497,8 @@ double penalty section 1 described, visible in the arithmetic: the 29 matched
 spans with the wrong code count on both sides.
 
 And the effort went to the wrong stage. Of ten shipped changes, the two largest
-help the model *read* — a worked example and the negation rule — but six of the
-seven rejected arms were attempts to improve the *choosing*, which loses 21 to 23
+help the model *read* — a worked example and the negation rule — but most of the
+rejected arms were attempts to improve the *choosing*, which loses 21 to 23
 mentions out of 226.
 
 ### The same three stages on the other corpus, and the bottleneck inverts
@@ -1071,7 +1071,7 @@ BAND's accuracy barely moves either way. **The setting does not sort better. It
 moves the line**, and that is the difference between a check that discriminates
 and a threshold that is simply lower.
 
-It also decides the number section 5 is built on. **The ACCEPT lane is 75–82%
+It also decides the number the rest of the ladder is built on. **The ACCEPT lane is 75–82%
 correct because of this setting** — under the alternative it is 60–64%, and the
 claim that the free check identifies a reliably-correct subset weakens. What the
 looser setting buys instead is yield, and section 6 puts the two on the same
@@ -1258,7 +1258,7 @@ within hours: the judge's prompt was never ported, so a model grading SEC filing
 was asked whether the span was *"really an adverse reaction"*; CADEC's exclusion
 list was applied to every corpus; a mistyped model name burned two hours of
 compute before failing at the rung that needed it. A fourth was a label — the refusal in
-section 2 was filed as a JSON parse failure, i.e. as *a model that cannot emit
+section 3 was filed as a JSON parse failure, i.e. as *a model that cannot emit
 JSON*, until we gave it its own name. **Diversity in what you test against finds
 a class of bug that depth of testing does not.**
 
@@ -1376,7 +1376,7 @@ that it could run on the BAND residue alone; it would still be re-coding the
 extractor's false positives at 2.5× the extractor's price.
 
 **On FiNER it goes the other way, three draws of three.** The same rung, at
-**2.6–2.8 million tokens per run** and a five-minute p95, changes 74, 83 and 94
+**2.6 million tokens per run** and a five- to six-minute p95, changes 74, 83 and 94
 codes and moves net correct answers by **+6, +8 and +8** — destroying 3, 2 and
 5 right ones on the way — where CADEC's was +1, −1, −1. Every change is in
 BAND, because on FiNER everything is. It is a consistent sign on a corpus where
@@ -1622,8 +1622,8 @@ CADEC, and both are shipping rung 3's gain: the menu judge's 0.172 is the
 answer removed. So on FiNER voting adds a little, the judge then removes
 errors at almost no cost in yield, and the free check contributes nothing at
 all. It is the mirror of CADEC, where the free check does the work and the
-paid layers add nothing — and on both corpora the shipped configuration acts
-on rung 1 alone, which on this one means shipping nothing.
+paid layers change nothing that ships — and on both corpora the shipped
+configuration acts on rung 1 alone, which on this one means shipping nothing.
 
 **Rung 6, the person.** Rung 5 decides how much to withhold; rung 6 is what
 happens to it, and it is the same decision seen from the other end. It runs no
