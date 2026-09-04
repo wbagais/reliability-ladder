@@ -34,7 +34,7 @@ digraph rung3 {
   nog  [label="on records matching no gold\n17 — invented before and after"
         fillcolor="#f2f4f5" fontcolor="#5a6b73"];
 
-  safe [label="correct → incorrect\n2 in this run — one of them ACCEPT, and it shipped\n3 and 5 on draws 1 and 2 · 11 in the baseline"
+  safe [label="correct → incorrect\n2 in this run — one of them ACCEPT, and it shipped\n3 and 5 on draws 1 and 2 · several times as many before the repairs"
         fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
 
   in -> s; s -> nf; s -> one; s -> two;
