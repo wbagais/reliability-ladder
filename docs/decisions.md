@@ -5327,3 +5327,39 @@ made better by understanding the data more closely, the largest gains ever
 measured were exactly that, and it was frozen on purpose because the question
 is what the rungs buy on a given model, not how good an agent for this task
 can be made — and a matching limitation.
+
+## 2026-09-03 — S0 and S1 re-measured on the frozen configuration, three cold draws each: the three-shape table is current
+
+Runs `rerun-cadec-s0-d{0,1,2}` and `rerun-cadec-s1-d{0,1,2}` (rung 0 only, dev,
+`--rung0-step`, LADDER_LLM_CACHE fresh per draw, 0 cached calls verified from
+the call traces); S2 is the base run. The only earlier-run numbers left in
+either article were the 2026-08-24 three-shape table and §9's "0.018 against
+0.209"; both replaced.
+
+| shape | records | F1 exact | F1 overlap | det F1 exact | coding exact | tokens | calls | parse fails | sha256 |
+|---|---|---|---|---|---|---|---|---|---|
+| S0 d0 | 179 | 0.030 | 0.030 | 0.472 | 0.065 | 141,183 | 40 | 3 | 7a7b50e1 |
+| S0 d1 | 186 | 0.030 | 0.030 | 0.505 | 0.059 | 147,477 | 40 | 3 | 7bbc407e |
+| S0 d2 | 196 | 0.024 | 0.024 | 0.502 | 0.049 | 141,143 | 40 | 3 | 1f7e6a58 |
+| S1 d0 | 206 | 0.252 | 0.381 | 0.471 | 0.535 | 82,753 | 53 | 1 | 2d52da35 |
+| S1 d1 | 204 | 0.253 | 0.396 | 0.477 | 0.530 | 81,546 | 55 | 0 | bd91b5b8 |
+| S1 d2 | 207 | 0.276 | 0.404 | 0.494 | 0.558 | 82,407 | 53 | 0 | 20118fde |
+| S2 (base) | 230/230/238 | 0.393/0.393/0.434 | 0.474/0.474/0.504 | 0.524/0.524/0.571 | 0.750/0.750/0.760 | 161,768/161,768/155,159 | 94 | 0 | c96289db ×2 / c3626412 |
+
+S0 specifics: null code 68/37/31 of 179/186/196 (38.0 / 19.9 / 15.8%);
+CONCEPT_LESS 7/11/15; of the coded records 14/104, 18/138, 27/150 (13 / 13 /
+18%) carry a code that exists in no SNOMED release — `2714004` |Pale skin| on
+d0, `84259000` |Fatigue|, `2299005` |Muscle weakness| among them. All six S0/S1
+draws are DIFFERENT files (S2: two of three identical).
+
+**Logic that changed in §2.** The old table read S1 and S2 as "close: half a
+point apart on overlap, 3.8 on exact, S2 costs 1.9x". On the frozen
+configuration S2 leads S1 by 14 points exact and 8-10 overlap at 1.9-2.0x the
+tokens; the design decision is now a clear win, not a declared trade on a half
+point. S0 is 8-10x worse than S1 (was "ten times"), at 1.7x S1's tokens and
+0.9x S2's (the old "for MORE tokens" no longer holds against S2). S0's null
+rate is 16-38% across draws (was one figure, 12.4%), and its fabricated-code
+share is stated for the first time from a run: 13-18% of what it commits to.
+
+Archived with the rest to the main checkout's
+`out/archive/reliability-ladder-b2-menu-f77617/`.

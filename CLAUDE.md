@@ -165,6 +165,12 @@
   +6/+8/+8. **Determinism**: a diverging prompt repeated 8x in isolation
   gives one reply (= d2's); the divergence happens only inside a full run —
   server state between requests is the remaining suspect, unexplained.
+- **S0/S1 RE-MEASURED 2026-09-03** (`rerun-cadec-s{0,1}-d{0,1,2}`, rung 0
+  only, three cold draws each): S0 F1 0.030/0.030/0.024 (null code 16-38%,
+  13-18% of its codes nonexistent, 3/40 unparseable every draw), S1
+  0.252/0.253/0.276, S2 = base 0.393/0.393/0.434. S2 leads S1 by 14 pts exact
+  at 2x tokens — no longer "close". No earlier-run number remains in either
+  article; `docs/article-v3-CADEC.md` is the single-corpus version.
 - **B4 (break the slot-0 prior) is DONE but UNMERGED** on branch
   `claude/reliability-ladder-b4-slot0-7784eb`: the attractor was
   `_fill_from_menu`'s fallback writing menu line 0 (74 of 77 predictions),

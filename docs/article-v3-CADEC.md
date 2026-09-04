@@ -258,29 +258,35 @@ ladder proper starts.
 ### First we tried three shapes for rung 0
 
 Before any of that, a more basic question: how much of the job should the model
-do? We built three versions and measured them on the same 40 documents.
+do? We built three versions and measured them on the same 40 documents, three
+cold draws each, under the configuration the ladder ships (`rerun-cadec-s0-d0/1/2`,
+`rerun-cadec-s1-d0/1/2`, and the base run for S2):
 
 | | what the model is asked for | F1 exact | F1 overlap | tokens | replies that would not parse |
 |---|---|---|---|---|---|
-| **S0** | the span, the concept name, **and the code** | **0.018** | 0.018 | 43,998 | **5 of 40** |
-| **S1** | the span and the concept name; the code is looked up | 0.171 | 0.305 | 36,079 | 0 |
-| **S2** | the span; then a line number from a retrieved menu | **0.209** | 0.310 | 68,906 | 0 |
+| **S0** | the span, the concept name, **and the code** | **0.030 · 0.030 · 0.024** | 0.030 · 0.030 · 0.024 | 141,000–147,000 | **3 of 40**, every draw |
+| **S1** | the span and the concept name; the code is looked up | 0.252 · 0.253 · 0.276 | 0.381 · 0.396 · 0.404 | 82,000 | 1 · 0 · 0 |
+| **S2** | the span; then a line number from a retrieved menu | **0.393 · 0.393 · 0.434** | 0.474 · 0.474 · 0.504 | 155,000–162,000 | 0 |
 
-**S0 is not weak, it is broken.** Ten times worse than S1, for *more* tokens, and
-it is the only version that fails to produce readable output at all. Asking a
-model to recall a nine-digit identifier from its weights is the single most
-expensive thing in this table and the least successful.
+**S0 is not weak, it is broken.** Eight to ten times worse than S1, for 1.7× S1's
+tokens, and it is the only version that fails to produce readable output on
+every draw. Asking a model to recall a nine-digit identifier from its weights is
+the least successful thing in this table and nearly the most expensive.
 
 It also fails in the way that matters most. S0 was given an explicit escape —
-answer `null` if you do not know the code — and it used it 12.4% of the time. It
-still emitted `2714004`, a code that exists in no SNOMED release, next to a
-correct concept name. **An abstention hatch reduces fabrication and does not
+answer `null` if you do not know the code — and it used it on 16% to 38% of its
+records, a share that moved by more than a factor of two between draws of the
+same configuration. Of the codes it did commit to, **13% to 18% exist in no
+SNOMED release**: it still emitted `2714004` beside a correct concept name,
+|Pale skin|, on draw 0. **An abstention hatch reduces fabrication and does not
 remove it.**
 
-S1 and S2 are close: half a point apart on overlap, 3.8 on exact, and S2 costs
-1.9× the tokens. We froze S2 anyway, because rungs 1 to 6 all have to be measured
-against one extraction step and the exact metric is the headline — but the cost
-is a declared trade, not a free win.
+S1 and S2 are not close. Looking the concept up by the name the model gives
+recovers most of the loss; retrieving a menu and asking for a line number
+recovers 14 more points of exact F1 and 8 to 10 of overlap, at twice S1's tokens.
+We froze S2 on that trade — rungs 1 to 6 all have to be measured against one
+extraction step and the exact metric is the headline — and the cost is declared
+rather than hidden.
 
 A fourth design was dropped before it could be measured properly: show the model
 one fixed printed list of codes and have it pick. No printable list survives
@@ -1417,7 +1423,7 @@ The part another team can use tomorrow is the assignment, not the ladder:
 | job | whose | evidence |
 |---|---|---|
 | **Read the prose, propose candidate spans** | **the model** | the one thing it does well — it reaches 178 of 226 gold mentions on overlap, 116 exactly; nothing else in the ladder can propose one |
-| Recall an identifier | **not the model** | F1 0.018 against 0.209 for retrieve-and-pick, at more tokens |
+| Recall an identifier | **not the model** | F1 0.024–0.030 against 0.393–0.434 for retrieve-and-pick, at about the same tokens, and 13–18% of the identifiers it recalls do not exist |
 | Decide the candidate list | **not the model** | the retriever, with no model in it, puts the answer on the menu for 93% of the spans the model finds |
 | Order the candidate list | **not the model** | line one is the retriever's best guess and the pick takes it four times in five when the answer is on the menu |
 | Check its own output | **unproven** | self-correction fired 2–3 times a run on invented quotes and rescued none; voting's sign changed with the draw |
