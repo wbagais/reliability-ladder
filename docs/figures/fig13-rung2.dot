@@ -3,7 +3,7 @@
 // so ACCEPT and BAND are never touched: no model call, no possible change.
 //
 // CADEC: rerun-cadec-d0, rung 1 lanes as fig10. REJECT holds two invented
-// quotes; rung 2 fired twice (1,259 tokens) and rescued neither.
+// quotes; rung 2 fired twice (1,259 tokens), relocated one quote into BAND with a wrong code, corrected neither.
 // FiNER: the rung 7 arm replayed over the three base draws (rerun-finer-d{0,1,2}-typecheck)
 // — the only configuration in which rung 2 has a real trigger set. 105 firings, 0 rescued.
 //
@@ -22,7 +22,7 @@ digraph rung2 {
     cb [label="BAND · 175" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
     cr [label="REJECT · 2" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     cskip [label="rung 2 never called\n0 model calls" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    cfire [label="fired 2 · 1,259 tokens · rescued 0\n(an invented quote carries no fact to state back)" fillcolor="#fbfbfb" fontcolor="#8a9aa1" style="filled,rounded,dashed"];
+    cfire [label="fired 2 · 1,259 tokens · relocated 1 · corrected 0\n(the relocated quote came back with a wrong code)" fillcolor="#fbfbfb" fontcolor="#8a9aa1" style="filled,rounded,dashed"];
     ca -> cskip; cb -> cskip; cr -> cfire;
     { rank=same; ca; cb; cr }
   }
@@ -54,7 +54,7 @@ digraph rung2 {
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>Two things keep this from being a clean null.</B> On an earlier run the check supplying the facts was wrong</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">about a third of the time on model output, so holding still was sometimes the right response; on the base run</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">every fact it was handed was true, and the model still held still.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">none of the 35 rejections it was handed was false, and the model still held still.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">And none of it could reach the output: rung 5 was already withholding every record on this corpus.</FONT></TD></TR>
         </TABLE>>];
   cskip -> note [style=invis]; resc -> note [style=invis];

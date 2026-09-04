@@ -40,7 +40,7 @@ digraph accept_finer {
         <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#a33333"> &#8212;  types contradict  &#8212;&#9654; </FONT></TD>
         <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the tag chosen</FONT><BR/><FONT POINT-SIZE="13"><B>AccrualForEnvironmental…</B></FONT><BR/><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a money amount</FONT></TD>
       </TR></TABLE></TD></TR>
-    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Provably wrong without knowing the right answer &#8212; and on the base run <B>none of the 10 that sit on a gold mention is wrong</B>; on an earlier run about a third were. The check ships off.</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Provably wrong without knowing the right answer &#8212; and on the base run <B>all 10 that sit on a gold mention carry the wrong tag &#8212; not one false rejection</B>; on an earlier run about a third were. The check ships off.</FONT></TD></TR>
     </TABLE>>];
 
   acc -> band [style=invis]; band -> rej [style=invis]; rej -> rej2 [style=invis];

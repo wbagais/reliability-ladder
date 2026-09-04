@@ -4,12 +4,19 @@
 > traceable to the run that produced it. Two claims that were at risk have been
 > checked against their sources: the ~0.70 span-exact ceiling holds in the region
 > we predicted, though the strongest supervised tagger on this corpus clears it by
-> four points (section 9). Every development-side number comes from one base run
-> of the full ladder — three cold draws on each corpus, every arm replayed on the
-> same cache, run ids `rerun-cadec-d{0,1,2}` and `rerun-finer-d{0,1,2}` — and
-> nothing measured on an earlier run is quoted. Where an earlier experiment is
-> mentioned it is named as such, without its figures; those live in the decisions
-> log. What remains open is listed in section 11.
+> four points (section 9); and the retrieval ceiling is partly this encoder's,
+> not the task's — a domain-adapted encoder put more gold on the menu and made
+> the result worse (section 2). Every development-side number comes from one
+> base run of the full ladder — three cold draws on each corpus, every arm
+> replayed on the same cache, run ids `rerun-cadec-d{0,1,2}` and
+> `rerun-finer-d{0,1,2}` — and nothing measured on an earlier model run is
+> quoted. The replays of a free check over the answer key in sections 4 and 5 —
+> lane occupancy, the planted corruptions, the type check's false-rejection
+> rate — involve no model; they were re-run on the base run's configuration
+> and denominator on 2026-09-04 (`out/rerun/cadec.md`, `cadec-probe-*.json`)
+> and are quoted from that replay. Where an earlier experiment is mentioned it
+> is named as such, without its figures; those live in the decisions log. What
+> remains open is listed in section 11.
 
 **Pushpdeep Mishra · Wejdan Bagais**
 
@@ -30,7 +37,7 @@ Source: author-created with Matplotlib.*
 2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 304** records, three draws of three, and the system silently shipped nothing. Test this before you build on it.
 3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions not proposed as gold marks them, 31 spans invented outright. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.38 to 0.74–0.82** and yield from **0.38 to 0.17** on the same records, three draws of three — abstaining always raises precision. The judge, once shown the menu it was judging, separates right from wrong **3.4–4.2×** where it had managed 1.7× blind; nothing reads its verdict. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
-5. **Nondeterminism arrives in whole runs.** At temperature 0 the model we shipped repeated itself to the byte on **two draws of three** on CADEC — 94 real calls each — and on **three of three** on FiNER, and diverged on CADEC's third from the first find call onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **84%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
+5. **Nondeterminism arrives in whole runs.** At temperature 0 the model we shipped repeated itself to the byte on **two draws of three** on CADEC — 94 real calls each — and on **three of three** on FiNER, and diverged on CADEC's third from its fifth request onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **84%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
 
 ---
 
@@ -149,16 +156,17 @@ a tag elsewhere in the corpus**, and the rest are numbers the filer left
 untagged. One of ours:
 
 > *"The Company recognized a net increase in revenues of $ **19.5** million…"*
-> — the model tags `19.5 → Revenues`. Gold does not tag it here, though it tags
-> that same literal elsewhere. Both readings are defensible; only one is in the
-> answer key.
+> — the model tags `19.5` as revenue (`RevenueFromContractWithCustomerExcludingAssessedTax`
+> at rung 0, `Revenues` after the vote). Gold does not tag it here, though it
+> tags that same literal elsewhere. Both readings are defensible; only one is in
+> the answer key.
 
 Precision has a ceiling here that no model work touches, and every FiNER
 precision number in this article sits under it.
 
 Read as a pair they vary one thing, and it is the thing this article turns on:
 whether the words in the source and the words in the vocabulary come from the
-same language. `"bit drowsy"` shares a word with |Drowsy|. `"47.6"` shares
+same language. `"bit drowsy"` shares a word with |Drowsy|. `"63.8"` shares
 nothing with |EffectiveIncomeTaxRateContinuingOperations|, and cannot.
 
 ### What the model is given, and what it gives back
@@ -256,8 +264,8 @@ naming the same concept correctly.
 
 ### What we removed from the answer key, and why
 
-Before any of this runs, 414 of CADEC's gold mentions are dropped from the
-denominator — 6% of the corpus. Three reasons, all recorded per record in
+Before any of this runs, 414 of CADEC's 7,311 reaction mentions are dropped
+from the denominator — 6% of them. Three reasons, all recorded per record in
 `data/exclusions.csv`:
 
 | reason | mentions | what it is |
@@ -275,8 +283,8 @@ reported here.
 
 The retired codes are the bulk, and dropping them matters more than the count
 suggests. CADEC was coded against a 2015 release and we score against a current
-one; **before this filter 6.3% of coded gold carries a withdrawn code, and after
-it 0.5% does.** So the staleness that would otherwise sit inside every coding
+one; **before this filter 5.9% of coded gold carries a withdrawn code — 413 of
+7,009 — and after it 6 mentions of 6,595 do.** So the staleness that would otherwise sit inside every coding
 number is removed from the denominator rather than absorbed into it — and where
 a retired code survives *with* a recorded successor, the scorer names that
 outcome separately rather than counting it right or wrong.
@@ -290,7 +298,7 @@ and never re-run.
 | | **CADEC** | **FiNER-139** |
 |---|---|---|
 | Task | find adverse reactions in forum posts, code to SNOMED CT | tag numeric facts in SEC filings with one of 139 XBRL tags |
-| A span looks like | `"bit drowsy"` | `"47.6"` |
+| A span looks like | `"bit drowsy"` | `"63.8"` |
 | Vocabulary | 129,675 concepts — too large to show the model | 139 tag names — the whole thing fits in the prompt |
 | We used | 40 dev docs (226 mentions), 60 held out (290) | 40 dev docs (165 mentions), three draws |
 
@@ -340,10 +348,11 @@ rather than hidden.
 A fourth design was dropped before it could be measured properly: show the model
 one fixed printed list of codes and have it pick. No printable list survives
 contact with this task. The obvious candidate is the answer key's own inventory,
-which is circular; the best ontology-native alternative covers 48.7% of gold; and
+which is circular; the best ontology-native alternative, a SNOMED refset of
+clinical manifestations, covered under half of gold when we measured it; and
 the real keyword table is 227,554 rows. **A list retrieved per mention is S2.**
 
-Everything section 3 measures is a change *within* S2.
+Everything the rest of this section measures is a change *within* S2.
 
 ### Twenty changes to the one we picked
 
@@ -526,8 +535,9 @@ Which is the argument for splitting every score in two, made twice. FiNER's
 headline recall is **0.279**, and read as one number it says *the model never
 proposes 72% of gold*. It does not: 0.279 is **detection 0.715 × coding 0.390**.
 The model reaches five spans in seven and mis-codes most of what it reaches —
-and it proposes **304 spans against 165 gold**, 186 of them on nothing, so the
-miss is *which* numbers rather than how many. **One recall number for a pipeline
+and it proposes **304 spans against 165 gold**, 186 of them paired with no gold
+mention under the scorer's one-to-one matching and 177 sitting on nothing the
+answer key marks at all, so the miss is *which* numbers rather than how many. **One recall number for a pipeline
 that both finds and classifies sends your effort to the wrong half** — and it
 would have sent ours to the wrong half on one of the two corpora whichever half
 we had picked.
@@ -704,7 +714,9 @@ SHA-256, every span and every code identical. On CADEC two of the three are the
 same file and the third is not: draws 0 and 1 made 94 real model calls each —
 none served from cache, which the call trace records per call — and every
 reply is identical to the byte, while draw 2 diverged on 29 of the 69 prompts
-it shares with them, from the first find call onward. (An earlier sweep of four other open-weight
+it shares with them, starting at the fifth request of the run — the third
+document's find call; the first two documents came back identical — and on
+every prompt downstream of a diverged find. (An earlier sweep of four other open-weight
 families on CADEC found all four bit-reproducible three times of three; it
 predates the base run and its figures are in the decisions log.) So run-to-run
 variance is not a property of language models, and not even a fixed property
@@ -759,18 +771,23 @@ differently.**
 Both failures are worth seeing, because they look nothing alike. The coding one:
 
 > span `"at my wits end"`, quoted identically by all three runs
-> run 0 → **CONCEPT_LESS** — no concept fits
-> runs 1, 2 → `225444004` |At risk for suicide|
+> runs 0, 1 → `310532000` |Wanders at night|
+> run 2 → `417194006` |End feel|
 
-One run declined to code it; two filed a suicide-risk concept. Same model, same
-prompt, same menu, same hour. And the detection one, which is milder:
+Two runs filed a night-wandering finding; the third filed a joint-examination
+term. Same model, same prompt, same menu, same day — and the annotators marked
+nothing there, so every reading is an invention. And the detection one, which
+is rarer — one mention of the 233 — and again on a span no annotator marked:
 
-> run 0 → `"very very severe abdonimal pain"`
-> runs 1, 2 → `"abdonimal pain"`
-> all three → `21522001` |Abdominal pain|
+> runs 0, 1 → `"no problems"`
+> run 2 → the same two words inside the six-word clause around them
+> all three → `248264000` |No complaints|
 
 Same concept, different boundary — the disagreement two human annotators also
-have, and the one section 1 said exact matching punishes twice.
+have, and the one section 1 said exact matching punishes twice. Where the
+boundary moves *and* the code moves with it the two halves are coupled: draw 0
+quoted `"stamina"` and coded |Stamina|; draw 2 quoted `"loss of stamina"` and
+coded |Lack of stamina|, the gold answer. Section 7 returns to that record.
 
 Note what did *not* prevent any of this: narrowing the question. The pick step
 chooses a number from a twenty-line list, about as constrained as a request gets,
@@ -782,12 +799,15 @@ about half of them.
 Whatever moves this model, it is not per-record sampling noise: it is a whole
 run that either repeats or does not, and which one you get changed between
 sessions and not between consecutive draws. We do not know why. The obvious
-candidates are ruled out: the diverging document's find prompt, sent eight
-times in isolation with the cache disabled — four back to back, four with
-another model loaded and unloaded in between — returned one identical reply
-eight times. The divergence happens only inside a full run, after fifty-odd
-other requests to two models and an embedder, and what the inference server
-carries between those requests is the remaining suspect.
+candidates are ruled out: the find prompt of one diverging document
+(`LIPITOR.159`), sent eight times in isolation with the cache disabled — four
+back to back, four with another model loaded and unloaded in between — returned
+one identical reply eight times, and that reply is draw 2's, not the one the
+identical pair gave inside their runs. The divergence happens only inside a
+full run — that document's call arrives after some fifty other requests to two
+models and an embedder, and the run's first divergent reply came at its fifth
+request — and what the inference server carries between requests is the
+remaining suspect.
 
 ### On FiNER the same model was perfectly stable
 
@@ -879,8 +899,9 @@ does it deliver, and how much of the batch lands there?**
 ### REJECT — exhaustively tested, provably exact, and empty
 
 **What can it catch?** We took the answer key — every record correct by
-construction — and broke it one way at a time, all 8,666 records per class. Each
-class targets one of rung 1's three rejection paths:
+construction — and broke it one way at a time, all 7,009 coded reaction
+mentions per class, on the configuration the base run used. Each class
+targets one of rung 1's three rejection paths:
 
 | planted error | the check that fires | share caught |
 |---|---|---|
@@ -896,8 +917,8 @@ sound, before we ask what it is worth.
 
 **What can it not catch?** One more corruption, and it is the one that matters: a
 **near-miss** — a real, active, correctly-typed clinical finding that is simply
-the wrong one, which is the mistake a coding model actually makes. Caught **9
-times out of 8,666.**
+the wrong one, which is the mistake a coding model actually makes. Planted on
+the 6,492 mentions whose code has such a neighbour, it is caught **4 times.**
 
 The difference is not one of degree. The four it catches are answers that are
 *impossible*, and a vocabulary can contradict those flatly. A near-miss is an
@@ -912,10 +933,10 @@ records across the three draws. Here is draw 2's third:
 > located the quote and found nothing there.
 
 That is the entire rejection class in practice: not wrong codes, but invented
-quotes. It used to hold one record in twenty — until a rung 0 filter began
-dropping ungrounded spans at source and the class arrived nearly empty. The
-checks still run, still pass their tests, and have nothing left to find. Section
-7 is about what that did to the rung above.
+quotes. It held one record in twenty on the held-out run, before a rung 0
+filter began dropping ungrounded spans at source; since then the class arrives
+nearly empty. The checks still run, still pass their tests, and have nothing
+left to find. Section 7 is about what that did to the rung above.
 
 So the lane we can test exhaustively is the lane that never fires. Everything
 rung 1 is actually worth comes from the other two.
@@ -958,9 +979,10 @@ as wrong. We have not measured how often that happens, and it would move the
 coding numbers in our favour — which is a reason to be careful about it, not a
 reason to skip it. It is on the list at the end.
 
-**How much lands here?** 53, 53 and 51 of 230, 230 and 238 records, and **43.1%
-of a perfect answer set.** That is the ceiling on how much of the batch this rung
-can settle for free.
+**How much lands here?** 53, 53 and 51 of 230, 230 and 238 records — and, run
+over the answer key for these same 226 mentions, **73 of them: 32% of a perfect
+answer set** (38% over the whole corpus). That is the ceiling on how much of
+the batch this rung can settle for free.
 
 ### BAND — the absence of a verdict
 
@@ -968,7 +990,7 @@ can settle for free.
 not a negative verdict; it is the lane for records the vocabulary had no opinion
 about, and plenty of correct answers are in it:
 
-> `"extreme rectal bleed"` → `12063002` |Rectorrhagia| — **the right code**, and
+> `"extreme rectal bleed"` → `12063002` |Rectal hemorrhage| — **the right code**, and
 > BAND. The vocabulary holds twelve names for that code, among them "rectal
 > bleeding" and "blood per rectum". None is the phrase the patient used. (It is
 > also a wrong boundary — gold marks `"rectal bleed"` — so the exact metric
@@ -981,14 +1003,17 @@ Gold's own span for that mention is `"rectal bleed"`, and it lands in BAND too.
 **How well does it deliver?** 27–30% correct — and that is the design working.
 BAND is where uncertainty is supposed to accumulate.
 
-**How much lands here?** 175, 175 and 184 of 230, 230 and 238 records, and **57%
-of even a perfect answer set.** That is the bill the paid rungs exist to work
+**How much lands here?** 175, 175 and 184 of 230, 230 and 238 records — and
+**153 of the 226 gold mentions, 68% of even a perfect answer set** (62%
+corpus-wide; ten of the 153 are mentions the annotators coded to no concept,
+which can land nowhere else). That is the bill the paid rungs exist to work
 through, and you can know its size before spending a token.
 
 One more thing the figure shows: **BAND is where the false positives go.** Of
 the base run's 175 BAND records, 100 sit off the exact gold span — 40 on no gold
-mention at all, 60 on the right mention with the wrong boundaries or the wrong
-code. Not intelligence — an invented span has no vocabulary words to
+mention at all, 60 on a gold mention with the wrong boundaries, 20 of those
+carrying the right code. The other 28 sit on the exact span with the wrong
+code, or declined to code it. Not intelligence — an invented span has no vocabulary words to
 match, so it fails the string test the same way a real-but-unmatched span does.
 
 ### The one decision this rung has
@@ -1004,9 +1029,11 @@ pick one in the manifest and it applies to every record.
 `contained` is the looser one. It accepts everything `exact` accepts and more, so
 switching to it can only move records **from BAND into ACCEPT**, never back.
 
-**It buys eleven points.** Free coverage goes from **43.1%** of gold to **54.5%**
-— an eighth of the batch settled without spending a token, most of it records like
-`"bit drowsy"`, where the patient's phrase wraps a word the vocabulary uses.
+**It buys fourteen points.** Free coverage of a perfect answer set goes from
+**32%** to **46%** on the development gold — 73 to 104 of 226 — and from 38% to
+52% corpus-wide: a seventh of the batch settled without spending a token, most
+of it records like `"bit drowsy"`, where the patient's phrase wraps a word the
+vocabulary uses.
 
 **We took the strict one anyway**, and here is the measurement that decided it.
 We planted near-miss codes into the answer key — real, active, correctly-typed
@@ -1015,8 +1042,13 @@ model actually makes — and ran both settings over them:
 
 | setting | near-misses **caught** | near-misses put in **ACCEPT** |
 |---|---|---|
-| `contained` | 0.1% | **19.0%** |
+| `contained` | 0.1% | **18.9%** |
 | `exact` | 0.1% | **0.1%** |
+
+*6,492 planted near-misses, one per coded reaction mention whose code has a
+near neighbour, on the base run's configuration. On the 222 development
+mentions alone the shares are 0 caught either way, 0 in ACCEPT under `exact`,
+31 under `contained`.*
 
 Read the two columns separately, because they say different things.
 
@@ -1030,8 +1062,8 @@ nothing is claimed about them. Under `contained`, **one in five is moved into
 ACCEPT** — the lane that means *the vocabulary vouches for this*, and the lane
 rung 5 will act on.
 
-Eleven points of free coverage is not worth a check that endorses one near-miss
-in five. The cost of refusing them is only that more records fall through to the
+Fourteen points of free coverage is not worth a check that endorses one
+near-miss in five. The cost of refusing them is only that more records fall through to the
 paid rungs, which is what the rest of the ladder is for.
 
 **What that decision looks like on the records themselves.** The same three
@@ -1078,8 +1110,9 @@ claim that the free check identifies a reliably-correct subset weakens. What the
 looser setting buys instead is yield, and section 6 puts the two on the same
 table.
 
-**The strict setting reduces that failure by a factor of 190. It does not remove
-it** — the `"knee pain"` record above is one of the surviving 0.1%.
+**The strict setting reduces that failure by a factor of 150 — 1,224 vouched-for
+near-misses become 8. It does not remove it** — the `"knee pain"` record above
+is one of the surviving 0.1%.
 
 **A lexical match is evidence about the words, never about the claim.** Where two
 concepts share a name — and SNOMED has many such pairs — it is not even evidence
@@ -1127,7 +1160,7 @@ Walk rung 1's chain on FiNER and almost nothing is live:
 | does the code exist? | 129,675 concepts; a fabricated id fails | the menu **is** the vocabulary — always true |
 | is it active? | SNOMED withdraws concepts; a model can still name one | *"vacuously true for anything that exists"* |
 | is it the right kind of concept? | a drug product is not a finding | no hierarchy — always passes |
-| **do the words match?** | 12 synonyms per concept, a real test | **always false** |
+| **do the words match?** | two or three names per concept on average, twelve for |Rectal hemorrhage| — a real test | **always false** |
 
 One check of five has any power on FiNER, and it is the one a rung 0 filter
 already handles. So `ACCEPT 0` does not mean the check ran and found nothing
@@ -1168,11 +1201,13 @@ one finds. Source: author-created with Graphviz.*
 FiNER has no deterministic evidence at all. But the evidence is there; it is just
 not in the span:
 
-> *"The **effective income tax rate** was **47.6** percent…"* →
-> `EffectiveIncomeTaxRateContinuingOperations`
+> *"…resulting in an **effective tax rate** of **63.8** percent…"* →
+> `EffectiveIncomeTaxRateContinuingOperations` (development split, gold)
 
-The tag's own words are in the sentence. De-camel-case the tag and four of them
-appear verbatim within a few characters of the number. **We built a check that
+The tag's own words are in the sentence. De-camel-case the tag and three of its
+six words appear verbatim within a few characters of the number; 37 of the 165
+development gold mentions carry three or more of their tag's words in the
+sentence around them. **We built a check that
 looks only at the span, on a corpus where the span is the one place the evidence
 cannot be**, and then reported the result as though the corpus were at fault.
 
@@ -1202,8 +1237,12 @@ because three layers turned out to change nothing that shipped, and that was
 only provable because each was counted on its own.)
 
 We measured it on gold first, as we had measured everything else, and it looked
-excellent: it speaks to **87.7%** of mentions where the lexical check speaks to
-0%, at a **1.22%** false-rejection rate.
+usable: on the test split's gold, where its rules were tuned, it speaks to
+**87.7%** of mentions where the lexical check speaks to 0%, at a **1.22%**
+false-rejection rate. Replayed over the base run's own 165 development gold
+mentions it speaks to **89.7%** (148) and falsely rejects **4 of the 148 —
+2.7%**, twenty times CADEC's floor, on money figures its rules read as
+percentages and counts.
 
 Then we ran it on model output, twice, and the two answers disagree in a way
 that is itself the finding.
@@ -1316,18 +1355,23 @@ set. Source: author-created with Graphviz.*
 **It can only act on the lane rung 1 leaves empty** — and section 4 showed that
 lane holds almost nothing, because the classes a vocabulary can prove wrong are
 the ones the model stopped producing. On the base run it fired 2, 2 and 3 times
-in 230, 230 and 238 records, on invented quotes it could not relocate, and
-rescued none.
+in 230, 230 and 238 records, every time on a quote that is not in the post.
+Told so, the model relocated one of them on every draw — it re-read the post
+and returned a longer sentence that is there, and the record moved from REJECT
+to BAND — and left the others rejected. The relocated span carries a wrong code
+on all three draws, so no answer became correct: one record per run, and not a
+rescue.
 
 That null was always dismissable on sample size until we built a second free
 check for FiNER and handed rung 2 a real trigger set. Replayed over the three
 base draws, **105 firings, 0 corrections**: told that its *Amount* tag sat on
 a percentage, the model declined to change it 29 times a draw and failed to
-answer 6, and every one of the 35 facts it was handed was true.
+answer 6, and not one of the 35 rejections it was handed was a false one.
 
 Two caveats, both ours. On an earlier run the check supplying those facts was
 wrong about a third of the time, so holding still was sometimes the right
-response; on the base run it was never wrong, and the model still held still.
+response; on the base run it never rejected a correct answer, and the model
+still held still.
 And rung 5 was already withholding every record on that corpus, so a rescue
 would have been withheld too. **We measured whether the model changes its
 mind, not whether doing so would have helped.**
@@ -1372,8 +1416,8 @@ ACCEPT and 1 / 0 / 1 in REJECT. So the vote does its work in the lane where the
 free check had no opinion — which answers the question this section used to
 leave open, and not in the rung's favour: **most of what it changes in BAND is a
 span that sits on no gold mention at all**, 17 of draw 0's 25 transitions going
-from unmatched to unmatched. The records it could not re-find, 11 to 12 per
-draw, were mostly invented spans too. Rung 3 is under-targeted in the sense
+from unmatched to unmatched. The 12 records per draw it could not re-find were
+mostly invented spans too. Rung 3 is under-targeted in the sense
 that it could run on the BAND residue alone; it would still be re-coding the
 extractor's false positives at 2.5× the extractor's price.
 
@@ -1595,7 +1639,7 @@ correct answers than rung 0, because every one works by withholding, and the
 choice between rows is the deployer's trade of precision against yield. And
 **they do not stack**: the free check plus the menu judge ships the same 52
 records as the free check alone. What the judge earns is a setting the free
-check cannot give — half the batch at 0.54, the best yield of any filter — at
+check cannot give — three fifths of the batch at 0.54, the best yield of any filter — at
 84,000 tokens a run. Voting earns a worse setting than the judge at five times
 the price.
 
@@ -1620,8 +1664,8 @@ setting — one record in seven at 0.41, the part the free check plays on CADEC
 — and the menu-shown judge is the loose one, two thirds of the batch at 0.27.
 Two rows sit above shipping rung 0's output on yield, which never happened on
 CADEC, and both are shipping rung 3's gain: the menu judge's 0.172 is the
-0.175 of shipping everything after the vote, with 108 records and one correct
-answer removed. So on FiNER voting adds a little, the judge then removes
+0.175 of shipping everything after the vote, with about 110 records and one
+correct answer removed. So on FiNER voting adds a little, the judge then removes
 errors at almost no cost in yield, and the free check contributes nothing at
 all. It is the mirror of CADEC, where the free check does the work and the
 paid layers change nothing that ships — and on both corpora the shipped
@@ -1640,8 +1684,9 @@ free.
 Three rows from that queue:
 
 > `"extreme rectal bleed"` → system proposed \|Rectal hemorrhage\| — *correct*
-> `"extremely sick"` → system proposed \|Illness\|
-> `"might not survive"` → system proposed \|Does not stand\| — *not close*
+> `"extremely sick"` → system proposed \|Illness\| — *wrong code*
+> `"might not survive"` → \|Does not stand\| at rung 0, rewritten by the vote
+> to \|Health condition feared but not present\| — *on nothing the annotators marked*
 
 The first is a right answer the system could not corroborate and threw away. The
 third is why it throws them away.
@@ -1662,7 +1707,7 @@ nothing" — which is true, and useless. Each against its own purpose instead:
 | layer | what it is **for** | did it do that? | cost |
 |---|---|---|---|
 | **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — the lanes separate 2.8× (section 4) | **0 tokens, 0 s** |
-| **self-correction** | restate a provable failure as a fact | **never viable here** — fired 2, 2 and 3 times, rescued none | 1,259–1,631 |
+| **self-correction** | restate a provable failure as a fact | **barely exercised** — fired 2, 2 and 3 times, relocated one quote per draw, corrected none | 1,259–1,631 |
 | **voting** | catch answers the model cannot reproduce | **no** — net +1, −1, −1; destroyed 2, 3, 5 | **411,000–432,000**, p95 **118–144 s** |
 | **second-model judge** | rule on whether an answer is right | **yes, once shown the menu** — 3.4–4.2× separation; **read by nothing** | 84,000–88,000, p95 1.5 s |
 | **refusal** | guard in front of a person | **yes** — ships at 0.74–0.82 on 21–23% of records | 0 |
@@ -1676,9 +1721,10 @@ on draw 0 and none on draws 1 and 2**. The one was voting overwriting a correct,
 vocabulary-verified code on a 2–0 vote.
 
 Two cells claim more than "did not fire", and both are load-bearing.
-**Self-correction was never viable**, not merely idle: every rejection it could
-have acted on, in every run, was a span the extractor could not locate, and an
-unlocatable span carries no fact to state back to a model. **Voting had no
+**Self-correction was barely exercised**, not tested and found wanting: every
+rejection it could act on, in every run, was a quote that is not in the post,
+and the one quote per run it relocated came back with a wrong code. One record
+per run measures nothing about the rung. **Voting had no
 consistent effect**,
 which is different from no effect — +1, −1 and −1 net correct across the base
 draws, and on the held-out split it re-found 8 previously
@@ -1724,7 +1770,8 @@ The two halves are also coupled, so a detection error does more than lose one
 mention. Retrieval is deterministic: quote `"stamina"` where the writer described
 the *lack* of it, and the menu comes back `[0] stamina` plus nineteen *stoma* and
 *foramina* near-matches, with |Lack of stamina| absent at any depth we retrieve.
-Quote `"no stamina"` and the same retriever puts it at line 0. **The span chooses
+Quote `"loss of stamina"`, as draw 2 did, and the same retriever puts
+|Lack of stamina| at line 0, where the pick takes it. **The span chooses
 the menu, so a boundary error deletes the right answer before the model is asked
 to pick.**
 
@@ -1894,11 +1941,11 @@ The part another team can use tomorrow is the assignment, not the ladder:
 
 | job | whose | evidence |
 |---|---|---|
-| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — it reaches 178 of 226 gold mentions on overlap, 116 exactly; nothing else in the ladder can propose one |
+| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — it touches 183 of 226 gold mentions — 178 under the scorer's one-to-one pairing — and 116 exactly; nothing else in the ladder can propose one |
 | Recall an identifier | **not the model** | F1 0.024–0.030 against 0.393–0.434 for retrieve-and-pick, at about the same tokens, and 13–18% of the identifiers it recalls do not exist |
 | Decide the candidate list | **not the model** | the retriever, with no model in it, puts the answer on the menu for 93% of the spans the model finds |
 | Order the candidate list | **not the model** | on FiNER our own fallback rule wrote the alphabetical first line onto 73 of 304 answers; on CADEC line one is the retriever's best guess and the pick takes it |
-| Check its own output | **unproven** | self-correction fired 2–3 times a run on invented quotes and rescued none; voting's sign changed with the draw |
+| Check its own output | **unproven** | self-correction fired 2–3 times a run on invented quotes, relocated one and corrected none; voting's sign changed with the draw |
 | Judge whether an answer is right | **the model can, shown the evidence** | blind, 1.7× against the string comparison's 2.8×; shown the menu, 3.4–4.2× on CADEC and a reliable *no* on FiNER (section 6) — at 84,000 tokens a run, and nothing reads it |
 | Decide when to abstain | **not the model** | it never reported below 0.9 confidence while being right 38% of the time |
 | Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes, at zero cost |
@@ -1921,8 +1968,10 @@ And six practices, each of which we learned by getting it wrong first:
   denominator the arm will be scored on, not a larger one that happens to be
   available.
 - **Test the free layer against your answer key.** Every rejection there is false
-  by construction, so you get its false-positive rate for nothing. Ours went from
-  9.3% to 0.13% without touching a model.
+  by construction, so you get its false-positive rate for nothing. Ours ends at
+  0.1% — 10 false rejections in 7,009 coded reaction mentions, 3 in the 6,595
+  we score — from a first version that rejected nearly one gold record in ten,
+  without touching a model.
 - **Grep for the readers of every field you write**, and when you find an orphan,
   measure it before you adopt it rather than assuming it would have paid. Forty
   lines of regex over our own source named all three orphaned fields we had found
@@ -1937,7 +1986,7 @@ And six practices, each of which we learned by getting it wrong first:
   answer from an incorrect one.
 
 The system ships about a quarter of its answers, at four to six errors per
-hundred instead of thirty-eight to forty-one on development (3.8 against 59.6
+hundred instead of fifty-nine to sixty-three on development (3.8 against 59.6
 held out), and hands the rest to a person. Not what we set out to build.
 And one limit is worth being plain about, because it is structural rather than a
 shortfall we could engineer away: **nothing above the extractor made the system
@@ -2013,7 +2062,8 @@ thought we were buying.
   3.4–4.2×; that is a measurement on the development split, and nothing in the
   shipped configuration reads it.
 - **Self-correction was barely exercised.** On CADEC it fired 2, 2 and 3 times
-  across three runs, on invented quotes, and rescued none; on FiNER's type-check
+  across three runs on invented quotes, relocated one quote per run and
+  corrected no answer; on FiNER's type-check
   arm it fired 35 times a draw on true facts and corrected nothing — measured
   once, on a corpus where nothing it did could have shipped.
 - **Human cost is a count of records routed, never minutes.** No reviewer has sat

@@ -5469,3 +5469,62 @@ on all of them is empty):
   false-rejection floor (10 of 7,009 / 3 of 6,595, the 9.3% no longer quoted),
   `fig6-spine-cadec` (43% → 32% dev / 38% corpus). `docs/article-v3.md` still
   carries the 43.1 / 56.8 / 54.5 / 8,666 figures.
+
+## 2026-09-04 — the same pass over `article-v3.md` (two-corpus): the CADEC defects ported, and the FiNER side had three of its own
+
+Every CADEC correction from the two entries above applied to the two-corpus
+article (§3 examples, the fifth-request divergence, rung 2 "relocated one,
+corrected none" in §6/§7/§10/§12, the 59–63 error rate, the 32% / 68% / 46%
+ceiling, 6,492 near-misses, 5.9% withdrawn codes, 183 / 178 gold reach, the
+stamina counter-example, `fig6-spine` 2.7–2.8×, `fig13-rung2` relocated 1).
+FiNER, checked against `out/rerun/finer.md`, the FiNER state and call traces,
+the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
+
+- **The type check's gold numbers were the TEST split's.** 87.7% coverage and
+  1.22% false rejections are `finer_type_check.py --split test` (164 of 187,
+  2 of 164). On the base run's own denominator — `--split dev`, 165 gold —
+  the same rules type **148 (89.7%)** and falsely reject **4 of 148 = 2.70%**,
+  the script's own "MARGINAL" band; all four are money figures read as
+  percentages or counts. `ladder.rungs.r7.check` replayed directly over the
+  same gold gives the identical 148 / 4. The article now quotes both, and
+  says which split the rules were tuned on.
+- **The "47.6" sentence is from `FINER.test.0000`, which is not in the dev
+  split**, and the real sentence reads "The effective tax rate was 47.6
+  percent" — three tag words, not the four the article counted. Replaced with
+  a dev-split gold example, `FINER.test.0059`: "resulting in an effective tax
+  rate of 63.8 percent" → EffectiveIncomeTaxRateContinuingOperations, three
+  of six tag words; 37 of the 165 dev gold mentions carry three or more of
+  their tag's words in the surrounding sentence.
+- **"19.5 → Revenues" is post-vote.** Rung 0 tagged `FINER.test.0103#2` as
+  RevenueFromContractWithCustomerExcludingAssessedTax; rung 3 changed it to
+  Revenues. Sentence verified in the document; the literal is gold in
+  `FINER.test.0008` (DeferredFinanceCostsNet) — "tags that same literal
+  elsewhere" holds.
+- **"12 synonyms per concept" is one concept, not the average.** The
+  registry holds 2.83 descriptions per active finding concept (median 2);
+  |Rectal hemorrhage| has twelve. Reworded.
+- **"Every fact it was handed was true" over-claimed** (rung 2 on the
+  type-check arm): all 35 rejections per draw were correct rejections, but the
+  fact string can still mistype the span ("97.5" called money on "97.5 million
+  … units"). Now "not one of the 35 rejections was false", in text and in
+  `fig13-rung2` and `fig4b-accept-finer` (whose "none of the 10 … is wrong"
+  read as the opposite of the fact).
+- The rung 6 queue rows: `ARTHROTEC.107#2` ("might not survive") left rung 0
+  as |Does not stand| and was rewritten by rung 3 to `151811000119109`
+  |Health condition feared but not present| before rung 5 withheld it; the
+  record's `sct_label` was not updated by rung 3 and still reads "does not
+  stand". The article now says both. "extremely sick" → |Illness| sits on a
+  gold mention with the wrong code.
+- Confirmed as printed: 17.3% of FiNER test sentences carry a tag (18,789 of
+  108,378, recounted from `test.jsonl`); 177 spans on nothing gold marks
+  against 186 unpaired one-to-one (both now stated); seven mentions per pick
+  prompt (median and max on FiNER, 38 of 70 calls); every FiNER judge, rung 3,
+  cost and dial figure; "sixteen edits" for the port (2026-08-28 entry).
+  "108 records removed" in the FiNER dial paragraph is 304 − 195 ≈ 109 on
+  rounded means; now "about 110". `fig18-rung4`'s "84,000 tokens a run" was
+  CADEC's rung 4 only; FiNER's is 270,000.
+- The remaining seven two-corpus figures re-render byte-identical to their
+  PNGs (`fig7-pipelines`, `fig12-finer-funnel`, `fig15-rung1-finer` and the
+  shared ones); `fig15`'s check list names four questions under a heading that
+  says four of five — the active/retired row is missing from the list, left
+  as is.

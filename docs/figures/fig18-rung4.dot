@@ -57,7 +57,7 @@ IS a name: DebtInstrumentFaceAmount."
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">We read that as the limit of a 3.2B judge for five phases. It was a property of our prompt:</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">the judge was never shown the concept&#39;s name, the menu, or the line the extractor picked.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 84,000 tokens a run to write</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 84,000 tokens a run on CADEC and 270,000 on FiNER to write</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. See “What each layer was for”.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333"><B>THESE ARE THE BLIND JUDGE&#39;S COUNTS.</B> Shown the menu, the same model separates 3.4-4.2x on CADEC</FONT></TD></TR>
