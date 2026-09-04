@@ -5302,3 +5302,28 @@ replaced it, and what changed in the argument:
   remaining earlier-run numbers were §2's three-shape table and §10's
   "0.018 against 0.209"; both are being replaced from three cold draws of
   each step on the current frozen configuration, rung 0 only.
+
+## 2026-09-03 — the article's framing re-aligned with the base run: the paid layers were not all nothing, and the extractor was deliberately left improvable
+
+Owner's review of `article-v3-CADEC.md` found three misalignments the number
+pass had left. (1) Takeaway 1, "the only layer that paid for itself was
+free", no longer holds: the judge shown the menu separates 3.4-4.2x, which
+is a real signal, and the dial subsection prices it. Rewritten in both
+articles as "the layer that did the shipped work was free", with the judge's
+signal stated and its two limits (agrees with the free check on 52 of 53
+shipped records; read by nothing). The task-and-result paragraph had the same
+contradiction one level down — "not one of the six layers above the model is
+why" followed by two of those layers doing the work — now "two of the six
+layers are why", with the three paid ones sorted into could-not-test,
+could-not-show, and signal-unread. (2) Figures 3, 8 and 10 of the CADEC
+article carried FiNER panels: single-corpus sources written
+(`fig7-pipeline-cadec`, `fig13-rung2-cadec`, `fig18-rung4-cadec`), captions
+updated; the CADEC file now mentions FiNER once, in its header pointer to the
+two-corpus article. (3) Figure 1 labelled the judge "cost, changed nothing";
+it now has its own category, "real signal, read by nothing", blue, and the
+caption says so. Also added at the owner's request, both articles: a scope
+paragraph after the supervised-baseline paragraph — the extractor could be
+made better by understanding the data more closely, the largest gains ever
+measured were exactly that, and it was frozen on purpose because the question
+is what the rungs buy on a given model, not how good an agent for this task
+can be made — and a matching limitation.
