@@ -109,3 +109,6 @@ runs/*
 # rule never gets evaluated.
 !runs/archive/
 !runs/archive/**
+
+# Office lock files (Word keeps one open beside a .docx it is editing)
+~$*
