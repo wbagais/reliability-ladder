@@ -106,9 +106,10 @@ Three things to hold while reading. The held-out split was spent on that single
 run, so **every other number here is development-side** and labelled as such; we
 name the split every time, because the two do not agree and the difference is not
 always in our favour. Every development-side figure comes from **one base run
-of the full ladder — three cold draws, `rerun-cadec-d0/d1/d2`, 230/230/238
-records** — with each arm replayed on the same draw, so adjacent numbers are
-from the same records and we print all three draws where they differ. And the choice
+of the full ladder per corpus — three cold draws each, `rerun-cadec-d0/d1/d2`
+at 230/230/238 records and `rerun-finer-d0/d1/d2` at 304** — with each arm
+replayed on the same draw, so adjacent numbers are from the same records and we
+print all three draws where they differ. And the choice
 of task bounds the conclusion: our strongest finding is that a free vocabulary
 check carries the shipped result and no paid layer above it changed that result,
 and **on a task with no vocabulary to check against, there is no free check to
@@ -1308,8 +1309,9 @@ abstain.
 ![Figure 11](figures/fig13-rung2.png)
 
 *Fig. 11: Rung 2 fires on REJECT alone, so ACCEPT and BAND are never touched.
-CADEC left, `rerun-cadec-d0`; FiNER right, pooled over three draws of the arm
-that finally gave it a trigger set. Source: author-created with Graphviz.*
+CADEC left, `rerun-cadec-d0`; FiNER right, the type-check arm replayed over
+the three base draws, the only configuration that gives rung 2 a real trigger
+set. Source: author-created with Graphviz.*
 
 **It can only act on the lane rung 1 leaves empty** — and section 4 showed that
 lane holds almost nothing, because the classes a vocabulary can prove wrong are
@@ -1959,10 +1961,11 @@ thought we were buying.
   was made.
 
 - **We assume exactly one code is right.** `"knee pain"` coded |Pain of knee
-  region| is scored wrong against a gold |Gonalgia| that is retired and carries
-  "Knee pain" as one of its own names. Some share of our mis-coding is defensible
-  synonymy; we have not measured which share, and the answer moves our numbers
-  upward.
+  region| against a gold |Gonalgia| that carries "Knee pain" as one of its own
+  names is excluded from scoring only because the gold code is retired; where
+  the gold code is live, the same defensible synonym is scored wrong. We have
+  not measured how much of our mis-coding is of that kind, and the answer moves
+  our numbers upward.
 
 - **We never ran a supervised baseline.** Our distance from a trained system is
   read off someone else's paper, on a different vocabulary and a different test
@@ -1983,8 +1986,8 @@ thought we were buying.
   ones.** It should fail on a dense model of similar size. Nobody has tried.
 
 - **The second corpus is a demonstration, not a matched comparison.** A third,
-  with a lexical vocabulary, would test whether the ~85% ACCEPT lane belongs to
-  controlled vocabularies in general or to SNOMED in particular.
+  with a lexical vocabulary, would test whether the 75–82% ACCEPT lane belongs
+  to controlled vocabularies in general or to SNOMED in particular.
 
 ---
 
@@ -2004,9 +2007,10 @@ thought we were buying.
 - **The judge is a 3.2B model grading a 20B one.** Shown the menu it separates
   3.4–4.2×; that is a measurement on the development split, and nothing in the
   shipped configuration reads it.
-- **Self-correction was never exercised.** It fired 2, 2 and 3 times across three
-  runs on invented quotes and rescued none, so one rung of seven is unmeasured
-  rather than measured and found wanting.
+- **Self-correction was barely exercised.** On CADEC it fired 2, 2 and 3 times
+  across three runs, on invented quotes, and rescued none; on FiNER's type-check
+  arm it fired 35 times a draw on true facts and corrected nothing — measured
+  once, on a corpus where nothing it did could have shipped.
 - **Human cost is a count of records routed, never minutes.** No reviewer has sat
   at the desk: every figure for it is a declared rate or a ceiling derived from
   gold.

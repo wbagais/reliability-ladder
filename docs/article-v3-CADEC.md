@@ -1494,10 +1494,11 @@ thought we were buying.
   was made.
 
 - **We assume exactly one code is right.** `"knee pain"` coded |Pain of knee
-  region| is scored wrong against a gold |Gonalgia| that is retired and carries
-  "Knee pain" as one of its own names. Some share of our mis-coding is defensible
-  synonymy; we have not measured which share, and the answer moves our numbers
-  upward.
+  region| against a gold |Gonalgia| that carries "Knee pain" as one of its own
+  names is excluded from scoring only because the gold code is retired; where
+  the gold code is live, the same defensible synonym is scored wrong. We have
+  not measured how much of our mis-coding is of that kind, and the answer moves
+  our numbers upward.
 
 - **We never ran a supervised baseline.** Our distance from a trained system is
   read off someone else's paper, on a different vocabulary and a different test
