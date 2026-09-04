@@ -146,7 +146,7 @@ def test_run_py_exposes_an_extractor_flag(monkeypatch):
 
     seen = {}
 
-    def fake(man, split, rungs, records, sources, registry, out_dir, run_id, meddra=None):
+    def fake(man, split, rungs, records, sources, registry, out_dir, run_id, meddra=None, gold=None):
         seen.update(man["model"])
         raise SystemExit(0)
 

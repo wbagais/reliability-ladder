@@ -71,7 +71,9 @@ R_NEGATED = "negated"  # the mention is explicitly denied in the source
 R_CODE_UNKNOWN = "code_unknown"  # code is in no release of the vocabulary
 R_CODE_INACTIVE = "code_inactive"  # code was real once; retired since. NOT a reject by default
 R_WRONG_SEMANTIC_TYPE = "wrong_semantic_type"  # real code, wrong branch of the hierarchy
-R_LOW_CONFIDENCE = "low_confidence"  # rung 5 only
+R_LOW_CONFIDENCE = "low_confidence"  # rung 5 only. RETIRED 2026-09-03 with the
+#   confidence threshold (plan item 17d); kept because schemas are append-only
+#   and old ledgers carry it. Nothing emits it.
 R_UNRESOLVED = "unresolved"  # rung 5 only: still in BAND when the ladder ran out
 # Appended 2026-08-22 with the MedDRA check. See registry.MeddraTable for why
 # this is not a rejection reason by default.
@@ -107,6 +109,14 @@ R_TYPE_MISMATCH = "type_mismatch"
 # the answer — the whole point of the arm is to count what the judge adds over
 # the free check, and one shared reason would make that uncountable.
 R_JUDGE_FAIL = "judge_fail"
+
+# R_UNREVIEWABLE: rung 6 only. Appended 2026-09-03 (plan item 17c). A queued
+# record whose span is unlocated ((-1, -1)) or whose span key another queued
+# record shares cannot be matched to a resolution by a span-keyed desk. It
+# stayed ESCALATE under R_QUEUED at zero minutes, indistinguishable from a
+# record the reviewer skipped; now it carries its own disposition and is
+# counted in the aggregate in both modes.
+R_UNREVIEWABLE = "unreviewable"
 
 REJECT_REASONS = (
     R_SCHEMA_INVALID,

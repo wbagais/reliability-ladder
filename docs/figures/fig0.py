@@ -3,17 +3,17 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, FancyBboxPatch
 
-GREEN, AMBER, GREY, RED = "#2d9e5f", "#e8b13a", "#c9c9c9", "#c94f4f"
+GREEN, AMBER, GREY, RED, BLUE = "#2d9e5f", "#e8b13a", "#c9c9c9", "#c94f4f", "#4a7fb5"
 
 # rung 0..6 : (label, colour, note)
 RUNGS = [
     ("0  extract",      GREY,  ""),
-    ("1  check",        GREEN, "free · 85% lane"),
-    ("2  self-correct", GREY,  "never had a trigger"),
-    ("3  vote",         AMBER, "no consistent sign"),
-    ("4  judge",        AMBER, "read by nothing \u00b7 provisional"),
-    ("5  refuse",       GREEN, "63 -> 4 err / 100"),
-    ("6  person",       GREY,  "196 of 248"),
+    ("1  check",        GREEN, "free · 75-82% lane"),
+    ("2  self-correct", GREY,  "fired 2-3x, rescued none"),
+    ("3  vote",         AMBER, "net +1, -1, -1"),
+    ("4  judge",        BLUE,  "3.4-4.2x shown the menu \u00b7 read by nothing"),
+    ("5  refuse",       GREEN, "38-41 -> 4-6 err / 100"),
+    ("6  person",       GREY,  "177-187 of 230-238"),
 ]
 
 fig, ax = plt.subplots(figsize=(11.2, 5.0))
@@ -82,7 +82,7 @@ ax.text(0.50, 2.10, "measured rung by rung", fontsize=13, color="#777777",
 # small key
 kx, ky = 0.60, 1.42
 for c, t in ((GREEN, "paid for itself"), (AMBER, "cost, changed nothing"),
-             (GREY, "no measured effect")):
+             (BLUE, "real signal, read by nothing"), (GREY, "no measured effect")):
     bead(kx, ky, 0.16, c)
     ax.text(kx + 0.30, ky, t, fontsize=10, va="center", color="#777777",
             fontfamily="DejaVu Sans")

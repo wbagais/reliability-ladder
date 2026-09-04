@@ -153,14 +153,16 @@
       "enabled": true,
       "enabled_note": "DISABLED 2026-08-26 (Phase D step 1) while its sampler was repaired, RE-ENABLED the same day on the measurement. The 2026-08-25 full-ladder dev run measured 206/240 records not_resampled (votes keyed on exact (doc_id, spans), which shift between samples) and 9 of 32 rung-1-verified-ACCEPT codes OVERWRITTEN with memory-recalled hallucinations, because the sampler drew from the legacy recall prompt while rung 0's codes came from the frozen S2 retrieve-and-pick path. Repaired (all TDD'd, tests/test_r3_repair.py): votes matched by span overlap one-to-one per record identity; every sample drawn through rung 0's configured path (r0.prepare + r0.extract_document, S2 retrieve-and-pick, few-shot, trimmer); a change requires seen >= 2 (one counted vote is not a vote \u2014 the k<2 argument); documents sampled in sorted order so the draw sequence is reproducible from the run id. Re-enabled on out/phaseD-r3-2 (dev, 245 records): not_resampled 38/245, ZERO correct codes destroyed (baseline: 11), the only verified-ACCEPT change a genuine 2-1 menu-sourced majority, stack F1 exact 0.335 -> 0.347. A disabled rung remains a RECORDED state: run.py writes a 'disabled' ledger row and aggregate entry, so 'rung 3 did not run' stays distinguishable from 'rung 3 found nothing'."
     },
+    "4": {
+      "menu": "off",
+      "menu_note": "off | ranked | shuffled. Appended 2026-09-03 (plan item 14). Until then the judge was handed `code: <nine digits>` and no name, no menu, no pick, and asked whether it was the right SNOMED CT concept - a question it could not answer, so every published rung 4 number is a blind-judge measurement (on FiNER rec.sct IS the tag name, which is why the judge engaged there: identifier readability, not context size). With `ranked` the judge is shown the menu rung 0 retrieved (checks.candidates, rendered as rung 0 rendered it), the line the extractor chose, the [denied] marker where rung 0 claimed one, and asked a third question, `best`: the line it would choose or null for 'not on this list' - the verdict that separates a bad pick from a bad menu. `shuffled` permutes the menu per record under manifest.seed (blake2b of seed:record_id), because a judge shown a ranked list may ratify line 0; safe here, unlike rung 0's B4 arm, because the judge sees one record per call. OFF because the arm must be paired against exactly what was published; the arms are manifest.judgemenu.json and manifest.judgeshuffle.json (CADEC) and manifest.finer.judgemenu.json / manifest.finer.judgeshuffle.json (FiNER), one-key diffs pinned by tests/test_r4_menu.py. Couples rung 4 to S2 - an S0/S1 record gets the blind prompt and checks.r4_menu = 'none'."
+    },
     "5": {
-      "tau": 0.0,
       "abstain_zones": [
         "BAND"
       ],
       "abstain_on_reject": true,
-      "tau_tuned_on": "dev",
-      "tau_note": "tau is swept on dev only and written here BEFORE the first test run. 0.0 means the confidence gate is off until a real rung-0 confidence distribution exists to calibrate against."
+      "tau_retired": "tau RETIRED 2026-09-03 (plan item 17d). It was read - unlike the five settings the 2026-08-31 audit found dead - and it could never usefully fire: rung 0 reports >= 0.95 confidence on every record (1.0 on 77%; {1.0: 204, 0.99: 44} on dev) while being right about 40% of the time, so no threshold separates anything. A live key that is structurally inert looks tunable, which is the same defect one layer along from 'declared and never read'. ladder/rungs/r5.py REFUSES the key rather than ignoring it, its sweep went with it, and tests/test_tau_retired.py keeps every tracked manifest free of it. A calibrated abstention input (B7, registered) would be a different dial under a different name."
     },
     "6": {
       "mode": "simulated",

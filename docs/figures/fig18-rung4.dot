@@ -1,16 +1,12 @@
 // Rung 4 on both corpora. One model call per record; the judge is required to be
 // a different family from the extractor, enforced in run.py.
 //
-// CADEC: out/audit-full-dev-1 (dev, 248 records) — pass 146 / fail 95 / 7
-// unjudged. FiNER: out/finer-full-2 (dev, 351 records) — pass 48 / fail 299 /
-// 4 unjudged, decomposing to (span_ok, code_ok) as shown. Each panel is ONE run
-// and says which; the pass/fail correctness separation (21.0% vs 12.7%) comes
-// from a different dev draw and is deliberately NOT mixed in here.
-//
-// PROVISIONAL — READ THIS BEFORE QUOTING ANY NUMBER HERE. `sct_label` appears
-// nowhere in r4.py, so the judge was handed a bare nine-digit code and asked
-// whether it was the right SNOMED concept. Every pass/fail count below measures a
-// judge that could not answer the question it was asked. Found 2026-09-03.
+// THE BLIND JUDGE AS SHIPPED, on the base run (2026-09-03): CADEC
+// rerun-cadec-d0 (230 records) pass 136 / fail 87 / 7 unjudged; FiNER
+// rerun-finer-d0 (304) pass 45 / fail 251 / 8 unjudged, decomposed to
+// (span_ok, code_ok). Each panel is ONE run and says which. The judge here was
+// handed a bare code and no menu; the menu-shown judge (rungs.4.menu) is the
+// table in article section 6, and it supersedes these counts.
 //
 // COLOUR KEY — the article's: teal a model runs here · green pass · red fail
 digraph rung4 {
@@ -25,26 +21,24 @@ digraph rung4 {
       fillcolor="#e3eeef" color="#0c6469" penwidth=2];
 
   subgraph cluster_c {
-    label="  CADEC · audit-full-dev-1 · 248 records  "; fontname="Helvetica"; fontsize=12;
+    label="  CADEC · rerun-cadec-d0 · 230 records · blind judge  "; fontname="Helvetica"; fontsize=12;
     color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
-    cp [label="pass · 146" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-    cf [label="fail · 95" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    cp [label="pass · 136" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    cf [label="fail · 87" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     cu [label="unjudged · 7" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    cn [label="It rules on the SPAN and says nothing useful
-about the code — we sent it the number
-1003722009 and never the concept name."
+    cn [label="span ✗ code ✗ · 41      span ✓ code ✗ · 39\nspan ✓ code ✓ · 136      span ✗ code ✓ · 7\nHanded the number 1003722009 and never the\nconcept name or the menu — the rung 4 subsection fixes that."
         fillcolor="#fdf0c8" color="#946c00"];
     { rank=same; cp; cf; cu }
     cp -> cn [style=invis]; cf -> cn [style=invis];
   }
 
   subgraph cluster_f {
-    label="  FiNER · finer-full-2 · 351 records · prompt corrected  "; fontname="Helvetica";
+    label="  FiNER · rerun-finer-d0 · 304 records · blind judge  "; fontname="Helvetica";
     fontsize=12; color="#c8d1d5"; style=rounded; fontcolor="#5a6b73";
-    fp [label="pass · 48" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-    ff [label="fail · 299" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
-    fu [label="unjudged · 4" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    fn [label="span ✗ code ✗ · 192      span ✓ code ✗ · 102\nspan ✓ code ✓ ·  48      span ✗ code ✓ ·   5\nIt answers BOTH questions — here the code
+    fp [label="pass · 45" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    ff [label="fail · 251" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+    fu [label="unjudged · 8" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+    fn [label="span ✗ code ✗ · 141      span ✓ code ✗ · 102\nspan ✓ code ✓ ·  45      span ✗ code ✓ ·   8\nIt answers BOTH questions — here the code
 IS a name: DebtInstrumentFaceAmount."
         fillcolor="#e3f0e6" color="#2d6a4f"];
     { rank=same; fp; ff; fu }
@@ -59,15 +53,15 @@ IS a name: DebtInstrumentFaceAmount."
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Same model, same rung, two corpora — and only on one of them can it do its job.</B></FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">We read that as the limit of a 3.2B judge for five phases. It is a property of the identifiers:</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">FiNER&#39;s codes are words, CADEC&#39;s are nine-digit numbers, and we never sent the concept&#39;s name.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Same model, same rung, two corpora — and blind, it can barely do its job on either.</B></FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">We read that as the limit of a 3.2B judge for five phases. It was a property of our prompt:</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">the judge was never shown the concept&#39;s name, the menu, or the line the extractor picked.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 92,687 tokens a run to write</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. Section 7.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>And on neither corpus did any of it change a shipped answer.</B> 84,000 tokens a run on CADEC and 270,000 on FiNER to write</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">a field whose only reader is a flag we measured and left off. See “What each layer was for”.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333"><B>EVERY COUNT ON THIS PAGE IS PROVISIONAL.</B> The judge was asked whether a code was right</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333">and never shown what the code means. Found 2026-09-03; the re-measurement is registered.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333"><B>THESE ARE THE BLIND JUDGE&#39;S COUNTS.</B> Shown the menu, the same model separates 3.4-4.2x on CADEC</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT" BGCOLOR="#fbe4e4"><FONT POINT-SIZE="11" COLOR="#a33333">against 1.7x here, and stops failing to parse. The paired table is in the rung 4 subsection.</FONT></TD></TR>
         </TABLE>>];
   dead -> note [style=invis];
 }

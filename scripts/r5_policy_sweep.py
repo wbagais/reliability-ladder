@@ -157,8 +157,8 @@ def main() -> int:
     policies = [
         ("withhold BAND  (shipped)",   {"abstain_zones": [ZONE_BAND]}),
         ("withhold nothing",           {"abstain_zones": []}),
-        ("withhold BAND, tau 0.995",   {"abstain_zones": [ZONE_BAND], "tau": 0.995}),
-        ("withhold nothing, tau 0.995", {"abstain_zones": [], "tau": 0.995}),
+        # The two confidence-threshold policies were removed 2026-09-03 with
+        # the dial itself (plan item 17d): rung 0's confidence is {1.0, 0.99}.
         ("withhold nothing + judge",   {"abstain_zones": [], "abstain_on_judge_fail": True}),
     ]
 

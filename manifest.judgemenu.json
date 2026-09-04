@@ -1,0 +1,167 @@
+{
+  "iteration": 1,
+  "_judgemenu_note": "Plan item 14, 2026-09-03. manifest.json with ONE key changed: rungs.4.menu off -> ranked. The judge is shown the menu rung 0 retrieved and the line it chose, and asked which line it would choose. tests/test_r4_menu.py asserts the diff is exactly that key, walked key by key.",
+  "frozen": "2026-08-22",
+  "task": "cadec-pharmacovigilance-triage",
+  "gold_rule": "strict = the predicted SNOMED CT code is in the gold code set for that mention; CONCEPT_LESS is correct only against CONCEPT_LESS gold",
+  "gold_rule_note": "CADEC gold is not always a single code: 252 mentions are post-coordinated (A + B) and 3 are disjunctions (A or B). Scoring 'in the gold set' gives credit for either half of a post-coordinated pair. 2.8% of mentions are affected; report them separately.",
+  "unit_of_evaluation": "one mention record",
+  "seed": 42,
+  "corpus": {
+    "name": "CADEC",
+    "version": "CADEC v2 (corpus); DAP collection v3 (csiro:10948, 10.4225/08/570FB102BDAD2)",
+    "licence": "CSIRO Data Licence - non-commercial, NON-TRANSFERABLE, not redistributable",
+    "cadec_root": "data/cadec/data/cadec",
+    "splits_dir": "data/splits",
+    "n_docs_total": 1250,
+    "n_mentions_total": 9111,
+    "split_unit": "document",
+    "n_dev_docs": 40,
+    "n_test_docs": 60,
+    "stratified_by": "drug family (lipitor | diclofenac)",
+    "checksums": "docs/cadec-checksums.txt"
+  },
+  "vocabulary": {
+    "snomed_release": "SnomedCT_Release_AU1000036_20260731",
+    "snomed_release_dir": "data/SnomedCT_Release_AU1000036_20260731",
+    "snomed_db": "ladder/cache/snomed.sqlite",
+    "meddra_release": "CADEC-derived code list (NOT a MedDRA release)",
+    "meddra_note": "The only MedDRA table available is the code list CADEC ships with the corpus. Measured 2026-08-22: 666 codes, all 666 appear in CADEC's gold annotations, 0 do not - it is the answer key's code inventory (~3% of MedDRA PT), not a vocabulary. Removing its occurrences/posts/example_mentions columns removes the evidence of derivation, not the derivation. So rungs.1.meddra_check defaults to 'flag': the verdict is recorded and counted in rung 1's comparison and is not a rejection reason. Set 'reject' to include it as one, or point meddra_csv at a subscription release and the caveat goes away.",
+    "meddra_csv": "data/meddra_codes.csv",
+    "snomed_backend": "local-rf2",
+    "snomed_backend_note": "local-rf2 | ols4. Not interchangeable: an OLS4-backed exists() reports 23.9% of CADEC gold as nonexistent codes (7.5% retired, 16.4% AU-extension = 100% of drug mentions). A rung 1 rejection rate is not comparable across backends. See schemas/vocabulary.py and `python -m ladder.vocab_crosscheck`.",
+    "meddra_mode": "reference",
+    "meddra_mode_note": "reference | answer_space. reference = the list only cross-checks a code produced by other means; retrieval from it is refused. answer_space = the task IS closed-set assignment over this list, which is a DIFFERENT and much easier task and must be declared in the method section.",
+    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent."
+  },
+  "model": {
+    "extractor": "ollama/gpt-oss:20b",
+    "judge": "ollama/ibm/granite4:micro-h",
+    "temperature": 0,
+    "note": "THE ONE PLACE A MODEL IS NAMED. ladder/llm.py carries no default and resolve() raises on a missing entry \u2014 it used to fall back to ollama/gpt-oss:20b while this said granite4:micro-h, so 'which model produced this number' had two answers depending on whether a manifest reached the call. Resolution order is --extractor > LADDER_MODEL_SPEC > here, and nothing after. Judge must be a different model FAMILY from the extractor: a model judging its own output measures self-consistency, not correctness, and ladder/llm.py:for_rung refuses to let them be the same. Extractor moved to gpt-oss:20b 2026-08-24 on measurement \u2014 granite4 answered 'AFTERPROMPT' where gpt-oss named ['Rectal hemorrhage', 'Rectal bleeding', 'Severe rectal bleeding']. NOTE THE COST: the judge is now the WEAKER model (2B judging 20B), which is the wrong way round and is the only locally installed family that differs from the extractor. Rung 4's numbers must be read with that stated. UPDATE 2026-08-25 (Phase C): BioMistral-7B (ollama/biomistral:7b-q5_k_m) was swapped in as judge, measured on the 240-record re-judge of full-ladder-dev-1, and swapped BACK OUT the same day \u2014 167/240 records unjudged even after two harness repairs (it answers EOS after '{' on prompts past ~430 tokens), every parsed verdict 'fail', confidence flat 0.0. The judge remains granite4:micro-h and the 2B-judging-20B caveat STANDS, now as the measured lesser evil rather than the only option. Domain adaptation does not buy instruction-following. See docs/decisions.md 2026-08-25."
+  },
+  "rung_order": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "rung_order_note": "Rung ID equals execution position. Renumbered 2026-08-23 from [0,1,3,5,4,2,6]; old->new is 3->2, 5->3, 2->5, others unchanged. Every measurement in docs/decisions.md dated before then uses the OLD ids \u2014 the mapping table is in that file. Order is still read from here rather than assumed, so a different order stays testable.",
+  "rung0_mode": "recall",
+  "rung0_mode_note": "recall | search. Plan v16 \u00a72.1 recommends 'recall' for iteration 1 \u2014 the model emits a code from memory, no tools \u2014 because that is what 'bare LLM' means and it is what makes rung 1's rejection rate meaningful. The scaffolding's template defaulted to 'search'; the A/B between them is the iteration-2 experiment, listed under `ablations`. Whichever is used, it changes what every number above it means, so it lives here.",
+  "ablations": [
+    {
+      "name": "rung0 search vs recall",
+      "rung0_mode": "search",
+      "scope": "R0+R1 only",
+      "why": "POST-HOC ONLY \u2014 the search runs after generation and the model never sees it, so this measures prompt wording plus a coincidence rate, NOT tool access. A real tool loop (model calls search mid-generation) is untested and is the experiment this ablation is often mistaken for."
+    },
+    {
+      "name": "rung order",
+      "rung_order": [
+        0,
+        1,
+        2,
+        3,
+        5,
+        4,
+        6
+      ],
+      "why": "abstention early. Turns 'abstention should run last' from an assertion into a measurement."
+    },
+    {
+      "name": "vocabulary backend",
+      "snomed_backend": "ols4",
+      "scope": "R0+R1 only",
+      "why": "the two backends disagree on 23.9% of gold; this prices that difference in rung-1 terms."
+    }
+  ],
+  "rungs": {
+    "0": {
+      "rung0_offsets": "search",
+      "rung0_offsets_note": "Discard the model offsets and locate span_text by string search. Measured: offsets are 19% correct at best, while the quote itself is verbatim 77% of the time.",
+      "rung0_step": "S2",
+      "rung0_step_note": "S0 | S1 | S2 \u2014 the rung 0 prompt-engineering study, added 2026-08-23, FROZEN TO S2 on 2026-08-24 after the dev-split measurement. Scope is identical in all three and only where the CODE comes from changes: S0 recalls label and code from the model's weights, S1 recalls the label and resolves the code through data/keywords.csv, S2 retrieves a shortlist per mention and picks from it. Measured over 40 dev documents and 226 scorable gold reaction mentions with ollama/gpt-oss:20b at reasoning_effort=low \u2014 F1 exact / F1 overlap / calls / tokens / parse failures: S0 0.018 / 0.018 / 40 / 43,998 / 5-of-40; S1 0.171 / 0.305 / 57 / 36,079 / 0; S2 0.209 / 0.310 / 75 / 68,906 / 0. S2 wins exact F1 by 3.8 points and ties S1 on overlap within half a point, AND COSTS 1.9x THE TOKENS \u2014 that is a declared trade, not a free win, and the three cost measures carry it. S0 is not a weaker step but a broken one: an order of magnitude below the others for MORE tokens, and the only step that fails to parse, because its schema demands a nine-digit identifier the model does not have. Frozen because rungs 1-6 must all be measured against ONE rung 0 \u2014 three different ones make nothing above comparable. --rung0-step still overrides for a single run and writes the choice into the manifest copy saved beside the results. `null` is the pre-study A/B mode path, NOT 'the default step'.",
+      "rung0_shortlist_k": 20,
+      "rung0_shortlist_note": "How many CONCEPTS S2 shows (deduped by code since 2026-08-25). Deduped dense recall over the 6,595 coded gold mentions: @20 87.0%, @30 88.9%, @40 90.2%, @60 91.8% \u2014 and k STAYED 20 anyway, because arm 4 (2026-08-25) measured the other side of the trade: at k=40 the pick step lost more than retrieval gained (pick-past-gold 34 -> 47, F1 exact 0.289 -> 0.236). Menu recall is not menu accuracy.",
+      "keyword_table": "data/keywords.csv",
+      "keyword_table_note": "Where rung 0 turns a NAME into a code. Built from the SNOMED release alone by `python -m ladder.keywords --build`; nothing in it reads CADEC or the gold annotations. Findings and disorders only \u2014 resolving through Registry.resolve searched every description in the release, which is what answered |California chicken (organism)| for a rectal bleed and let |Gaseous substance| outrank the right concept for 'gas'. There is NO fallback to the registry when a name is absent: an unresolved name is unresolved, and falling back would reinstate the search this replaces and hide which of the two answered. The registry is still loaded \u2014 rung 1 needs exists/is_active/finding_status/terms over the WHOLE release, and S2's shortlist is retrieved from it.",
+      "rung0_retrieval": "dense",
+      "rung0_retrieval_note": "dense | lexical \u2014 which retriever builds S2's candidate menu. NOTE THAT THE TWO ALSO SEARCH DIFFERENT CORPORA: 'lexical' is Registry.shortlist, Jaccard token overlap over the SQLite description table (1,822,645 rows, 721,187 concepts, every semantic type, filtered to findings AFTER ranking); 'dense' is cosine over the embedded keyword table (227,554 rows, 127,515 concepts, findings and disorders, active only, filtered BEFORE ranking; granite-embedding:30m, 384 dims, local). MEASURED 2026-08-24 over the same 6,595 scorable coded gold reaction mentions, with the corpus and the scoring varied SEPARATELY \u2014 recall@20: lexical over descriptions 61.8%, lexical over keywords.csv 65.1%, dense over keywords.csv 86.1%. So embeddings are worth +21.0 points and the cleaner corpus +3.3. At k=1 it inverts (19.5% / 48.6% / 63.8%): +29.1 of corpus against +15.2 of scoring, because filtering to findings before ranking is what clears the top slot. The default moved on that and on nothing else. Two lexical defects dense removes, neither tunable: Jaccard's denominator penalises long terms, so for 'extreme rectal bleed' |Rectal| scores 0.33 and |Rectal hemorrhage| 0.25 and the wrong shorter concept wins; and there is no stemming, so 'bleed' never reaches 'bleeding'. Dense has its own failure mode and it is not hidden: 'gas' returns |gas gangrene| and its variants. Lexical stays reachable because a number produced under one retriever is only interpretable next to the other. Both return the same hit shape (i, code, label, fsn, via) so rung 0's pick logic never branches on which one ran, and the choice is written onto every record as checks.rung0_retrieval.",
+      "rung0_encoder": "granite",
+      "rung0_encoder_note": "granite | sapbert - WHICH DENSE ENCODER BUILDS S2'S MENU. Added 2026-08-31 (B2). ONE KEY NAMES AN ENCODER, not a model string plus an index path, because the two must move together: a 768-dim matrix read with a 384-dim query embedder does not fail, it ranks noise. The registry is ladder/embed.py:ENCODERS and it RAISES on a name nobody registered, for the same reason llm.resolve does. 'granite' is granite-embedding:30m through ollama, 384 dims, and is the whole shipped record - every CADEC number in docs/decisions.md and the article was produced with it. 'sapbert' is cambridgeltl/SapBERT-from-PubMedBERT-fulltext, 110M, [CLS] pooling, through transformers (no GGUF conversion of it exists, so it cannot go through ollama); it is LOCAL like everything else, which is the rule that matters, and torch is a local-only extra imported late. MEASURED OFFLINE BEFORE THE ARM WAS BUILT, same corpus (data/keywords.csv), same k, same 6,595 scorable coded gold reaction mentions, exclusions applied, and the granite control reproduced the recorded baseline to every decimal first: recall@1/5/10/20/50 granite 63.7/77.7/83.2/87.0/91.1, sapbert 66.1/80.7/84.5/88.4/91.6. Paired bootstrap over 1,144 documents: +2.30pt at k=1 [+1.36, +3.29] and +1.44pt at k=20 [+0.51, +2.37], separated. BUT THE CHURN IS EIGHT TIMES THE NET (435 rescued, 340 broken, net +95 of 6,595) and the rescued arrive at median rank 4 where the pick converts 42.3%, while the broken sat at median rank 2. Priced through the measured conversion table that is +0.24pt of F1 exact against rung 0's own 1.3pt run-to-run spread. Each encoder has its own index at <embed_prefix><suffix>, hyphen-separated - a dotted suffix would be eaten by Path.with_suffix and load the other encoder's matrix silently. manifest.sapbertarm.json is the one-key diff, pinned by a test. Declared EXPLICITLY rather than left to r0.DEFAULTS, per the 2026-08-30 rule: a manifest that merely happens to agree with a default breaks the moment the default moves. See docs/decisions.md 2026-08-31.",
+      "embed_prefix": "ladder/cache/keywords",
+      "embed_prefix_note": "Where the dense index lives: <prefix>.vectors.npy (float16, L2-normalised, one row per keyword) and <prefix>.rows.json (keyword,code in MATRIX ORDER). A CACHE, unlike data/keywords.csv \u2014 derived from the table by a fixed function and rebuildable in minutes, so it sits beside snomed.sqlite. REBUILD IT WHENEVER THE KEYWORD TABLE CHANGES: the loader checks the row counts agree, which catches a truncated write but not a stale matrix built from a different table of the same size.",
+      "rung0_fewshot": true,
+      "rung0_fewshot_note": "FLIPPED TRUE 2026-08-25 on the dev measurement (docs/decisions.md same date): the synthetic worked example is +5.7pt exact / +5.3pt overlap F1 over the frozen S2 (0.266/0.363 vs 0.209/0.310) at 1.55x the baseline tokens (106,627 vs 68,906), same call count, zero parse failures. This changes the frozen rung 0, so it was a joint manifest edit; rungs 1-6 must be measured against THIS configuration. The example is synthetic \u2014 never CADEC text, test-enforced \u2014 and False reproduces the pre-example arm.",
+      "rung0_fewshot_docs": [
+        "ARTHROTEC.22",
+        "ARTHROTEC.110"
+      ],
+      "rung0_fewshot_docs_note": "Pool-split documents rendered into the few-shot block AT RUNTIME from data/ (2026-08-25) \u2014 the corpus is non-transferable, so only these IDs are configuration and the text never enters a tracked file. POOL ONLY, enforced: a dev or test example would put its own gold answers in the prompt of a scored run. ARTHROTEC.22 is a seven-item comma list (exhaustiveness; kept intensifier; a compared-to condition annotated); ARTHROTEC.110 repeats one mention three times and includes the condition the drug was taken for. A THIRD example (LIPITOR.968, span conventions) shipped only inside the losing arm-4 bundle and was removed with it; its solo effect is unmeasured (the one isolation run was voided by a self-contradictory prompt - docs/decisions.md 2026-08-25). Empty or absent falls back to the synthetic FEWSHOT block in ladder/rungs/r0.py.",
+      "rung0_trim": true,
+      "rung0_split": true,
+      "rung0_split_note": "The coordination splitter: one quote covering several reactions becomes several records with discontinuous spans. Measured 2026-08-27 on ONE DRAW; the three-draw debt was PAID 2026-08-30 and it SURVIVES. Leave-one-out from this manifest over sample_index 0/1/2, paired bootstrap over documents: F1 exact +0.0389 / +0.0345 / +0.0579, pooled mean +0.0438 [+0.0012, +0.0937] - sign consistent three for three and the pooled interval excludes zero. It is the largest rung 0 arm in the project. BUT IT BUYS EXACT ONLY: on F1 overlap the sign REVERSES (+0.0000 / -0.0047 / +0.0229, pooled +0.0061 [-0.0267, +0.0395]), which is what the mechanism predicts - cutting a coordinated quote into pieces turns one already-overlap-matched blob into several exactly-matched spans, so overlap has nothing to gain. Runs out/arm-debt{base,nosplit}-d{0,1,2}-dev.",
+      "rung0_drop_ungrounded": true,
+      "rung0_drop_ungrounded_note": "Drop a record whose span_text locate() cannot find in the post. Measured on dev: 11 records, 0 of which matched any gold mention, so this can only remove false positives. NOTE THE SECOND-ORDER EFFECT: this arm is what emptied rung 1's rejection class (5.1% -> 0.4%) and with it rung 2's trigger set. See docs/decisions.md 2026-08-28.",
+      "rung0_drop_fragments": true,
+      "rung0_drop_fragments_note": "Drop a span carrying no content word ('because', 'This', 'No'). Single CONTENT words are never touched: 14 of 45 unproposed gold mentions on dev are one word.",
+      "rung0_drop_duplicate_spans": true,
+      "rung0_drop_duplicate_spans_note": "Drop a repeated span key. Gold is claimed one-to-one, so the second occurrence can only be a false positive.",
+      "rung0_cut_rate": 0.06,
+      "rung0_cut_rate_note": "The trimmer's interior-clause cut threshold, and the ONE free parameter in rules learned from pool gold at runtime. Swept 2026-08-28: 0.03 -> 0.394, 0.05 -> 0.403, 0.06 -> 0.399 exact / 0.469 overlap, reproducing out/arm-filters-dev on all seven figures. An arm compared against a baseline built at a different threshold is comparing two trimmers. ONE DRAW when it was set; the three-draw debt was PAID 2026-08-30 and it SURVIVES, on consistency rather than on separation. Leave-one-out over sample_index 0/1/2, paired bootstrap over documents: F1 exact +0.0139 / +0.0183 / +0.0098 (pooled +0.0140 [-0.0163, +0.0500]), F1 overlap +0.0054 / +0.0054 / +0.0011 (pooled +0.0039 [+0.0000, +0.0103]). Six sign-consistent comparisons out of six, and every one of those intervals contains zero - the effect is real in direction and SMALLER THAN RUNG 0'S OWN RUN-TO-RUN SPREAD, which is 0.399/0.395/0.408 exact on the same three draws. Kept, and read as consistent-and-small rather than as separated. Runs out/arm-debt{base,nocut}-d{0,1,2}-dev.",
+      "_arms_note": "APPENDED 2026-08-30. These five were measured and accepted on 2026-08-27/28, shipped as code with r0.DEFAULTS off, and never declared here - so the tracked manifest ran a rung 0 scoring exact 0.340 while every number in docs/decisions.md and docs/article.md came from a configuration scoring 0.399. Two answers to 'which configuration produced this number', which is the failure the model note above exists to prevent, one layer down. Declared EXPLICITLY rather than left to defaults: a manifest that merely happens to agree with r0.DEFAULTS breaks the moment a default moves, and the default is what moved last time. tests/test_rungs_audit.py pins all five.",
+      "rung0_trim_note": "Phase B(d), 2026-08-25. Trim rung 0's spans to the answer key's boundary convention AFTER locate(): rules LEARNED AT RUNTIME from POOL gold only (ladder/trim.py; dev/test refused) - lead/trail tokens gold leaves outside a boundary >=95% of >=20 sightings, plus an interior clause cut at tokens whose inside_rate <= 2% over >= 50 occurrences ('pain that wakes me up' stops at 'that'). Thresholds measured on the baseline dev records: looser cut points bought exact F1 by cutting spans out of their overlap matches and were rejected. Effect on the phaseB-2 dev run: F1 exact 0.358 -> 0.362, overlap byte-identical; the original quote survives on every trimmed record as checks.span_untrimmed. False reproduces the untrimmed arm."
+    },
+    "1": {
+      "mode": "observe",
+      "mode_note": "Rung 1 judges without routing. Its verdicts are recorded, counted and reported, but the record's zone is untouched, so rungs 3-6 see the full unfiltered set and each rung's marginal contribution stays attributable to that rung. Rung 2, which runs last, is where a rung 1 verdict is allowed to cost coverage. Set 'gate' to make rung 1 filter, as the plan's flow implies.",
+      "reject_inactive": false,
+      "check_negation": true,
+      "negation_window": 6,
+      "finding_check": true,
+      "finding_scope": "reaction",
+      "lexical_mode": "exact",
+      "lexical_mode_note": "exact chosen over contained by measurement: contained accepts 19.0% of planted near-miss codes vs 0.1% for exact, buying 11.4pt of ACCEPT-lane coverage. See docs/decisions.md and out/rung1_detection*.json.",
+      "meddra_check": "flag",
+      "label_check": "flag",
+      "label_check_note": "off | flag | reject. Rung 0's sct_label against the vocabulary's own words for the code it chose. Catches what exists() cannot: 82249009 is real and active and means |California chicken (organism)|, which granite4:micro-h emitted for 'extreme rectal bleed'. FLAG, not reject \u2014 'rectal bleeding' against |Rectal hemorrhage| is one concept in two wordings, and this check's false-rejection floor has not been measured. Same posture as meddra_check and negation_action, and for the same reason.",
+      "outdated_check": "flag",
+      "outdated_check_note": "off | flag. A retired code SNOMED has since replaced is out of date, not invented: the model named a real concept and lacked the newer release. Rung 1 records sct_outdated and sct_replacement and NEVER rejects on them \u2014 same posture as meddra_check, negation_action and label_check. The successor comes from the association refset (SAME AS / REPLACED BY only; POSSIBLY EQUIVALENT TO and WAS A are excluded on purpose) and is scored as its own outcome in ladder/score.py, never folded into 'correct'. Measured 2026-08-24: only 27.3% of CADEC's 407 retired gold reaction mentions have such a successor at all."
+    },
+    "3": {
+      "k": 3,
+      "temperature": 0.7,
+      "enabled": true,
+      "enabled_note": "DISABLED 2026-08-26 (Phase D step 1) while its sampler was repaired, RE-ENABLED the same day on the measurement. The 2026-08-25 full-ladder dev run measured 206/240 records not_resampled (votes keyed on exact (doc_id, spans), which shift between samples) and 9 of 32 rung-1-verified-ACCEPT codes OVERWRITTEN with memory-recalled hallucinations, because the sampler drew from the legacy recall prompt while rung 0's codes came from the frozen S2 retrieve-and-pick path. Repaired (all TDD'd, tests/test_r3_repair.py): votes matched by span overlap one-to-one per record identity; every sample drawn through rung 0's configured path (r0.prepare + r0.extract_document, S2 retrieve-and-pick, few-shot, trimmer); a change requires seen >= 2 (one counted vote is not a vote \u2014 the k<2 argument); documents sampled in sorted order so the draw sequence is reproducible from the run id. Re-enabled on out/phaseD-r3-2 (dev, 245 records): not_resampled 38/245, ZERO correct codes destroyed (baseline: 11), the only verified-ACCEPT change a genuine 2-1 menu-sourced majority, stack F1 exact 0.335 -> 0.347. A disabled rung remains a RECORDED state: run.py writes a 'disabled' ledger row and aggregate entry, so 'rung 3 did not run' stays distinguishable from 'rung 3 found nothing'.",
+      "revalidate": false,
+      "revalidate_note": "OFF. Rung 3 adopts a majority code by overwriting rec.sct; rung 5 then routes on checks.r1_verdict, which was computed against the code rung 3 replaced. Measured 2026-08-28 on the shipped artifacts: phaseD-r3-2 changed 25 codes and phaseF-test-1 changed 30, and all 55 records carried a verdict about a superseded code. LIPITOR.739#0 shipped as VERIFIED because rung 1 had ACCEPTed |Chronic pain| before the vote replaced it with |Chronic musculoskeletal pain|, which does not lexically match. With this true, r3.revalidate() re-judges the changed record through r1.zone under manifest.rungs.1, keeping the superseded verdict in checks.r3_r1_before. It is OFF by default because re-banding a record MOVES COVERAGE to rung 6 \u2014 a declared trade measured as one, not a correctness fix switched on quietly. With it off the staleness is still labelled on every changed record (checks.r3_r1_stale), which is bookkeeping about a fact and not a routing change. Dev measurement: see docs/decisions.md 2026-08-28."
+    },
+    "4": {
+      "menu": "ranked",
+      "menu_note": "off | ranked | shuffled. Appended 2026-09-03 (plan item 14). Until then the judge was handed `code: <nine digits>` and no name, no menu, no pick, and asked whether it was the right SNOMED CT concept - a question it could not answer, so every published rung 4 number is a blind-judge measurement (on FiNER rec.sct IS the tag name, which is why the judge engaged there: identifier readability, not context size). With `ranked` the judge is shown the menu rung 0 retrieved (checks.candidates, rendered as rung 0 rendered it), the line the extractor chose, the [denied] marker where rung 0 claimed one, and asked a third question, `best`: the line it would choose or null for 'not on this list' - the verdict that separates a bad pick from a bad menu. `shuffled` permutes the menu per record under manifest.seed (blake2b of seed:record_id), because a judge shown a ranked list may ratify line 0; safe here, unlike rung 0's B4 arm, because the judge sees one record per call. OFF because the arm must be paired against exactly what was published; the arms are manifest.judgemenu.json and manifest.judgeshuffle.json (CADEC) and manifest.finer.judgemenu.json / manifest.finer.judgeshuffle.json (FiNER), one-key diffs pinned by tests/test_r4_menu.py. Couples rung 4 to S2 - an S0/S1 record gets the blind prompt and checks.r4_menu = 'none'."
+    },
+    "5": {
+      "abstain_zones": [
+        "BAND"
+      ],
+      "abstain_on_reject": true,
+      "abstain_on_judge_fail": false,
+      "abstain_on_judge_fail_note": "OFF, and declared here rather than left to r5.DEFAULTS. Appended 2026-08-30 on the owner's call, as the arm that finally gives rung 4 a READER: the 2026-08-28 audit found that rungs 2, 3 and 4 each defer to rung 5 and that r5.decide() reads none of the three, so rung 4's ~93k tokens per run could not move a shipped number by construction. With this true, a record the free check would have SHIPPED is withdrawn when the second-family judge failed it, under its own reason `judge_fail` so the ledger can count what the judge adds OVER the free check. The arm can only SUBTRACT coverage - a record already heading for ABSTAIN keeps `unresolved`, which is the more specific fact - and a missing or unparsed verdict is never read as a failed one. OFF because every published CADEC number was produced with rung 4 wired to nothing. Measured 2026-08-30, three draws: see docs/decisions.md and manifest.judgearm.json.",
+      "tau_retired": "tau RETIRED 2026-09-03 (plan item 17d). It was read - unlike the five settings the 2026-08-31 audit found dead - and it could never usefully fire: rung 0 reports >= 0.95 confidence on every record (1.0 on 77%; {1.0: 204, 0.99: 44} on dev) while being right about 40% of the time, so no threshold separates anything. A live key that is structurally inert looks tunable, which is the same defect one layer along from 'declared and never read'. ladder/rungs/r5.py REFUSES the key rather than ignoring it, its sweep went with it, and tests/test_tau_retired.py keeps every tracked manifest free of it. A calibrated abstention input (B7, registered) would be a different dial under a different name."
+    },
+    "6": {
+      "mode": "simulated",
+      "minutes_per_record": 2.0,
+      "mode_note": "simulated | desk. Implemented 2026-08-26 (Phase E, ladder/rungs/r6.py). The queue is rung 5's abstained residue, each record still carrying checks.withheld. 'simulated' routes the queue to ESCALATE and PRICES it at minutes_per_record \u2014 no answer is invented, coverage cannot move, and every ledger row carries human_minutes with minutes_source='simulated'; it measures the bill of stopping at rung 5, not the person. 'desk' applies a resolutions file (cfg key 'resolutions') written by a review session at scripts/r6_desk.py \u2014 decisions code|concept_less|uphold|skip, matched to records BY SPAN KEY one-to-one (never by record_id, which is a position), minutes MEASURED from seconds at the desk. Rows carry ids, offsets, codes and vocabulary labels only \u2014 never corpus text. scripts/r6_desk.py --oracle writes the file deterministically from gold: an ORACLE CEILING, labeled resolved_oracle in every ledger row and oracle:true in the aggregate, priced at the simulated rate, and REFUSED on the test split. Rung 6 takes no model \u2014 ROLE_BY_RUNG gives it no role, deliberately. Human minutes are the third cost measure and are never fused with tokens or usd."
+    }
+  },
+  "output": {
+    "dir": "out"
+  },
+  "scorer": "ladder.score:reaction_sct_strict",
+  "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align."
+}

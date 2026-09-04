@@ -1,0 +1,47 @@
+// Rung 0 -> rung 1 -> rung 4 on CADEC dev, rerun-cadec-d0 (2026-09-03). Every
+// count from the per-record state table (out/rerun/cadec.json). Draw 1 is
+// identical at rungs 0 and 1; draw 2: ACCEPT 51 / BAND 184 / REJECT 3.
+// COLOUR KEY — the article's: teal a model runs here · green ACCEPT/pass · amber BAND · red REJECT/fail
+digraph flow {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12 color="#5a6b73" fillcolor="#f2f4f5"];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  r0 [label="RUNG 0 · extractor (gpt-oss:20b) · CADEC dev · rerun-cadec-d0\n230 records proposed from 40 posts\n87 correct · 29 wrong code · 70 right mention, wrong boundaries · 44 on no gold mention"
+      fillcolor="#e3eeef" color="#0c6469" fontsize=13];
+
+  r1 [label="RUNG 1 · the free check · no model, no answer key\ndoes the code exist? is the span in the post? right kind of concept? do the words match?"
+      fillcolor="#eef1f2"];
+  r0 -> r1 [label="  230  "];
+
+  acc [label="ACCEPT · 53\n40 correct (75%)" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  band[label="BAND · 175\n47 correct (27%)" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+  rej [label="REJECT · 2\n0 correct — invented quotes" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  r1 -> acc; r1 -> band; r1 -> rej;
+
+  r4 [label="RUNG 4 · the second judge (granite4:micro-h) · every record, every lane\nafter rung 3 (which moved 1 REJECT to BAND, and 2 right answers to wrong)"
+      fillcolor="#e3eeef" color="#0c6469"];
+  acc -> r4; band -> r4; rej -> r4;
+
+  subgraph cluster_blind {
+    label="  BLIND — as shipped: sees the post, the span, the bare code  "; fontname="Helvetica"; fontsize=12; color="#c8d1d5"; style="rounded";
+    ba [label="in ACCEPT (53)\npass 39 · 29 correct\nfail 14 · 10 correct" fillcolor="#e3f0e6" color="#2d6a4f"];
+    bb [label="in BAND (176)\npass 96 · 34 correct\nfail 73 · 14 correct\nunparsed 7" fillcolor="#fdf0c8" color="#946c00"];
+    br [label="in REJECT (1)\npass 1 · wrong" fillcolor="#fbe4e4" color="#a33333"];
+    bs [label="separation 1.7× · would withdraw 14 shipped answers, 10 of them correct" shape=plaintext fillcolor="white"];
+    ba -> bs [style=invis]; bb -> bs [style=invis]; br -> bs [style=invis];
+  }
+  subgraph cluster_menu {
+    label="  SHOWN THE MENU — the arm: sees the menu, the line picked, the coding rule  "; fontname="Helvetica"; fontsize=12; color="#0c6469"; style="rounded";
+    ma [label="in ACCEPT (53)\npass 52 · 39 correct\nfail 1 · wrong" fillcolor="#e3f0e6" color="#2d6a4f"];
+    mb [label="in BAND (176)\npass 83 · 35 correct\nfail 93 · 14 correct\nunparsed 0" fillcolor="#fdf0c8" color="#946c00"];
+    mr [label="in REJECT (1)\npass 1 · wrong" fillcolor="#fbe4e4" color="#a33333"];
+    ms [label="separation 3.7× · would withdraw 1 shipped answer, and it is wrong\nits signal is in BAND, which rung 5 withholds anyway" shape=plaintext fillcolor="white"];
+    ma -> ms [style=invis]; mb -> ms [style=invis]; mr -> ms [style=invis];
+  }
+  r4 -> ba; r4 -> bb; r4 -> br; r4 -> ma; r4 -> mb; r4 -> mr;
+
+  dead [label="r4_verdict → read by NOTHING in the shipped configuration\nrung 5 ships ACCEPT (53, at 0.74) and withholds the rest (177) on rung 1's verdict alone"
+        fillcolor="#fbe4e4" color="#a33333"];
+  bs -> dead [style=dashed color="#a33333"]; ms -> dead [style=dashed color="#a33333"];
+}

@@ -1,12 +1,9 @@
-// Rung 3 on CADEC dev, run phaseD-r3-2. Every figure here is from
-// docs/decisions.md 2026-08-26; no surviving run carries rung 3 output, so
-// nothing is recomputed and nothing is derived beyond arithmetic that closes:
-//   245 records, 38 never re-found -> 207 re-found -> 188 with >=2 votes,
-//   leaving 19 seen once only. Unanimity 56.4% = (3-0 x96 + 2-0 x10) / 188.
-//   Changes 31; net correct +5 (3+2 gained, 0 correct destroyed).
-//
-// WHAT THIS FIGURE CANNOT SHOW: the same breakdown per rung 1 lane. That
-// cross-tab was never recorded and the run is gone. See section 6.
+// Rung 3 on CADEC dev, rerun-cadec-d0 (2026-09-03), from the per-record state
+// table (ladder/analysis.r3_crosstab, out/rerun/cadec.json):
+//   230 records, 12 never re-found, 4 seen once, 214 with >=2 votes:
+//   149 agree with the record's code, 25 split 2-1 keeping it, 15 tied,
+//   25 changed (22 BAND, 2 ACCEPT, 1 REJECT). Net correct +1: 3 gained, 2 destroyed.
+// Draws 1 and 2: changed 28 / 27, net -1 / -1, destroyed 3 / 5.
 //
 // COLOUR KEY — the article's: green correct · red wrong or lost · grey a stage
 digraph rung3 {
@@ -15,29 +12,29 @@ digraph rung3 {
         color="#c8d1d5" penwidth=1.2];
   edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
 
-  in [label="EVERY record, every lane\n245" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
-  s  [label="MODEL ×3 · re-extract every document\ntemperature 0.7 · 425,355 tokens · 2.6× rung 0"
+  in [label="EVERY record, every lane\n230" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+  s  [label="MODEL ×3 · re-extract every document\ntemperature 0.7 · 410,638 tokens · 2.5× rung 0"
       fillcolor="#e3eeef" color="#0c6469" penwidth=2];
 
-  nf [label="never re-found\n38   (15%)\ntheir rung 0 status: NOT RECORDED" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
-  one[label="found by one sample only\n19 — a single vote is not a vote,\nso no change is allowed"
+  nf [label="never re-found\n12   (5%)\nrung 0 had: 9 on no gold · 2 correct · 1 wrong" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  one[label="found by one sample only\n4 — a single vote is not a vote,\nso no change is allowed"
       fillcolor="#fdf0c8" color="#946c00"];
-  two[label="found by 2 or 3 samples\n188\ntheir rung 0 status: NOT RECORDED" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  two[label="found by 2 or 3 samples\n214" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
 
-  un [label="ALL VOTES AGREE\n106   (56.4%)" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-  sp [label="SPLIT 2–1\n49" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
-  ti [label="TIED, no majority\n33" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+  un [label="ALL VOTES AGREE with rung 0\n149   (69.6%)" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  sp [label="SPLIT 2–1, code kept\n25" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+  ti [label="TIED, no majority\n15" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
 
-  ch [label="31 codes actually changed" fillcolor="#eef1f2" penwidth=1.6];
+  ch [label="25 codes actually changed\n22 in BAND · 2 in ACCEPT · 1 in REJECT" fillcolor="#eef1f2" penwidth=1.6];
 
-  band [label="from a record with NO CODE\n∴ BAND, by construction · 4\n3 → correct · 1 → incorrect"
+  band [label="from a record with NO CODE\n∴ BAND, by construction · 1\n1 → incorrect"
         fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-  unk  [label="from a record with a WRONG code\nlane NOT recorded · 21\n2 → correct · 19 → still wrong"
+  unk  [label="from a record with a WRONG code · 5\n3 → correct · 2 → still wrong"
         fillcolor="#fdf0c8" color="#946c00" penwidth=2];
-  nog  [label="on records matching no gold\n6 — no outcome to report"
+  nog  [label="on records matching no gold\n17 — invented before and after"
         fillcolor="#f2f4f5" fontcolor="#5a6b73"];
 
-  safe [label="correct → incorrect\n0 in this run\n1 in the run before · 11 in the baseline"
+  safe [label="correct → incorrect\n2 in this run — one of them ACCEPT, and it shipped\n3 and 5 on draws 1 and 2 · several times as many before the repairs"
         fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5];
 
   in -> s; s -> nf; s -> one; s -> two;
@@ -51,20 +48,20 @@ digraph rung3 {
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Three more extractions, +5 net correct answers.</B> 425,355 tokens for five records, and the</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">model disagrees with itself on 44% of what it re-finds and cannot re-find 15% of it at all.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Three more extractions, +1 net correct answer.</B> 410,638 tokens for one record, and the</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">model disagrees with itself on 30% of what it re-finds and cannot re-find 5% of it at all.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f"><B>Did voting ever make a right answer wrong? Yes — until we stopped it.</B> The baseline destroyed</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f"><B>Did voting ever make a right answer wrong? Yes, and it still does.</B> The baseline destroyed</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f">11 correct answers; an earlier run overwrote 9 of 32 verified codes on a 1-0 "majority"; this run</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f">destroys none. The zero is a fix, not a property.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#2d6a4f">destroys 2, and draws 1 and 2 destroy 3 and 5. The repairs reduced it; nothing removes it.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>It never reads rung 1's verdict.</B> The same three extractions are paid for the 48 records the</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">free check already settled and the 174 heading for abstention.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00"><B>It never reads rung 1's verdict.</B> The same three extractions are paid for the 53 records the</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#946c00">free check already settled and the 175 heading for abstention.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Only the bottom row is broken down by what rung 0 had said.</B> For the 38 it could not re-find</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">and the 188 it voted on, nobody recorded whether rung 0 had them right — so the question this</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">figure most wants to answer, whether voting is fixing what was broken or churning what was fine,</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">it cannot. The run is gone. See section 6.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>Every row is now broken down by what rung 0 had said.</B> The 12 it could not re-find were mostly</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">invented spans (9 of 12); 17 of its 25 changes replace one wrong code with another on a span that</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">matches no gold mention. Voting is not fixing what was broken; it is re-coding the</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">extractor's false positives, in the lane where the free check had no opinion. See the rung 3 subsection.</FONT></TD></TR>
         </TABLE>>];
   safe -> note [style=invis];
 }

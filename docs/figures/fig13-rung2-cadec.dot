@@ -1,0 +1,33 @@
+// Rung 2 on CADEC, rerun-cadec-d0 (2026-09-03). The single-corpus version of
+// fig13-rung2.dot. It reads rung 1's verdict and fires on REJECT alone
+// (r2.py — `if verdict != ZONE_REJECT or reason not in cfg["correctable"]`),
+// so ACCEPT and BAND are never touched: no model call, no possible change.
+// Draws 1 and 2: fired 2 and 3 times; every draw relocated one quote (REJECT -> BAND, wrong code) and corrected none.
+//
+// COLOUR KEY — the article's zone colours, unchanged:
+//   green ACCEPT · amber BAND · red REJECT · teal a model runs here
+digraph rung2_cadec {
+  rankdir=TB; bgcolor="white";
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=12 color="#5a6b73" fillcolor="#f2f4f5"];
+  edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
+
+  r1 [label="RUNG 1 · the free check\n230 records, judged and not routed" fillcolor="#eef1f2"];
+  ca [label="ACCEPT · 53" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  cb [label="BAND · 175" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
+  cr [label="REJECT · 2\ninvented quotes — the text is not in the post" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  r1 -> ca; r1 -> cb; r1 -> cr;
+  cskip [label="rung 2 never called\n0 model calls" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
+  cfire [label="RUNG 2 · state the failure back as a fact\n“the quoted text is not in the post”\nfired 2 · 1,259 tokens · relocated 1 · corrected 0" fillcolor="#e3eeef" color="#0c6469"];
+  ca -> cskip; cb -> cskip; cr -> cfire;
+  { rank=same; ca; cb; cr }
+
+  note [shape=plaintext style="" fillcolor="white"
+        label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Rung 2 can only act on the lane rung 1 leaves nearly empty.</B> It fires on REJECT alone, so every record it</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">could improve is one the free check has already proved wrong — and that lane holds two or three invented quotes a draw.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>An invented quote carries no fact worth stating back.</B> Told that its quote is not in the post, the model</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">fired 2, 2 and 3 times across the three draws, relocated one quote per draw into BAND with a wrong code, and corrected none.</FONT></TD></TR>
+        </TABLE>>];
+  cskip -> note [style=invis]; cfire -> note [style=invis];
+}

@@ -4801,3 +4801,730 @@ what the review established: self-correct "fired 1 of 248" -> "never had a
 trigger", vote "-0.004" -> "no consistent sign" (the -0.004 is one draw), and
 judge "read by nothing" -> "read by nothing - provisional". `docs/figures/fig0.py`
 regenerated; matplotlib added to the venv, which did not have it.
+
+## 2026-09-03 — PHASE 1 OF THE CONSOLIDATED RE-RUN: the four fixes that had to land before any number could be re-run
+
+Plan item 0b says one base run must produce every descriptive dev-side
+number, and its own order of work says nothing may be re-run until items 12,
+14, 16 and 17(d) land, because each changes what a run records or means. All
+four landed today, TDD'd, 906 tests locally and 879 in the CI-style venv
+(`python:3.12-slim` + requirements + pytest, no numpy/httpx/torch). Committed
+as `7457a79` before the first draw started, so every run stamps a clean sha.
+
+**Item 12 — the per-record, per-rung trace exists (`ladder/trace.py`).**
+`run.run_ladder` now writes, beside the ledger: `<run>.r<N>.records.jsonl`
+(the record set as each rung left it), `<run>.state.jsonl` (one row per
+record per rung: code, span, zone, reason, rung 1 and rung 4 verdicts, rung 0's
+pick lane, `changed_this_rung` with the fields that moved, and the outcome
+against gold under BOTH pairings — exact and overlap — so a boundary miss and
+a detection miss are different rows), `<run>.r<N>.calls.jsonl` (EVERY model
+call the rung made: the full prompt, the raw reply, the normalised reply,
+tokens, latency, temperature, sample index, cached or not, and the document,
+inferred as the longest source text in the prompt because the
+`llm(prompt, text, mode)` contract is frozen with stubs behind it), and
+`<run>.aggregates.json` (each rung's aggregate dict — which until now went to
+stdout and nowhere else — plus the LLM cache directory, git sha and dirty
+flag, models per rung, temperature, start and finish). `outcome` is
+`unmatched` for a prediction on no gold mention, distinct from `incorrect`
+— `score.outcome` pools them because it grades an answer, and the error
+budget must not. A record a rung dropped is still a row (`dropped_this_rung`).
+**The call traces carry corpus text verbatim and live under the gitignored
+`out/`; they are never committed.** Smoke-tested on one dev document, rungs
+0-6, cold cache: 21 state rows, 2 + 6 + 3 traced calls (rung 3's six carry
+sample indices 0-5 at temperature 0.7), doc ids inferred on every call.
+
+**A draw is now a named directory, not a swapped symlink.** `LADDER_LLM_CACHE`
+names the cache for one run, `llm.for_rung` reads it, and the aggregates file
+records it — so "which cache did draw 2 use" has an answer on disk. The
+protocol is `scripts/consolidated_rerun.sh <corpus> <draw>`: it refuses a
+cache directory that already exists, runs the base cold, then the arms on the
+same cache so their rung 0 is byte-identical and only the arm's own calls are
+paid. Arm p95 latencies therefore include cache hits and are not compared.
+
+**Item 14 — the judge is shown what it is judging (`rungs.4.menu`).** Until
+today `r4.judge` formatted `source, text, start, end, sct` and nothing else:
+`code: 1003722009`, no name, no menu, no pick. `menu: ranked` renders the menu
+rung 0 retrieved (`checks.candidates`, through the same `[i] label` renderer),
+the line the extractor chose, the `[denied]` marker with the Phase B
+instruction that a denied mention is still coded, and asks a third question,
+`best`: the line the judge would choose, or null for "not on this list" — the
+verdict that separates a bad pick from a bad menu and that the system could
+not previously express. `shuffled` permutes the menu per record under
+blake2b(seed:record_id) — safe here where B4 found it unsafe in rung 0,
+because the judge sees one record per call and nothing can alias across a
+batch. `off` renders the blind prompt byte-identically (test-pinned), and it
+ships OFF because every published rung 4 number is a blind-judge measurement
+that the arm must be paired against. Four arm manifests
+(`manifest[.finer].judge{menu,shuffle}.json`), one-key diffs, pinned.
+`candidates` and `r0_negated` join `ALLOWED_CHECK_KEYS` — rung 0's own
+output, not the answer key. An S0/S1 record gets the blind prompt and
+`checks.r4_menu = "none"`: the arm couples rung 4 to S2, stated.
+  - **The smoke run found the next defect in the same family within one
+    call.** Shown the menu, granite failed a CORRECT pick — |Rectal bleeding|
+    for "extreme rectal bleed" — with the reason *"does not capture the
+    severity"*. That is CADEC's own convention: the extractor was told to
+    choose the PLAIN concept and drop severity, and the judge was grading
+    against a rule it had never been given. "What the extractor was given"
+    includes the guidance, so the menu prompt now carries the corpus's
+    `pick_guidance` slot, read through rung 0's own slot table so the two
+    rungs cannot drift onto different wordings. FiNER supplies its own.
+
+**Item 17(d) — `tau` is RETIRED.** It was read, and it could never fire: rung
+0 reports >= 0.95 confidence on every record while being right about 40% of
+the time. Gone from all twelve tracked manifests (each `rungs.5` now carries
+`tau_retired` saying why), refused by `r5.decide` and `r5.apply` rather than
+filtered out silently, `sweep`/`aurc`/`free_lunch` deleted with it (they
+existed only to tune it), the two threshold policies dropped from
+`scripts/r5_policy_sweep.py`, `R_LOW_CONFIDENCE` kept in the schema because
+schemas are append-only and old ledgers carry it. `tests/test_tau_retired.py`
+keeps it gone. `preflight_rungs.check_tau` stays: it is the precondition any
+future calibrated input (B7) would have to pass first.
+
+**Item 17(c) — unreviewable records are named and counted.** `r6.unreviewable`
+returns the queued records a span-keyed desk cannot act on — an unlocated
+`(-1, -1)` span, or a span key another queued record shares. Desk mode marks
+them ESCALATE under the new `R_UNREVIEWABLE` reason at zero minutes with
+`minutes_source: unreviewable`; simulated mode still prices them (a person
+receives them either way — the headline is the count routed) and flags them.
+`agg["unreviewable"]` in both modes.
+
+**Item 16 — the arm exists; the decision waits for three draws.**
+`manifest.lexarm.json` is `rungs.1.lexical_mode: contained`, one-key diff,
+pinned. Rung 1 reads no model, so on a shared cache the arm replays a base
+draw with identical model calls and only the lane split differs. Decided on
+YIELD, three paired draws, below.
+
+**Not done, and why.** The B4 result (branch
+`claude/reliability-ladder-b4-slot0-7784eb`, three commits, UNMERGED as of
+today) refutes the 2026-08-30 slot-0 attractor as a model finding: 74 of the
+77 slot-0 predictions on FiNER were `_fill_from_menu`'s fallback rule, not
+the model, and the per-mention shuffle arm was rejected on three
+byte-identical draws (coding 0.425 -> 0.058) because a permutation under a
+BATCHED pick aliases indices across the call. Its decisions entries live on
+that branch; the article's slot-0 claims are corrected below against them
+rather than by merging a branch the owner has not merged.
+
+## 2026-09-03 — `ladder/analysis.py`: the article's numbers from one module with tests, not eighty scratch scripts
+
+Every function the re-run's report needs, with a fixture test each
+(`tests/test_analysis.py`, 13 tests): the error budget on one denominator
+(gold -> matched -> on menu -> correct, pick loss split by lane: model vs
+fallback), rung 1 lanes under both denominators (all records in the lane, and
+overlap-matched — the five-model table's), rung 3 by rung 1 lane with every
+overwrite's votes and outcome transition (item 11), the judge's separation
+plus the menu arm's `not on this list` / `best correct` / `best = pick`, the
+policy row (ships, coverage, accuracy, YIELD, errors per 100, to a person)
+from the final state rows, and the three-draw consensus table with mentions
+grouped by span overlap. `scripts/rerun_analysis.py` loads a run set and
+writes `<out>.json` and `<out>.md`. The point is the one the deleted worktrees
+taught: the numbers must be re-derivable from disk by code that is tracked.
+
+## 2026-09-03 — THE CONSOLIDATED RE-RUN, CADEC: three cold draws of the full ladder, every arm on the same cache, every number from one module
+
+Runs `rerun-cadec-d{0,1,2}` (base, `manifest.json` at `7457a79`+docs, tree
+clean), arms `-judgemenu`, `-judgeshuffle`, `-lexarm` (same cache, rung 0
+byte-identical to the base, verified by sha256), `-spine` (rungs 5-6 over the
+rung 1 snapshot, zero model calls). Dev split, 40 documents, **226 scorable
+gold mentions** (414 excluded). Report: `out/rerun/cadec.{json,md}` from
+`scripts/rerun_analysis.py`; per-record state, per-rung snapshots and every
+prompt/reply in the run files. Every F1 below is `score_run`, span-exact,
+exclusions applied, unless it says overlap. Wall clock ~50 min per base draw
+(rung 0 ~17 min, rung 3 ~37 min).
+
+**Rung 0 per draw** (spans / detection P/R/F1 / coding / F1 [CI] — exact;
+then overlap detection F1 / coding / F1):
+| draw | spans | det P/R/F1 | coding | **F1 exact** [95% CI] | det F1 ovl | coding ovl | F1 ovl | sha256(r0) |
+|---|---|---|---|---|---|---|---|---|
+| d0 | 230 | 0.535/0.513/0.524 | 0.750 | **0.393** [0.310–0.468] | 0.804 | 0.590 | 0.474 | `c96289db` |
+| d1 | 230 | 0.535/0.513/0.524 | 0.750 | **0.393** [0.310–0.468] | 0.804 | 0.590 | 0.474 | `c96289db` |
+| d2 | 238 | 0.571/0.571/0.571 | 0.760 | **0.434** [0.360–0.505] | 0.823 | 0.613 | 0.504 | `c3626412` |
+
+**DRAWS 0 AND 1 ARE BYTE-IDENTICAL, AND IT IS NOT A CACHE REPLAY.** The call
+trace shows 94 rung 0 calls per draw, 0 served from cache in either, all 94
+raw replies identical. Draw 2 diverged on 29 of the 69 prompts it shares with
+draw 0 (the rest are downstream of a diverged find). Rung 3's samples are
+real samples (7 of ~270 identical across d0/d1 at temperature 0.7). And the
+same 64 rung 0 prompts answered on 2026-09-01 (`.llm_cache`, `arm-sapbase`)
+disagree with today's replies on 34 — 26 of 40 find calls, 8 of 24 pick
+calls — at the same median latency (15 s) and p95 (~80 s), so partial GPU
+offload is not it. **So the run-to-run variance of gpt-oss:20b on CADEC is
+not a distribution over records; it is whole runs that either repeat exactly
+or do not** — the same shape FiNER showed on 2026-08-31 (d1 == d2, d0
+refused a document). The cause is NOT established; the candidate is
+server-side state (prompt-prefix cache, batch scheduling) that is identical
+for two consecutive draws under the same request sequence and different
+across sessions. A probe is registered below, to be run when the GPU is idle.
+Section 3 of the article must say "two of three draws identical" for CADEC
+now, not "three different files".
+
+**The error budget, one denominator** (226 gold, exact):
+| draw | matched | missed (find) | invented | on menu | lost retrieval | correct | lost pick (model / fallback) |
+|---|---|---|---|---|---|---|---|
+| d0 = d1 | 116 | 110 | 101 | 108 | 8 | 87 | 21 (19 / 2) |
+| d2 | 129 | 97 | 97 | 121 | 8 | 98 | 23 (22 / 1) |
+Detection loses 97-110 of 226 and invents 97-101; retrieval loses 8 on every
+draw; the pick loses 21-23, of which 1-2 are rung 0's own fallback rule. The
+55 / ~13 / ~58 estimate the plan forbade printing is now measured: **110 / 8
+/ 21** (d0), and retrieval is smaller than estimated.
+
+**Rung 1 lanes** (n / correct, exact / on no gold mention; then correct on
+overlap-matched spans, the five-model table's denominator):
+| draw | ACCEPT | BAND | REJECT |
+|---|---|---|---|
+| d0 = d1 | 53 / **75.5%** / 4; ovl 75.5% | 175 / 26.9% / 40; ovl 48.9% | 2 |
+| d2 | 51 / **82.4%** / 2; ovl 79.6% | 184 / 30.4% / 41; ovl 51.1% | 3 |
+The lane separates 2.7-2.8x on exact, 1.5-1.6x on overlap-matched. **ACCEPT
+is 75-82% correct here, not the 85% the article prints** (that figure is
+`arm-sapbase-d0`, 48 records; two of three of today's draws sit 10 points
+under it). BAND 27-30% is as printed.
+
+**Item 8 answered — what `contained` admits.** 38 / 38 / 39 records move
+BAND -> ACCEPT. By direction: `term_in_span` (a vocabulary term's words are a
+subset of the span — the model quoted MORE than the concept names) 26 / 26 /
+27, of which 11 / 11 / 13 correct exact; `span_in_term` (the span is a
+subset of a term, "neck" for |Neck pain|, "dying" for |Thoughts about dying|)
+12 / 12 / 12, of which 4 / 4 / 3 correct. The term_in_span records are
+mostly a qualifier wrapped around the concept — "severe fatigue" |Fatigue|,
+"wild mood swings" |Mood swings|, "EXTREME AND EXCRUCIATING MUSCLE PAIN IN
+NECK" |Neck pain| — and many are `unmatched` on exact and `correct` on
+overlap: the boundary problem of section 1, not a coding error. The
+span_in_term records are the model quoting a fragment and the check finding
+a concept that happens to contain it; 8 of 12 sit on no gold or the wrong
+code. A rule admitting "qualifier + exact term" and refusing "fragment of a
+term" is the candidate section 4 asked for; it is not built.
+
+**Item 16 decided on yield — `contained` wins three of three, and the
+shipped default stays `exact` pending the owner.** Final state rows:
+| draw | setting | ships | coverage | accuracy | **yield** | errors | err/100 | to a person |
+|---|---|---|---|---|---|---|---|---|
+| d0 | exact | 53 | 0.230 | 0.736 | **0.170** | 14 | 6.1 | 177 |
+| d0 | contained | 91 | 0.396 | 0.582 | **0.230** | 38 | 16.5 | 139 |
+| d1 | exact | 53 | 0.230 | 0.755 | **0.174** | 13 | 5.7 | 177 |
+| d1 | contained | 91 | 0.396 | 0.582 | **0.230** | 38 | 16.5 | 139 |
+| d2 | exact | 51 | 0.214 | 0.824 | **0.176** | 9 | 3.8 | 187 |
+| d2 | contained | 90 | 0.378 | 0.656 | **0.248** | 31 | 13.0 | 148 |
+Yield +0.060 / +0.056 / +0.072, sign-consistent; records to a person −38 /
+−38 / −39; errors per 100 shipped-or-not ×2.7 / ×2.9 / ×3.4. On the
+article's own rule (read yield) `contained` is the better setting. It is not
+flipped here because it moves the headline from "ships 23% at 0.74-0.82" to
+"ships 40% at 0.58-0.66", which the article frames as the deployer's dial
+(section 6), and because the held-out run cannot be repeated under it. The
+measurement is complete; the config change is the owner's call.
+
+**Item 11 answered — rung 3 by rung 1 lane.** Changes 25 / 28 / 27 per draw;
+of those in BAND 22 / 27 / 26, in ACCEPT 2 / 1 / 0, in REJECT 1 / 0 / 1. Net
+correct **+1 / −1 / −1**; correct destroyed 2 / 3 / 5; gained 3 / 2 / 4. The
+sign is not consistent and the magnitude is inside one record either way.
+**Most changes are churn on spans that sit on no gold mention** (d0: 17 of
+25 transitions are unmatched -> unmatched). Records rung 3 could not re-find
+(8 / 8 / 9 in BAND, 3-4 in ACCEPT) had been: unmatched 9 / 7 / 9, correct
+2 / 5 / 2, incorrect 1 / 0 / 1 — so the un-re-findable records are mostly
+invented spans, and rung 3's instability there is the extractor's
+instability on its own false positives. Unanimous: BAND 108 / 95 / 102,
+ACCEPT 41 / 39 / 42. So rung 3 IS under-targeted in the sense item 11 asked
+— nearly all its changes land in BAND — and it is still not worth its
+410,638 / 432,341 / 431,518 tokens there, because what it changes in BAND is
+mostly wrong before and after.
+
+**Item 14 answered — the judge, shown the menu, separates 3.4-4.2x against
+1.7x blind.** Same records, same second-family model (granite4:micro-h),
+paired on each draw:
+| draw | judge | judged | pass / fail | P(correct|pass) | P(correct|fail) | **separation** | span_bad | code_bad | not-on-list | best correct | best = pick |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| d0 | blind (shipped) | 223 (7 unparsed) | 136 / 87 | 0.463 | 0.276 | **1.68x** | 48 | 80 | — | — | — |
+| d0 | menu, ranked | 230 (0) | 136 / 94 | 0.544 | 0.149 | **3.65x** | 11 | 93 | 70 | 78 | 145 |
+| d0 | menu, shuffled | 230 (0) | 143 / 87 | 0.524 | 0.149 | **3.51x** | 14 | 85 | 66 | 77 | 150 |
+| d1 | blind | 226 (4) | 137 / 89 | 0.445 | 0.270 | **1.65x** | 48 | 81 | — | — | — |
+| d1 | menu, ranked | 230 (0) | 142 / 88 | 0.528 | 0.125 | **4.23x** | 12 | 87 | 69 | 77 | 147 |
+| d1 | menu, shuffled | 230 (0) | 144 / 86 | 0.521 | 0.128 | **4.07x** | 14 | 84 | 66 | 77 | 153 |
+| d2 | blind | 231 (7) | 142 / 89 | 0.493 | 0.292 | **1.69x** | 48 | 80 | — | — | — |
+| d2 | menu, ranked | 238 (0) | 146 / 92 | 0.562 | 0.163 | **3.44x** | 8 | 91 | 65 | 85 | 152 |
+| d2 | menu, shuffled | 238 (0) | 148 / 90 | 0.561 | 0.156 | **3.61x** | 10 | 89 | 65 | 85 | 153 |
+Three things. (1) The blind judge's 1.65-1.69x reproduces the article's
+1.65x exactly, three of three — it was a real measurement of a question the
+judge could not answer. (2) Shown the menu and the guidance, the same model
+doubles its separation and stops failing to parse (7/4/7 -> 0). Its
+separation now sits inside the free check's range (2.7-2.8x exact here; the
+article's 2.4-6.1x across models). (3) `not on this list` fires 65-70 times
+and 54 of the 70 on d0 are spans that sit on no gold mention: the verdict
+the blind judge could not give is mostly catching INVENTED spans, which is
+the detection failure the ladder otherwise cannot see. The judge's own line
+(`best`) is correct 77-85 times against the pick's 87-98 — it should not
+replace the pick — and it ratifies the pick on 145-153 of 230-238. Shuffling
+the menu changes little (3.5-4.1x): there is no slot-0 ratification to
+break. `span_bad` falls from 48 to 8-14, i.e. the denial note and the
+guidance removed most of the span failures; `code_bad` rises to 84-93. **The
+article's rung 4 section, Figure 13, the 1.65x row and §7's judge row are
+superseded by this table.** Still a 3.2B judge, still unread by rung 5 in
+the shipped config: the separation is a measurement, not a shipped number.
+
+**The shipped result and the spine.** Ships 53 / 53 / 51 at accuracy 0.736 /
+0.755 / 0.824, yield 0.170 / 0.174 / 0.176, errors per 100 records 6.1 / 5.7
+/ 3.8, to a person 177 / 177 / 187; stack F1 exact 0.176 / 0.181 / 0.186
+(overlap 0.172 / 0.176 / 0.186). The spine (rungs 0, 1, 5, 6 — self-correct,
+voting and judge deleted) ships the same 53 / 53 / 51 records with **13 / 13
+/ 9 errors against 14 / 13 / 9**: deleting the three paid layers changed
+**one answer of 53 on d0 and none on d1 or d2** — the one is rung 3's ACCEPT
+overwrite `LIPITOR.8#5`, correct -> incorrect on a 2-0 vote, shipped as
+VERIFIED. The three layers cost **495,933 / 517,631 / 521,389 tokens**
+(rung 2: 1,259 / 1,259 / 1,631 on 2 / 2 / 3 firings; rung 3: 410,638 /
+432,341 / 431,518; rung 4: 84,036 / 84,031 / 88,240). Rung 0: 161,768 /
+161,768 / 155,159 tokens, 94 calls, p95 78.8 / 83.3 / 59.2 s. Rung 3 p95
+118 / 137 / 144 s. Rung 4 p95 1.5 s. Rung 6: 354 / 354 / 374 declared
+minutes at 2.0 per record; the count is the headline.
+
+**Consensus across the three draws** (rung 0, mentions grouped by span
+overlap, unlocated spans matched on text, overlapping records compared per
+draw — the first cut of this function read identical draws as 95%, fixed in
+`24867eb`): 233 mentions; all three agree on span and code **164 (70.4%)**;
+same span, different code 22 (9.4%); same code, different span 1; both
+differ 10; found by two 15; found by one 21. Same span in all three 79.8%;
+same code where all three found it 83.8%. Against the article's 62.8 / 71.5
+/ 83.9 from `arm-sapbase`: higher on the first two because two of today's
+draws are identical — so the consensus figure is between-session variance
+wearing a three-draw label, and must be reported with the identical pair
+stated.
+
+**Registered from this run.** (a) The determinism probe: one find prompt,
+repeated N times in one session with and without another model loaded
+between repeats, to test the server-state hypothesis. (b) The lexical rule
+from item 8. (c) `lexical_mode` default: owner's call, numbers above.
+
+## 2026-09-03 — THE CONSOLIDATED RE-RUN, FiNER: three cold draws, byte-identical, and the judge arms on the same cache
+
+Runs `rerun-finer-d{0,1,2}` (base, `manifest.finer.json`, tree clean at
+`c488a46` / `5c9ffd2` — docs-only commits between draws), arms `-judgemenu`,
+`-judgeshuffle`, `-spine`. Dev split, 40 pseudo-documents, **165 scorable gold
+mentions**. Report `out/rerun/finer.{json,md}`. ~2 h 16 min per base draw
+(rung 0 ~38 min, rung 3 ~90 min), ~24 min per judge arm. Every number
+`score_run` span-exact unless it says overlap.
+
+**ALL THREE DRAWS ARE BYTE-IDENTICAL, AND NONE IS A REPLAY.** sha256 `3cde146c`
+three times; 110 rung 0 calls per draw, 0 cached, 110 of 110 raw replies
+identical between any pair. Consensus 298 of 298 mentions (100%). Rung 3's
+samples are real (temperature 0.7): 303 / 299 / 301 calls, tokens 2,631,243 /
+2,613,262 / 2,604,531. So on FiNER the model repeated itself three of three
+today, where the 2026-08-31 set had d1 == d2 and a refusal on d0. Together
+with CADEC's 2-of-3 this is the finding: **the run-to-run variance of
+gpt-oss:20b is whole runs that repeat or do not, and the rate at which they do
+changes between sessions.**
+
+**The determinism probe, run on the idle GPU after the last draw**
+(`scripts/determinism_probe.py`, CADEC `LIPITOR.159` — a document whose find
+reply differed between `rerun-cadec-d0` and `-d2`): the real find prompt sent
+8 times with the disk cache disabled, 4 back-to-back and 4 with one
+granite4:micro-h call between each so the extractor is evicted and reloaded.
+**8 of 8 replies identical** (898 + 529 tokens every time). So the divergence
+is not per-call sampling and it is not model reload. It appears only INSIDE a
+full run, where a document's call arrives after ~50 other requests to two
+models and an embedder; the candidate is server-side batching / prefix-cache
+state that depends on the preceding request sequence, and it is still not
+established. Recorded as narrowed, not solved. One more detail that points the same way:
+the probe's reply (`14648de1`, 529 completion tokens) is draw 2's reply for
+that document, not draw 0/1's (`e8706f74`, 1,434 tokens — a longer chain of
+thought to a different mention list). The isolated answer is the d2 answer;
+the identical pair d0 = d1 produced the OTHER one, inside their runs.
+
+**Rung 0** (all three draws): 304 spans; detection P/R/F1 **0.388 / 0.715 /
+0.503** exact, coding **0.390**, **F1 0.196** [0.105–0.282]; overlap detection
+F1 0.529, coding 0.395, F1 0.209. Recall 0.279 = 0.715 x 0.390.
+
+**The error budget** (165 gold, exact): matched **118**, missed **47**,
+invented **186** (304 predictions against 165 gold — the over-extraction the
+plan's item 5(b) asked to recompute on the reported run: the miss is WHICH
+numbers, not how many); on menu 118 (the whole vocabulary is the menu);
+correct **46**; lost at the pick **72**, of which **56 the model's own choice
+and 16 rung 0's fallback rule** writing menu line one (alphabetical:
+`AccrualForEnvironmentalLossContingencies`) onto mentions the pick reply
+skipped. B4's finding holds on the base run: the fallback lane is a fifth of
+the pick loss. CADEC's shape inverted, measured: find 110 / retrieve 8 / pick
+21 there, find 47 / retrieve 0 / pick 72 here.
+
+**Rung 1 lanes**: ACCEPT **0**, BAND **301** (15.3% correct exact; 38.6% on
+the 127 overlap-matched; 174 sit on no gold mention), REJECT **3** (all
+unlocated spans). Identical on every draw. Coverage 0 -> every record to a
+person, 304 of 304, 608 declared minutes.
+
+**Rung 3 by lane**: changed **74 / 83 / 94** codes, net correct **+6 / +8 /
++8**, destroyed 3 / 2 / 5, gained 9 / 10 / 13; not re-found 10 / 17 / 13
+(mostly invented spans: 9 / 15 / 12 had been unmatched). All changes in BAND,
+because everything is. **Sign-consistent positive on FiNER, three of three**,
+where CADEC read +1 / −1 / −1 — the one corpus where the pick, not the find,
+is the weak half is the one where asking again helps, by 6-8 records in 304,
+at 2.6 million tokens and a 296-356 s p95, and all of it withheld by rung 5
+anyway.
+
+**Rung 4 — the blind judge against the menu-shown judge**, paired per draw:
+| draw | judge | judged | pass / fail | P(correct|pass) | P(correct|fail) | sep. | span_bad | code_bad | not-on-list | best correct | best = pick |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| d0 | blind | 296 | 45 / 251 | 0.444 | 0.124 | 3.60x | 149 | 243 | — | — | — |
+| d0 | menu, ranked | 302 | 190 / 112 | 0.268 | 0.009 | 30.1x | 56 | 100 | 105 | 26 | 115 |
+| d0 | menu, shuffled | 301 | 186 / 115 | 0.274 | 0.009 | 31.5x | 50 | 105 | 109 | 33 | 119 |
+| d1 | blind | 296 | 47 / 249 | 0.404 | 0.137 | 2.96x | 149 | 241 | — | — | — |
+| d1 | menu, ranked | 302 | 192 / 110 | 0.276 | 0.009 | 30.4x | 55 | 95 | 100 | 26 | 117 |
+| d1 | menu, shuffled | 301 | 183 / 118 | 0.284 | 0.017 | 16.8x | 54 | 104 | 111 | 32 | 118 |
+| d2 | blind | 295 | 46 / 249 | 0.370 | 0.145 | 2.56x | 142 | 243 | — | — | — |
+| d2 | menu, ranked | 303 | 204 / 99 | 0.260 | 0.010 | 25.7x | 55 | 89 | 94 | 27 | 120 |
+| d2 | menu, shuffled | 301 | 195 / 106 | 0.272 | 0.009 | 28.8x | 50 | 95 | 99 | 32 | 128 |
+Rung 0 is identical across draws, so the three blind rows are three judge
+draws over the same records: granite is NOT deterministic here (45 / 47 / 46
+pass, separation 3.6 / 3.0 / 2.6x) — the rung 3 changes ahead of it differ,
+and so do its own replies on identical prompts (204 / 230 identical on CADEC
+between d0 and d1). The blind judge fails 84% of everything, which is the
+article's "as little information as passing everything". Shown the menu it
+passes 63-67% and fails 99-118, and **almost nothing it fails is correct** (1
+of ~110 on every draw) — the separation ratio is enormous because the
+denominator is near zero, not because P(correct|pass) rose (0.26-0.28 against
+0.37-0.44 blind; the base rate is 0.15). Read it as: the menu judge's FAIL is
+reliable and its PASS is not, the mirror of the blind judge. `not on this
+list` 94-111 times, `best` correct only 26-33 against the pick's 46; shuffling
+changes little. It reads the corpus's own guidance (WHAT KIND OF QUANTITY) —
+the identifier-readability explanation in article §5 survives: the judge
+engages with FiNER's tags either way, and what the menu adds here is the
+ability to say the answer is not on it.
+
+**Cost per base draw**: rung 0 947,360 tokens / 110 calls / p95 135-143 s;
+rung 3 2.60-2.63 M tokens / ~300 calls / p95 296-356 s; rung 4 ~270 k tokens
+/ 304 calls / p95 2.3 s; rung 2 never fired (REJECT is 3 unlocated spans, no
+fact to state). 304 routed, every draw. The spine ships the same nothing.
+
+**Item 5(b) closed**: FiNER's over-extraction reproduces on the reported run —
+304 proposed against 165 gold, 186 invented, 47 missed. Item 3(a) closed: the
+reported configuration's agreement figures are 100% on three genuine cold
+draws. Item 3(b) (five models on FiNER) remains after the article ships.
+
+## 2026-09-03 — every figure and every number in the article re-derived from the base run
+
+Owner asked for all numbers updated. Full read of `docs/article-v3.md`
+against `out/rerun/{cadec,finer}.json`. Text: the confidence table (now 1.0
+×151 / 0.99 ×59 / 0.95–0.98 ×13 / 0.90 ×7 of 230, nothing below 0.9, right
+38% of the time), the `contained` table restated at rung 1 (60.4 / 60.4 /
+64.4% against the section 6 policy table's post-rung-3 58.2 / 58.2 / 65.6%,
+both stated), BAND's composition (100 of 175 off the exact span, 40 on no
+gold), §9's narrow claim (blind 1.7× vs the check's 2.7×; shown the menu
+3.4–4.2×, at 84,000 tokens against zero, read by nothing), §10's judge and
+abstention rows, §8's "2:1", "four errors per hundred instead of sixty" →
+4–6 against 38–41 on development. Figures 6, 8, 11, 12, 13, 14 regenerated
+from `rerun-cadec-d0` (rung 1 lanes 53/175/2 with 40/47 correct; the
+lexical split 53→91; rung 2 fired 2; rung 3's tree 12 / 4 / 214 → 149 / 25 /
+15, 25 changed by lane and by prior state; rung 4 blind 136/87/7 and
+45/251/8 with the span/code decomposition; rung 5 53 shipped at 73.6%, 177
+withheld with 49 correct), figures 9 and 10 to 304 / 301 / 3, and every
+note block under them rewritten — the notes had kept "+5 net correct",
+"destroys none", "EVERY COUNT PROVISIONAL" after the diagrams were changed.
+Numbers deliberately NOT changed, each now labelled with its source: the
+held-out box (Phase F), the S0/S1/S2 study, the twenty-arm table, the
+five-model sweep rows for the four other models, the FiNER refusal set, the
+type-check arm (918 firings), the dictionary and short-circuit probes, and
+CONORM.
+
+## 2026-09-03 — every rung's verdict read as a shipping rule: the rungs are settings of one dial, and the menu judge earns one the free check cannot
+
+Owner asked what each rung would do if we shipped on its verdict alone.
+Computed from the base run's state tables (`rerun-cadec-d{0,1,2}` and the
+`-judgemenu` replays), means over three draws, yield = correct / all records:
+| ship only when… | ships | accuracy | yield | errors |
+|---|---|---|---|---|
+| rung 0, everything | 233 | 0.39 | 0.389 | 142 |
+| rung 1 ACCEPT (shipped) | 52 | 0.77 | 0.175 | 12 |
+| rung 3, every sample the same code | 142 | 0.49 | 0.295 | 73 |
+| rung 3, at least two agree | 186 | 0.43 | 0.341 | 107 |
+| rung 4 blind passes | 138 | 0.47 | 0.278 | 74 |
+| rung 4 menu-shown passes | 141 | 0.54 | 0.331 | 64 |
+Every verdict carries information (all above 0.39); none ships more correct
+answers than rung 0 (all work by withholding); they do not stack (free check +
+menu judge = the free check's 52 records). The menu judge is the one paid
+layer that earns a setting the free check cannot: half the batch at 0.54, the
+highest yield of any filter. Voting earns a worse setting at five times the
+price. Blind, the judge acted on would have withdrawn 14 shipped answers per
+draw, 10 correct (yield 0.17 -> 0.13); shown the menu, 0-1, right about the
+one. Added to the article as §6's closing subsection with two figures:
+`fig21-r0-r1-r4` (rung 0 -> rung 1 lanes -> rung 4 verdicts inside each lane,
+blind and shown the menu) and `fig20-dials` (six panels, one per rule, draw 0
+integers). Figures 14-16 renumbered to 15, 17, 18.
+
+## 2026-09-03 — the six shipping rules on FiNER: the roles swap
+
+Same computation on `rerun-finer-d{0,1,2}` (means; 304 records, 46 correct
+at rung 0 every draw): everything 0.15 / yield 0.151; everything after rung 3
+0.18 / 0.175; ACCEPT 0; rung 3 unanimous 96 at 0.30 / 0.095; rung 3 >=2 agree
+207 at 0.23 / 0.156; blind judge 46 at 0.41 / 0.061; menu judge 195 at 0.27 /
+0.172. Two rows beat rung 0 on yield, both because they are measured after
+rung 3's +6/+8/+8; the menu judge's yield equals shipping everything after the
+vote (0.172 vs 0.175) with 108 records and one correct answer removed — so on
+FiNER voting adds a little, the judge removes errors at almost no yield cost,
+and the free check contributes nothing. The blind judge is the strict setting
+here (46 at 0.41), the role the free check plays on CADEC. Added to the
+article's §6 dial subsection beside the CADEC table.
+
+## 2026-09-03 — the article re-evaluated against the base run alone: what moved when earlier-run numbers were removed
+
+Owner asked that no number from a previous run remain and that any logic
+resting on one be updated. Done in `6f37ecc`. What was removed, what
+replaced it, and what changed in the argument:
+
+- **Removed without replacement** (named in prose, figures left to this log):
+  the twenty-arm effect sizes (§2 table now lists shipped/rejected only), the
+  five-model sweep tables in §2 and §4, the reranker's bootstrap figures in
+  §3 (story kept in words), the FiNER refusal set's per-draw numbers, the
+  dictionary/short-circuit probe figures, the earlier rung 3 destroyed/1-0
+  counts, the judge-arm draws' policy row, "133 minutes", "5.1%".
+- **Replaced from the base run:** the attractor subsection — on the base
+  run `AccrualForEnvironmentalLossContingencies` is written **73 times of
+  304, all 73 by the fallback rule, none by the model** (gold: 2); the
+  judge-acting policy row (17% / 0.74-0.84 / yield 0.126-0.134 / 191-200 to
+  a person, replayed from the blind judge's own verdicts); the rung 3
+  overwrite example (`LIPITOR.8#5`, |Pain| -> |Increased pain| on a 2-0 vote,
+  shipped VERIFIED); §10's detection evidence (178 of 226 on overlap, 116
+  exact); FiNER false positives (177 on no gold, 60 tagged elsewhere in the
+  corpus — the earlier "77%" does not reproduce as stated); §3's
+  reproducibility table (CADEC 2 files of 3, FiNER 1).
+- **NOT REPRODUCED and dropped:** "76.8% of menus hold two concepts with an
+  identical label" — on the base run 0 of 230 menus do, by either the
+  `label` or the `fsn` key. The sentence now gives the design reason
+  (positions cannot be misspelled).
+- **THE TYPE CHECK, REPLAYED OVER THE BASE RUN** (`rerun-finer-d{0,1,2}-typecheck`,
+  rungs 7,2,3,4,5,6 over each draw's rung 1 snapshot, same cache): rung 7
+  rejects **35 of 304 on every draw**, 25 on nothing gold marks and 10 on a
+  gold mention, **all 10 wrongly tagged — 0 false rejections**, against
+  about 1 in 3 on the 2026-09-02 arm. It could type both sides for 243 of
+  304. Most of the 35 are the fallback's *Amount* constant on percentages
+  and counts. Rung 2: **35 attempted / 0 rescued / 29 declined / 6 unparsed
+  per draw** (105 firings, 0 corrections pooled), 31,070 prompt tokens per
+  draw; ACCEPT stays 0. **Logic change in §5:** the earlier claim "tuned on
+  gold, validated on gold, 29x worse on model output" is kept as what the
+  earlier run showed and paired with the base run's 0 of 10; which you get
+  depends on which spans arrive, and a check validated on gold cannot tell
+  you in advance. **Logic change in §6:** rung 2's null no longer has the
+  "the facts were a third wrong" excuse — every fact it was handed on the
+  base run was true, and it still held still.
+- **S0 and S1 re-measured** (below, when the draws finish): the only
+  remaining earlier-run numbers were §2's three-shape table and §10's
+  "0.018 against 0.209"; both are being replaced from three cold draws of
+  each step on the current frozen configuration, rung 0 only.
+
+## 2026-09-03 — the article's framing re-aligned with the base run: the paid layers were not all nothing, and the extractor was deliberately left improvable
+
+Owner's review of `article-v3-CADEC.md` found three misalignments the number
+pass had left. (1) Takeaway 1, "the only layer that paid for itself was
+free", no longer holds: the judge shown the menu separates 3.4-4.2x, which
+is a real signal, and the dial subsection prices it. Rewritten in both
+articles as "the layer that did the shipped work was free", with the judge's
+signal stated and its two limits (agrees with the free check on 52 of 53
+shipped records; read by nothing). The task-and-result paragraph had the same
+contradiction one level down — "not one of the six layers above the model is
+why" followed by two of those layers doing the work — now "two of the six
+layers are why", with the three paid ones sorted into could-not-test,
+could-not-show, and signal-unread. (2) Figures 3, 8 and 10 of the CADEC
+article carried FiNER panels: single-corpus sources written
+(`fig7-pipeline-cadec`, `fig13-rung2-cadec`, `fig18-rung4-cadec`), captions
+updated; the CADEC file now mentions FiNER once, in its header pointer to the
+two-corpus article. (3) Figure 1 labelled the judge "cost, changed nothing";
+it now has its own category, "real signal, read by nothing", blue, and the
+caption says so. Also added at the owner's request, both articles: a scope
+paragraph after the supervised-baseline paragraph — the extractor could be
+made better by understanding the data more closely, the largest gains ever
+measured were exactly that, and it was frozen on purpose because the question
+is what the rungs buy on a given model, not how good an agent for this task
+can be made — and a matching limitation.
+
+## 2026-09-03 — S0 and S1 re-measured on the frozen configuration, three cold draws each: the three-shape table is current
+
+Runs `rerun-cadec-s0-d{0,1,2}` and `rerun-cadec-s1-d{0,1,2}` (rung 0 only, dev,
+`--rung0-step`, LADDER_LLM_CACHE fresh per draw, 0 cached calls verified from
+the call traces); S2 is the base run. The only earlier-run numbers left in
+either article were the 2026-08-24 three-shape table and §9's "0.018 against
+0.209"; both replaced.
+
+| shape | records | F1 exact | F1 overlap | det F1 exact | coding exact | tokens | calls | parse fails | sha256 |
+|---|---|---|---|---|---|---|---|---|---|
+| S0 d0 | 179 | 0.030 | 0.030 | 0.472 | 0.065 | 141,183 | 40 | 3 | 7a7b50e1 |
+| S0 d1 | 186 | 0.030 | 0.030 | 0.505 | 0.059 | 147,477 | 40 | 3 | 7bbc407e |
+| S0 d2 | 196 | 0.024 | 0.024 | 0.502 | 0.049 | 141,143 | 40 | 3 | 1f7e6a58 |
+| S1 d0 | 206 | 0.252 | 0.381 | 0.471 | 0.535 | 82,753 | 53 | 1 | 2d52da35 |
+| S1 d1 | 204 | 0.253 | 0.396 | 0.477 | 0.530 | 81,546 | 55 | 0 | bd91b5b8 |
+| S1 d2 | 207 | 0.276 | 0.404 | 0.494 | 0.558 | 82,407 | 53 | 0 | 20118fde |
+| S2 (base) | 230/230/238 | 0.393/0.393/0.434 | 0.474/0.474/0.504 | 0.524/0.524/0.571 | 0.750/0.750/0.760 | 161,768/161,768/155,159 | 94 | 0 | c96289db ×2 / c3626412 |
+
+S0 specifics: null code 68/37/31 of 179/186/196 (38.0 / 19.9 / 15.8%);
+CONCEPT_LESS 7/11/15; of the coded records 14/104, 18/138, 27/150 (13 / 13 /
+18%) carry a code that exists in no SNOMED release — `2714004` |Pale skin| on
+d0, `84259000` |Fatigue|, `2299005` |Muscle weakness| among them. All six S0/S1
+draws are DIFFERENT files (S2: two of three identical).
+
+**Logic that changed in §2.** The old table read S1 and S2 as "close: half a
+point apart on overlap, 3.8 on exact, S2 costs 1.9x". On the frozen
+configuration S2 leads S1 by 14 points exact and 8-10 overlap at 1.9-2.0x the
+tokens; the design decision is now a clear win, not a declared trade on a half
+point. S0 is 8-10x worse than S1 (was "ten times"), at 1.7x S1's tokens and
+0.9x S2's (the old "for MORE tokens" no longer holds against S2). S0's null
+rate is 16-38% across draws (was one figure, 12.4%), and its fabricated-code
+share is stated for the first time from a run: 13-18% of what it commits to.
+
+Archived with the rest to the main checkout's
+`out/archive/reliability-ladder-b2-menu-f77617/`.
+
+## 2026-09-03 — `article-v3-CADEC.md` audited line by line against the base run's files: two examples and one error rate were not from the base run, and rung 2 did relocate a quote
+
+Every number in the CADEC article was checked against `out/rerun/cadec.md`,
+the per-record state tables, the call traces and the registry; the gold-side
+counts were recomputed from `ladder.score._pair` over the dev gold. What held:
+every table in §§2, 4, 5, 6 and 9, the 43 / 67 / 22 gold-side split (any
+overlap; the scorer's one-to-one pairing gives 178 — both now stated), the
+knee-pain, stamina, SHOULDERS and rectal-bleed records, the eight and twelve
+vocabulary names, 29 of 69 shared prompts diverging, the eight-of-eight probe,
+the confidence table, the held-out box. What did not:
+
+- **§3's two disagreement examples were from an earlier run.** On the base
+  run `"at my wits end"` is `310532000` |Wanders at night| on d0/d1 and
+  `417194006` |End feel| on d2 — never CONCEPT_LESS, never |At risk for
+  suicide| — and `"very very severe abdonimal pain"` is quoted identically by
+  all three draws. Replaced with the base run's own: the wits-end record, and
+  the one same-code-different-span mention of the 233 (`"no problems"` /
+  the six-word clause around it, |No complaints|, on no gold mention), plus
+  the coupled stamina case.
+- **"From the first find call onward" was wrong.** Draw 2's first divergent
+  reply is call 4 (the third document, `ARTHROTEC.57`); the first two documents
+  came back identical. The probe document `LIPITOR.159` is the one whose call
+  arrives ~50 requests in; the article conflated the two. Also added: the
+  isolated reply equals draw 2's, not the identical pair's.
+- **RUNG 2 RELOCATED ONE QUOTE ON EVERY DRAW.** `LIPITOR.739#1` ("Chronic
+  pain in muscles", ungrounded) was re-quoted as the seven-word clause that is
+  in the post, moved REJECT -> BAND with code `271327008`
+  (wrong; gold is two discontinuous mentions, 57676002 / 68962001). The
+  aggregates say `rescued 1, still_failing 1` on every draw; the article's
+  "could not relocate, rescued none" and §6's "never viable — an unlocatable
+  span carries no fact" were both false. Now "barely exercised: relocated one
+  quote per draw, corrected none", in §5, §6 (table and text), §9, §11 and
+  fig13. The 2026-09-03 re-run entry above also says "rescued none" — read it
+  as "corrected none".
+- **§9's development error rate was the accuracy, inverted.** "Four to six
+  errors per hundred instead of thirty-eight to forty-one" — ship-everything
+  makes 142 / 144 / 141 errors in 230 / 230 / 238, i.e. 59–63 per hundred. The
+  "4–6 against 38–41" in the re-derivation entry above was the same mistake.
+- Smaller: rung 3's un-re-findable records are 12 / 12 / 12, not "11 to 12";
+  §8 pointed at a FiNER-only finding (the fallback attractor) in the CADEC
+  article — replaced with the CADEC shuffled-menu result; the header listed
+  one of its "two claims"; "half the batch at 0.54" is 141 of 233 (three
+  fifths); §4's BAND composition now accounts for all 175 (47 correct, 40 on
+  no gold, 60 wrong boundary of which 20 right code, 27 wrong code on the
+  exact span, 1 declined); §6's stamina counter-example says "loss of
+  stamina", which is what draw 2 quoted (line 0, taken), rather than "no
+  stamina", which no draw quoted; the gold-replay numbers (43.1 / 56.8 /
+  54.5%, 8,666-record corruptions) are labelled model-free in the header.
+- Figures: `fig6-spine-cadec` said the free check separates 2.7× (d0 is
+  2.81×; now 2.7–2.8×); `fig20-dials` headed every panel "87 correct" while
+  the rung 3 and rung 4 panels are on post-rung-3 records and sum to 88 (now
+  labelled); `fig13-rung2-cadec` said rescued 0 (now relocated 1, corrected
+  0). All three re-rendered; the other ten CADEC figures re-render
+  byte-identical to their committed PNGs.
+- **Not fixed here, flagged:** `docs/article-v3.md` (two-corpus) shares the
+  rung 2 wording, the §3 examples and the 38–41 figure, and should get the
+  same pass.
+
+## 2026-09-04 — the gold replay re-run on the base run's configuration and denominator: the free check's ceiling is 32% on dev, not 43%
+
+The CADEC article's four model-free numbers — ACCEPT holds 43.1% of a perfect
+answer set, BAND 56.8%, `contained` lifts it to 54.5%, and the 8,666-record
+corruption probe — dated from 2026-08-22 and were over ALL 9,111 gold mentions,
+drugs included. Drugs coded to AMT match their own names lexically, so they
+inflated the ACCEPT ceiling, and the base run scores reactions only with 414
+exclusions applied. Re-run today with rung 1, the registry, the exclusions and
+the manifest byte-identical to the base run's commit (`git diff f3ff539 HEAD`
+on all of them is empty):
+
+- **`analysis.gold_lane_occupancy`** (TDD, `tests/test_analysis.py`) replays
+  rung 1 over the split's scorable reaction gold, concept-less gold counted
+  (it can only land in BAND) and reported separately; `scripts/rerun_analysis.py`
+  now writes it as a "Gold lane occupancy" section, both lexical settings.
+  `out/rerun/cadec.md` regenerated over the archived base run: every other
+  line reproduces the archive byte for byte.
+- **Dev, the base run's 226 mentions:** `exact` ACCEPT **73 (32.3%)** / BAND
+  153 (67.7%, ten of them concept-less); `contained` ACCEPT **104 (46.0%)** /
+  BAND 122. **Whole corpus, 6,595 after exclusions:** `exact` 2,491 (37.8%) /
+  4,101 (62.2%) / REJECT 3; `contained` 3,414 (51.8%). All 7,009 coded
+  reactions: 36.5% / 63.4% / REJECT 10 (0.14%). So `contained` buys **14
+  points**, not eleven, and the ceiling the article should quote is **32% /
+  68%** on its own denominator, 38% / 62% corpus-wide.
+- **The corruption probe** (`python -m ladder.probe --split all
+  --lexical-mode exact|contained`, JSON beside the report as
+  `out/rerun/cadec-probe-{all,dev}-{exact,contained}.json`): on 7,009 coded
+  reactions, hallucinated code 7,006 caught (0.9996), span shift 1.000,
+  fabricated quote 1.000, wrong semantic type 1.000. Near-miss (`sibling_wrong`,
+  6,492 reactions with a neighbour): caught **4** either way; vouched for in
+  ACCEPT **8 under `exact` (0.12%)** and **1,224 under `contained` (18.9%)** —
+  a factor of ~150, not 190. On dev alone (222 mentions): 0 caught, 0 / 31 in
+  ACCEPT. The old 19.0% and 0.1% reproduce to the rounding; the old "9 of
+  8,666" becomes 4 of 6,492 because the denominator is reactions with a
+  neighbour.
+- Also re-derived while here, all confirmed or corrected in §1 and §11: 1,250
+  posts, 9,111 mentions, 7,311 reactions, 7,009 coded; 414 excluded = 6% of
+  reactions; withdrawn codes 413 of 7,009 (**5.9%**, article said 6.3%) before
+  exclusions and **6 of 6,595** after (article said 0.5%); 227,554 keyword
+  rows; 129,675 active findings; 17.3% of scorable dev gold discontinuous
+  (39 of 226). The 48.7% refset coverage (2026-08-24) could not be re-run and
+  is now stated without its figure.
+- Article: takeaway 2, the header note (now dated and pointed at the replay
+  files), §4's REJECT, ACCEPT, BAND and `contained` subsections, §9's
+  false-rejection floor (10 of 7,009 / 3 of 6,595, the 9.3% no longer quoted),
+  `fig6-spine-cadec` (43% → 32% dev / 38% corpus). `docs/article-v3.md` still
+  carries the 43.1 / 56.8 / 54.5 / 8,666 figures.
+
+## 2026-09-04 — the same pass over `article-v3.md` (two-corpus): the CADEC defects ported, and the FiNER side had three of its own
+
+Every CADEC correction from the two entries above applied to the two-corpus
+article (§3 examples, the fifth-request divergence, rung 2 "relocated one,
+corrected none" in §6/§7/§10/§12, the 59–63 error rate, the 32% / 68% / 46%
+ceiling, 6,492 near-misses, 5.9% withdrawn codes, 183 / 178 gold reach, the
+stamina counter-example, `fig6-spine` 2.7–2.8×, `fig13-rung2` relocated 1).
+FiNER, checked against `out/rerun/finer.md`, the FiNER state and call traces,
+the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
+
+- **The type check's gold numbers were the TEST split's.** 87.7% coverage and
+  1.22% false rejections are `finer_type_check.py --split test` (164 of 187,
+  2 of 164). On the base run's own denominator — `--split dev`, 165 gold —
+  the same rules type **148 (89.7%)** and falsely reject **4 of 148 = 2.70%**,
+  the script's own "MARGINAL" band; all four are money figures read as
+  percentages or counts. `ladder.rungs.r7.check` replayed directly over the
+  same gold gives the identical 148 / 4. The article now quotes both, and
+  says which split the rules were tuned on.
+- **The "47.6" sentence is from `FINER.test.0000`, which is not in the dev
+  split**, and the real sentence reads "The effective tax rate was 47.6
+  percent" — three tag words, not the four the article counted. Replaced with
+  a dev-split gold example, `FINER.test.0059`: "resulting in an effective tax
+  rate of 63.8 percent" → EffectiveIncomeTaxRateContinuingOperations, three
+  of six tag words; 37 of the 165 dev gold mentions carry three or more of
+  their tag's words in the surrounding sentence.
+- **"19.5 → Revenues" is post-vote.** Rung 0 tagged `FINER.test.0103#2` as
+  RevenueFromContractWithCustomerExcludingAssessedTax; rung 3 changed it to
+  Revenues. Sentence verified in the document; the literal is gold in
+  `FINER.test.0008` (DeferredFinanceCostsNet) — "tags that same literal
+  elsewhere" holds.
+- **"12 synonyms per concept" is one concept, not the average.** The
+  registry holds 2.83 descriptions per active finding concept (median 2);
+  |Rectal hemorrhage| has twelve. Reworded.
+- **"Every fact it was handed was true" over-claimed** (rung 2 on the
+  type-check arm): all 35 rejections per draw were correct rejections, but the
+  fact string can still mistype the span ("97.5" called money on "97.5 million
+  … units"). Now "not one of the 35 rejections was false", in text and in
+  `fig13-rung2` and `fig4b-accept-finer` (whose "none of the 10 … is wrong"
+  read as the opposite of the fact).
+- The rung 6 queue rows: `ARTHROTEC.107#2` ("might not survive") left rung 0
+  as |Does not stand| and was rewritten by rung 3 to `151811000119109`
+  |Health condition feared but not present| before rung 5 withheld it; the
+  record's `sct_label` was not updated by rung 3 and still reads "does not
+  stand". The article now says both. "extremely sick" → |Illness| sits on a
+  gold mention with the wrong code.
+- Confirmed as printed: 17.3% of FiNER test sentences carry a tag (18,789 of
+  108,378, recounted from `test.jsonl`); 177 spans on nothing gold marks
+  against 186 unpaired one-to-one (both now stated); seven mentions per pick
+  prompt (median and max on FiNER, 38 of 70 calls); every FiNER judge, rung 3,
+  cost and dial figure; "sixteen edits" for the port (2026-08-28 entry).
+  "108 records removed" in the FiNER dial paragraph is 304 − 195 ≈ 109 on
+  rounded means; now "about 110". `fig18-rung4`'s "84,000 tokens a run" was
+  CADEC's rung 4 only; FiNER's is 270,000.
+- The remaining seven two-corpus figures re-render byte-identical to their
+  PNGs (`fig7-pipelines`, `fig12-finer-funnel`, `fig15-rung1-finer` and the
+  shared ones); `fig15`'s check list names four questions under a heading that
+  says four of five — the active/retired row is missing from the list, left
+  as is.

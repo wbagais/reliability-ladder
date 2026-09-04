@@ -44,6 +44,34 @@ with, and it needs no scorer. Agreement with rung 1 is a sanity check, not a
 result: the two should disagree somewhere, or the judge adds nothing.
 
 A judge that only ever agrees is a null result and worth reporting as one.
+
+THE JUDGE WAS NEVER SHOWN WHAT IT WAS JUDGING (plan item 14, found 2026-09-02,
+built 2026-09-03)
+-----------------------------------------------------------------------------
+Until now `judge()` formatted `source, text, start, end, sct` and nothing
+else: the judge was handed `code: 1003722009` — a bare nine-digit number with
+no name — and asked "is this the right SNOMED CT concept?". It cannot answer
+that, so the pass/fail split it returned measured a question that could not
+be answered. On FiNER `rec.sct` IS the tag name, which is the whole reason the
+judge engaged there: identifier readability, not context size.
+
+`rungs.4.menu` is `off | ranked | shuffled`. With a menu the judge is shown
+what the extractor was shown (`checks["candidates"]`, rendered exactly as
+rung 0 rendered it) and what it answered (the pick, as a line), and asked a
+third question — `best`: the line it would choose, or null for "the right
+answer is not on this list". That last verdict is one the system could not
+express: a code failure was ambiguous between a bad pick and a bad menu,
+which need opposite fixes.
+
+OFF BY DEFAULT: every published rung 4 figure was produced blind, and the arm
+is paired against it (manifest.judgemenu.json / manifest.judgeshuffle.json,
+one-key diffs, test-pinned). `shuffled` permutes the menu per record under a
+fixed seed, because the slot-0 attractor has been found three times and a
+judge shown a ranked list may ratify line 0. Safe here where it was unsafe in
+rung 0 (B4, 2026-09-01): the judge sees ONE record per call, so a per-record
+permutation cannot alias indices across a batch. A record with no menu (S0,
+S1) gets the blind prompt and says so in `checks["r4_menu"] = "none"` — the
+arm couples rung 4 to S2, and that is stated rather than hidden.
 """
 
 from __future__ import annotations
@@ -69,9 +97,17 @@ DEFAULTS = {
     # `show_vocabulary_term: False` stood here from 39a94f0 and was never read.
     # Removed 2026-08-31 with r2's two. What the judge is shown is decided by
     # PROMPT_SLOTS and judge_prompt(), where it is visible.
+    # off | ranked | shuffled — see the module docstring. OFF: every published
+    # rung 4 number is a blind-judge measurement and the arm is paired on it.
+    "menu": "off",
 }
 
-ALLOWED_CHECK_KEYS = frozenset({"r1_verdict", "r1_reason"})
+MENU_MODES = ("off", "ranked", "shuffled")
+
+# `candidates` and `r0_negated` are rung 0's OWN output — the menu it
+# retrieved and the polarity it claimed — not the answer key. `meddra_term`
+# stays out for the reason the docstring gives.
+ALLOWED_CHECK_KEYS = frozenset({"r1_verdict", "r1_reason", "candidates", "r0_negated"})
 
 # THE SEVENTH PROMPT CONSTANT. The FiNER port (2026-08-29) rendered six rung 0
 # prompt constants from `manifest.corpus.prompts` and missed this one, so a
@@ -92,6 +128,16 @@ PROMPT_SLOTS = {
     "vocabulary_concept": "SNOMED CT concept",
     "claim_verb": "was reported",
     "span_question": "really an {entity} {author} says they experienced",
+    # Rendered only when the record is marked [denied]. Phase B found the pick
+    # step declined every denied mention until told a denial is still coded;
+    # the judge had no such instruction and was failing spans CADEC marks
+    # correct. FiNER never sets r0_negated, so this never renders there.
+    "denied_note": (
+        "A {entity_short} marked [denied] is one {author} says they did NOT "
+        "have. It is still coded: the code names the {entity_short} being "
+        "denied, exactly as if it were experienced, and the denial is never a "
+        "reason to fail the span or the code."
+    ),
 }
 
 PROMPT_TEMPLATE = """You are checking another system's work. It read {source_owner} and claimed a specific {entity} {claim_verb}, with a {vocabulary} {claim_object}.
@@ -110,6 +156,91 @@ Is this claim correct? Judge two things separately:
 Return JSON only:
 {{{{"span_ok":true|false,"code_ok":true|false,"confidence":0.0,"why":"one short sentence"}}}}
 """
+
+#: The menu variant. Same header, same two questions, plus the list the
+#: extractor chose from, the line it chose, and a third question. Kept as a
+#: SEPARATE template so `menu: off` renders the blind prompt byte-identically
+#: — the arm must be paired against exactly what was published.
+PROMPT_TEMPLATE_MENU = """You are checking another system's work. It read {source_owner} and claimed a specific {entity} {claim_verb}, with a {vocabulary} {claim_object}.
+
+The {source_noun}:
+{{source}}
+
+Its claim:
+  {entity_short}: "{{text}}"{{denied}}  (characters {{start}}-{{end}})
+  code:     {{sct}}
+
+The system chose that code from this list, which is exactly what it was shown,
+after being told:
+{{guidance}}
+{{menu}}
+It chose {{pick}}.
+{{denied_note}}
+Is this claim correct? Judge three things separately:
+  span  - is "{{text}}" {span_question}?
+  code  - is {{sct}} the right {vocabulary_concept} for it?
+  best  - the number in [brackets] of the line YOU would choose for "{{text}}",
+          or null if no line on the list is right for it.
+
+Return JSON only:
+{{{{"span_ok":true|false,"code_ok":true|false,"best":<number or null>,"confidence":0.0,"why":"one short sentence"}}}}
+"""
+
+
+def _slots(slots: dict | None) -> dict:
+    """The resolved slot table one corpus renders with."""
+    given = dict(slots or {})
+    s = {**PROMPT_SLOTS, **given}
+    if "vocabulary" in given and "vocabulary_concept" not in given:
+        s["vocabulary_concept"] = given["vocabulary"]
+    if "source" in given and "source_owner" not in given:
+        s["source_owner"] = given["source"]
+    if "vocabulary" in given and "claim_object" not in given:
+        s["claim_object"] = given.get("id_name", "identifier")
+    s["span_question"] = s["span_question"].format(**{
+        k: v for k, v in s.items() if k != "span_question"})
+    s.setdefault("source_noun", s["source"])
+    src = s["source"]
+    s["source_noun"] = src[4:] if src.startswith("the ") else src
+    return s
+
+
+def judge_prompt_menu(slots: dict | None = None) -> str:
+    """The menu-showing judge prompt for one corpus, slots resolved the same
+    way as `judge_prompt`; still carrying the record placeholders."""
+    return PROMPT_TEMPLATE_MENU.format(**_slots(slots))
+
+
+def menu_order(rec: Record, mode: str, seed: int = 0) -> list[int]:
+    """The display order of `rec.checks["candidates"]`, as indices into it.
+
+    `ranked` is rung 0's order. `shuffled` is a pure function of
+    (seed, record_id) through blake2b — NOT `hash()`, which is salted per
+    process and would make two runs of one configuration incomparable.
+    """
+    cands = rec.checks.get("candidates") or []
+    order = list(range(len(cands)))
+    if mode != "shuffled" or len(order) < 2:
+        return order
+    import hashlib
+    import random
+
+    digest = hashlib.blake2b(f"{seed}:{rec.record_id}".encode("utf-8"),
+                             digest_size=8).digest()
+    random.Random(int.from_bytes(digest, "big")).shuffle(order)
+    return order
+
+
+def _render_menu(cands: list[dict], order: list[int]) -> tuple[str, dict[str, int]]:
+    """The numbered menu in display order, and code -> displayed number."""
+    lines = []
+    shown: dict[str, int] = {}
+    for n, i in enumerate(order):
+        c = cands[i]
+        lines.append(f'     [{n}] {c.get("fsn") or c.get("label")}')
+        if c.get("code") is not None:
+            shown.setdefault(str(c["code"]), n)
+    return "\n".join(lines), shown
 
 
 def judge_prompt(slots: dict | None = None) -> str:
@@ -155,10 +286,55 @@ def _guard(rec: Record) -> dict:
 
 
 def judge(rec: Record, source: str, llm, cfg: dict) -> tuple[dict | None, dict]:
-    _guard(rec)          # the boundary is applied before the prompt is built
+    allowed = _guard(rec)   # the boundary is applied before the prompt is built
+    mode = cfg.get("menu", DEFAULTS["menu"])
+    if mode not in MENU_MODES:
+        raise ValueError(
+            f"rungs.4.menu={mode!r} is not one of {MENU_MODES}. A judge shown a "
+            "menu nobody defined would grade under a label the article cannot "
+            "explain."
+        )
     s, e = (rec.spans[0] if rec.spans else (-1, -1))
-    prompt = judge_prompt(cfg.get("prompt_slots")).format(
-        source=source, text=rec.text, start=s, end=e, sct=rec.sct)
+    cands = allowed.get("candidates") if mode != "off" else None
+    order: list[int] = []
+    shown: dict[str, int] = {}
+    if cands:
+        seed = int(((cfg.get("manifest") or {}).get("seed")) or 0)
+        order = menu_order(rec, mode, seed=seed)
+        menu, shown = _render_menu(cands, order)
+        slots = _slots(cfg.get("prompt_slots"))
+        denied = bool(allowed.get("r0_negated"))
+        if rec.sct is not None and str(rec.sct) in shown:
+            n = shown[str(rec.sct)]
+            pick = f'line [{n}] {cands[order[n]].get("fsn") or cands[order[n]].get("label")}'
+        elif rec.sct is None:
+            pick = "no line (it gave no code)"
+        else:
+            pick = f"a code that is NOT on this list: {rec.sct}"
+        # What the extractor was TOLD, not only what it was shown: the pick
+        # guidance is where a corpus's coding convention lives (CADEC: the
+        # plain concept, severity dropped), and a judge grading without it
+        # fails correct picks against a rule it never saw (smoke run,
+        # 2026-09-03). Read through rung 0's own slot table so the two
+        # rungs cannot drift onto different wordings.
+        from ladder.rungs import r0 as _r0
+        guidance = "\n".join(
+            "  " + line for line in
+            _r0.resolve(cfg.get("prompt_slots"))["pick_guidance"].strip().splitlines())
+        prompt = judge_prompt_menu(cfg.get("prompt_slots")).format(
+            source=source, text=rec.text, start=s, end=e, sct=rec.sct,
+            denied=" [denied]" if denied else "",
+            guidance=guidance, menu=menu, pick=pick,
+            denied_note=(slots["denied_note"].format(**slots) + "\n") if denied else "",
+        )
+        rec.checks["r4_menu"] = mode
+        rec.checks["r4_menu_order"] = order
+    else:
+        prompt = judge_prompt(cfg.get("prompt_slots")).format(
+            source=source, text=rec.text, start=s, end=e, sct=rec.sct)
+        # "none": the arm was on and this record had nothing to show — an
+        # S0/S1 record, or a menu-less record. Distinct from "off".
+        rec.checks["r4_menu"] = "off" if mode == "off" else "none"
     # text="" — the template above already carries the post. Passing `source`
     # here sent every post TWICE (fixed 2026-08-25; Caller appends non-empty
     # text as a POST section). The doubled prompt was invisible with granite
@@ -168,12 +344,35 @@ def judge(rec: Record, source: str, llm, cfg: dict) -> tuple[dict | None, dict]:
         m = json.loads(raw)
     except json.JSONDecodeError:
         return None, {**usage, "parse_failed": True}
-    return {
+    v: dict[str, Any] = {
         "span_ok": bool(m.get("span_ok")),
         "code_ok": bool(m.get("code_ok")),
         "confidence": float(m.get("confidence", 0) or 0),
         "why": str(m.get("why", ""))[:200],
-    }, usage
+        # None when no menu was shown: "not asked" is not "not in the menu".
+        "best": None,
+        "best_code": None,
+        "menu_missing": None,
+    }
+    if cands:
+        best = m.get("best")
+        if best is None or (isinstance(best, str) and best.strip().lower() in ("null", "none")):
+            v["menu_missing"] = True
+        else:
+            try:
+                n = int(best)
+            except (TypeError, ValueError):
+                n = -1
+            if 0 <= n < len(order):
+                v["best"] = n
+                v["best_code"] = str(cands[order[n]].get("code"))
+                v["menu_missing"] = False
+            else:
+                # Never clamped: an index off the list is the judge failing to
+                # use the menu, and clamping would report that as a choice.
+                v["best_bad"] = best
+                v["menu_missing"] = False
+    return v, usage
 
 
 
@@ -225,6 +424,11 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
            # both.
            "span_ok": 0, "span_bad": 0, "code_ok": 0, "code_bad": 0,
            "r1_verdicts": Counter(), "judged": 0,
+           # The menu arm's own counts. `menu_missing` is the verdict the
+           # blind judge could not give; `best_is_pick` is how often the
+           # judge, shown the list, ratifies the extractor's line.
+           "menu": cfg.get("menu", DEFAULTS["menu"]),
+           "menu_shown": 0, "menu_missing": 0, "best_is_pick": 0,
            "t0": time.time()}
 
     for rec in records:
@@ -261,6 +465,14 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
         rec.checks["r4_verdict"] = verdict
         rec.checks["r4_confidence"] = v["confidence"]
         rec.checks["r4"] = v
+        rec.checks["r4_best_code"] = v.get("best_code")
+        rec.checks["r4_menu_missing"] = v.get("menu_missing")
+        if v.get("menu_missing") is not None:
+            agg["menu_shown"] += 1
+            if v["menu_missing"]:
+                agg["menu_missing"] += 1
+            elif v.get("best_code") is not None and str(v["best_code"]) == str(rec.sct):
+                agg["best_is_pick"] += 1
 
         # Sanity check, not a result. Two checkers that never disagree are one
         # checker paid for twice.
@@ -280,6 +492,9 @@ def apply(records: list[Record], sources: dict[str, str], cfg: dict[str, Any]) -
                          latency_ms=usage.get("seconds", 0.0) * 1000,
                          verdict=verdict,
                          span_ok=v["span_ok"], code_ok=v["code_ok"],
+                         menu=rec.checks.get("r4_menu"),
+                         menu_missing=v.get("menu_missing"),
+                         best_code=v.get("best_code"),
                          denominator="r4_judged", evaluable="pass")
 
     _stamp(ledger, RUNG, {"r4_judged": agg["judged"],
@@ -310,6 +525,10 @@ def report(agg: dict) -> None:
           f"not {agg['code_bad']:4d}")
     for k, v in sorted(agg["verdicts"].items()):
         print(f"     pooled {k:6s} {v:5d}  ({v / j * 100:.0f}%)")
+    if agg.get("menu_shown"):
+        print(f"\n  menu arm ({agg['menu']}): shown {agg['menu_shown']}   "
+              f"'not on this list' {agg['menu_missing']}   "
+              f"best = the pick {agg['best_is_pick']}")
 
     # Agreement is only informative when BOTH checkers vary. If rung 1 returned
     # one verdict for every record, "100% agreement" is arithmetic, not a

@@ -54,6 +54,7 @@ from typing import Any, Iterable
 
 from ladder.corpus import GOLD_NONE, GoldMention
 from ladder.schema import (
+    R_UNREVIEWABLE,
     CONCEPT_LESS,
     Record,
     ZONE_ABSTAIN,
@@ -92,6 +93,27 @@ ORACLE_PREFIX = "oracle"
 def queue(records: list[Record]) -> list[Record]:
     """The records a person is asked about: rung 5's abstained residue."""
     return [r for r in records if r.zone == ZONE_ABSTAIN]
+
+
+def unreviewable(q: list[Record]) -> list[Record]:
+    """The queued records a span-keyed desk cannot act on (plan item 17c).
+
+    Two shapes, both from rung 0's schema-invalid residue: a span nobody
+    located, `(-1, -1)`, and a span key that more than one queued record
+    shares — the desk matches resolutions one-to-one by span and refuses to
+    guess which of two identical keys a decision belongs to. Measured: nine on
+    dev, sixteen on test. Named so they are counted, not silently escalated.
+    """
+    from collections import Counter
+
+    keys = Counter(_span_key(r.doc_id, r.spans) for r in q)
+    out = []
+    for r in q:
+        located = all(isinstance(a, int) and isinstance(b, int) and 0 <= a < b
+                      for a, b in r.spans) and bool(r.spans)
+        if not located or keys[_span_key(r.doc_id, r.spans)] > 1:
+            out.append(r)
+    return out
 
 
 # --- the resolution format ---------------------------------------------------
@@ -232,7 +254,8 @@ def apply(
     ledger = cfg.get("ledger")
     mpr = float(cfg["minutes_per_record"])
     q = queue(records)
-    agg: dict[str, Any] = {"mode": mode, "queue": len(q)}
+    bad = {id(r) for r in unreviewable(q)}
+    agg: dict[str, Any] = {"mode": mode, "queue": len(q), "unreviewable": len(bad)}
 
     if mode == "simulated":
         for rec in q:
@@ -251,6 +274,9 @@ def apply(
                     # ABSTAIN. The minutes are declared, not measured.
                     evaluable="fail",
                     minutes_source="simulated",
+                    # Still priced: a person receives it either way. The
+                    # flag is what makes the count visible.
+                    unreviewable=id(rec) in bad,
                 )
         agg.update(
             human_minutes=round(len(q) * mpr, 2),
@@ -276,12 +302,24 @@ def apply(
             "test ONCE, and a gold-derived desk would put the answer key "
             "inside that run."
         )
-    matched, unmatched = match_resolutions(q, rows)
+    matched, unmatched = match_resolutions([r for r in q if id(r) not in bad], rows)
 
     counts = {d: 0 for d in DECISIONS}
     total_minutes = 0.0
     sources_seen: set[str] = set()
     for rec in q:
+        if id(rec) in bad:
+            # The desk could not act, which is not the same row as the desk
+            # did not act. Zero minutes: nobody could have spent any.
+            rec.mark(RUNG, ZONE_ESCALATE, R_UNREVIEWABLE)
+            if ledger:
+                ledger.log(
+                    RUNG, rec.doc_id, rec.record_id, ZONE_ESCALATE, "escalated",
+                    reason=R_UNREVIEWABLE, human_minutes=0.0,
+                    denominator="r6_queue", evaluable="could_not_run",
+                    minutes_source="unreviewable", unreviewable=True,
+                )
+            continue
         row = matched.get(id(rec))
         if row is None:
             rec.mark(RUNG, ZONE_ESCALATE, R_QUEUED)

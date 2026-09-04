@@ -107,7 +107,77 @@
 
 ## Current state
 - **All seven rungs exist** (rung 6 landed 2026-08-26, Phase E). The full
-  ladder runs end to end, cold, in order `[0,1,2,3,4,5,6]`. 581 tests, CI green.
+  ladder runs end to end, cold, in order `[0,1,2,3,4,5,6]`. 906 tests, CI green.
+- **EVERY RUN WRITES PER-RUNG ARTIFACTS NOW (2026-09-03, plan item 12,
+  `ladder/trace.py`).** Beside the ledger: `<run>.r<N>.records.jsonl` (the
+  record set as rung N left it), `<run>.state.jsonl` (one row per record per
+  rung: code, span, zone, verdicts, `changed_this_rung`, outcome against gold
+  under BOTH pairings — `unmatched` is a detection miss, `incorrect` a coding
+  miss, never pooled), `<run>.r<N>.calls.jsonl` (EVERY model call: full
+  prompt, raw reply, normalised reply, cost, cached flag, document) and
+  `<run>.aggregates.json` (each rung's aggregate + the LLM cache dir, git sha,
+  dirty flag, models). **The call traces carry corpus text and live under the
+  gitignored `out/` only.** `ladder/analysis.py` + `scripts/rerun_analysis.py`
+  derive every article number from these files — do not write scratch
+  harness scripts for numbers the module can produce; extend it, with a test.
+- **A draw is a NAMED cache directory, not a swapped symlink.**
+  `LADDER_LLM_CACHE=<dir>` is read by `llm.for_rung` and stamped into the
+  aggregates file. `scripts/consolidated_rerun.sh <corpus> <draw>` is the
+  protocol: refuses an existing cache, base cold, then the arms on the same
+  cache (their p95 includes hits — never compared). `scripts/rerun_spine.sh`
+  replays rungs 5-6 over the r1 snapshot at zero model calls.
+- **`rungs.4.menu` is `off | ranked | shuffled`, OFF (2026-09-03, plan item
+  14).** Until then the judge was handed `code: <nine digits>` and nothing
+  else — every rung 4 number before the re-run is a BLIND-judge measurement.
+  `ranked` shows the menu rung 0 retrieved, the line it chose, the `[denied]`
+  marker AND the corpus's pick guidance (the smoke run showed granite failing
+  correct picks on CADEC's plain-concept rule it had never been given), and
+  asks `best` — the line the judge would choose, or null for "not on this
+  list", the verdict that separates a bad pick from a bad menu. `shuffled`
+  permutes per record under blake2b(seed:record_id); safe here because the
+  judge sees one record per call (B4 found per-mention permutation UNSAFE
+  under rung 0's batched pick). Arms: `manifest[.finer].judge{menu,shuffle}.json`,
+  one-key diffs, pinned. Couples rung 4 to S2: S0/S1 records get the blind
+  prompt and `checks.r4_menu = "none"`.
+- **`rungs.5.tau` is RETIRED (2026-09-03, plan item 17d).** Refused by rung 5
+  (not filtered), gone from all manifests (`tau_retired` note in each
+  `rungs.5`), sweep/aurc/free_lunch deleted, `tests/test_tau_retired.py`
+  keeps it gone. Rung 0's confidence is `{1.0, 0.99}`; a calibrated input (B7)
+  would be a different dial. `R_LOW_CONFIDENCE` stays in the schema
+  (append-only).
+- **Rung 6 counts UNREVIEWABLE records** (plan item 17c): unlocated or
+  colliding span keys, `R_UNREVIEWABLE`, zero minutes in desk mode, still
+  priced in simulated mode (a person receives them), `agg["unreviewable"]`.
+- **THE CONSOLIDATED RE-RUN IS DONE (2026-09-03, plan item 0b)** — runs
+  `rerun-{cadec,finer}-d{0,1,2}` plus `-judgemenu`, `-judgeshuffle`, CADEC
+  `-lexarm`, and `-spine`; ~13 h; archived with checksums (call traces
+  included) to the main checkout's
+  `out/archive/reliability-ladder-b2-menu-f77617/`. **Every dev-side number
+  in `docs/article-v3.md` comes from it now; zero `[PENDING]` markers.** The
+  two decisions entries carry every per-draw figure. Headlines: CADEC rung 0
+  F1 0.393/0.393/0.434 (d0 = d1 byte-identical, d2 diverged); ACCEPT lane
+  75.5/75.5/82.4% correct; ships 53/53/51 at 0.74-0.82, yield 0.170-0.176,
+  177/177/187 to a person; the menu-shown judge separates 3.4-4.2x against
+  1.7x blind; rung 3 net +1/−1/−1, 22-27 of its 25-28 changes in BAND on
+  invented spans; `contained` wins on yield 3/3 (+0.06) at ~3x errors/100 —
+  **default NOT flipped, owner's call**. FiNER: three draws byte-identical,
+  F1 0.196, find loses 47 / pick 72 (16 the fallback rule), ACCEPT 0, rung 3
+  +6/+8/+8. **Determinism**: a diverging prompt repeated 8x in isolation
+  gives one reply (= d2's); the divergence happens only inside a full run —
+  server state between requests is the remaining suspect, unexplained.
+- **S0/S1 RE-MEASURED 2026-09-03** (`rerun-cadec-s{0,1}-d{0,1,2}`, rung 0
+  only, three cold draws each): S0 F1 0.030/0.030/0.024 (null code 16-38%,
+  13-18% of its codes nonexistent, 3/40 unparseable every draw), S1
+  0.252/0.253/0.276, S2 = base 0.393/0.393/0.434. S2 leads S1 by 14 pts exact
+  at 2x tokens — no longer "close". No earlier-run number remains in either
+  article; `docs/article-v3-CADEC.md` is the single-corpus version.
+- **B4 (break the slot-0 prior) is DONE but UNMERGED** on branch
+  `claude/reliability-ladder-b4-slot0-7784eb`: the attractor was
+  `_fill_from_menu`'s fallback writing menu line 0 (74 of 77 predictions),
+  NOT the model (its own slot-0 rate 1.3% vs 0.72% chance); the shuffle arm
+  was rejected 3/3 because a per-mention permutation under a BATCHED pick
+  aliases indices across the call. The article carries the correction; the
+  code and its two manifests are only on that branch.
 - **Rung 6 is a rung with two modes and no model.** The queue is rung 5's
   abstained residue (`checks.withheld` preserved). `simulated` prices the queue
   at `minutes_per_record` into the ledger's `human_minutes` — no answer

@@ -1,0 +1,61 @@
+// The article's spine: one question, three sub-questions, one answer each.
+// SECTION POINTERS WERE RE-CHECKED 2026-09-03 after the restructure that merged
+// four sections and renumbered the rest. If sections move again, they move here
+// too — this is the article's navigation aid and a stale pointer sends a reader
+// to the wrong evidence.
+// Colour carries the verdict, not the topic: green = the thing that worked,
+// red = the thing that did not, amber = the boundary condition.
+digraph spine {
+  rankdir=TB; bgcolor="white"; splines=ortho;
+  node [shape=none fontname="Helvetica" fontsize=13];
+  graph [nodesep=0.45 ranksep=0.55];
+
+  q [label=<<TABLE BORDER="0" CELLBORDER="2" CELLSPACING="0" CELLPADDING="12">
+      <TR><TD BGCOLOR="#f2f4f5"><B><FONT POINT-SIZE="15">Can you get answers you can DEFEND<BR/>out of a nondeterministic open-weight LLM?</FONT></B></TD></TR>
+      </TABLE>>];
+
+  q1 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+      <TR><TD BGCOLOR="#eef2f6"><B>Q1 &#183; How unstable is it?</B><BR/>
+          <FONT POINT-SIZE="11">one model, three cold draws &#183; &#167;3</FONT></TD></TR>
+      <TR><TD BGCOLOR="#ffffff" ALIGN="LEFT">
+          2 of 3 draws IDENTICAL to the byte<BR ALIGN="LEFT"/>
+          the third diverged as a whole run<BR ALIGN="LEFT"/>
+          a 4&#8209;point spread in F1, from one draw<BR ALIGN="LEFT"/>
+          </TD></TR></TABLE>>];
+
+  q2 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+      <TR><TD BGCOLOR="#e7f2ec"><B>Q2 &#183; What tells you an<BR/>answer is trustworthy?</B><BR/>
+          <FONT POINT-SIZE="11">seven rungs &#183; &#167;4&#8211;6</FONT></TD></TR>
+      <TR><TD BGCOLOR="#ffffff" ALIGN="LEFT">
+          free check separates 2.7&#8211;2.8&#215;, for nothing<BR ALIGN="LEFT"/>
+          judge 1.7&#215; blind, 3.4&#8211;4.2&#215; shown the menu &#8212; read by nothing<BR ALIGN="LEFT"/>
+          removing all three paid layers:<BR ALIGN="LEFT"/>&#160;&#160;one answer in 53 changed, on one draw of three<BR ALIGN="LEFT"/>
+          </TD></TR></TABLE>>];
+
+  q3 [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+      <TR><TD BGCOLOR="#fdf1e0"><B>Q3 &#183; When does that<BR/>stop working?</B><BR/>
+          <FONT POINT-SIZE="11">the free check&#8217;s ceiling &#183; &#167;4</FONT></TD></TR>
+      <TR><TD BGCOLOR="#ffffff" ALIGN="LEFT">
+          ships 21&#8211;23% of answers (dev)<BR ALIGN="LEFT"/>
+          32% of dev gold can ever land in ACCEPT (38% corpus-wide)<BR ALIGN="LEFT"/>
+          precondition: the writer&#8217;s words in the vocabulary<BR ALIGN="LEFT"/>
+          </TD></TR></TABLE>>];
+
+  ev [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+      <TR><TD BGCOLOR="#f2f4f5"><B>THE EVIDENCE UNDER ALL THREE</B> &#183; &#167;2, 3, 7</TD></TR>
+      <TR><TD BGCOLOR="#ffffff">one base run, three cold draws &#183; every arm replayed on its cache &#183; paired bootstrap &#183; hold the base fixed</TD></TR></TABLE>>];
+
+  out [label=<<TABLE BORDER="0" CELLBORDER="2" CELLSPACING="0" CELLPADDING="12">
+      <TR><TD BGCOLOR="#e7f2ec"><B><FONT POINT-SIZE="14">You cannot make the model repeatable.<BR/>You CAN make your knowledge about it repeatable.</FONT></B></TD></TR>
+      <TR><TD BGCOLOR="#ffffff"><FONT POINT-SIZE="12">The model reads. Recalling ids, building the list, ordering<BR/>it and abstaining belong to something that does not<BR/>resample. Checking: unproven. Judging: the model can, shown the evidence, and nothing reads it. &#160;&#8212;&#160;&#167;9</FONT></TD></TR>
+      </TABLE>>];
+
+  edge [color="#5a6b73" penwidth=1.6 arrowsize=0.8];
+  q -> q1; q -> q2; q -> q3;
+  q1 -> ev [style=dashed color="#98a6ad"];
+  q2 -> ev [style=dashed color="#98a6ad"];
+  q3 -> ev [style=dashed color="#98a6ad"];
+  ev -> out [penwidth=2.2 color="#2d6a4f"];
+
+  {rank=same; q1; q2; q3;}
+}

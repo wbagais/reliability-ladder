@@ -1,5 +1,5 @@
 // What rung 1's verdicts look like on CADEC. Two panels, because REJECT is
-// empty on this corpus — 0, 2 and 2 records across three draws.
+// near-empty on this corpus — 2, 2 and 3 records across the three base draws.
 //
 // Both records are real and were replayed 2026-09-02 through r1.zone with the
 // shipped lexical_mode=exact: "chronic pain" matches a term for 82423001;
@@ -10,29 +10,29 @@ digraph accept_cadec {
   node [shape=none fontname="Helvetica" fontsize=12];
 
   acc [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#2d6a4f">
-    <TR><TD ALIGN="LEFT" BGCOLOR="#e3f0e6"><FONT POINT-SIZE="12" COLOR="#2d6a4f"><B>ACCEPT · 48 of 222</B></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#e3f0e6"><FONT POINT-SIZE="12" COLOR="#2d6a4f"><B>ACCEPT · 53 of 230</B></FONT></TD></TR>
     <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
       <TR>
         <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the span</FONT><BR/><FONT POINT-SIZE="13"><B>chronic pain</B></FONT></TD>
         <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#2d6a4f"> &#8212;&#8212;  same words  &#8212;&#9654; </FONT></TD>
         <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">a name for 82423001</FONT><BR/><FONT POINT-SIZE="13"><B>Chronic pain</B></FONT></TD>
       </TR></TABLE></TD></TR>
-    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the vocabulary uses this very word &#183; 85.4% of this lane is correct</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the vocabulary uses this very word &#183; 75.5% of this lane is correct (rerun-cadec-d0)</FONT></TD></TR>
     </TABLE>>];
 
   band [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#946c00">
-    <TR><TD ALIGN="LEFT" BGCOLOR="#fdf0c8"><FONT POINT-SIZE="12" COLOR="#946c00"><B>BAND · 174 of 222</B></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fdf0c8"><FONT POINT-SIZE="12" COLOR="#946c00"><B>BAND · 175 of 230</B></FONT></TD></TR>
     <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="7">
       <TR>
         <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">the span</FONT><BR/><FONT POINT-SIZE="13"><B>extreme rectal bleed</B></FONT></TD>
         <TD BORDER="0"><FONT POINT-SIZE="11" COLOR="#946c00"> &#8212;  no term matches  &#8212;&#9654; </FONT></TD>
         <TD BGCOLOR="#f6f8f8"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">12 names for 12063002, among them</FONT><BR/><FONT POINT-SIZE="13"><B>rectal bleeding &#183; rectorrhagia</B></FONT></TD>
       </TR></TABLE></TD></TR>
-    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#a33333"><B>This answer is CORRECT.</B> <FONT COLOR="#5a6b73">"bleed" and "bleeding" are different strings, so nothing can confirm it.</FONT></FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#ffffff"><FONT POINT-SIZE="10.5" COLOR="#a33333"><B>The code is right; the boundary is not</B> (gold marks &#8220;rectal bleed&#8221;). <FONT COLOR="#5a6b73">"bleed" and "bleeding" are different strings, so nothing can confirm it.</FONT></FONT></TD></TR>
     </TABLE>>];
 
   rej [label=<<TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="9" COLOR="#c8d1d5" STYLE="dashed">
-    <TR><TD ALIGN="LEFT" BGCOLOR="#fbfbfb"><FONT POINT-SIZE="12" COLOR="#8a9aa1"><B>REJECT &#183; 0 of 222</B> &#8212; empty on this corpus, see section 4</FONT></TD></TR>
+    <TR><TD ALIGN="LEFT" BGCOLOR="#fbfbfb"><FONT POINT-SIZE="12" COLOR="#8a9aa1"><B>REJECT &#183; 2 of 230</B> &#8212; two invented quotes, text not in the post</FONT></TD></TR>
     </TABLE>>];
 
   acc -> band [style=invis]; band -> rej [style=invis];

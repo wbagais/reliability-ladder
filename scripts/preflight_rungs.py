@@ -373,7 +373,9 @@ def check_tau(man, records):
     exactly {1.0, 0.99} and nothing else, so the threshold never separates
     anything and the planned sweep was cancelled rather than run over a
     constant. A knob on a variable that does not vary is worse than no knob,
-    because it looks tunable.
+    because it looks tunable. The dial itself was RETIRED 2026-09-03 (plan
+    item 17d); this check stays because it is the precondition any future
+    calibrated abstention input (B7) would have to pass first.
     """
     c = Check(5, "threshold", "does the confidence field take more than one value?")
     vals = [r.get("confidence") for r in records if r.get("confidence") is not None]

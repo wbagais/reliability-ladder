@@ -25,25 +25,25 @@ digraph pipelines {
     <TR>
       <TD BGCOLOR="#eef1f2" ALIGN="RIGHT" WIDTH="128"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>INPUT</B></FONT><BR ALIGN="RIGHT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">the text, whole</FONT></TD>
       <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">one forum post</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" FACE="Courier" COLOR="#5a6b73">"...The first week I was a bit drowsy in<BR ALIGN="LEFT"/>the afternoons, and I still get drowsy if<BR ALIGN="LEFT"/>I take it late. No stomach trouble at all<BR ALIGN="LEFT"/>so far..."</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#946c00">illustrative - CADEC is non-transferable</FONT><BR ALIGN="LEFT"/></TD>
-      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">10 sentences of an SEC filing</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" FACE="Courier" COLOR="#5a6b73">"...The effective income tax rate was<BR ALIGN="LEFT"/>47.6 percent for the year ended<BR ALIGN="LEFT"/>December 31, compared with 32.1 percent<BR ALIGN="LEFT"/>in the prior year..."</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#946c00">illustrative - FiNER itself is quotable</FONT><BR ALIGN="LEFT"/></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">10 sentences of an SEC filing</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" FACE="Courier" COLOR="#5a6b73">"...The effective income tax rate was<BR ALIGN="LEFT"/>10.6 % and 13.8 % during the three and<BR ALIGN="LEFT"/>six months ended March 31, 2020..."</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#946c00">real - FINER.test.0047, dev split (CC-BY-SA-4.0)</FONT><BR ALIGN="LEFT"/></TD>
     </TR>
 
     <TR>
       <TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>1 · FIND</B><BR ALIGN="RIGHT"/>model</FONT></TD>
       <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">quote the reaction<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ "bit drowsy"</FONT></TD>
-      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">quote the bare number<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ "47.6"</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">quote the bare number<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ "10.6"</FONT></TD>
     </TR>
 
     <TR>
       <TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>RETRIEVE</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
-      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">embed the span, take the<BR ALIGN="LEFT"/>20 nearest concepts<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ a 20-line menu, 87% of<BR ALIGN="LEFT"/>the time holding the answer</FONT><BR ALIGN="LEFT"/></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">embed the span, take the<BR ALIGN="LEFT"/>20 nearest concepts<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ a 20-line menu, holding the answer for 93%<BR ALIGN="LEFT"/>of the spans the model finds</FONT><BR ALIGN="LEFT"/></TD>
       <TD BGCOLOR="#f7f8f8" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#8a9aa1"><I>no such step —<BR ALIGN="LEFT"/>139 tags fit in the prompt<BR ALIGN="LEFT"/></I></FONT><FONT POINT-SIZE="10.5" COLOR="#8a9aa1">→ the menu is the whole<BR ALIGN="LEFT"/>vocabulary, always complete</FONT><BR ALIGN="LEFT"/></TD>
     </TR>
 
     <TR>
       <TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>2 · PICK</B><BR ALIGN="RIGHT"/>model</FONT></TD>
       <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">choose a line number<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ 0 &#160;(of 20)</FONT></TD>
-      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">choose a line number<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ 41 &#160;(of 139)</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">choose a line number<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ 47 &#160;(of 139)</FONT></TD>
     </TR>
 
     <TR>

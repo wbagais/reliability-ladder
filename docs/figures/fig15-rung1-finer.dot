@@ -6,9 +6,10 @@
 // records carrying a tag, sct_exists True on all 328. Lane correctness is the
 // run's own answered-accuracy (0.1396) — with 350 of 351 in BAND that is the
 // lane's rate to within one record.
-// The type check: 2026-09-02. 44 rejections per run; pooled over three draws it
-// rejected 42 records with gold to check against, 27 correctly and 15 wrongly —
-// 35.71% false rejections on model output against 1.22% measured on gold.
+// The type check, replayed over the three base draws (2026-09-03): 35 rejections
+// per run, identical on every draw; 25 on nothing gold marks and 10 on a gold
+// mention, all 10 wrongly tagged — 0 false rejections here, against about 1 in 3
+// on an earlier run whose spans drifted differently, and 1.22% measured on gold.
 //
 // COLOUR KEY — the article's zone colours:
 //   green ACCEPT · amber BAND · red REJECT · grey a stage, no verdict
@@ -18,7 +19,7 @@ digraph rung1_finer {
         color="#c8d1d5" penwidth=1.2];
   edge [color="#b3bec3" penwidth=1.5 arrowsize=0.7 fontname="Helvetica" fontsize=10];
 
-  in [label="EVERY record rung 0 produced\n351" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
+  in [label="EVERY record rung 0 produced\n304" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
 
   chk [label="THE FREE CHECK, as shipped\ndoes the code exist? · is the span really in the text?\nis it the right kind of concept? · do the words match?"
        fillcolor="#f2f4f5" color="#8a9aa1" penwidth=1.6];
@@ -27,14 +28,14 @@ digraph rung1_finer {
 
   acc [label="ACCEPT · 0\nunreachable by construction" fillcolor="#f4f9f6" color="#8a9aa1"
        style="filled,rounded,dashed" penwidth=2];
-  band[label="BAND · 350\nplausible, nothing can confirm it\n≈14% correct" fillcolor="#fdf0c8" color="#946c00" penwidth=2.5];
-  rej [label="REJECT · 1\nan ungrounded span —\nthe only live check" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  band[label="BAND · 301\nplausible, nothing can confirm it\n15% correct" fillcolor="#fdf0c8" color="#946c00" penwidth=2.5];
+  rej [label="REJECT · 3\nunlocated spans —\nthe only live check" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   add [label="THE SECOND FREE CHECK we built for this corpus\ndoes the span's TYPE contradict the tag's?\n“…Percentage” against a number followed by “shares”"
        fillcolor="#f2f4f5" color="#8a9aa1" penwidth=1.6 style="filled,rounded,dashed"];
   acc2[label="ACCEPT · still 0\nit can only reject" fillcolor="#f4f9f6" color="#8a9aa1"
        style="filled,rounded,dashed" penwidth=2];
-  rej2[label="REJECT · 44 per run\nof the 42 checkable against gold:\n27 rightly rejected · 15 WRONGLY\n35.7% false, against 1.22% on gold"
+  rej2[label="REJECT · 35 per run\n25 on nothing gold marks · 10 on a gold mention, all wrongly tagged\n0 false rejections here; about 1 in 3 on an earlier run"
        fillcolor="#fbe4e4" color="#a33333" penwidth=2.5];
 
   in -> chk; chk -> vac [style=dashed color="#c8d1d5"];
@@ -46,11 +47,11 @@ digraph rung1_finer {
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Compare with the same rung on CADEC:</B> 48 ACCEPT at 85.4% correct, 174 BAND at 29.3%, 0 REJECT.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>Compare with the same rung on CADEC:</B> 53 ACCEPT at 75.5% correct, 175 BAND at 26.9%, 2 REJECT (rerun-cadec-d0).</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Same code, same lanes, same string comparison. One variable: the corpus.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>The second check changed nothing that ships.</B> It can only reject, so ACCEPT stays 0 and</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">coverage stays at zero — and its 44 rejections a run landed on records rung 5 was already</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">coverage stays at zero — and its 35 rejections a run landed on records rung 5 was already</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">withholding. It is off.</FONT></TD></TR>
         </TABLE>>];
   rej2 -> note [style=invis];

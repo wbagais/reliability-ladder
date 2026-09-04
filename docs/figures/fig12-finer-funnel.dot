@@ -1,13 +1,11 @@
 // FiNER's counterpart to fig9-funnel: where the answers go, same three stages
 // minus the one this corpus does not have.
 //
-// EVERY COUNT IS DERIVED, NOT RE-SCORED. data/finer is in no checkout, so the
-// records cannot be paired against gold again. The four inputs are recorded in
-// docs/decisions.md (2026-08-30, finer-full-3): 165 gold, 292 predictions,
-// detection recall 0.685, coding accuracy 0.446. The rest is multiplication,
-// and it closes: 165*0.685 = 113 found, leaving 52 missed — which matches the
-// "52 never-touched gold" the same entry records independently. 113*0.446 = 50
-// correct, and 50/165 = 0.303, the published recall.
+// EVERY COUNT IS MEASURED (2026-09-03): ladder/analysis.error_budget over
+// rerun-finer-d0 — draws 1 and 2 are the same file — against the 165 scorable
+// gold mentions, span-exact, out/rerun/finer.json. Of the 72 pick losses, 56
+// are the model's choice and 16 are rung 0's fallback rule writing menu line
+// one (alphabetical) onto a mention the pick reply skipped.
 //
 // COLOUR KEY — as fig9-funnel:
 //   teal a model runs here · green correct · red wrong or lost · grey a stage
@@ -19,27 +17,27 @@ digraph finer_funnel {
 
   input [label="INPUT\n40 filing excerpts" fillcolor="#eef1f2" fontsize=13 penwidth=1.6];
   find  [label="MODEL CALL 1 · find" fillcolor="#e3eeef" color="#0c6469"];
-  out1  [label="OUTPUT · 292 spans" fillcolor="#f4fafa" color="#0c6469"];
+  out1  [label="OUTPUT · 304 spans" fillcolor="#f4fafa" color="#0c6469"];
   key   [label="ANSWER KEY\n165 gold mentions" fillcolor="#ffffff" color="#8a9aa1"
          style="dashed,rounded"];
   cmp   [label="compare spans" fillcolor="#eef1f2"];
 
-  found [label="MATCHED\n113" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
-  fp1   [label="FALSE POSITIVE\nno gold at that span · 179" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
-  fn1   [label="FALSE NEGATIVE\nnever proposed · 52" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  found [label="MATCHED\n118" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+  fp1   [label="FALSE POSITIVE\nno gold at that span · 186" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  fn1   [label="FALSE NEGATIVE\nnever proposed · 47" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   ret   [label="RETRIEVE\nthis step does not exist here —\nall 139 tags are already on the menu"
          fillcolor="#f4f6f7" color="#c8d1d5" style="filled,rounded,dashed" fontcolor="#8a9aa1"];
 
   pick  [label="MODEL CALL 2 · pick\nchoose one of 139 lines" fillcolor="#e3eeef" color="#0c6469"];
-  tp    [label="TRUE POSITIVE\nright span, right tag\n50" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5 fontsize=13];
-  fp2   [label="FALSE POSITIVE\nright span, wrong tag · 63" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
+  tp    [label="TRUE POSITIVE\nright span, right tag\n46" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2.5 fontsize=13];
+  fp2   [label="FALSE POSITIVE\nright span, wrong tag · 72\n(16 of them the fallback rule)" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
 
   input -> find -> out1;
-  out1 -> cmp [label="  292"]; key -> cmp [label="  165  " style=dashed color="#8a9aa1"];
+  out1 -> cmp [label="  304"]; key -> cmp [label="  165  " style=dashed color="#8a9aa1"];
   cmp -> found; cmp -> fp1; cmp -> fn1;
-  found -> ret [label="  113"];
-  ret -> pick [label="  113, menu always complete"];
+  found -> ret [label="  118"];
+  ret -> pick [label="  118, menu always complete"];
   pick -> tp; pick -> fp2;
 
   { rank=same; out1; key }
@@ -48,12 +46,12 @@ digraph finer_funnel {
 
   note [shape=plaintext style="" fillcolor="white"
         label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The bottleneck has moved.</B> On CADEC the find step loses 100 of 226 and the pick loses 21.</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Here find loses 52 of 165 and <B>the pick loses 63</B> — more than detection, on a menu that</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73"><B>The bottleneck has moved.</B> On CADEC the find step loses 110 of 226 and the pick loses 21.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">Here find loses 47 of 165 and <B>the pick loses 72</B> — more than detection, on a menu that</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">always holds the right answer. Same pipeline, opposite failure.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">Counts derived from four recorded figures, not re-scored — see the source file. The 52 is</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">recorded independently, which is what makes the arithmetic checkable.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">Every count is measured on rerun-finer-d0 (draws 1 and 2 identical) by ladder/analysis.error_budget;</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#946c00">16 of the 72 pick losses are rung 0's own fallback rule.</FONT></TD></TR>
         </TABLE>>];
   fp2 -> note [style=invis];
 }
