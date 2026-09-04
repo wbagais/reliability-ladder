@@ -735,10 +735,8 @@ Graphviz.*
 
 **How well does it deliver?** **75.5%, 75.5% and 82.4% of what lands in ACCEPT
 is correct** across the three draws, against 26.9%, 26.9% and 30.4% in BAND —
-a 2.7× separation. (An earlier draw of the same configuration read 85.4%; two
-of three of the base draws sit ten points under it, and we print the base
-run.) Rung 1 reached that split with no model, no gold, and identically on
-every run.
+a 2.7× separation. Rung 1 reached that split with no model, no gold, and
+identically on every run.
 
 It is not a correctness claim, and it can be wrong. From the development split,
 sitting in ACCEPT:
