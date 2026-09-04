@@ -1,0 +1,61 @@
+// Every layer's verdict as a shipping rule, CADEC dev, rerun-cadec-d0 (2026-09-03),
+// for docs/article-infoq-CADEC.md. Adapted from fig20-dials.dot. Each panel starts
+// from the 230 records the extractor produced, as they stood after voting
+// (88 correct), and splits them into SHIP and TO A PERSON with the correct count on
+// each side. Accuracy = correct / shipped; F1 = span-exact against the 226 annotated
+// mentions, computed by ladder.score.score_run on the shipped subset. Voting is the
+// strict rule: "all 3" needs three samples voting one code; "2 of 3" needs a code
+// with two or more votes; a split, a tie or a missing sample goes to a person.
+// Rendered by make_infoq_figs.py. Numbers: scratchpad policies2.py over the archive.
+// COLOUR KEY: teal a model runs · grey no model · green ships · amber to a person
+digraph flow {
+  rankdir=TB; bgcolor="white"; newrank=true; nodesep=0.25; ranksep=0.35;
+  node [shape=box style="filled,rounded" fontname="Helvetica" fontsize=11 color="#5a6b73" fillcolor="#f2f4f5"];
+  edge [color="#b3bec3" penwidth=1.3 arrowsize=0.6 fontname="Helvetica" fontsize=9];
+
+  subgraph cluster0 { label="ship everything · the extractor's answer"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    a0 [label="230 records · 88 correct" fillcolor="#e3eeef" color="#0c6469"];
+    a1 [label="SHIP all 230\n88 correct · 142 wrong\naccuracy 0.38 · F1 0.397" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    a2 [label="TO A PERSON · 0" fillcolor="#fdf0c8" color="#946c00"];
+    a0 -> a1; a0 -> a2 [style=invis];
+  }
+  subgraph cluster1 { label="vocabulary check · ship only ACCEPT (the run's setting)"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    b0 [label="230 records · 88 correct" fillcolor="#e3eeef" color="#0c6469"];
+    b1 [label="do the span's words match a name of the code?\nnine lines of string comparison, no model" fillcolor="#eef1f2"];
+    b2 [label="SHIP · ACCEPT · 53\n39 correct · 14 wrong\naccuracy 0.74 · F1 0.283" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    b3 [label="TO A PERSON · BAND 175 + REJECT 2 · 177\n49 correct · 128 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    b0 -> b1; b1 -> b2 [label=" yes "]; b1 -> b3 [label=" no "];
+  }
+  subgraph cluster2 { label="voting · ship only when all 3 samples agree"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    c0 [label="230 records · 88 correct" fillcolor="#e3eeef" color="#0c6469"];
+    c1 [label="re-extract every post 3× at temperature 0.7\nmatch each sample's mentions to the record" fillcolor="#e3eeef" color="#0c6469"];
+    c2 [label="SHIP · three votes, one code · 108\n51 correct · 57 wrong\naccuracy 0.47 · F1 0.315" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    c3 [label="TO A PERSON · 122\nnever re-found 12 · found once 18 · found twice 45 · split or tied 47\n37 correct · 85 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    c0 -> c1; c1 -> c2; c1 -> c3;
+  }
+  subgraph cluster3 { label="voting · ship only when 2 of 3 samples agree"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    d0 [label="230 records · 88 correct" fillcolor="#e3eeef" color="#0c6469"];
+    d1 [label="the same 3 samples" fillcolor="#e3eeef" color="#0c6469"];
+    d2 [label="SHIP · a code with 2 or 3 votes · 185\n77 correct · 108 wrong\naccuracy 0.42 · F1 0.387" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    d3 [label="TO A PERSON · 45\nnever re-found 12 · found once 18 · tied 15\n11 correct · 34 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    d0 -> d1; d1 -> d2; d1 -> d3;
+  }
+  subgraph cluster4 { label="judge · ship only what the BLIND judge passes"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
+    e0 [label="230 records · 88 correct" fillcolor="#e3eeef" color="#0c6469"];
+    e1 [label="second model reads the post, the span, the bare code\nspan ok? code ok?" fillcolor="#e3eeef" color="#0c6469"];
+    e2 [label="SHIP · both ok · 136\n63 correct · 73 wrong\naccuracy 0.46 · F1 0.357" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    e3 [label="TO A PERSON · fail 87 + unparsed 7 · 94\n25 correct · 69 wrong" fillcolor="#fdf0c8" color="#946c00"];
+    e0 -> e1; e1 -> e2; e1 -> e3;
+  }
+  subgraph cluster5 { label="judge · ship only what the MENU-SHOWN judge passes"; fontname="Helvetica-Bold"; fontsize=12; color="#0c6469"; style="rounded";
+    f0 [label="230 records · 88 correct" fillcolor="#e3eeef" color="#0c6469"];
+    f1 [label="second model reads the post, the span, the 20-line menu,\nthe line picked, the coding rule · span ok? code ok? best line?" fillcolor="#e3eeef" color="#0c6469"];
+    f2 [label="SHIP · both ok · 136\n74 correct · 62 wrong\naccuracy 0.54 · F1 0.420" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
+    f3 [label="TO A PERSON · fail 94\n14 correct · 80 wrong\n(70 of the 94: “not on this list”)" fillcolor="#fdf0c8" color="#946c00"];
+    f0 -> f1; f1 -> f2; f1 -> f3;
+  }
+  { rank=same; a0; b0 }
+  { rank=same; c0; d0 }
+  { rank=same; e0; f0 }
+  a2 -> c0 [style=invis]; b3 -> d0 [style=invis]; c3 -> e0 [style=invis]; d3 -> f0 [style=invis];
+}
