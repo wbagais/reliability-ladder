@@ -1196,8 +1196,8 @@ rightness — is true of this check too.
 (In the code it is a separate rung rather than a branch inside rung 1, for one
 reason worth repeating: folded in, its contribution and the lexical check's
 become a single number that can never be separated again. This article exists
-because three layers turned out to contribute nothing, and that was only
-provable because each was counted on its own.)
+because three layers turned out to change nothing that shipped, and that was
+only provable because each was counted on its own.)
 
 We measured it on gold first, as we had measured everything else, and it looked
 excellent: it speaks to **87.7%** of mentions where the lexical check speaks to
