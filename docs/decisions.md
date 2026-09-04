@@ -5421,3 +5421,51 @@ the confidence table, the held-out box. What did not:
 - **Not fixed here, flagged:** `docs/article-v3.md` (two-corpus) shares the
   rung 2 wording, the §3 examples and the 38–41 figure, and should get the
   same pass.
+
+## 2026-09-04 — the gold replay re-run on the base run's configuration and denominator: the free check's ceiling is 32% on dev, not 43%
+
+The CADEC article's four model-free numbers — ACCEPT holds 43.1% of a perfect
+answer set, BAND 56.8%, `contained` lifts it to 54.5%, and the 8,666-record
+corruption probe — dated from 2026-08-22 and were over ALL 9,111 gold mentions,
+drugs included. Drugs coded to AMT match their own names lexically, so they
+inflated the ACCEPT ceiling, and the base run scores reactions only with 414
+exclusions applied. Re-run today with rung 1, the registry, the exclusions and
+the manifest byte-identical to the base run's commit (`git diff f3ff539 HEAD`
+on all of them is empty):
+
+- **`analysis.gold_lane_occupancy`** (TDD, `tests/test_analysis.py`) replays
+  rung 1 over the split's scorable reaction gold, concept-less gold counted
+  (it can only land in BAND) and reported separately; `scripts/rerun_analysis.py`
+  now writes it as a "Gold lane occupancy" section, both lexical settings.
+  `out/rerun/cadec.md` regenerated over the archived base run: every other
+  line reproduces the archive byte for byte.
+- **Dev, the base run's 226 mentions:** `exact` ACCEPT **73 (32.3%)** / BAND
+  153 (67.7%, ten of them concept-less); `contained` ACCEPT **104 (46.0%)** /
+  BAND 122. **Whole corpus, 6,595 after exclusions:** `exact` 2,491 (37.8%) /
+  4,101 (62.2%) / REJECT 3; `contained` 3,414 (51.8%). All 7,009 coded
+  reactions: 36.5% / 63.4% / REJECT 10 (0.14%). So `contained` buys **14
+  points**, not eleven, and the ceiling the article should quote is **32% /
+  68%** on its own denominator, 38% / 62% corpus-wide.
+- **The corruption probe** (`python -m ladder.probe --split all
+  --lexical-mode exact|contained`, JSON beside the report as
+  `out/rerun/cadec-probe-{all,dev}-{exact,contained}.json`): on 7,009 coded
+  reactions, hallucinated code 7,006 caught (0.9996), span shift 1.000,
+  fabricated quote 1.000, wrong semantic type 1.000. Near-miss (`sibling_wrong`,
+  6,492 reactions with a neighbour): caught **4** either way; vouched for in
+  ACCEPT **8 under `exact` (0.12%)** and **1,224 under `contained` (18.9%)** —
+  a factor of ~150, not 190. On dev alone (222 mentions): 0 caught, 0 / 31 in
+  ACCEPT. The old 19.0% and 0.1% reproduce to the rounding; the old "9 of
+  8,666" becomes 4 of 6,492 because the denominator is reactions with a
+  neighbour.
+- Also re-derived while here, all confirmed or corrected in §1 and §11: 1,250
+  posts, 9,111 mentions, 7,311 reactions, 7,009 coded; 414 excluded = 6% of
+  reactions; withdrawn codes 413 of 7,009 (**5.9%**, article said 6.3%) before
+  exclusions and **6 of 6,595** after (article said 0.5%); 227,554 keyword
+  rows; 129,675 active findings; 17.3% of scorable dev gold discontinuous
+  (39 of 226). The 48.7% refset coverage (2026-08-24) could not be re-run and
+  is now stated without its figure.
+- Article: takeaway 2, the header note (now dated and pointed at the replay
+  files), §4's REJECT, ACCEPT, BAND and `contained` subsections, §9's
+  false-rejection floor (10 of 7,009 / 3 of 6,595, the 9.3% no longer quoted),
+  `fig6-spine-cadec` (43% → 32% dev / 38% corpus). `docs/article-v3.md` still
+  carries the 43.1 / 56.8 / 54.5 / 8,666 figures.

@@ -87,6 +87,29 @@ def score_both(records, golds, exclude, vocab) -> dict:
     return out
 
 
+def gold_lanes(man: dict, docs, golds, exclude) -> dict:
+    """Rung 1 replayed over the split's gold under each lexical setting: the
+    free check's ceiling on the run's own denominator (CADEC only — other
+    corpora carry no SNOMED registry to ask)."""
+    if man["corpus"]["name"].lower() != "cadec":
+        return {}
+    from ladder.calibrate import load_meddra
+    from ladder.registry import Registry
+    from ladder.rungs import r1
+    registry = Registry(man["vocabulary"]["snomed_db"])
+    meddra = load_meddra(man)
+    base = {**r1.DEFAULTS, **{k: v for k, v in man["rungs"].get("1", {}).items() if k in r1.DEFAULTS}}
+    out = {"manifest_lexical_mode": base["lexical_mode"]}
+    for mode in ("exact", "contained"):
+        params = {**base, "lexical_mode": mode}
+
+        def zone(rec, _p=params):
+            return r1.zone(rec, docs[rec.doc_id].text, registry, _p, meddra)[0]
+
+        out[mode] = analysis.gold_lane_occupancy(golds, exclude, zone)
+    return out
+
+
 def analyse(man: dict, prefixes: list[str], arms: list[str], full_vocab: bool) -> dict:
     corpus = _corpus_for(man)
     docs = corpus.load_corpus(_corpus_root(man), **_corpus_opts(man))
@@ -99,6 +122,7 @@ def analyse(man: dict, prefixes: list[str], arms: list[str], full_vocab: bool) -
     report: dict = {"manifest": man.get("task"), "corpus": man["corpus"]["name"],
                     "n_docs": len(doc_ids), "n_gold_scored": len(gold_scored),
                     "draws": {}, "arms": {}}
+    report["gold_lanes"] = gold_lanes(man, docs, golds, exclude)
     draws = []
     for prefix in prefixes:
         run = load_run(prefix)
@@ -240,6 +264,16 @@ def fmt(report: dict) -> str:
         L.append(f"- mentions {c['mentions']}: all agree {c['all_agree']} ({c['consensus_pct']}%), same span diff code {c['same_span_diff_code']}, "
                  f"same code diff span {c['same_code_diff_span']}, both differ {c['both_differ']}, found by two {c['found_by_two']}, found by one {c['found_by_one']}")
         L.append(f"- same span all draws {c['same_span_all_three_pct']}%; same code where all found {c['same_code_given_all_found_pct']}%")
+    if report.get("gold_lanes"):
+        gl = report["gold_lanes"]
+        L.append("")
+        L.append(f"## Gold lane occupancy (rung 1 replayed over the split's scorable reaction gold, no model; manifest lexical_mode = {gl['manifest_lexical_mode']})")
+        L.append("| lexical_mode | n | coded | concept-less (all BAND) | ACCEPT | BAND | REJECT |")
+        L.append("|---|---|---|---|---|---|---|")
+        for mode in ("exact", "contained"):
+            o = gl[mode]
+            cell = lambda z: f"{o['lanes'].get(z, 0)} ({o['pct'].get(z, 0.0)}%)"
+            L.append(f"| {mode} | {o['n']} | {o['coded']} | {o['concept_less']} | {cell('ACCEPT')} | {cell('BAND')} | {cell('REJECT')} |")
     L.append("")
     L.append("## Provenance")
     for name, d in report["draws"].items():

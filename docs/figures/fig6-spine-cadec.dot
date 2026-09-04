@@ -37,7 +37,7 @@ digraph spine {
           <FONT POINT-SIZE="11">the free check&#8217;s ceiling &#183; &#167;4</FONT></TD></TR>
       <TR><TD BGCOLOR="#ffffff" ALIGN="LEFT">
           ships 21&#8211;23% of answers (dev)<BR ALIGN="LEFT"/>
-          43% of gold can ever land in ACCEPT<BR ALIGN="LEFT"/>
+          32% of dev gold can ever land in ACCEPT (38% corpus-wide)<BR ALIGN="LEFT"/>
           precondition: the writer&#8217;s words in the vocabulary<BR ALIGN="LEFT"/>
           </TD></TR></TABLE>>];
 

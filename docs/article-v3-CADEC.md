@@ -11,9 +11,11 @@
 > the result worse (section 2). Every development-side number comes from one
 > base run of the full ladder — three cold draws, every arm replayed on the same
 > cache, run ids `rerun-cadec-d{0,1,2}` — and nothing measured on an earlier
-> model run is quoted. The vocabulary-only replays over the answer key in
-> section 4 — lane occupancy, and the planted corruptions — involve no model
-> and are quoted as what they are. Where an earlier experiment is mentioned it
+> model run is quoted. The replays of rung 1 over the answer key in section 4 —
+> lane occupancy, and the planted corruptions — involve no model; they were
+> re-run on the base run's configuration and denominator on 2026-09-04
+> (`out/rerun/cadec.md`, `cadec-probe-*.json`) and are quoted from that
+> replay. Where an earlier experiment is mentioned it
 > is named as such, without its figures; those live in the decisions log. What
 > remains open is listed in section 10.
 
@@ -33,7 +35,7 @@ Source: author-created with Matplotlib.*
 ## Five key takeaways
 
 1. **The layer that did the shipped work was free.** A string comparison against the vocabulary — zero tokens, zero latency — sorts answers into a lane **75–82%** correct and one **27–30%** correct, and the refusal step ships only the first. The three paid layers — self-correction, sampled voting and a second-model judge — cost **496,000 to 521,000 tokens** per run between them and changed **one shipped answer out of 53 on one draw and none on the other two**. One of them earns something: shown the menu it is judging, the judge separates right from wrong 3.4–4.2×. But on the lane that ships it agrees with the free check on 52 records of 53, and nothing reads its verdict.
-2. **That free check has a precondition, and one query tests it.** It works when the vocabulary's names and the writer's words come from the same language. On CADEC they do for less than half of even a perfect answer set — **43%** of gold mentions can land in the lane it vouches for, **57%** cannot, before any model runs — and that ceiling is knowable without spending a token. Test it before you build on it.
+2. **That free check has a precondition, and one query tests it.** It works when the vocabulary's names and the writer's words come from the same language. On CADEC they do for a third of even a perfect answer set — **32%** of the development split's gold mentions can land in the lane it vouches for, **68%** cannot, before any model runs (38% and 62% over the whole corpus) — and that ceiling is knowable without spending a token. Test it before you build on it.
 3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions not proposed as gold marks them, 31 spans invented outright. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.38 to 0.74–0.82** and yield from **0.38 to 0.17** on the same records, three draws of three — abstaining always raises precision. The judge, once shown the menu it was judging, separates right from wrong **3.4–4.2×** where it had managed 1.7× blind; nothing reads its verdict. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
 5. **Nondeterminism arrives in whole runs.** At temperature 0 the model we shipped repeated itself to the byte on **two draws of three** — 94 real calls each — and diverged on the third from the first find call onward, for a **4.1-point** spread in F1. Where all three runs found the same mention they chose the same code **84%** of the time; what varies is mostly the reading, not the labelling. Every measurement error we made inside that band flattered us.
@@ -220,8 +222,8 @@ naming the same concept correctly.
 
 ### What we removed from the answer key, and why
 
-Before any of this runs, 414 of CADEC's gold mentions are dropped from the
-denominator — 6% of the corpus. Three reasons, all recorded per record in
+Before any of this runs, 414 of CADEC's 7,311 reaction mentions are dropped
+from the denominator — 6% of them. Three reasons, all recorded per record in
 `data/exclusions.csv`:
 
 | reason | mentions | what it is |
@@ -239,8 +241,8 @@ reported here.
 
 The retired codes are the bulk, and dropping them matters more than the count
 suggests. CADEC was coded against a 2015 release and we score against a current
-one; **before this filter 6.3% of coded gold carries a withdrawn code, and after
-it 0.5% does.** So the staleness that would otherwise sit inside every coding
+one; **before this filter 5.9% of coded gold carries a withdrawn code — 413 of
+7,009 — and after it 6 mentions of 6,595 do.** So the staleness that would otherwise sit inside every coding
 number is removed from the denominator rather than absorbed into it — and where
 a retired code survives *with* a recorded successor, the scorer names that
 outcome separately rather than counting it right or wrong.
@@ -295,7 +297,8 @@ rather than hidden.
 A fourth design was dropped before it could be measured properly: show the model
 one fixed printed list of codes and have it pick. No printable list survives
 contact with this task. The obvious candidate is the answer key's own inventory,
-which is circular; the best ontology-native alternative covers 48.7% of gold; and
+which is circular; the best ontology-native alternative, a SNOMED refset of
+clinical manifestations, covered under half of gold when we measured it; and
 the real keyword table is 227,554 rows. **A list retrieved per mention is S2.**
 
 Everything the rest of this section measures is a change *within* S2.
@@ -697,8 +700,9 @@ does it deliver, and how much of the batch lands there?**
 ### REJECT — exhaustively tested, provably exact, and empty
 
 **What can it catch?** We took the answer key — every record correct by
-construction — and broke it one way at a time, all 8,666 records per class. Each
-class targets one of rung 1's three rejection paths:
+construction — and broke it one way at a time, all 7,009 coded reaction
+mentions per class, on the configuration the base run used. Each class
+targets one of rung 1's three rejection paths:
 
 | planted error | the check that fires | share caught |
 |---|---|---|
@@ -714,8 +718,8 @@ sound, before we ask what it is worth.
 
 **What can it not catch?** One more corruption, and it is the one that matters: a
 **near-miss** — a real, active, correctly-typed clinical finding that is simply
-the wrong one, which is the mistake a coding model actually makes. Caught **9
-times out of 8,666.**
+the wrong one, which is the mistake a coding model actually makes. Planted on
+the 6,492 mentions whose code has such a neighbour, it is caught **4 times.**
 
 The difference is not one of degree. The four it catches are answers that are
 *impossible*, and a vocabulary can contradict those flatly. A near-miss is an
@@ -777,9 +781,10 @@ as wrong. We have not measured how often that happens, and it would move the
 coding numbers in our favour — which is a reason to be careful about it, not a
 reason to skip it. It is on the list at the end.
 
-**How much lands here?** 53, 53 and 51 of 230, 230 and 238 records, and **43.1%
-of a perfect answer set.** That is the ceiling on how much of the batch this rung
-can settle for free.
+**How much lands here?** 53, 53 and 51 of 230, 230 and 238 records — and, run
+over the answer key for these same 226 mentions, **73 of them: 32% of a perfect
+answer set** (38% over the whole corpus). That is the ceiling on how much of
+the batch this rung can settle for free.
 
 ### BAND — the absence of a verdict
 
@@ -800,8 +805,10 @@ Gold's own span for that mention is `"rectal bleed"`, and it lands in BAND too.
 **How well does it deliver?** 27–30% correct — and that is the design working.
 BAND is where uncertainty is supposed to accumulate.
 
-**How much lands here?** 175, 175 and 184 of 230, 230 and 238 records, and **57%
-of even a perfect answer set.** That is the bill the paid rungs exist to work
+**How much lands here?** 175, 175 and 184 of 230, 230 and 238 records — and
+**153 of the 226 gold mentions, 68% of even a perfect answer set** (62%
+corpus-wide; ten of the 153 are mentions the annotators coded to no concept,
+which can land nowhere else). That is the bill the paid rungs exist to work
 through, and you can know its size before spending a token.
 
 One more thing the figure shows: **BAND is where the false positives go.** Of
@@ -824,9 +831,11 @@ pick one in the manifest and it applies to every record.
 `contained` is the looser one. It accepts everything `exact` accepts and more, so
 switching to it can only move records **from BAND into ACCEPT**, never back.
 
-**It buys eleven points.** Free coverage goes from **43.1%** of gold to **54.5%**
-— an eighth of the batch settled without spending a token, most of it records like
-`"bit drowsy"`, where the patient's phrase wraps a word the vocabulary uses.
+**It buys fourteen points.** Free coverage of a perfect answer set goes from
+**32%** to **46%** on the development gold — 73 to 104 of 226 — and from 38% to
+52% corpus-wide: a seventh of the batch settled without spending a token, most
+of it records like `"bit drowsy"`, where the patient's phrase wraps a word the
+vocabulary uses.
 
 **We took the strict one anyway**, and here is the measurement that decided it.
 We planted near-miss codes into the answer key — real, active, correctly-typed
@@ -835,8 +844,13 @@ model actually makes — and ran both settings over them:
 
 | setting | near-misses **caught** | near-misses put in **ACCEPT** |
 |---|---|---|
-| `contained` | 0.1% | **19.0%** |
+| `contained` | 0.1% | **18.9%** |
 | `exact` | 0.1% | **0.1%** |
+
+*6,492 planted near-misses, one per coded reaction mention whose code has a
+near neighbour, on the base run's configuration. On the 222 development
+mentions alone the shares are 0 caught either way, 0 in ACCEPT under `exact`,
+31 under `contained`.*
 
 Read the two columns separately, because they say different things.
 
@@ -850,8 +864,8 @@ nothing is claimed about them. Under `contained`, **one in five is moved into
 ACCEPT** — the lane that means *the vocabulary vouches for this*, and the lane
 rung 5 will act on.
 
-Eleven points of free coverage is not worth a check that endorses one near-miss
-in five. The cost of refusing them is only that more records fall through to the
+Fourteen points of free coverage is not worth a check that endorses one
+near-miss in five. The cost of refusing them is only that more records fall through to the
 paid rungs, which is what the rest of the ladder is for.
 
 **What that decision looks like on the records themselves.** The same three
@@ -898,8 +912,9 @@ claim that the free check identifies a reliably-correct subset weakens. What the
 looser setting buys instead is yield, and section 5 puts the two on the same
 table.
 
-**The strict setting reduces that failure by a factor of 190. It does not remove
-it** — the `"knee pain"` record above is one of the surviving 0.1%.
+**The strict setting reduces that failure by a factor of 150 — 1,224 vouched-for
+near-misses become 8. It does not remove it** — the `"knee pain"` record above
+is one of the surviving 0.1%.
 
 **A lexical match is evidence about the words, never about the claim.** Where two
 concepts share a name — and SNOMED has many such pairs — it is not even evidence
@@ -1477,8 +1492,10 @@ And six practices, each of which we learned by getting it wrong first:
   denominator the arm will be scored on, not a larger one that happens to be
   available.
 - **Test the free layer against your answer key.** Every rejection there is false
-  by construction, so you get its false-positive rate for nothing. Ours went from
-  9.3% to 0.13% without touching a model.
+  by construction, so you get its false-positive rate for nothing. Ours ends at
+  0.1% — 10 false rejections in 7,009 coded reaction mentions, 3 in the 6,595
+  we score — from a first version that rejected nearly one gold record in ten,
+  without touching a model.
 - **Grep for the readers of every field you write**, and when you find an orphan,
   measure it before you adopt it rather than assuming it would have paid. Forty
   lines of regex over our own source named all three orphaned fields we had found

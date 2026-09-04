@@ -434,3 +434,42 @@ def lane_moves(base_records: list[Record], arm_records: list[Record],
         d["correct"] += entry["outcome"] == "correct"
         d["on_no_gold"] += entry["outcome_overlap"] == "unmatched"
     return {"moved": len(out), "records": out, "by_direction": by_dir}
+
+
+# --- gold lane occupancy ---------------------------------------------------------
+
+
+def gold_lane_occupancy(golds: Iterable[Any], exclude: set[str] | None,
+                        zone: Any) -> dict[str, Any]:
+    """How much of a PERFECT answer set each rung 1 lane can hold — the free
+    check's ceiling, replayed over the answer key with no model.
+
+    Denominator: the same one the run is scored on — reaction gold only,
+    `exclude` applied. Concept-less gold is counted in `n` (it is in the
+    scorer's denominator) but reported separately, because a record with no
+    code can only ever land in BAND, so it is a floor on that lane rather than
+    a verdict about the vocabulary's words. `zone(record) -> lane` is rung 1
+    bound to the document text, the registry and the manifest's rung 1
+    settings; passing it in keeps the arithmetic testable without a release.
+    """
+    from ladder.calibrate import gold_to_record
+
+    exclude = exclude or set()
+    lanes: Counter = Counter()
+    concept_less: Counter = Counter()
+    n = 0
+    for g in golds:
+        if g.entity_type != REACTION or g.record_id in exclude:
+            continue
+        n += 1
+        lane = zone(gold_to_record(g))
+        (lanes if g.sct else concept_less)[lane] += 1
+    total: Counter = lanes + concept_less
+    return {
+        "n": n,
+        "coded": sum(lanes.values()),
+        "concept_less": sum(concept_less.values()),
+        "lanes": dict(total),
+        "concept_less_lanes": dict(concept_less),
+        "pct": {k: round(100.0 * v / n, 1) for k, v in sorted(total.items())} if n else {},
+    }

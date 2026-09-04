@@ -344,3 +344,36 @@ def test_consensus_still_sees_a_real_disagreement_inside_an_overlapping_group():
     c = analysis.consensus([d0, d1])
     assert c["mentions"] == 1
     assert c["same_span_diff_code"] == 1 and c["all_agree"] == 0
+
+
+# --- gold lane occupancy: the free check's ceiling on the run's own denominator
+
+
+def test_gold_lane_occupancy_is_the_scorable_reaction_gold_run_through_rung_1():
+    """Replaying rung 1 over the answer key says how much of a PERFECT answer
+    set each lane can hold. It must use the same denominator the run is scored
+    on: reactions only, exclusions applied, concept-less gold counted (it can
+    only ever land in BAND) but reported separately from the coded mentions."""
+    from ladder import analysis
+    from ladder.schema import DRUG
+    golds = [
+        gold(0, sct=("1",), text="chronic pain"),          # coded, matches -> ACCEPT
+        gold(1, sct=("2",), text="extreme rectal bleed"),  # coded, no match -> BAND
+        gold(2, sct=(), kind=GOLD_NONE, text="odd"),       # concept-less -> BAND
+        gold(3, sct=("3",), text="excluded"),              # excluded from scoring
+    ]
+    drug = GoldMention(doc_id="D1", index=4, entity_type=DRUG, cadec_type="Drug",
+                       text="lipitor", spans=[(0, 7)], sct=["9"], gold_kind=GOLD_SINGLE)
+    golds.append(drug)
+
+    def zone(record):
+        assert record.entity_type == REACTION, "drugs are not scored and must not be replayed"
+        assert record.record_id != "D1#3", "excluded gold must not be replayed"
+        return ZONE_ACCEPT if record.text == "chronic pain" else ZONE_BAND
+
+    occ = analysis.gold_lane_occupancy(golds, exclude={"D1#3"}, zone=zone)
+    assert occ["n"] == 3
+    assert occ["coded"] == 2 and occ["concept_less"] == 1
+    assert occ["lanes"] == {ZONE_ACCEPT: 1, ZONE_BAND: 2}
+    assert occ["concept_less_lanes"] == {ZONE_BAND: 1}
+    assert occ["pct"] == {ZONE_ACCEPT: 33.3, ZONE_BAND: 66.7}
