@@ -929,7 +929,7 @@ Graphviz.*
 
 **How well does it deliver?** **75.5%, 75.5% and 82.4% of what lands in ACCEPT
 is correct** across the three draws, against 26.9%, 26.9% and 30.4% in BAND —
-a 2.7× separation. Rung 1 reached that split with no model, no gold, and
+a 2.8× separation. Rung 1 reached that split with no model, no gold, and
 identically on every run.
 
 It is not a correctness claim, and it can be wrong. From the development split,
@@ -1653,7 +1653,7 @@ nothing" — which is true, and useless. Each against its own purpose instead:
 
 | layer | what it is **for** | did it do that? | cost |
 |---|---|---|---|
-| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — the lanes separate 2.7× (section 4) | **0 tokens, 0 s** |
+| **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — the lanes separate 2.8× (section 4) | **0 tokens, 0 s** |
 | **self-correction** | restate a provable failure as a fact | **never viable here** — fired 2, 2 and 3 times, rescued none | 1,259–1,631 |
 | **voting** | catch answers the model cannot reproduce | **no** — net +1, −1, −1; destroyed 2, 3, 5 | **411,000–432,000**, p95 **118–144 s** |
 | **second-model judge** | rule on whether an answer is right | **yes, once shown the menu** — 3.4–4.2× separation; **read by nothing** | 84,000–88,000, p95 1.5 s |
@@ -1798,7 +1798,7 @@ model's (section 2).
 **Where we differ is what we compared.** That literature treats the judge and
 self-consistency voting as standard tooling. We priced both against a free string
 comparison, on the same records, in the same run. Blind, the judge separated
-1.7× against the string comparison's 2.7×; shown what it was judging, it
+1.7× against the string comparison's 2.8×; shown what it was judging, it
 separates 3.4–4.2× — and still costs 84,000 tokens a run against zero, and still
 nothing reads it. We have not found that comparison published. It is the narrow
 claim this article defends.
@@ -1886,7 +1886,7 @@ The part another team can use tomorrow is the assignment, not the ladder:
 | Decide the candidate list | **not the model** | the retriever, with no model in it, puts the answer on the menu for 93% of the spans the model finds |
 | Order the candidate list | **not the model** | on FiNER our own fallback rule wrote the alphabetical first line onto 73 of 304 answers; on CADEC line one is the retriever's best guess and the pick takes it |
 | Check its own output | **unproven** | self-correction fired 2–3 times a run on invented quotes and rescued none; voting's sign changed with the draw |
-| Judge whether an answer is right | **the model can, shown the evidence** | blind, 1.7× against the string comparison's 2.7×; shown the menu, 3.4–4.2× on CADEC and a reliable *no* on FiNER (section 6) — at 84,000 tokens a run, and nothing reads it |
+| Judge whether an answer is right | **the model can, shown the evidence** | blind, 1.7× against the string comparison's 2.8×; shown the menu, 3.4–4.2× on CADEC and a reliable *no* on FiNER (section 6) — at 84,000 tokens a run, and nothing reads it |
 | Decide when to abstain | **not the model** | it never reported below 0.9 confidence while being right 38% of the time |
 | Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes, at zero cost |
 | Decide how much to withhold | **you** | three currencies moving in three directions, and a break-even only the deployer has |
