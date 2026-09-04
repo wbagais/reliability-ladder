@@ -18,15 +18,15 @@ tasks with real answer keys — what each one bought, and what it charged.*
 
 ![Figure 1](figures/fig0-hero.png)
 
-*Fig. 1: The seven rungs, coloured by what each one bought. The two that mattered
-cost nothing; the judge's separation is a measurement nothing reads. Source:
-author-created with Matplotlib.*
+*Fig. 1: The seven rungs, coloured by what each one bought. The two that carry
+the shipped result cost nothing; the judge carries a signal nothing reads.
+Source: author-created with Matplotlib.*
 
 ---
 
 ## Five key takeaways
 
-1. **The only layer that paid for itself was free.** Self-correction, sampled voting and a second-model judge cost **496,000 to 521,000 tokens** per run between them; removing all three changed **one shipped answer out of 53 on one draw and none on the other two**. What did the work was a string comparison against the vocabulary — zero tokens, zero latency — which sorts answers into a lane 75–82% correct and one 27–30% correct, and a later layer declined to ship the second.
+1. **The layer that did the shipped work was free.** A string comparison against the vocabulary — zero tokens, zero latency — sorts answers into a lane **75–82%** correct and one **27–30%** correct, and the refusal step ships only the first. The three paid layers — self-correction, sampled voting and a second-model judge — cost **496,000 to 521,000 tokens** per run between them and changed **one shipped answer out of 53 on one draw and none on the other two**. One of them earns something: shown the menu it is judging, the judge separates right from wrong 3.4–4.2×. But on the lane that ships it agrees with the free check on 52 records of 53, and nothing reads its verdict.
 2. **That free check has a precondition, and one query tests it.** It works when the answer space's identifiers share vocabulary with the text. On our second corpus they do not — the spans are numerals and the labels are English phrases — so the check cleared **0 of 304** records, three draws of three, and the system silently shipped nothing. Test this before you build on it.
 3. **The domain knowledge was never in the model, and we could not put it there.** Asked to recall a SNOMED identifier it fabricates one; two domain-adapted models made things worse, not better. What works is a division of labour: a retriever with no model in it puts the correct concept on a twenty-line menu for **93%** of the spans the model finds, and the model then picks it **four times in five**. Where the system loses is *finding* — 110 of 226 mentions not proposed as gold marks them, 31 spans invented outright. **The expertise lives in the vocabulary. The model's job is to read, and reading is where it fails.**
 4. **Nothing above the extractor made the system better at the task**, and the number that improved was measuring something else. Refusal took answered accuracy from **0.38 to 0.74–0.82** and yield from **0.38 to 0.17** on the same records, three draws of three — abstaining always raises precision. The judge, once shown the menu it was judging, separates right from wrong **3.4–4.2×** where it had managed 1.7× blind; nothing reads its verdict. No layer we built can propose a mention the extractor missed; even a flawless reviewer left detection exactly where it started.
@@ -79,6 +79,15 @@ vote, judge, abstain, escalate — makes those models' answers defensible, and t
 question needs a task where "defensible" can be graded. This one has an answer key
 and a controlled vocabulary, which is exactly what it takes to grade it.
 
+**The extractor could be made better, and we stopped improving it on purpose.**
+This is a domain-specific task, and the largest gains we ever measured came from
+understanding the data more closely — a worked example in the corpus's own
+conventions, a rule about denied reactions — not from any layer above the
+model. More of that work would raise every number in this article. We froze the
+extractor once the ladder had a stable base, because the question here is what
+the reliability layers buy on top of a given model, measured against each other
+on the same records — not how good an agent for this one task can be made.
+
 > **On the held-out split, run once and never re-run:** the system ships **23%**
 > of its answers — 72 records of 314. On those it makes **3.8 errors per 100**,
 > against **59.6** for the bare model. It sends the other **242** to a person.
@@ -86,11 +95,12 @@ and a controlled vocabulary, which is exactly what it takes to grade it.
 
 Not a good result. An honest one — and most of this article is about the things we
 built that did not contribute to it. **The error rate fell by a factor of fifteen,
-and not one of the six layers above the model is why.** It fell because a free
-string comparison against the vocabulary sorted the answers, and a later layer
-declined to ship the ones it could not vouch for. Everything that cost tokens
-either could not be tested, could not be shown to help, or turned out to have been
-measured wrongly.
+and two of the six layers above the model are why**: a free string comparison
+against the vocabulary sorted the answers, and the refusal step declined to ship
+the ones it could not vouch for. Of the three that cost tokens, one could not be
+tested, one could not be shown to help, and one — the judge — turned out to carry
+a real signal once we showed it what it was judging, which nothing in the shipped
+configuration reads.
 
 Three things to hold while reading. The held-out split was spent on that single
 run, so **every other number here is development-side** and labelled as such; we
@@ -1979,6 +1989,11 @@ thought we were buying.
 
 - **The held-out split was spent once.** Its intervals are the claim; everything
   else here is development-side and labelled.
+- **The extractor is not the best one buildable for this task.** Its prompt was
+  tuned over a handful of arms and then frozen so the rungs could be compared
+  against one base; a team building for this domain alone would keep going, and
+  the base numbers would rise. The comparisons between rungs do not depend on
+  that.
 - **The development-side figures are one base run, three draws.** The twenty
   rung 0 arms, the reranker, the other-model sweeps and the dictionary probe
   were measured on earlier draws; they are named here without their figures,

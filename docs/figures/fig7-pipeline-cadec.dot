@@ -1,0 +1,51 @@
+// The CADEC pipeline, one column (the two-corpus version is fig7-pipelines.dot): the payloads (post, JSON, menu) live in the prose, and this carries
+// only what is genuinely spatial — the order of the steps, who acts at each
+// one, and the single row where the two corpora differ.
+//
+// COLOUR KEY — consistent with fig1-wiring / fig3-loop / fig4-precondition:
+//   teal  #0c6469  a language model runs here  (a channel, NOT a verdict)
+//   grey  #5a6b73  deterministic step, no model
+//   green #2d6a4f  the finished record
+// Amber (costs-and-does-not-earn) and red (fails) keep their article meanings
+// and are absent: nothing here is a verdict. (In the two-corpus figure the step FiNER lacks is
+// a dashed grey ghost, not amber — a step that does not exist has no cost.
+digraph pipeline_cadec {
+  bgcolor="white";
+  node [shape=none fontname="Helvetica"];
+
+  t [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+
+    <TR><TD BORDER="0"></TD>
+      <TD BGCOLOR="#ffffff" ALIGN="CENTER" WIDTH="250"><FONT POINT-SIZE="12" COLOR="#121a1e"><B>CADEC</B></FONT><BR/><FONT POINT-SIZE="10" COLOR="#5a6b73">129,675 concepts</FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT" WIDTH="128"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>INPUT</B></FONT><BR ALIGN="RIGHT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">the text, whole</FONT></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">one forum post</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" FACE="Courier" COLOR="#5a6b73">"...The first week I was a bit drowsy in<BR ALIGN="LEFT"/>the afternoons, and I still get drowsy if<BR ALIGN="LEFT"/>I take it late. No stomach trouble at all<BR ALIGN="LEFT"/>so far..."</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#946c00">illustrative - CADEC is non-transferable</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>1 · FIND</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">quote the reaction<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ "bit drowsy"</FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>RETRIEVE</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">embed the span, take the<BR ALIGN="LEFT"/>20 nearest concepts<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ a 20-line menu, holding the answer for 93%<BR ALIGN="LEFT"/>of the spans the model finds</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>2 · PICK</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">choose a line number<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ 0 &#160;(of 20)</FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>RESOLVE</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">look the line up<BR ALIGN="LEFT"/></FONT><FONT POINT-SIZE="10.5" COLOR="#5a6b73">→ 271782001 |Drowsy|</FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3f0e6" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#2d6a4f"><B>OUTPUT</B></FONT></TD>
+      <TD BGCOLOR="#f4f9f6" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">one span + one code</FONT></TD>
+    </TR>
+
+    <TR><TD BORDER="0"></TD>
+      <TD BORDER="0" ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Two model calls, and neither of them ever sees a code: the menu carries labels only,<BR ALIGN="LEFT"/>and the answer is a position in a list. Everything outside the two teal rows is deterministic.</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+  </TABLE>>];
+}
