@@ -926,12 +926,11 @@ the post"* — never as a question. Not *are you sure*, which invites a flip whe
 not the answer was wrong. The post goes with it, and so does permission to
 abstain.
 
-![Figure 8](figures/fig13-rung2.png)
+![Figure 8](figures/fig13-rung2-cadec.png)
 
 *Fig. 8: Rung 2 fires on REJECT alone, so ACCEPT and BAND are never touched.
-`rerun-cadec-d0` on the left; the right panel is the second corpus of the full
-article, where a second free check gave rung 2 a real trigger set and it
-rescued nothing there either. Source: author-created with Graphviz.*
+`rerun-cadec-d0`; draws 1 and 2 fired 2 and 3 times and rescued none. Source:
+author-created with Graphviz.*
 
 **It can only act on the lane rung 1 leaves empty** — and section 4 showed that
 lane holds almost nothing, because the classes a vocabulary can prove wrong are
@@ -999,11 +998,10 @@ family is required to differ from the extractor's, enforced in code rather than
 by convention — a model judging its own output measures self-consistency, not
 correctness. It costs **84,000 to 88,000 tokens** per run.
 
-![Figure 10](figures/fig18-rung4.png)
+![Figure 10](figures/fig18-rung4-cadec.png)
 
-*Fig. 10: Rung 4, the blind judge as shipped, `rerun-cadec-d0` on the left (the
-right panel is the second corpus of the full article). The table below adds the
-menu-shown judge. Source: author-created with Graphviz.*
+*Fig. 10: Rung 4, the blind judge as shipped, `rerun-cadec-d0`. The table below
+adds the menu-shown judge. Source: author-created with Graphviz.*
 
 The question a judge exists to answer is whether its verdict tells you anything
 about correctness. **As shipped, ours barely did — and the reason was ours.**
