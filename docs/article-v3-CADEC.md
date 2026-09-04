@@ -298,8 +298,8 @@ Everything section 3 measures is a change *within* S2.
 
 ### Sixteen changes to the one we picked
 
-Every result below is judged against one number. **Three identical runs of this
-system can differ by 4 points of F1** — the same 40 documents answered 87, 87 and
+Every one of these arms was judged against one bar. **Three identical runs of
+this system can differ by 4 points of F1** — the same 40 documents answered 87, 87 and
 98 times correctly out of 226, with nothing changed between runs, and two of the
 three runs identical to the byte. Section 3 is about where that number comes from
 and how nearly it fooled us; here it is just the bar, and it works out to roughly
@@ -462,11 +462,12 @@ the tool had nothing to work with.
 
 ### What a confidence interval actually prices
 
-**One row of that table nearly went the other way**, and how it did is the
-sharpest thing this project learned about measurement.
+**One row of that table — the reranker — nearly went the other way**, and how
+it did is the sharpest thing this project learned about measurement.
 
-The reranking stage reorders the twenty-line menu before the model picks from it,
-so a good concept sitting at line 14 moves up. It is the most obvious thing to
+The reranking stage (the free version, driven by a feature of the menu rather
+than by the model) reorders the twenty-line menu before the model picks from
+it, so a good concept sitting at line 14 moves up. It is the most obvious thing to
 try once you know the menu usually holds the right answer, and we built it. Then
 we asked whether it helped.
 
@@ -539,8 +540,10 @@ The knob everyone reaches for was already turned all the way down.
 
 So we ran the shipped configuration three times, cold, and counted how many of
 the three files were different from each other: **two**. Draws 0 and 1 are the
-same file — the same SHA-256, every span and every code identical — and draw 2
-is not. (An earlier sweep of four other open-weight families found all four
+same file — 94 real model calls each, none served from cache, which the call
+trace records per call, and every reply identical to the byte — and draw 2 is
+not: it diverged on 29 of the 69 prompts it shares with them, from the first
+find call onward. (An earlier sweep of four other open-weight families found all four
 bit-reproducible three times of three; it predates the base run and its
 figures are in the decisions log.) So run-to-run variance is not a property of
 language models, and not even a fixed property of this one: the same model,
@@ -563,12 +566,8 @@ shipped.) The useful comparison is not how each one scored against gold — that
 is section 4's question — but **where the three runs disagree with each other**,
 which needs no answer key at all.
 
-**Two of the three are the same file.** Draws 0 and 1 made 94 real model calls
-each — none served from cache, which the call trace records per call — and every
-reply is identical to the byte. Draw 2 diverged on 29 of the 69 prompts it
-shares with them, from the first find call onward, and the whole 4-point spread
-is that one draw. So the table below is a comparison between two runs wearing
-three labels, and we say so rather than average it away.
+The whole 4-point spread is draw 2, so the table below is a comparison between
+two runs wearing three labels, and we say so rather than average it away.
 
 Lining the runs up mention by mention, and grouping any spans that overlap into
 one mention, gives 233 mentions across the three runs:
@@ -1318,9 +1317,10 @@ author-created with Graphviz.*
 
 The third step does the work. **A layer that has just produced a good number is
 the least likely thing in a system to be re-examined**, and that is where all our
-false results lived — a reranker with an interval excluding zero, a judge with
-1.7× separation, a voting layer with a net gain on one draw. All three evaporated under a
-second draw, a corrected prompt, or a held-out split.
+false results lived — a reranker with an interval excluding zero, a judge whose
+1.7× we had read as the most it could do, a voting layer with a net gain on one
+draw. All three readings evaporated under a second draw, a corrected prompt, or
+a held-out split.
 
 ---
 
@@ -1328,9 +1328,10 @@ second draw, a corrected prompt, or a held-out split.
 
 **We mostly agree, and the agreements matter.** Our abstention layer is *selective
 prediction*, a formalised field; we compute risk-coverage curves without having
-used its vocabulary. Our weak judge is corroborated, not idiosyncratic — published
-work documents self-inconsistency in LLM judges and an agreeableness bias with
-true-positive rates above 96% against true-negative rates below 25%. Our voting
+used its vocabulary. Our blind judge's weakness is corroborated, not
+idiosyncratic — published work documents self-inconsistency in LLM judges and an
+agreeableness bias with true-positive rates above 96% against true-negative
+rates below 25% — and so is its recovery once shown the evidence. Our voting
 result is the same story from the other side. Position bias in option lists is
 documented too, and *option-order randomisation* is the recommended mitigation
 — we built it, and it showed our "attractor" was a default of our own, not the
@@ -1398,9 +1399,12 @@ One split runs under everything below, and it is worth naming before the table.
 Our task has a general half and a domain half. Reading a patient's post and
 finding where a reaction is described is ordinary English comprehension; deciding
 that the reaction is |Gonalgia| and not |Pain of knee region| is specialist
-knowledge. **The model is good at the general half and poor at the domain half** —
-on the held-out split it finds four mentions in five and correctly codes about one
-in three of them.
+knowledge. **The model is good at the general half, and at the domain half only
+when the knowledge is put in front of it** — it finds four mentions in five on
+overlap, cannot recall an identifier at all, and picks the right concept four
+times in five once a retriever has put it on the menu; the shipped result on the
+held-out split codes about one in three of what it finds, because most of what
+it finds never reaches that lane.
 
 The obvious response is to reach for a domain model. We tried two, and both are
 rows in section 2's table: SapBERT made the system worse, and BioMistral could
