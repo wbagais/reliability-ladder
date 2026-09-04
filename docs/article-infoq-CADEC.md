@@ -216,8 +216,8 @@ Code, ledger, decision records and every figure's source: **github.com/wbagais/r
 1. Madaan et al., *Self-Refine: Iterative Refinement with Self-Feedback*, 2023. arxiv.org/abs/2303.17651
 2. Wang et al., *Self-Consistency Improves Chain of Thought Reasoning in Language Models*, 2022. arxiv.org/abs/2203.11171
 3. Zheng et al., *Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena*, 2023. arxiv.org/abs/2306.05685
-4. Karimi, Metke-Jimenez, Kemp and Wang, *Cadec: A corpus of adverse drug event annotations*, Journal of Biomedical Informatics 55, 2015. doi.org/10.1016/j.jbi.2015.03.010
-5. Yazdani, Rouhizadeh, Bornet and Teodoro, *Context-Aware Entity Normalization for Adverse Drug Event Detection* (CONORM), medRxiv 2023. doi.org/10.1101/2023.09.26.23296150
+4. Karimi, Metke-Jimenez, Kemp and Wang, *Cadec: A corpus of adverse drug event annotations*, Journal of Biomedical Informatics 55, 73–81, 2015. doi.org/10.1016/j.jbi.2015.03.010
+5. Yazdani, Rouhizadeh, Bornet and Teodoro, *CONORM: Context-Aware Entity Normalization for Adverse Drug Event Detection*, medRxiv preprint, 2023. doi.org/10.1101/2023.09.26.23296150
 
 ## About the authors
 
