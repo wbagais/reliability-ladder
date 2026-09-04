@@ -1,0 +1,41 @@
+// Where the 226 development-split gold mentions go, rerun-cadec-d0, for
+// docs/article-infoq-CADEC.md. Same table idiom and colour key as
+// fig7-pipeline-cadec.dot; green = survives to the next stage, red = lost here.
+// Counts are paired span-exact over the same 226 mentions, so the rows chain:
+// 226 -> 116 -> 108 -> 87.
+digraph funnel {
+  bgcolor="white";
+  node [shape=none fontname="Helvetica"];
+
+  t [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+
+    <TR><TD BORDER="0"></TD>
+      <TD COLSPAN="2" BGCOLOR="#ffffff" ALIGN="CENTER"><FONT POINT-SIZE="12" COLOR="#121a1e"><B>226 gold mentions</B></FONT><BR/><FONT POINT-SIZE="10" COLOR="#5a6b73">development split, draw 0 · each row starts with what the row above kept</FONT></TD>
+    </TR>
+
+    <TR><TD BORDER="0"></TD>
+      <TD BORDER="0" ALIGN="LEFT" WIDTH="260"><FONT POINT-SIZE="10" COLOR="#2d6a4f"><B>kept — go on to the next stage</B></FONT></TD>
+      <TD BORDER="0" ALIGN="LEFT" WIDTH="260"><FONT POINT-SIZE="10" COLOR="#a33333"><B>lost at this stage</B></FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT" WIDTH="128"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>1 · FIND</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#e3f0e6" ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#2d6a4f"><B>116</B></FONT><FONT POINT-SIZE="11" COLOR="#121a1e">  quoted on the exact span</FONT></TD>
+      <TD BGCOLOR="#fbe4e4" ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#a33333"><B>110</B></FONT><FONT POINT-SIZE="11" COLOR="#121a1e">  not quoted as the annotators marked it</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">43 never touched · 67 quoted with the wrong boundary</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>RETRIEVE</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
+      <TD BGCOLOR="#e3f0e6" ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#2d6a4f"><B>108</B></FONT><FONT POINT-SIZE="11" COLOR="#121a1e">  right concept is on the 20-line menu</FONT></TD>
+      <TD BGCOLOR="#fbe4e4" ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#a33333"><B>8</B></FONT><FONT POINT-SIZE="11" COLOR="#121a1e">  right concept not retrieved</FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>2 · PICK</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#e3f0e6" ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#2d6a4f"><B>87</B></FONT><FONT POINT-SIZE="11" COLOR="#121a1e">  right line chosen</FONT></TD>
+      <TD BGCOLOR="#fbe4e4" ALIGN="LEFT"><FONT POINT-SIZE="13" COLOR="#a33333"><B>21</B></FONT><FONT POINT-SIZE="11" COLOR="#121a1e">  wrong line chosen</FONT></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3f0e6" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#2d6a4f"><B>CORRECT</B></FONT></TD>
+      <TD COLSPAN="2" BGCOLOR="#f4f9f6" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">87 of 226 gold mentions answered with the right span and the right code</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">finding loses 110, retrieval 8, the pick 21 · draw 1 identical · draw 2 loses 97, 8 and 23</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+  </TABLE>>];
+}

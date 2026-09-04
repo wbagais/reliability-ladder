@@ -5528,3 +5528,29 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   shared ones); `fig15`'s check list names four questions under a heading that
   says four of five — the active/retired row is missing from the list, left
   as is.
+
+## 2026-09-04 — `article-infoq-CADEC.md`: an InfoQ-shaped, storytelling rewrite of the single-corpus article, 3,500-word budget
+
+- New file `docs/article-infoq-CADEC.md`, built from `article-v3-CADEC.md`
+  only; every number is the base run `rerun-cadec-d0/d1/d2` or `phaseF-test-1`,
+  labelled by split, earlier experiments named without figures. Structure:
+  key takeaways, narrative sections, "What to do on Monday" (five practices,
+  then a generalised division-of-labour table), open questions.
+- Title is the measurement framing, not "the free one did the work": the model
+  produces every answer; the layers only select. The opening presents CADEC as
+  chosen for its answer key, not as the problem being solved, and drops the
+  "we could not find this published" claim.
+- Figures: `infoq-fig1-ladder.dot`, `infoq-fig3-funnel.dot` (Graphviz, the
+  `fig7-pipeline-cadec` house palette) and `infoq-fig2-dial.png` (Matplotlib,
+  same palette), rendered by `figures/make_infoq_figs.py`; `fig7-pipeline-cadec`
+  reused. The dial table adds a `contained` row computed from the v3 policy
+  table (v3 does not print it).
+- Found in v3 while checking: it calls the menu-shown judge "the best yield of
+  any filter" (0.331) while its own table gives two-agree voting 0.341. The
+  rewrite says "the most accurate of the model-driven filters" instead; v3 is
+  not corrected here.
+- Byline and bios are placeholders: author order is under discussion (the
+  repository record is 255 vs 87 non-merge commits, 13 vs 0 on the source
+  article), to be agreed between the authors before publication.
+- Body prose 3,425 words excluding tables and captions, against a 3,500 budget
+  that must also hold two 75-word bios: about 75 over as committed.

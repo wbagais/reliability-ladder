@@ -1,0 +1,47 @@
+// The ladder as drawn, for docs/article-infoq-CADEC.md. Same table idiom and
+// colour key as fig7-pipeline-cadec.dot:
+//   teal  #0c6469  a language model runs here
+//   grey  #5a6b73  deterministic step, no model  (also the person: no model)
+// Costs are per run on the development split, base run rerun-cadec-d0/d1/d2.
+digraph ladder {
+  bgcolor="white";
+  node [shape=none fontname="Helvetica"];
+
+  t [label=<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="9">
+
+    <TR><TD BORDER="0" COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="12" COLOR="#121a1e"><B>Six layers above the model, assumed to stack</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">read from the bottom up: each rung sees what the one below left</FONT><BR ALIGN="LEFT"/></TD></TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT" WIDTH="150"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>6 · PERSON</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT" WIDTH="330"><FONT POINT-SIZE="11.5" COLOR="#121a1e">resolve what the machine cannot</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">177–187 records per run</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>5 · REFUSAL</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">withhold what cannot be vouched for</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">0 tokens</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>4 · JUDGE</B><BR ALIGN="RIGHT"/>second model</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">a different model family rules on each answer</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">84,000–88,000 tokens</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>3 · VOTING</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">ask again three times, take the majority</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">411,000–432,000 tokens</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>2 · SELF-CORRECTION</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">restate a provable failure as a fact, ask again</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">about 1,500 tokens</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73"><B>1 · CHECKS</B><BR ALIGN="RIGHT"/>no model</FONT></TD>
+      <TD BGCOLOR="#fafbfb" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">ask the vocabulary; sort into reject / accept / band</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">0 tokens</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="RIGHT"><FONT POINT-SIZE="10.5" COLOR="#0c6469"><B>0 · EXTRACTOR</B><BR ALIGN="RIGHT"/>model</FONT></TD>
+      <TD BGCOLOR="#f4fafa" ALIGN="LEFT"><FONT POINT-SIZE="11.5" COLOR="#121a1e">read the post, quote reactions, pick a line</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" COLOR="#5a6b73">155,000–162,000 tokens · produces every answer</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+    <TR><TD BORDER="0"></TD>
+      <TD BORDER="0" ALIGN="LEFT"><FONT POINT-SIZE="10.5" COLOR="#5a6b73">Teal rows are model calls. Grey rows have no model in them and give the<BR ALIGN="LEFT"/>same answer every time they are asked.</FONT><BR ALIGN="LEFT"/></TD>
+    </TR>
+
+  </TABLE>>];
+}
