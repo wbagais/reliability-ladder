@@ -110,8 +110,9 @@ of the full ladder — three cold draws, `rerun-cadec-d0/d1/d2`, 230/230/238
 records** — with each arm replayed on the same draw, so adjacent numbers are
 from the same records and we print all three draws where they differ. And the choice
 of task bounds the conclusion: our strongest finding is that a free vocabulary
-check beats every paid layer above it, and **on a task with no vocabulary to check
-against, there is no free check to run.**
+check carries the shipped result and no paid layer above it changed that result,
+and **on a task with no vocabulary to check against, there is no free check to
+run.**
 
 ---
 
@@ -708,11 +709,6 @@ holds still. Section 4 onward asks whether what stands on it is correct.
 
 ### Where the model actually moves
 
-It is not a temperature setting. We ran at **temperature 0** — not
-low-temperature sampling but greedy decoding, where the model takes its single
-highest-probability token every time — same documents, prompts, machine and hour.
-The knob everyone reaches for was already turned all the way down.
-
 Three cold draws of the shipped configuration, `rerun-cadec-d0/d1/d2`. (Every
 F1 in this article is `ladder/score.py`'s span-exact figure with the declared
 exclusions applied — worth saying once, because this repo carries three F1
@@ -927,8 +923,9 @@ model, no embedding, no context.
 
 ![Figure 7](figures/fig4a-accept-cadec.png)
 
-*Fig. 7: Rung 1's verdicts on CADEC, one real record each. REJECT is the empty
-lane here. Development split. Source: author-created with Graphviz.*
+*Fig. 7: Rung 1's verdicts on CADEC, one real record each from `rerun-cadec-d0`.
+REJECT is the nearly empty lane here — two records. Source: author-created with
+Graphviz.*
 
 **How well does it deliver?** **75.5%, 75.5% and 82.4% of what lands in ACCEPT
 is correct** across the three draws, against 26.9%, 26.9% and 30.4% in BAND —
@@ -1432,8 +1429,8 @@ none of them right?* Same records, same 3.2B model, paired on each draw:
 | **FiNER, blind** | 3.60× · 2.96× · 2.56× — fails 84% of everything | 8 · 8 · 9 | 149 · 149 · 142 | 243 · 241 · 243 | — |
 | **FiNER, shown the menu** | 30× · 30× · 26× — but only because 1 of ~110 fails is correct | 2 · 2 · 1 | 56 · 55 · 55 | 100 · 95 · 89 | 105 · 100 · 94 |
 
-Three things. The blind row reproduces the article's original 1.65× on every
-draw — it was a real measurement of a question the judge could not answer. Shown
+Three things. The blind row is 1.65–1.69× on every draw — a real measurement
+of a question the judge could not answer, and a stable one. Shown
 the menu, **the same model doubles its separation, stops failing to parse, and
 now sits above the free check** on these draws rather than a third of the way to
 it. And the verdict the blind judge could not express — *the right answer is not
@@ -1574,7 +1571,9 @@ rungs stop looking like a staircase and start looking like settings, priced:
 | rung 4 — the menu-shown judge passes | 141 | 0.54 | **0.331** | 64 | ~84,000 |
 
 *Means over the three base draws (230, 230 and 238 records); yield is correct
-answers over all records.*
+answers over all records. The first row is rung 0's output before voting; the
+policy table's "ship everything" is the same records after rung 3, which is why
+the two read 0.389 and 0.383–0.408.*
 
 ![Figure 16](figures/fig20-dials.png)
 
@@ -1906,7 +1905,7 @@ And six practices, each of which we learned by getting it wrong first:
 - **Measure your floor before you measure an improvement.** Three identical runs
   of our unchanged system differ by up to 4 points of F1, which makes most of what we
   tried unreadable on its own. It is easier to state that rule than to obey it:
-  two arms we shipped sit below that floor, and their rows say so. The same
+  two arms we shipped sit below that floor, and the decisions log says so. The same
   discipline applies to the probe that authorises an arm — run it on the
   denominator the arm will be scored on, not a larger one that happens to be
   available.
