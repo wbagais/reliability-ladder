@@ -33,7 +33,7 @@ digraph rung2 {
     fa [label="ACCEPT + BAND" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
     fr [label="REJECT · 35 per run" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
     fskip [label="rung 2 never called" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-    f2 [label="RUNG 2 · state the failure back as a fact\n“the text 10.85 names a percent, but\nAccrualForEnvironmentalLossContingencies names a money amount”\n105 firings"
+    f2 [label="RUNG 2 · state the failure back as a fact\n“the text 10 names a percent, but\nAccrualForEnvironmentalLossContingencies names a money amount”\n105 firings"
         fillcolor="#e3eeef" color="#0c6469" penwidth=2];
     unch [label="DECLINED TO CHANGE\n87   (83%)" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
     decl [label="NO PARSEABLE REPLY\n18   (17%)" fillcolor="#fdf0c8" color="#946c00" penwidth=2];
