@@ -5363,3 +5363,61 @@ share is stated for the first time from a run: 13-18% of what it commits to.
 
 Archived with the rest to the main checkout's
 `out/archive/reliability-ladder-b2-menu-f77617/`.
+
+## 2026-09-03 — `article-v3-CADEC.md` audited line by line against the base run's files: two examples and one error rate were not from the base run, and rung 2 did relocate a quote
+
+Every number in the CADEC article was checked against `out/rerun/cadec.md`,
+the per-record state tables, the call traces and the registry; the gold-side
+counts were recomputed from `ladder.score._pair` over the dev gold. What held:
+every table in §§2, 4, 5, 6 and 9, the 43 / 67 / 22 gold-side split (any
+overlap; the scorer's one-to-one pairing gives 178 — both now stated), the
+knee-pain, stamina, SHOULDERS and rectal-bleed records, the eight and twelve
+vocabulary names, 29 of 69 shared prompts diverging, the eight-of-eight probe,
+the confidence table, the held-out box. What did not:
+
+- **§3's two disagreement examples were from an earlier run.** On the base
+  run `"at my wits end"` is `310532000` |Wanders at night| on d0/d1 and
+  `417194006` |End feel| on d2 — never CONCEPT_LESS, never |At risk for
+  suicide| — and `"very very severe abdonimal pain"` is quoted identically by
+  all three draws. Replaced with the base run's own: the wits-end record, and
+  the one same-code-different-span mention of the 233 (`"no problems"` /
+  the six-word clause around it, |No complaints|, on no gold mention), plus
+  the coupled stamina case.
+- **"From the first find call onward" was wrong.** Draw 2's first divergent
+  reply is call 4 (the third document, `ARTHROTEC.57`); the first two documents
+  came back identical. The probe document `LIPITOR.159` is the one whose call
+  arrives ~50 requests in; the article conflated the two. Also added: the
+  isolated reply equals draw 2's, not the identical pair's.
+- **RUNG 2 RELOCATED ONE QUOTE ON EVERY DRAW.** `LIPITOR.739#1` ("Chronic
+  pain in muscles", ungrounded) was re-quoted as the seven-word clause that is
+  in the post, moved REJECT -> BAND with code `271327008`
+  (wrong; gold is two discontinuous mentions, 57676002 / 68962001). The
+  aggregates say `rescued 1, still_failing 1` on every draw; the article's
+  "could not relocate, rescued none" and §6's "never viable — an unlocatable
+  span carries no fact" were both false. Now "barely exercised: relocated one
+  quote per draw, corrected none", in §5, §6 (table and text), §9, §11 and
+  fig13. The 2026-09-03 re-run entry above also says "rescued none" — read it
+  as "corrected none".
+- **§9's development error rate was the accuracy, inverted.** "Four to six
+  errors per hundred instead of thirty-eight to forty-one" — ship-everything
+  makes 142 / 144 / 141 errors in 230 / 230 / 238, i.e. 59–63 per hundred. The
+  "4–6 against 38–41" in the re-derivation entry above was the same mistake.
+- Smaller: rung 3's un-re-findable records are 12 / 12 / 12, not "11 to 12";
+  §8 pointed at a FiNER-only finding (the fallback attractor) in the CADEC
+  article — replaced with the CADEC shuffled-menu result; the header listed
+  one of its "two claims"; "half the batch at 0.54" is 141 of 233 (three
+  fifths); §4's BAND composition now accounts for all 175 (47 correct, 40 on
+  no gold, 60 wrong boundary of which 20 right code, 27 wrong code on the
+  exact span, 1 declined); §6's stamina counter-example says "loss of
+  stamina", which is what draw 2 quoted (line 0, taken), rather than "no
+  stamina", which no draw quoted; the gold-replay numbers (43.1 / 56.8 /
+  54.5%, 8,666-record corruptions) are labelled model-free in the header.
+- Figures: `fig6-spine-cadec` said the free check separates 2.7× (d0 is
+  2.81×; now 2.7–2.8×); `fig20-dials` headed every panel "87 correct" while
+  the rung 3 and rung 4 panels are on post-rung-3 records and sum to 88 (now
+  labelled); `fig13-rung2-cadec` said rescued 0 (now relocated 1, corrected
+  0). All three re-rendered; the other ten CADEC figures re-render
+  byte-identical to their committed PNGs.
+- **Not fixed here, flagged:** `docs/article-v3.md` (two-corpus) shares the
+  rung 2 wording, the §3 examples and the 38–41 figure, and should get the
+  same pass.

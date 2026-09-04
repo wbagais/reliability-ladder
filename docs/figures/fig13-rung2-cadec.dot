@@ -2,7 +2,7 @@
 // fig13-rung2.dot. It reads rung 1's verdict and fires on REJECT alone
 // (r2.py — `if verdict != ZONE_REJECT or reason not in cfg["correctable"]`),
 // so ACCEPT and BAND are never touched: no model call, no possible change.
-// Draws 1 and 2: fired 2 and 3 times, rescued 0.
+// Draws 1 and 2: fired 2 and 3 times; every draw relocated one quote (REJECT -> BAND, wrong code) and corrected none.
 //
 // COLOUR KEY — the article's zone colours, unchanged:
 //   green ACCEPT · amber BAND · red REJECT · teal a model runs here
@@ -17,7 +17,7 @@ digraph rung2_cadec {
   cr [label="REJECT · 2\ninvented quotes — the text is not in the post" fillcolor="#fbe4e4" color="#a33333" penwidth=2];
   r1 -> ca; r1 -> cb; r1 -> cr;
   cskip [label="rung 2 never called\n0 model calls" fillcolor="#f2f4f5" fontcolor="#5a6b73"];
-  cfire [label="RUNG 2 · state the failure back as a fact\n“the quoted text is not in the post”\nfired 2 · 1,259 tokens · rescued 0" fillcolor="#e3eeef" color="#0c6469"];
+  cfire [label="RUNG 2 · state the failure back as a fact\n“the quoted text is not in the post”\nfired 2 · 1,259 tokens · relocated 1 · corrected 0" fillcolor="#e3eeef" color="#0c6469"];
   ca -> cskip; cb -> cskip; cr -> cfire;
   { rank=same; ca; cb; cr }
 
@@ -27,7 +27,7 @@ digraph rung2_cadec {
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#5a6b73">could improve is one the free check has already proved wrong — and that lane holds two or three invented quotes a draw.</FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="8"> </FONT></TD></TR>
         <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333"><B>An invented quote carries no fact worth stating back.</B> Told that its quote is not in the post, the model</FONT></TD></TR>
-        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">has nothing to relocate; it fired 2, 2 and 3 times across the three draws and rescued none.</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT POINT-SIZE="11" COLOR="#a33333">fired 2, 2 and 3 times across the three draws, relocated one quote per draw into BAND with a wrong code, and corrected none.</FONT></TD></TR>
         </TABLE>>];
   cskip -> note [style=invis]; cfire -> note [style=invis];
 }

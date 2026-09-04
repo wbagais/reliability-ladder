@@ -6,12 +6,16 @@
 > traceable to the run that produced it. Two claims that were at risk have been
 > checked against their sources: the ~0.70 span-exact ceiling holds in the region
 > we predicted, though the strongest supervised tagger on this corpus clears it by
-> four points (section 8). Every development-side number comes from one base run
-> of the full ladder — three cold draws, every arm replayed on the same cache,
-> run ids `rerun-cadec-d{0,1,2}` — and
-> nothing measured on an earlier run is quoted. Where an earlier experiment is
-> mentioned it is named as such, without its figures; those live in the decisions
-> log. What remains open is listed in section 10.
+> four points (section 8); and the retrieval ceiling is partly this encoder's,
+> not the task's — a domain-adapted encoder put more gold on the menu and made
+> the result worse (section 2). Every development-side number comes from one
+> base run of the full ladder — three cold draws, every arm replayed on the same
+> cache, run ids `rerun-cadec-d{0,1,2}` — and nothing measured on an earlier
+> model run is quoted. The vocabulary-only replays over the answer key in
+> section 4 — lane occupancy, and the planted corruptions — involve no model
+> and are quoted as what they are. Where an earlier experiment is mentioned it
+> is named as such, without its figures; those live in the decisions log. What
+> remains open is listed in section 10.
 
 **Pushpdeep Mishra · Wejdan Bagais**
 
@@ -294,7 +298,7 @@ contact with this task. The obvious candidate is the answer key's own inventory,
 which is circular; the best ontology-native alternative covers 48.7% of gold; and
 the real keyword table is 227,554 rows. **A list retrieved per mention is S2.**
 
-Everything section 3 measures is a change *within* S2.
+Everything the rest of this section measures is a change *within* S2.
 
 ### Sixteen changes to the one we picked
 
@@ -542,8 +546,10 @@ So we ran the shipped configuration three times, cold, and counted how many of
 the three files were different from each other: **two**. Draws 0 and 1 are the
 same file — 94 real model calls each, none served from cache, which the call
 trace records per call, and every reply identical to the byte — and draw 2 is
-not: it diverged on 29 of the 69 prompts it shares with them, from the first
-find call onward. (An earlier sweep of four other open-weight families found all four
+not: it diverged on 29 of the 69 prompts it shares with them, starting at the
+fifth request of the run — the third document's find call; the first two
+documents came back identical — and on every prompt downstream of a diverged
+find. (An earlier sweep of four other open-weight families found all four
 bit-reproducible three times of three; it predates the base run and its
 figures are in the decisions log.) So run-to-run variance is not a property of
 language models, and not even a fixed property of this one: the same model,
@@ -597,18 +603,23 @@ differently.**
 Both failures are worth seeing, because they look nothing alike. The coding one:
 
 > span `"at my wits end"`, quoted identically by all three runs
-> run 0 → **CONCEPT_LESS** — no concept fits
-> runs 1, 2 → `225444004` |At risk for suicide|
+> runs 0, 1 → `310532000` |Wanders at night|
+> run 2 → `417194006` |End feel|
 
-One run declined to code it; two filed a suicide-risk concept. Same model, same
-prompt, same menu, same hour. And the detection one, which is milder:
+Two runs filed a night-wandering finding; the third filed a joint-examination
+term. Same model, same prompt, same menu, same day — and the annotators marked
+nothing there, so every reading is an invention. And the detection one, which
+is rarer — one mention of the 233 — and again on a span no annotator marked:
 
-> run 0 → `"very very severe abdonimal pain"`
-> runs 1, 2 → `"abdonimal pain"`
-> all three → `21522001` |Abdominal pain|
+> runs 0, 1 → `"no problems"`
+> run 2 → the same two words inside the six-word clause around them
+> all three → `248264000` |No complaints|
 
 Same concept, different boundary — the disagreement two human annotators also
-have, and the one section 1 said exact matching punishes twice.
+have, and the one section 1 said exact matching punishes twice. Where the
+boundary moves *and* the code moves with it the two halves are coupled: draw 0
+quoted `"stamina"` and coded |Stamina|; draw 2 quoted `"loss of stamina"` and
+coded |Lack of stamina|, the gold answer. Section 6 returns to that record.
 
 Note what did *not* prevent any of this: narrowing the question. The pick step
 chooses a number from a twenty-line list, about as constrained as a request gets,
@@ -620,12 +631,15 @@ about half of them.
 Whatever moves this model, it is not per-record sampling noise: it is a whole
 run that either repeats or does not, and which one you get changed between
 sessions and not between consecutive draws. We do not know why. The obvious
-candidates are ruled out: the diverging document's find prompt, sent eight
-times in isolation with the cache disabled — four back to back, four with
-another model loaded and unloaded in between — returned one identical reply
-eight times. The divergence happens only inside a full run, after fifty-odd
-other requests to two models and an embedder, and what the inference server
-carries between those requests is the remaining suspect.
+candidates are ruled out: the find prompt of one diverging document
+(`LIPITOR.159`), sent eight times in isolation with the cache disabled — four
+back to back, four with another model loaded and unloaded in between — returned
+one identical reply eight times, and that reply is draw 2's, not the one the
+identical pair gave inside their runs. The divergence happens only inside a
+full run — that document's call arrives after some fifty other requests to two
+models and an embedder, and the run's first divergent reply came at its fifth
+request — and what the inference server carries between requests is the
+remaining suspect.
 
 **Which answers an objection that usually ends the conversation.** *You cannot
 put a language model in a pipeline that has to be auditable, because it will not
@@ -716,8 +730,9 @@ records across the three draws. Here is draw 2's third:
 > located the quote and found nothing there.
 
 That is the entire rejection class in practice: not wrong codes, but invented
-quotes. It used to hold one record in twenty — until a rung 0 filter began
-dropping ungrounded spans at source and the class arrived nearly empty. The
+quotes. It held one record in twenty on the held-out run, before a rung 0 filter
+began dropping ungrounded spans at source; since then the class arrives nearly
+empty. The
 checks still run, still pass their tests, and have nothing left to find. Section
 6 is about what that did to the rung above.
 
@@ -791,8 +806,9 @@ through, and you can know its size before spending a token.
 
 One more thing the figure shows: **BAND is where the false positives go.** Of
 the base run's 175 BAND records, 100 sit off the exact gold span — 40 on no gold
-mention at all, 60 on the right mention with the wrong boundaries or the wrong
-code. Not intelligence — an invented span has no vocabulary words to
+mention at all, 60 on a gold mention with the wrong boundaries, 20 of those
+carrying the right code. The other 28 sit on the exact span with the wrong
+code, or declined to code it. Not intelligence — an invented span has no vocabulary words to
 match, so it fails the string test the same way a real-but-unmatched span does.
 
 ### The one decision this rung has
@@ -929,14 +945,19 @@ abstain.
 ![Figure 8](figures/fig13-rung2-cadec.png)
 
 *Fig. 8: Rung 2 fires on REJECT alone, so ACCEPT and BAND are never touched.
-`rerun-cadec-d0`; draws 1 and 2 fired 2 and 3 times and rescued none. Source:
+`rerun-cadec-d0`; draws 1 and 2 fired 2 and 3 times; every draw relocated one
+quote and corrected no answer. Source:
 author-created with Graphviz.*
 
 **It can only act on the lane rung 1 leaves empty** — and section 4 showed that
 lane holds almost nothing, because the classes a vocabulary can prove wrong are
 the ones the model stopped producing. On the base run it fired 2, 2 and 3 times
-in 230, 230 and 238 records, on invented quotes it could not relocate, and
-rescued none.
+in 230, 230 and 238 records, every time on a quote that is not in the post.
+Told so, the model relocated one of them on every draw — it re-read the post
+and returned a longer sentence that is there, and the record moved from REJECT
+to BAND — and left the others rejected. The relocated span carries a wrong code
+on all three draws, so no answer became correct: one record per run, and not a
+rescue.
 
 **Rung 3, voting.** Asks again *k* times and takes the majority. It is the most
 expensive thing in the ladder by a wide margin — **410,638 / 432,341 / 431,518
@@ -973,8 +994,8 @@ ACCEPT and 1 / 0 / 1 in REJECT. So the vote does its work in the lane where the
 free check had no opinion — which answers the question this section used to
 leave open, and not in the rung's favour: **most of what it changes in BAND is a
 span that sits on no gold mention at all**, 17 of draw 0's 25 transitions going
-from unmatched to unmatched. The records it could not re-find, 11 to 12 per
-draw, were mostly invented spans too. Rung 3 is under-targeted in the sense
+from unmatched to unmatched. The 12 records per draw it could not re-find were
+mostly invented spans too. Rung 3 is under-targeted in the sense
 that it could run on the BAND residue alone; it would still be re-coding the
 extractor's false positives at 2.5× the extractor's price.
 
@@ -1174,7 +1195,7 @@ correct answers than rung 0, because every one works by withholding, and the
 choice between rows is the deployer's trade of precision against yield. And
 **they do not stack**: the free check plus the menu judge ships the same 52
 records as the free check alone. What the judge earns is a setting the free
-check cannot give — half the batch at 0.54, the best yield of any filter — at
+check cannot give — three fifths of the batch at 0.54, the best yield of any filter — at
 84,000 tokens a run. Voting earns a worse setting than the judge at five times
 the price.
 
@@ -1194,7 +1215,7 @@ nothing" — which is true, and useless. Each against its own purpose instead:
 | layer | what it is **for** | did it do that? | cost |
 |---|---|---|---|
 | **deterministic checks** | sort into three lanes — *not* raise accuracy | **yes** — the lanes separate 2.8× (section 4) | **0 tokens, 0 s** |
-| **self-correction** | restate a provable failure as a fact | **never viable here** — fired 2, 2 and 3 times, rescued none | 1,259–1,631 |
+| **self-correction** | restate a provable failure as a fact | **barely exercised** — fired 2, 2 and 3 times, relocated one quote per draw, corrected none | 1,259–1,631 |
 | **voting** | catch answers the model cannot reproduce | **no** — net +1, −1, −1; destroyed 2, 3, 5 | **411,000–432,000**, p95 **118–144 s** |
 | **second-model judge** | rule on whether an answer is right | **yes, once shown the menu** — 3.4–4.2× separation; **read by nothing** | 84,000–88,000, p95 1.5 s |
 | **refusal** | guard in front of a person | **yes** — ships at 0.74–0.82 on 21–23% of records | 0 |
@@ -1208,9 +1229,10 @@ on draw 0 and none on draws 1 and 2**. The one was voting overwriting a correct,
 vocabulary-verified code on a 2–0 vote.
 
 Two cells claim more than "did not fire", and both are load-bearing.
-**Self-correction was never viable**, not merely idle: every rejection it could
-have acted on, in every run, was a span the extractor could not locate, and an
-unlocatable span carries no fact to state back to a model. **Voting had no
+**Self-correction was barely exercised**, not tested and found wanting: every
+rejection it could act on, in every run, was a quote that is not in the post,
+and the one quote per run it relocated came back with a wrong code. One record
+per run measures nothing about the rung. **Voting had no
 consistent effect**,
 which is different from no effect — +1, −1 and −1 net correct across the base
 draws, and on the held-out split it re-found 8 previously
@@ -1256,7 +1278,8 @@ The two halves are also coupled, so a detection error does more than lose one
 mention. Retrieval is deterministic: quote `"stamina"` where the writer described
 the *lack* of it, and the menu comes back `[0] stamina` plus nineteen *stoma* and
 *foramina* near-matches, with |Lack of stamina| absent at any depth we retrieve.
-Quote `"no stamina"` and the same retriever puts it at line 0. **The span chooses
+Quote `"loss of stamina"`, as draw 2 did, and the same retriever puts
+|Lack of stamina| at line 0, where the pick takes it. **The span chooses
 the menu, so a boundary error deletes the right answer before the model is asked
 to pick.**
 
@@ -1334,8 +1357,9 @@ agreeableness bias with true-positive rates above 96% against true-negative
 rates below 25% — and so is its recovery once shown the evidence. Our voting
 result is the same story from the other side. Position bias in option lists is
 documented too, and *option-order randomisation* is the recommended mitigation
-— we built it, and it showed our "attractor" was a default of our own, not the
-model's (section 2).
+— we built it for the judge, and on CADEC a shuffled menu moved its separation
+by a tenth of a point, because there was no line-one ratification to break
+(section 5).
 
 **Where we differ is what we compared.** That literature treats the judge and
 self-consistency voting as standard tooling. We priced both against a free string
@@ -1426,11 +1450,11 @@ The part another team can use tomorrow is the assignment, not the ladder:
 
 | job | whose | evidence |
 |---|---|---|
-| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — it reaches 178 of 226 gold mentions on overlap, 116 exactly; nothing else in the ladder can propose one |
+| **Read the prose, propose candidate spans** | **the model** | the one thing it does well — it touches 183 of 226 gold mentions — 178 under the scorer's one-to-one pairing — and 116 exactly; nothing else in the ladder can propose one |
 | Recall an identifier | **not the model** | F1 0.024–0.030 against 0.393–0.434 for retrieve-and-pick, at about the same tokens, and 13–18% of the identifiers it recalls do not exist |
 | Decide the candidate list | **not the model** | the retriever, with no model in it, puts the answer on the menu for 93% of the spans the model finds |
 | Order the candidate list | **not the model** | line one is the retriever's best guess and the pick takes it four times in five when the answer is on the menu |
-| Check its own output | **unproven** | self-correction fired 2–3 times a run on invented quotes and rescued none; voting's sign changed with the draw |
+| Check its own output | **unproven** | self-correction fired 2–3 times a run on invented quotes, relocated one and corrected none; voting's sign changed with the draw |
 | Judge whether an answer is right | **the model can, shown the evidence** | blind, 1.7× against the string comparison's 2.8×; shown the menu, 3.4–4.2× (section 5) — at 84,000 tokens a run, and nothing reads it |
 | Decide when to abstain | **not the model** | it never reported below 0.9 confidence while being right 38% of the time |
 | Validate existence, format, grounding | **not the model** | deterministic checks are exact on those classes, at zero cost |
@@ -1469,7 +1493,7 @@ And six practices, each of which we learned by getting it wrong first:
   answer from an incorrect one.
 
 The system ships about a quarter of its answers, at four to six errors per
-hundred instead of thirty-eight to forty-one on development (3.8 against 59.6
+hundred instead of fifty-nine to sixty-three on development (3.8 against 59.6
 held out), and hands the rest to a person. Not what we set out to build.
 And one limit is worth being plain about, because it is structural rather than a
 shortfall we could engineer away: **nothing above the extractor made the system
@@ -1540,9 +1564,10 @@ thought we were buying.
 - **The judge is a 3.2B model grading a 20B one.** Shown the menu it separates
   3.4–4.2×; that is a measurement on the development split, and nothing in the
   shipped configuration reads it.
-- **Self-correction was never exercised.** It fired 2, 2 and 3 times across three
-  runs on invented quotes and rescued none, so one rung of seven is unmeasured
-  rather than measured and found wanting.
+- **Self-correction was barely exercised.** It fired 2, 2 and 3 times across
+  three runs on invented quotes, relocated one quote per run and corrected no
+  answer, so one rung of seven is unmeasured rather than measured and found
+  wanting.
 - **Human cost is a count of records routed, never minutes.** No reviewer has sat
   at the desk: every figure for it is a declared rate or a ceiling derived from
   gold.

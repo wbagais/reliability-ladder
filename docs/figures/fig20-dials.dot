@@ -27,7 +27,7 @@ digraph dials {
     b0 -> b1; b1 -> b2 [label=" yes "]; b1 -> b3 [label=" no "];
   }
   subgraph cluster2 { label="rung 3 · ship only when all samples agree"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
-    c0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    c0 [label="230 records\n88 correct after rung 3" fillcolor="#e3eeef" color="#0c6469"];
     c1 [label="re-extract every post 3× at temperature 0.7\nmatch each sample's mentions to the record" fillcolor="#e3eeef" color="#0c6469"];
     c2 [label="never re-found 12 · found once 18\n6 correct" fillcolor="#fdf0c8" color="#946c00"];
     c3 [label="found by 2 or 3 samples · 200" fillcolor="#eef1f2"];
@@ -36,21 +36,21 @@ digraph dials {
     c0 -> c1; c1 -> c2; c1 -> c3; c3 -> c4; c3 -> c5;
   }
   subgraph cluster3 { label="rung 3 · ship only when at least 2 agree"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
-    d0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    d0 [label="230 records\n88 correct after rung 3" fillcolor="#e3eeef" color="#0c6469"];
     d1 [label="the same 3 samples" fillcolor="#e3eeef" color="#0c6469"];
     d2 [label="WITHHOLD · never re-found 12 · found once 18 · tied 15\n11 correct · 34 wrong" fillcolor="#fdf0c8" color="#946c00"];
     d3 [label="SHIP · a code with 2 or 3 votes · 185\n(146 unanimous + 39 split 2–1)\n77 correct · 108 wrong\naccuracy 0.42 · yield 0.335" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
     d0 -> d1; d1 -> d2; d1 -> d3;
   }
   subgraph cluster4 { label="rung 4 · ship only what the BLIND judge passes"; fontname="Helvetica-Bold"; fontsize=12; color="#c8d1d5"; style="rounded";
-    e0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    e0 [label="230 records\n88 correct after rung 3" fillcolor="#e3eeef" color="#0c6469"];
     e1 [label="second model reads the post, the span, the bare code\nspan_ok? code_ok?" fillcolor="#e3eeef" color="#0c6469"];
     e2 [label="SHIP · both ok · 136\n63 correct · 73 wrong\naccuracy 0.46 · yield 0.274" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
     e3 [label="WITHHOLD · fail 87 + unparsed 7 · 94\n24 correct · 70 wrong" fillcolor="#fdf0c8" color="#946c00"];
     e0 -> e1; e1 -> e2; e1 -> e3;
   }
   subgraph cluster5 { label="rung 4 · ship only what the MENU-SHOWN judge passes"; fontname="Helvetica-Bold"; fontsize=12; color="#0c6469"; style="rounded";
-    f0 [label="230 records\n87 correct" fillcolor="#e3eeef" color="#0c6469"];
+    f0 [label="230 records\n88 correct after rung 3" fillcolor="#e3eeef" color="#0c6469"];
     f1 [label="second model reads the post, the span, the 20-line menu,\nthe line picked, the coding rule · span_ok? code_ok? best line?" fillcolor="#e3eeef" color="#0c6469"];
     f2 [label="SHIP · both ok · 136\n74 correct · 62 wrong\naccuracy 0.54 · yield 0.322" fillcolor="#e3f0e6" color="#2d6a4f" penwidth=2];
     f3 [label="WITHHOLD · fail 94 · unparsed 0\n14 correct · 80 wrong\n(70 of the 94: “not on this list”)" fillcolor="#fdf0c8" color="#946c00"];
