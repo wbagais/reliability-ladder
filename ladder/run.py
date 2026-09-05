@@ -58,6 +58,9 @@ def _corpus_for(man):
     if name == "finer":
         from ladder import corpus_finer
         return corpus_finer
+    if name == "psytar":
+        from ladder import corpus_psytar
+        return corpus_psytar
     raise ValueError(f"unknown corpus adapter {name!r}")
 
 
@@ -71,8 +74,16 @@ def _corpus_opts(man):
     manifest and read from the defaults, so the config was decorative.
     """
     c = man.get("corpus") or {}
-    return {k: v for k, v in (c.get("sampling") or {}).items()
+    opts = {k: v for k, v in (c.get("sampling") or {}).items()
             if not k.startswith("_")}
+    # PsyTAR annotates four entity classes in four sheet pairs and the arm
+    # picks one. Like FiNER's sampling this is a property of the CORPUS rather
+    # than of the adapter, so it is read from the manifest — a default here
+    # would make the manifest key decorative, which is the defect the docstring
+    # above records.
+    if c.get("entity"):
+        opts["entity"] = c["entity"]
+    return opts
 
 
 def _corpus_root(man):

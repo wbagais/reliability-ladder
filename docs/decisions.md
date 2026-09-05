@@ -5554,3 +5554,29 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   article), to be agreed between the authors before publication.
 - Body prose 3,425 words excluding tables and captions, against a 3,500 budget
   that must also hold two 75-word bios: about 75 over as committed.
+- 2026-09-05 — **THE ACCEPT LANE DID NOT TRANSFER TO A CORPUS THAT DIFFERS ONLY IN ITS DRUGS.** PsyTAR ported as the matched comparison section 11 asks for: 891 patient reviews from **askapatient.com — the same forum CADEC comes from** — annotated for adverse drug reactions and mapped to **SNOMED CT**, CC BY 4.0. Same forum, same task, same vocabulary; different drugs (Zoloft, Lexapro, Cymbalta, Effexor XR against CADEC's Diclofenac, Lipitor and ten others). FiNER and GeoWebNews each vary the text *and* the vocabulary, so neither can attribute a difference; this one varies one thing.
+
+  4,060 mentions carry a SNOMED id and **99.9% of those ids resolve against the AU index** — the SNOMEDCT_US-versus-AU risk that could have wrecked the comparison did not materialise, and it was measured before any rate was computed.
+
+  **A prediction was registered in the script before the run** — ACCEPT-lane occupancy of 30–45%, on the reasoning that the lane's rate is driven by how often a patient's words coincide with a clinical term. **Measured: 26.2%**, against CADEC's 42.4%. The prediction was wrong, which is the finding: whatever drives the lane is narrower than "SNOMED-coded patient narratives".
+
+  **THE MECHANISM SWAPPED, AND THAT IS THE REAL RESULT.**
+
+  | stratum | CADEC | PsyTAR |
+  |---|---|---|
+  | identical | 40.5% | 26.3% |
+  | **subset** | **24.8%** | **2.3%** |
+  | **partial** | **4.9%** | **40.2%** |
+  | no shared token | 29.9% | 31.2% |
+
+  The `subset` and `partial` columns exchange places by an order of magnitude each. CADEC's patients name a symptom that sits INSIDE the clinical term — `back pain` within |Backache|. PsyTAR's describe one in a phrase that merely BRUSHES the term: `not being able to stop my Head going into tremours` shares one word with |Tremor|. The no-overlap share is nearly identical on both corpora, so this is not "less lexical overlap"; it is **a different relationship between lay and clinical language**, and a plausible reading is that psychiatric symptoms resist short naming in a way musculoskeletal ones do not. Not tested here.
+
+  **RUNG 1'S SEMANTIC CHECK ENCODES CADEC'S ANNOTATION GUIDE, NOT SNOMED'S STRUCTURE.** The relation registry reported `semantic` as BROKEN on this corpus — 36 rejections of gold records, which on an answer key is impossible. It is not broken. Every one of the 36 is a **correct** rejection of a rule PsyTAR does not follow: CADEC codes every reaction to a clinical finding, and PsyTAR codes some to events and procedures — |Suicide| `44301001`, |Suicide attempt| `82313006`, |Antibiotic therapy| `281789004`. Those are real SNOMED concepts and they are genuinely not findings.
+
+  So the check is sound and **the precondition it assumes is corpus-specific**, while the article states it as a property of the vocabulary. That is a correction to a shipped claim, and it is exactly what a matched comparison is for: the same vocabulary, two annotation conventions, and a check that silently encodes one of them.
+
+  **A BUG WORTH RECORDING RATHER THAN QUIETLY FIXING.** The first run of this adapter reported an ACCEPT lane of **3.4%** on 436 mentions. `ADR_Mapped` has **two columns both named `SNOMED-CT`** — position 5 is the mapping for UMLS1 and position 7 for UMLS2 — and `dict(zip(headers, row))` silently keeps the last, which is blank on 4,469 of 5,010 rows. The adapter was reading the secondary column, dropping 91% of the corpus, and reporting a rate over the 9% that happened to survive its own filter. **A lane rate over the records a filter let through is a fact about the filter.** Caught because a 91% drop is not a number to accept, not because anything failed. `_rows()` now suffixes duplicate headers and `_snomed_cells()` reads both.
+
+  Two further counts kept apart on purpose: `No code` is **the annotators** saying no SNOMED concept applies (24 rows) and is not the same as a cell this adapter failed to parse (48). Both leave the denominator; only one is our problem.
+
+  **AND A CAVEAT THAT TRAVELS WITH EVERY PSYTAR NUMBER.** The corpus gives spans as TEXT, not character offsets, so they must be located in their sentence. 573 could not be located and were dropped; 18 appear more than once in their sentence and the first was taken. Any span-grounding figure from this corpus therefore measures **our locator**, not the model.
