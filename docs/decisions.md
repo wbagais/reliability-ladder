@@ -5580,3 +5580,70 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   Two further counts kept apart on purpose: `No code` is **the annotators** saying no SNOMED concept applies (24 rows) and is not the same as a cell this adapter failed to parse (48). Both leave the denominator; only one is our problem.
 
   **AND A CAVEAT THAT TRAVELS WITH EVERY PSYTAR NUMBER.** The corpus gives spans as TEXT, not character offsets, so they must be located in their sentence. 573 could not be located and were dropped; 18 appear more than once in their sentence and the first was taken. Any span-grounding figure from this corpus therefore measures **our locator**, not the model.
+- 2026-09-06 — **THE FREE CHECK'S PRECISION IS A PROPERTY OF THE CHECK. ITS REACH IS A PROPERTY OF EVERYTHING ELSE.** A model x corpus matrix: six corpora, four model families, one draw each, rungs 0–1, 24 cells on a rented RTX 6000 Ada. Every cell derived from its corpus's own manifest by changing **one key**, `model.extractor`, and each verified against `manifest_diff.py` before running.
+
+  **PsyTAR — the matched comparison, and the result the matrix was for:**
+
+  | model | occupancy | ACCEPT correct | BAND correct |
+  |---|---|---|---|
+  | gpt-oss:20b | 31.0% | **80.9%** | 41.2% |
+  | llama3.1:8b | 31.0% | **81.0%** | 40.0% |
+  | mistral:7b-instruct | 19.5% | **84.6%** | 35.4% |
+  | granite4:micro-h | 18.6% | **90.3%** | 33.3% |
+
+  Four independent families spanning 4B to 20B parameters. **Correctness 80.9–90.3%, at or above CADEC's 75–82%, and roughly double each model's own BAND lane in every row.** Occupancy varies with the model — 18.6% to 31.0% — and correctness does not. The check works wherever it reaches; how far it reaches is somebody else's variable.
+
+  **The counterexample matters as much.** GeoWebNews shows the opposite shape: occupancy 20.3–63.6%, *higher* than PsyTAR's, and correctness **11.4–25.8%**, far below. A large lane that is not precise. So occupancy predicts nothing about correctness in either direction, which is why the two were separated in the first place — and why the earlier PsyTAR entry measuring one and claiming the other had to be corrected.
+
+  **FiNER's structural zero, now shown four ways.** 0.0% occupancy on every model, 188 to 691 records. A numeral shares no token with an English phrase regardless of who writes it.
+
+  **WHAT THE MATRIX IS NOT.** It is uniform in models and **not in retrieval**: CADEC and PsyTAR retrieve densely over an embedding index built from SNOMED; the other four retrieve lexically, because no such index exists for a gazetteer, a taxonomy, a flat tag set or MeSH. On CADEC that substitution was measured to cost ~21 points of recall@20 — larger than most differences in the table. A lexical row and a dense row are not comparable, and `score_matrix.py` prints the mode in its own column for that reason.
+
+  CADEC is absent. Its runs live on the other owner's machine, and a second set from this hardware would be a second experiment: floating point differs between a CPU-split model and a GPU-resident one, measured here at 23 records against 22 on identical input.
+
+- 2026-09-06 — **FIVE CELLS IN TWENTY-TWO RAN A DIFFERENT MODEL THAN THEIR NAME SAID, AND THE ONLY REASON ANYONE KNOWS IS A HABIT NOBODY ADDED FOR THIS PURPOSE.** Two matrix runners were left running concurrently. Both wrote the manifest for the cell about to start into `manifest.cell.json` — one fixed filename in the repository root — so each overwrote the other's configuration between launch and read:
+
+  | directory | model actually used |
+  |---|---|
+  | `psytar-gpt-oss_20b-d0` | `ollama/ibm/granite4:micro-h` |
+  | `linnaeus-mistral_7b-instruct-d0` | `ollama/qwen3:4b` |
+  | `lgl-granite4_micro-h-d0` | `ollama/mistral:7b-instruct` |
+  | `linnaeus-llama3.1_8b-d0` | `ollama/mistral:7b-instruct` |
+  | `lgl-qwen3_4b-d0` | no manifest at all |
+
+  **23% of the matrix.** The first of those carried the headline PsyTAR figure and would have been published as gpt-oss's number.
+
+  It was caught because `run_matrix.sh` copies the cell's manifest into the output directory after each run — so there were **two records of one fact**, the name the runner intended and the configuration the run received, and they could disagree. A directory name is an intention; a saved manifest is a measurement. Without the copy the intention would have been the only record and it would have been wrong, silently, in five places.
+
+  All five were deleted and re-run. `psytar-gpt-oss` reproduced ACCEPT=77 BAND=171 exactly, so the headline survives — but it survives *checkably*, which is the point.
+
+  The scratch filename now carries the process id. The deeper lesson is the one already recorded for `stagecheck` in `docs/TODO-provenance.md`: **a stage records what it did and not what it was**, and comparing rows from two configurations is a rate over an unnamed set, one level up.
+
+- 2026-09-06 — **DETERMINISM CONFIRMED ON A THIRD CORPUS, SO THE ONE-DRAW MATRIX IS A MEASUREMENT RATHER THAN AN ASSUMPTION.** The matrix runs one draw per cell, justified by three-draw identity previously measured on GeoWebNews and PsyTAR. That was an inference from two corpora. Three draws of `psytar-gpt-oss` at rungs 0–1 give **ACCEPT=77, BAND=171 in every draw** — byte-identical. At temperature 0 a repeated draw is the same computation, and the single-draw design is now justified by having been checked rather than by having been assumed.
+
+- 2026-09-06 — **LINNAEUS'S ZEROS ARE THE FREE CHECK WORKING CORRECTLY ON A BROKEN PROMPT, WHICH IS THE EIGHTH INHERITED CONSTANT OF THIS PORT.** All four models produce 0.0% ACCEPT on LINNAEUS, under **both** the scientific-names and the all-names taxonomy — the vocabulary switch that moved the gold stratum 5.4% → 35.4% changes nothing here. That ruled out the vocabulary and pointed at the records themselves:
+
+      text='A novel status'   -> Hunnivirus A
+      text='non'              -> Non-human HBV
+      text='easy plant'       -> leaf metagenome
+      text='Real'             -> Asian lily-of-the-valley waikavirus
+
+  **Rung 0 is not extracting species.** It is pulling arbitrary fragments and the retriever is returning the nearest taxon to each. The lexical check refuses all of them, correctly — `Real` has nothing to do with a waikavirus — so **the zero is the check declining to endorse nonsense**, which is the behaviour it exists for.
+
+  The cause is `prep_all_arms.py` giving LINNAEUS no `prompt_slots`, so the model was asked to find *"every adverse reaction the reporter describes"* in a paper about species. Eighth inherited constant across three ports, after the few-shot ids, the vocabulary gate codes, the split sizes, the loader options, the corpus version string, the model name prefix and the few-shot pool.
+
+  **LINNAEUS's four cells therefore measure a prompt mismatch and not the corpus**, and are excluded from any claim about it. Its gold-side result — 76.8% no-overlap under scientific names, 43.4% with common names — stands, because that was never a model measurement.
+
+- 2026-09-06 — **BC5CDR'S ACCEPT LANE IS SMALL AND GENUINELY PRECISE, WHICH WAS THE LESS LIKELY OF TWO EXPLANATIONS.** All four models score 100%, 100%, 95% and 93% on an ACCEPT lane of 6 to 21 records. The suspicion was that the MeSH index carries one name per concept — `terms('D006973')` returns only `Hypertension` — so the check might fire only where a model reproduced the canonical string verbatim, making correctness tautological.
+
+  Re-scoring the same records against a build with `ENTRY` synonyms (354,909 names → 948,514) tests that directly: if the lane were tautological, admitting synonyms would dilute it. It does not. The lane **grows** — 6→7, 21→28, 14→21 — and correctness barely moves, 100%/95%/93% → 100%/93%/90%.
+
+  So the precision is real. The denominators are small, and 100% of six is a fact about six records rather than about the check.
+
+- 2026-09-06 — **THREE MODELS AND ONE CORPUS EXCLUDED FROM THE MATRIX, EACH FOR A STATED REASON, AND TWO OF THE REASONS ARE FINDINGS.**
+
+  **`qwen3:4b` — a registry keyed on the full tag defaults silently for a sibling.** `models.yaml` carries an entry for `qwen3:8b` at `max_tokens: 8000`, with a comment recording that at the 2,000 default it *"spent the ENTIRE budget thinking and returned truncated=True with EMPTY content."* `qwen3:4b` had no entry, fell back to 2,000, and reproduced exactly that failure — empty `raw` on every call. Given 8,000 tokens it then exceeded the 300-second timeout on every call instead. The same comment describing the failure was sitting directly above the missing entry.
+
+  **`granite4:micro-h` — valid JSON, wrong shape.** It returns `{"mentions": ["a string", ...]}` where every other model returns objects, and `_mention_record` raised `AttributeError` at three call sites. Guarded inside the function rather than at each caller, returning None so the shape can be counted: how often a model emits the wrong shape is a fact about the model, and a run that dies on it measures nothing. Granite4 then completed all six corpora.
+
+  **TR-News — rung 0 returns nothing in 0.06 seconds on valid input**, with no error and no reason logged. The corpus loads (118 documents, 1,159 mentions), the documents have text, the few-shot ids exist in the pool. Three attempts did not find it. Excluded and recorded as an open failure rather than as an absence.

@@ -61,6 +61,21 @@ def _corpus_for(man):
     if name == "psytar":
         from ladder import corpus_psytar
         return corpus_psytar
+    # One adapter for LGL and TR-News: both ship in the GeoWebNews repository
+    # and share a schema, and `corpus.corpus` selects the file. GeoVirus is in
+    # the same directory and is NOT registered — it links to Wikipedia rather
+    # than GeoNames, so its ids cannot be checked against the index every other
+    # geo arm uses, and an arm whose vocabulary differs is not comparable with
+    # the arms it would sit beside.
+    if name == "geoxml":
+        from ladder import corpus_geoxml
+        return corpus_geoxml
+    if name == "linnaeus":
+        from ladder import corpus_linnaeus
+        return corpus_linnaeus
+    if name == "bc5cdr":
+        from ladder import corpus_bc5cdr
+        return corpus_bc5cdr
     raise ValueError(f"unknown corpus adapter {name!r}")
 
 
@@ -83,6 +98,16 @@ def _corpus_opts(man):
     # above records.
     if c.get("entity"):
         opts["entity"] = c["entity"]
+    # `corpus` selects the FILE for the geoxml adapter, which serves LGL and
+    # TR-News from one module. Without it both load lgl.xml and TR-News reports
+    # LGL's 588 documents — which it did, silently, and the two arms would have
+    # been the same experiment under two names.
+    if c.get("corpus"):
+        opts["corpus"] = c["corpus"]
+    # `part` selects BC5CDR's own train/dev/test, which it keeps rather than
+    # being given new ones.
+    if c.get("part"):
+        opts["part"] = c["part"]
     return opts
 
 

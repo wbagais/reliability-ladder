@@ -7,29 +7,20 @@
   "unit_of_evaluation": "one mention record",
   "seed": 42,
   "corpus": {
-    "name": "PsyTAR",
-    "version": "CADEC v2 (corpus); DAP collection v3 (csiro:10948, 10.4225/08/570FB102BDAD2)",
-    "licence": "CSIRO Data Licence - non-commercial, NON-TRANSFERABLE, not redistributable",
-    "splits_dir": "data/psytar/splits",
-    "n_docs_total": 1250,
-    "n_mentions_total": 9111,
-    "split_unit": "document",
-    "n_dev_docs": 40,
-    "n_test_docs": 60,
-    "stratified_by": "drug family (lipitor | diclofenac)",
-    "checksums": "docs/cadec-checksums.txt",
-    "adapter": "psytar",
-    "root": "data/psytar",
-    "entity": "ADR",
-    "_source": "https://raw.githubusercontent.com/basaldella/psytarpreprocessor/master/data/PsyTAR_dataset.xlsx",
-    "_licence": "CC BY 4.0",
-    "_why": "The matched comparison for CADEC: the same forum (askapatient.com), the same task, the same vocabulary (SNOMED CT), different drugs. FiNER and GeoWebNews each vary the text AND the vocabulary, so a difference on either is not attributable. This one varies the corpus alone.",
-    "_no_offsets": "PsyTAR gives spans as TEXT, not character offsets, so corpus_psytar locates them in their sentence. 573 could not be located and were dropped; 18 occur twice and the first was taken. Any span-grounding figure from this arm measures OUR LOCATOR, not the model."
+    "name": "LINNAEUS",
+    "adapter": "linnaeus",
+    "root": "data/linnaeus/manual-corpus-species-1.0",
+    "splits_dir": "data/linnaeus/splits",
+    "_why": "Species mentions against NCBI Taxonomy, SCIENTIFIC NAMES ONLY. The all-names build moves the endorsable stratum 5.4% -> 35.4% on these same records; scientific-only is chosen to match the main-name-only GeoNames build so the lexical arms read alike.",
+    "n_dev_docs": 25,
+    "n_test_docs": 35,
+    "version": "LINNAEUS manual-corpus-species-1.0, Gerner et al. 2010, CC-BY; NCBI Taxonomy taxdump 2026-09, scientific names only",
+    "_split_note": "25/35, not the 40/60 every other arm uses. LINNAEUS has 95 documents and 40+60 leaves NOTHING in the pool \u2014 the few-shot block came back empty and the pool-split guard would have refused the run. Its cells are therefore over a smaller denominator than the rest of the matrix, which is a stated caveat rather than a hidden one."
   },
   "vocabulary": {
     "snomed_release": "SnomedCT_Release_AU1000036_20260731",
     "snomed_release_dir": "data/SnomedCT_Release_AU1000036_20260731",
-    "snomed_db": "ladder/cache/snomed.sqlite",
+    "snomed_db": "ladder/cache/taxonomy.sqlite",
     "meddra_release": "CADEC-derived code list (NOT a MedDRA release)",
     "meddra_note": "The only MedDRA table available is the code list CADEC ships with the corpus. Measured 2026-08-22: 666 codes, all 666 appear in CADEC's gold annotations, 0 do not - it is the answer key's code inventory (~3% of MedDRA PT), not a vocabulary. Removing its occurrences/posts/example_mentions columns removes the evidence of derivation, not the derivation. So rungs.1.meddra_check defaults to 'flag': the verdict is recorded and counted in rung 1's comparison and is not a rejection reason. Set 'reject' to include it as one, or point meddra_csv at a subscription release and the caveat goes away.",
     "meddra_csv": "data/meddra_codes.csv",
@@ -37,7 +28,13 @@
     "snomed_backend_note": "local-rf2 | ols4. Not interchangeable: an OLS4-backed exists() reports 23.9% of CADEC gold as nonexistent codes (7.5% retired, 16.4% AU-extension = 100% of drug mentions). A rung 1 rejection rate is not comparable across backends. See schemas/vocabulary.py and `python -m ladder.vocab_crosscheck`.",
     "meddra_mode": "reference",
     "meddra_mode_note": "reference | answer_space. reference = the list only cross-checks a code produced by other means; retrieval from it is refused. answer_space = the task IS closed-set assignment over this list, which is a DIFFERENT and much easier task and must be declared in the method section.",
-    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent."
+    "snomed_release_note": "Snapshot from the ALL distribution. Cache built 2026-08-22; 928 active / 115 inactive / 3 absent over CADEC gold. A prior build measured 927 active \u2014 one concept, release-dependent.",
+    "_backend_note": "ladder/cache/taxonomy.sqlite \u2014 NOT SNOMED. The schema is the same and the content is not, so a code from this arm means nothing in another.",
+    "gate": {
+      "real": "9606",
+      "fake": "999999999999",
+      "_note": "A code this vocabulary holds, and one it cannot. Inherited from CADEC's SNOMED gate (162031009) until this was set, which failed every arm at init."
+    }
   },
   "model": {
     "extractor": "ollama/gpt-oss:20b",
@@ -94,7 +91,7 @@
       "rung0_shortlist_note": "How many CONCEPTS S2 shows (deduped by code since 2026-08-25). Deduped dense recall over the 6,595 coded gold mentions: @20 87.0%, @30 88.9%, @40 90.2%, @60 91.8% \u2014 and k STAYED 20 anyway, because arm 4 (2026-08-25) measured the other side of the trade: at k=40 the pick step lost more than retrieval gained (pick-past-gold 34 -> 47, F1 exact 0.289 -> 0.236). Menu recall is not menu accuracy.",
       "keyword_table": "data/keywords.csv",
       "keyword_table_note": "Where rung 0 turns a NAME into a code. Built from the SNOMED release alone by `python -m ladder.keywords --build`; nothing in it reads CADEC or the gold annotations. Findings and disorders only \u2014 resolving through Registry.resolve searched every description in the release, which is what answered |California chicken (organism)| for a rectal bleed and let |Gaseous substance| outrank the right concept for 'gas'. There is NO fallback to the registry when a name is absent: an unresolved name is unresolved, and falling back would reinstate the search this replaces and hide which of the two answered. The registry is still loaded \u2014 rung 1 needs exists/is_active/finding_status/terms over the WHOLE release, and S2's shortlist is retrieved from it.",
-      "rung0_retrieval": "dense",
+      "rung0_retrieval": "lexical",
       "rung0_retrieval_note": "dense | lexical \u2014 which retriever builds S2's candidate menu. NOTE THAT THE TWO ALSO SEARCH DIFFERENT CORPORA: 'lexical' is Registry.shortlist, Jaccard token overlap over the SQLite description table (1,822,645 rows, 721,187 concepts, every semantic type, filtered to findings AFTER ranking); 'dense' is cosine over the embedded keyword table (227,554 rows, 127,515 concepts, findings and disorders, active only, filtered BEFORE ranking; granite-embedding:30m, 384 dims, local). MEASURED 2026-08-24 over the same 6,595 scorable coded gold reaction mentions, with the corpus and the scoring varied SEPARATELY \u2014 recall@20: lexical over descriptions 61.8%, lexical over keywords.csv 65.1%, dense over keywords.csv 86.1%. So embeddings are worth +21.0 points and the cleaner corpus +3.3. At k=1 it inverts (19.5% / 48.6% / 63.8%): +29.1 of corpus against +15.2 of scoring, because filtering to findings before ranking is what clears the top slot. The default moved on that and on nothing else. Two lexical defects dense removes, neither tunable: Jaccard's denominator penalises long terms, so for 'extreme rectal bleed' |Rectal| scores 0.33 and |Rectal hemorrhage| 0.25 and the wrong shorter concept wins; and there is no stemming, so 'bleed' never reaches 'bleeding'. Dense has its own failure mode and it is not hidden: 'gas' returns |gas gangrene| and its variants. Lexical stays reachable because a number produced under one retriever is only interpretable next to the other. Both return the same hit shape (i, code, label, fsn, via) so rung 0's pick logic never branches on which one ran, and the choice is written onto every record as checks.rung0_retrieval.",
       "rung0_encoder": "granite",
       "rung0_encoder_note": "granite | sapbert - WHICH DENSE ENCODER BUILDS S2'S MENU. Added 2026-08-31 (B2). ONE KEY NAMES AN ENCODER, not a model string plus an index path, because the two must move together: a 768-dim matrix read with a 384-dim query embedder does not fail, it ranks noise. The registry is ladder/embed.py:ENCODERS and it RAISES on a name nobody registered, for the same reason llm.resolve does. 'granite' is granite-embedding:30m through ollama, 384 dims, and is the whole shipped record - every CADEC number in docs/decisions.md and the article was produced with it. 'sapbert' is cambridgeltl/SapBERT-from-PubMedBERT-fulltext, 110M, [CLS] pooling, through transformers (no GGUF conversion of it exists, so it cannot go through ollama); it is LOCAL like everything else, which is the rule that matters, and torch is a local-only extra imported late. MEASURED OFFLINE BEFORE THE ARM WAS BUILT, same corpus (data/keywords.csv), same k, same 6,595 scorable coded gold reaction mentions, exclusions applied, and the granite control reproduced the recorded baseline to every decimal first: recall@1/5/10/20/50 granite 63.7/77.7/83.2/87.0/91.1, sapbert 66.1/80.7/84.5/88.4/91.6. Paired bootstrap over 1,144 documents: +2.30pt at k=1 [+1.36, +3.29] and +1.44pt at k=20 [+0.51, +2.37], separated. BUT THE CHURN IS EIGHT TIMES THE NET (435 rescued, 340 broken, net +95 of 6,595) and the rescued arrive at median rank 4 where the pick converts 42.3%, while the broken sat at median rank 2. Priced through the measured conversion table that is +0.24pt of F1 exact against rung 0's own 1.3pt run-to-run spread. Each encoder has its own index at <embed_prefix><suffix>, hyphen-separated - a dotted suffix would be eaten by Path.with_suffix and load the other encoder's matrix silently. manifest.sapbertarm.json is the one-key diff, pinned by a test. Declared EXPLICITLY rather than left to r0.DEFAULTS, per the 2026-08-30 rule: a manifest that merely happens to agree with a default breaks the moment the default moves. See docs/decisions.md 2026-08-31.",
@@ -102,10 +99,6 @@
       "embed_prefix_note": "Where the dense index lives: <prefix>.vectors.npy (float16, L2-normalised, one row per keyword) and <prefix>.rows.json (keyword,code in MATRIX ORDER). A CACHE, unlike data/keywords.csv \u2014 derived from the table by a fixed function and rebuildable in minutes, so it sits beside snomed.sqlite. REBUILD IT WHENEVER THE KEYWORD TABLE CHANGES: the loader checks the row counts agree, which catches a truncated write but not a stale matrix built from a different table of the same size.",
       "rung0_fewshot": true,
       "rung0_fewshot_note": "FLIPPED TRUE 2026-08-25 on the dev measurement (docs/decisions.md same date): the synthetic worked example is +5.7pt exact / +5.3pt overlap F1 over the frozen S2 (0.266/0.363 vs 0.209/0.310) at 1.55x the baseline tokens (106,627 vs 68,906), same call count, zero parse failures. This changes the frozen rung 0, so it was a joint manifest edit; rungs 1-6 must be measured against THIS configuration. The example is synthetic \u2014 never CADEC text, test-enforced \u2014 and False reproduces the pre-example arm.",
-      "rung0_fewshot_docs": [
-        "PSYTAR.lexapro.209",
-        "PSYTAR.effexorXR.219"
-      ],
       "rung0_fewshot_docs_note": "Pool-split documents rendered into the few-shot block AT RUNTIME from data/ (2026-08-25) \u2014 the corpus is non-transferable, so only these IDs are configuration and the text never enters a tracked file. POOL ONLY, enforced: a dev or test example would put its own gold answers in the prompt of a scored run. ARTHROTEC.22 is a seven-item comma list (exhaustiveness; kept intensifier; a compared-to condition annotated); ARTHROTEC.110 repeats one mention three times and includes the condition the drug was taken for. A THIRD example (LIPITOR.968, span conventions) shipped only inside the losing arm-4 bundle and was removed with it; its solo effect is unmeasured (the one isolation run was voided by a self-contradictory prompt - docs/decisions.md 2026-08-25). Empty or absent falls back to the synthetic FEWSHOT block in ladder/rungs/r0.py.",
       "rung0_trim": true,
       "rung0_split": true,
@@ -120,7 +113,12 @@
       "rung0_cut_rate_note": "The trimmer's interior-clause cut threshold, and the ONE free parameter in rules learned from pool gold at runtime. Swept 2026-08-28: 0.03 -> 0.394, 0.05 -> 0.403, 0.06 -> 0.399 exact / 0.469 overlap, reproducing out/arm-filters-dev on all seven figures. An arm compared against a baseline built at a different threshold is comparing two trimmers. ONE DRAW when it was set; the three-draw debt was PAID 2026-08-30 and it SURVIVES, on consistency rather than on separation. Leave-one-out over sample_index 0/1/2, paired bootstrap over documents: F1 exact +0.0139 / +0.0183 / +0.0098 (pooled +0.0140 [-0.0163, +0.0500]), F1 overlap +0.0054 / +0.0054 / +0.0011 (pooled +0.0039 [+0.0000, +0.0103]). Six sign-consistent comparisons out of six, and every one of those intervals contains zero - the effect is real in direction and SMALLER THAN RUNG 0'S OWN RUN-TO-RUN SPREAD, which is 0.399/0.395/0.408 exact on the same three draws. Kept, and read as consistent-and-small rather than as separated. Runs out/arm-debt{base,nocut}-d{0,1,2}-dev.",
       "_arms_note": "APPENDED 2026-08-30. These five were measured and accepted on 2026-08-27/28, shipped as code with r0.DEFAULTS off, and never declared here - so the tracked manifest ran a rung 0 scoring exact 0.340 while every number in docs/decisions.md and docs/article.md came from a configuration scoring 0.399. Two answers to 'which configuration produced this number', which is the failure the model note above exists to prevent, one layer down. Declared EXPLICITLY rather than left to defaults: a manifest that merely happens to agree with r0.DEFAULTS breaks the moment a default moves, and the default is what moved last time. tests/test_rungs_audit.py pins all five.",
       "rung0_trim_note": "Phase B(d), 2026-08-25. Trim rung 0's spans to the answer key's boundary convention AFTER locate(): rules LEARNED AT RUNTIME from POOL gold only (ladder/trim.py; dev/test refused) - lead/trail tokens gold leaves outside a boundary >=95% of >=20 sightings, plus an interior clause cut at tokens whose inside_rate <= 2% over >= 50 occurrences ('pain that wakes me up' stops at 'that'). Thresholds measured on the baseline dev records: looser cut points bought exact F1 by cutting spans out of their overlap matches and were rejected. Effect on the phaseB-2 dev run: F1 exact 0.358 -> 0.362, overlap byte-identical; the original quote survives on every trimmed record as checks.span_untrimmed. False reproduces the untrimmed arm.",
-      "_rung0_fewshot_note": "PsyTAR pool documents. The inherited value was ['ARTHROTEC.22', 'ARTHROTEC.110'] \u2014 CADEC ids, which do not exist here; the pool-split guard refused the run rather than putting absent examples in the prompt. Chosen by a rule stated before looking: the first two pool documents in split order with at least two mentions."
+      "_rung0_retrieval_note": "LEXICAL. No embedding index exists over this vocabulary, and building one is a separate arm. On CADEC the same substitution was measured to cost ~21 points of recall@20, so no absolute score here is comparable with a dense-retrieval corpus.",
+      "rung0_fewshot_docs": [
+        "LINN.pmcA2327290",
+        "LINN.pmcA328328"
+      ],
+      "_rung0_fewshot_note": "Chosen by a rule stated before looking: the first two pool documents in split order with at least two mentions. CADEC's ids were inherited and do not exist here; the pool-split guard refuses to start without valid ones."
     },
     "1": {
       "mode": "observe",
@@ -166,9 +164,9 @@
     }
   },
   "output": {
-    "dir": "out/psytar"
+    "dir": "out/linnaeus"
   },
   "scorer": "ladder.score:reaction_sct_strict",
   "scorer_note": "Added 2026-08-23; until then the accuracy columns were written empty rather than guessed. Gold is keyed by SPAN, never by position: under index-based comparison a perfect extraction listed in another order scores 0.216. span_match is 'exact' for the headline; 'overlap' exists because rung 3 keys on exact spans and its resamples never align.",
-  "_arm": "PsyTAR \u2014 the matched comparison. Derived from manifest.json by changing the corpus block and nothing else; scripts/manifest_diff.py proves it. The question is the ACCEPT lane's CORRECTNESS, which the free gold replay cannot answer: occupancy is 26.2% here against CADEC's 42.4%, and whether the records it admits are still 75-82% right needs the model."
+  "_arm": "LINNAEUS \u2014 one variable against manifest.json: the corpus and the vocabulary it requires. Model, rungs and every rung parameter are unchanged."
 }

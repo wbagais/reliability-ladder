@@ -77,8 +77,12 @@ _SCT = re.compile(r"\[[^\]]*?/SNOMEDCT[^/\]]*/[^/\]]*/(\d+)\]")
 #: only class CADEC also annotates; the others are available and not scored.
 SHEETS = {
     "ADR": ("ADR_Identified", "ADR_Mapped", "ADRs"),
-    "WD":  ("WD_Identified", "WD-Mapped", "WDs"),
-    "SSI": ("SSI_Identified", "SSI_Mapped", "SSIs"),
+    # NOTE THE SHEET NAME. Eleven sheets use `X_Mapped`; this one is
+    # `WD-Mapped ` — hyphen, and a TRAILING SPACE. Twelve sheets, one
+    # breaks the pattern, and openpyxl raises KeyError rather than
+    # matching loosely, which is the good outcome.
+    "WD":  ("WD_Identified", "WD-Mapped ", "WDs"),
+    "SSI": ("SSI_Identified", "SSI_Mapped", "SSI"),   # not SSIs
     "DI":  ("DI_Identified", "DI_Mapped", "DIs"),
 }
 
@@ -199,8 +203,13 @@ def load_corpus(root: str | os.PathLike, *, entity: str = "ADR",
             else:
                 dropped["no_snomed_mapping"] += 1
             continue
+        # FOUR SHEETS, FOUR CONVENTIONS. ADR/SSI/DI key on `sentence_index`
+        # and WD on `sentence_id`; the span column is ADRs / WDs / SSI / DIs;
+        # and WD's sheet is `WD-Mapped ` with a trailing space. Each mismatch
+        # fails the same silent way — every span joins to nothing and the type
+        # reports `span_without_code` for its whole population.
         key = (str(r.get("drug_id") or "").strip().lower(),
-               str(r.get("sentence_index") or "").strip(),
+               str(r.get("sentence_index") or r.get("sentence_id") or "").strip(),
                span.lower())
         codes[key].extend(found)
 
