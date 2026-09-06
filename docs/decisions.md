@@ -5647,3 +5647,33 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   **`granite4:micro-h` — valid JSON, wrong shape.** It returns `{"mentions": ["a string", ...]}` where every other model returns objects, and `_mention_record` raised `AttributeError` at three call sites. Guarded inside the function rather than at each caller, returning None so the shape can be counted: how often a model emits the wrong shape is a fact about the model, and a run that dies on it measures nothing. Granite4 then completed all six corpora.
 
   **TR-News — rung 0 returns nothing in 0.06 seconds on valid input**, with no error and no reason logged. The corpus loads (118 documents, 1,159 mentions), the documents have text, the few-shot ids exist in the pool. Three attempts did not find it. Excluded and recorded as an open failure rather than as an absence.
+- 2026-09-06 — **CORRECTION TO THE MATRIX ENTRY: TWELVE OF THE TWENTY-FOUR CELLS RAN WITH A PROMPT ASKING FOR ADVERSE DRUG REACTIONS, ON CORPORA ABOUT PLACES, SPECIES AND DISEASES.**
+
+  `run.py` reads rung 0's task description from `corpus.prompts`, with a comment recording exactly why: *"The task description belongs to the CORPUS, not the ladder. None keeps rung 0's CADEC wording, so nothing changes for that arm."* The fallback is deliberate and correct — and `prep_all_arms.py` wrote four manifests without that block, so four arms silently took CADEC's wording.
+
+  | arm | own prompts | task | affected |
+  |---|---|---|---|
+  | CADEC | — (the default) | adverse reactions | no |
+  | PsyTAR | none | adverse reactions | **no — the default fits** |
+  | FiNER-139 | yes, derived from its gold | numeric facts | no |
+  | GeoWebNews | yes, derived from its gold | toponyms | no |
+  | **LGL** | **none** | toponyms | **yes** |
+  | **TR-News** | **none** | toponyms | **yes** |
+  | **LINNAEUS** | **none** | species | **yes** |
+  | **BC5CDR** | **none** | diseases | **yes** |
+
+  PsyTAR is the case that makes the rule legible: it has no prompts block either and is unaffected, because it *is* adverse drug reactions in patient prose. The default is not a bug — it is a default that fits one task, and the four arms whose task differs inherited it.
+
+  **WHAT THIS INVALIDATES.** LGL, LINNAEUS and BC5CDR contributed twelve cells to today's matrix. All twelve measure what a model does when asked the wrong question, and none of them is a measurement of the corpus. Specifically:
+
+  - **BC5CDR's 100 / 100 / 95 / 93% ACCEPT correctness** was checked against a lenient MeSH build and found not to be tautological. That test was sound and the conclusion does not carry, because the records it was run over were extracted under an instruction about adverse reactions.
+  - **LGL's spread — 7 records from gpt-oss against 484 from mistral** — was read as a model difference. It is four models responding differently to a prompt that fits nothing.
+  - **LINNAEUS's zeros** were correctly diagnosed as rung 0 failing rather than rung 1. The cause is now named: `'A novel status'`, `'easy plant'` and `'Real'` are what a model returns when asked to find adverse drug reactions in a paper about *Saccharomyces cerevisiae*.
+
+  **WHAT SURVIVES, AND IT IS THE RESULT.** PsyTAR's four cells and GeoWebNews's four are unaffected, and they are the two arms the headline rests on: the free check's correctness holds at 80.9–90.3% across four model families on PsyTAR, and 11.4–25.8% on GeoWebNews with *higher* occupancy. FiNER's structural zeros are unaffected. Nothing in the entry above about precision-versus-reach depends on a cell that ran the wrong prompt.
+
+  **AND TR-NEWS IS NOW EXPLAINED, PARTLY.** Its rung 0 returns nothing in 0.06 seconds, which three theories failed to account for — a poisoned call cache, split ids from the wrong corpus, and an unbound corpus loader, each disproved in turn. The missing prompts block is a fourth cause and a real one, though 0.06 seconds is still too fast for forty documents of model calls, so it is probably not the whole story. Recorded as narrowed rather than closed.
+
+  **The fix is not a re-run.** Each affected arm needs a prompts block **derived from its own gold**, the way GeoWebNews's was built from 2,399 mentions and FiNER's from 407 — span statistics first, wording second. Writing four blocks by hand and re-running twelve cells is a session, not a patch, and until then those twelve cells are excluded from every claim.
+
+  **The general shape, for the ninth time on this port:** a default that is correct for the corpus it was written for, inherited by a corpus it is wrong for, with nothing in between to notice. The eight before it were few-shot ids, vocabulary gate codes, split sizes, loader options, a corpus version string, a model name prefix, a few-shot pool split, and a sheet name with a trailing space. **A new corpus needs nine things declared and there is no list of them anywhere** — which is the finding underneath all nine, and the argument for a `manifest.template.json` that fails loudly on each missing key rather than defaulting quietly.
