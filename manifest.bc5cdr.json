@@ -15,7 +15,28 @@
     "_why": "1,500 abstracts, MeSH-linked, and the corpus KEEPS ITS OWN train/dev/test \u2014 a corpus with a standard split that is given a new one stops being comparable with everything published on it. Entity: Disease, the closer analogue of CADEC's reactions.",
     "n_dev_docs": 40,
     "n_test_docs": 60,
-    "version": "BioCreative V CDR (BC5CDR) corpus v010516, Li et al. 2016; MeSH 2025 ASCII, main headings only"
+    "version": "BioCreative V CDR (BC5CDR) corpus v010516, Li et al. 2016; MeSH 2025 ASCII, main headings only",
+    "prompts": {
+      "_derivation": "Derived from BC5CDR's own gold over 4,130 DISEASE mentions in 500 dev documents, measured by scripts/gold_span_stats.py, not invented. **39.4% of surface forms are multi-token**, the highest of the six corpora in this study and nearly double LGL's 23.9%, so a disease mention here is usually a phrase. Only 15.6% begin with a capital and 0% carry an initial and a dot. Median length 12 characters, p95 25. 3,559 of 4,130 are a form used more than once. 100 annotations name two concepts and 59 are marked unresolvable by the annotators; both are dropped with a reason before scoring.",
+      "entity": "disease or symptom the abstract describes",
+      "entity_short": "disease",
+      "entity_plural": "diseases",
+      "author": "the abstract",
+      "author_possessive": "the abstract's",
+      "source": "the biomedical abstract",
+      "vocabulary": "MeSH",
+      "vocabulary_short": "disease",
+      "id_name": "MeSH id",
+      "vocabulary_qualifier": "MeSH descriptor",
+      "rules": "\nMOST MENTIONS ARE A PHRASE, NOT A WORD. Measured on gold: 39.4% run to more\nthan one word, the highest rate in this study. 'secondary hyperparathyroidism',\n'low bone turnover', 'renal failure', 'suppression of bone turnover' and\n'adynamic bone disease' are all single gold mentions. Quote the whole phrase.\n\nREPORT DISEASES AND SYMPTOMS, NOT CHEMICALS OR DRUGS. This corpus annotates\nboth and this arm scores only diseases. 'seizures', 'hypotension', 'pain',\n'catalepsy', 'nephrotoxicity' and 'breast cancer' are gold; the drug that\ncaused them is not.\n\nQuote the disease EXACTLY as the abstract writes it, in the number it uses.\nBoth 'seizure' and 'seizures' are gold forms in this corpus and each is\nquoted as written, never normalised to the other.\n\nCase is not a cue. Measured: only 15.6% of gold mentions begin with a\ncapital \u2014 'seizures', 'toxicity' and 'hypertension' are lowercase mid-\nsentence and are gold.\n\nReport a disease EVERY TIME it appears. Measured: 3,559 of 4,130 gold\nmentions are a form used more than once, tagged separately at each\noccurrence.\n\nA drug, a chemical, a gene, a protein or a laboratory measurement is not a\ndisease, even where an abstract discusses it alongside one.\n",
+      "pick_guidance": "\nChoose the MeSH descriptor for the condition the abstract means.\n\nPrefer the specific descriptor over a broad one where the abstract supports\nit: 'breast cancer' is Breast Neoplasms, not Neoplasms.\n\nAn adjective form resolves to the noun the descriptor is named for:\n'hypertensive' is Hypertension, 'hypotensive' is Hypotension. Measured on\ngold, that morphological gap is this corpus's main reason for a mention\nsharing no token with the name it resolves to.\n",
+      "span_question": "really a disease or symptom this abstract describes",
+      "_span_question_note": "CADEC's phrasing asks whether the writer EXPERIENCED something. A biomedical abstract describes a condition in a study population; it does not experience one.",
+      "claim_verb": "was described",
+      "claim_object": "disease",
+      "_negation_note": "CADEC's negation rule is DROPPED, not translated. BC5CDR marks unresolvable mentions with -1 and those leave the denominator before scoring, but it has no denied-disease convention and `negated` is always false here.",
+      "_entity_arm_note": "This arm scores DISEASE. Chemicals are the larger class \u2014 15,935 of 28,785 annotations corpus-wide \u2014 and are a separate arm. The rules say so explicitly because a corpus that annotates two types and scores one will otherwise be judged on mentions it never asked for."
+    }
   },
   "vocabulary": {
     "snomed_release": "SnomedCT_Release_AU1000036_20260731",

@@ -15,7 +15,26 @@
     "_why": "118 articles. 116 of its 1,275 spans do not land and are dropped with a reason; every rate here is over the remainder.",
     "n_dev_docs": 40,
     "n_test_docs": 60,
-    "version": "TR-News, Kamalloo & Rafiei 2018, as distributed in Gritta et al., A Pragmatic Guide to Geoparsing Evaluation, GPL-3.0"
+    "version": "TR-News, Kamalloo & Rafiei 2018, as distributed in Gritta et al., A Pragmatic Guide to Geoparsing Evaluation, GPL-3.0",
+    "prompts": {
+      "_derivation": "Derived from TR-News's own gold over 1,159 mentions in 118 documents, measured by scripts/gold_span_stats.py, not invented. 12.8% of surface forms are multi-token \u2014 the LOWEST of the three geo corpora, against GeoWebNews's 20.7% and LGL's 23.9% \u2014 so this corpus's mentions are mostly single words. 2.8% carry an initial and a dot; 100% begin with a capital. 965 of 1,159 are a form used more than once. 116 of 1,275 annotations have offsets that do not land and are dropped with a reason before scoring.",
+      "entity": "place the article refers to",
+      "entity_short": "place",
+      "entity_plural": "places",
+      "author": "the article",
+      "author_possessive": "the article's",
+      "source": "the news article",
+      "vocabulary": "GeoNames place",
+      "vocabulary_short": "place",
+      "id_name": "GeoNames id",
+      "vocabulary_qualifier": "GeoNames entry",
+      "rules": "\nQuote the place EXACTLY as the article writes it. If it says 'U.S.', quote\n'U.S.'; if it says 'US', quote 'US'. Both forms appear in this corpus's twelve\ncommonest mentions and they are quoted as written, not normalised.\n\nMOST MENTIONS ARE A SINGLE WORD. Measured on gold: only 12.8% run to more\nthan one word \u2014 'Edmonton', 'London', 'Turkey', 'Russia', 'Canada' are the\nshape of this corpus. Do not extend a span past the name itself.\n\nA WORD THAT REFERS TO A PLACE COUNTS EVEN WHEN IT IS NOT THE PLACE'S NAME.\n'Russian' and 'Turkish' are both among the commonest gold forms here and are\nreported, quoted as written.\n\nReport a place EVERY TIME it appears. Measured: 965 of 1,159 gold mentions\nare a form that occurs more than once, tagged separately at each occurrence.\n\nA person's name, a company, a product, or a nationality used as a language\nis not a place.\n",
+      "pick_guidance": "\nChoose the entry for the place the article ACTUALLY MEANS. The surrounding\nsentence decides: there are several Londons and several Parises on the menu.\n\nFor an abbreviation or a demonym, choose the entry for the place it stands\nfor: 'U.S.' and 'US' are both the United States, 'Turkish' is Turkey.\n",
+      "span_question": "really a place this news article refers to",
+      "claim_verb": "was referred to",
+      "claim_object": "place",
+      "_negation_note": "CADEC's negation rule is DROPPED, not translated. TR-News has no denied-place convention and `negated` is always false here."
+    }
   },
   "vocabulary": {
     "snomed_release": "SnomedCT_Release_AU1000036_20260731",

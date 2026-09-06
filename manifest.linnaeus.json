@@ -15,7 +15,28 @@
     "n_dev_docs": 25,
     "n_test_docs": 35,
     "version": "LINNAEUS manual-corpus-species-1.0, Gerner et al. 2010, CC-BY; NCBI Taxonomy taxdump 2026-09, scientific names only",
-    "_split_note": "25/35, not the 40/60 every other arm uses. LINNAEUS has 95 documents and 40+60 leaves NOTHING in the pool \u2014 the few-shot block came back empty and the pool-split guard would have refused the run. Its cells are therefore over a smaller denominator than the rest of the matrix, which is a stated caveat rather than a hidden one."
+    "_split_note": "25/35, not the 40/60 every other arm uses. LINNAEUS has 95 documents and 40+60 leaves NOTHING in the pool \u2014 the few-shot block came back empty and the pool-split guard would have refused the run. Its cells are therefore over a smaller denominator than the rest of the matrix, which is a stated caveat rather than a hidden one.",
+    "prompts": {
+      "_derivation": "Derived from LINNAEUS's own gold over 4,259 mentions in 95 documents, measured by scripts/gold_span_stats.py, not invented. Two numbers make this corpus unlike the geo arms and both are in the rules below. **Only 34.3% of mentions begin with a capital** \u2014 against 100% on LGL and TR-News \u2014 because the commonest gold forms are 'patients', 'human', 'mice', 'mouse', 'people', 'women', 'yeast': lowercase common nouns. And **18.0% carry an initial and a dot**, five times the geo rate, because an abbreviated binomial is written 'C. elegans' or 'E. coli'. 27.1% are multi-token; 4,077 of 4,259 are a form used more than once.",
+      "entity": "organism the paper mentions",
+      "entity_short": "organism",
+      "entity_plural": "organisms",
+      "author": "the paper",
+      "author_possessive": "the paper's",
+      "source": "the research article",
+      "vocabulary": "NCBI Taxonomy",
+      "vocabulary_short": "taxon",
+      "id_name": "NCBI taxonomy id",
+      "vocabulary_qualifier": "NCBI Taxonomy entry",
+      "rules": "\nAN ORDINARY ENGLISH WORD FOR A LIVING THING IS AN ORGANISM MENTION.\nThis is the most important rule here and it is the opposite of what a\ncapitalised-name heuristic would do. 'patients', 'human', 'mice', 'mouse',\n'people', 'women', 'men', 'participants' and 'yeast' are the nine commonest\ngold mentions in this corpus, and every one is lowercase. Measured: only\n34.3% of gold mentions begin with a capital, so CASE IS NOT A CUE HERE.\n\nA word for a group of PEOPLE is an organism mention \u2014 it refers to Homo\nsapiens. 'patients', 'participants', 'women', 'men' and 'people' are all\ngold.\n\nScientific names are reported as written, in full or abbreviated.\n'Saccharomyces cerevisiae', 'Escherichia coli', 'Caenorhabditis elegans',\n'Xenopus laevis' and 'Drosophila melanogaster' appear in full; 'C. elegans'\nand 'E. coli' appear abbreviated. Measured: 18.0% of gold mentions carry an\ninitial and a dot, so the abbreviated form is common and is quoted exactly as\nthe paper writes it \u2014 never expanded.\n\nAn ADJECTIVE referring to an organism counts. 'murine' is among the twelve\ncommonest gold mentions and refers to mice.\n\nReport an organism EVERY TIME it appears. Measured: 4,077 of 4,259 gold\nmentions are a form used more than once, tagged separately at each\noccurrence.\n\nA gene, a protein, a cell line, a disease or a chemical is not an organism,\neven where its name contains one.\n",
+      "pick_guidance": "\nChoose the taxon the paper MEANS, which is very often not spelled anything\nlike the word on the page.\n\nThis is the corpus's central difficulty. 'mice' resolves to Mus musculus,\n'yeast' to Saccharomyces cerevisiae, 'patients' to Homo sapiens \u2014 a common\nname against a Latin binomial that shares no word with it. Measured on gold\nagainst a scientific-names-only vocabulary, 76.8% of mentions share NO token\nwith the name they resolve to.\n\nFor an abbreviated binomial, choose the species it stands for: 'C. elegans'\nis Caenorhabditis elegans, 'E. coli' is Escherichia coli.\n\nPrefer the SPECIES over a genus, a family or a kingdom where the paper is\nspecific enough to support it.\n",
+      "span_question": "really an organism this research paper mentions",
+      "_span_question_note": "CADEC's phrasing asks whether the writer EXPERIENCED something, which encodes first-person patient narrative. A research paper mentions an organism; it does not experience one. The same constant was missed on the FiNER port and is declared here rather than defaulted.",
+      "claim_verb": "was mentioned",
+      "claim_object": "organism",
+      "_negation_note": "CADEC's negation rule is DROPPED, not translated. LINNAEUS has no denied-organism convention and `negated` is always false here.",
+      "_vocabulary_note": "The arm runs against a SCIENTIFIC-NAMES-ONLY taxonomy index. The all-names build, which admits 'mouse' and 'baker's yeast', moves the endorsable stratum from 5.4% to 35.4% on identical gold. The strict build is chosen to match the main-name-only GeoNames build so the lexical arms read alike, and the gap is a measured finding rather than an accident."
+    }
   },
   "vocabulary": {
     "snomed_release": "SnomedCT_Release_AU1000036_20260731",
