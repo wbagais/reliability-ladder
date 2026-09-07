@@ -212,7 +212,39 @@
             "modernised": 0
           }
         }
-      }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 206,
+          "correct": 53,
+          "span_only": 20,
+          "code_only": 27,
+          "neither": 106,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.25728,
+          "yield": 0.25728,
+          "f1": 0.2524,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 0,
+          "ships": 144,
+          "correct": 53,
+          "span_only": 20,
+          "code_only": 27,
+          "neither": 44,
+          "to_person": 62,
+          "person_correct": 0,
+          "accuracy": 0.36806,
+          "yield": 0.25728,
+          "f1": 0.292,
+          "extra_tokens": 0
+        }
+      ]
     },
     "rerun-cadec-s1-d1": {
       "sha256_r0": "bd91b5b89437b8fbe54fa780ae2fd4f23c15c860e03bfe136ef3a393e0f1283a",
@@ -422,7 +454,39 @@
             "modernised": 0
           }
         }
-      }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 204,
+          "correct": 53,
+          "span_only": 26,
+          "code_only": 33,
+          "neither": 92,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.2598,
+          "yield": 0.2598,
+          "f1": 0.253,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 0,
+          "ships": 151,
+          "correct": 53,
+          "span_only": 26,
+          "code_only": 33,
+          "neither": 39,
+          "to_person": 53,
+          "person_correct": 0,
+          "accuracy": 0.35099,
+          "yield": 0.2598,
+          "f1": 0.2873,
+          "extra_tokens": 0
+        }
+      ]
     },
     "rerun-cadec-s1-d2": {
       "sha256_r0": "20118fde1d873f497c20b4d7042531700953331ee579fba35a81ebd0cc1cbcb6",
@@ -632,10 +696,105 @@
             "modernised": 0
           }
         }
-      }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 207,
+          "correct": 58,
+          "span_only": 23,
+          "code_only": 29,
+          "neither": 97,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.28019,
+          "yield": 0.28019,
+          "f1": 0.2755,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 0,
+          "ships": 154,
+          "correct": 58,
+          "span_only": 23,
+          "code_only": 29,
+          "neither": 44,
+          "to_person": 53,
+          "person_correct": 0,
+          "accuracy": 0.37662,
+          "yield": 0.28019,
+          "f1": 0.3118,
+          "extra_tokens": 0
+        }
+      ]
     }
   },
   "arms": {},
+  "gold_lanes": {
+    "manifest_lexical_mode": "exact",
+    "exact": {
+      "n": 226,
+      "coded": 216,
+      "concept_less": 10,
+      "lanes": {
+        "BAND": 153,
+        "ACCEPT": 73
+      },
+      "concept_less_lanes": {
+        "BAND": 10
+      },
+      "pct": {
+        "ACCEPT": 32.3,
+        "BAND": 67.7
+      }
+    },
+    "contained": {
+      "n": 226,
+      "coded": 216,
+      "concept_less": 10,
+      "lanes": {
+        "BAND": 122,
+        "ACCEPT": 104
+      },
+      "concept_less_lanes": {
+        "BAND": 10
+      },
+      "pct": {
+        "ACCEPT": 46.0,
+        "BAND": 54.0
+      }
+    }
+  },
+  "shipping_rules_mean": [
+    {
+      "rule": "everything",
+      "reads_rung": 0,
+      "draws": 3,
+      "ships": 205.7,
+      "correct": 54.7,
+      "to_person": 0.0,
+      "person_correct": 0.0,
+      "accuracy": 0.266,
+      "yield": 0.266,
+      "f1": 0.26,
+      "extra_tokens": 0
+    },
+    {
+      "rule": "accept",
+      "reads_rung": 0,
+      "draws": 3,
+      "ships": 149.7,
+      "correct": 54.7,
+      "to_person": 56.0,
+      "person_correct": 0.0,
+      "accuracy": 0.365,
+      "yield": 0.266,
+      "f1": 0.297,
+      "extra_tokens": 0
+    }
+  ],
   "consensus": {
     "draws": 3,
     "mentions": 226,

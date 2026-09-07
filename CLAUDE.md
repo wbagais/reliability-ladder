@@ -2,6 +2,7 @@
 
 ## Read these first
 - `docs/plan.html` — plan, architecture, and the reasoning behind every design choice
+- `docs/REPRODUCE.md` — how every article number is regenerated: re-score, re-derive, re-run
 - `README.md` — the ladder, the three cost measures, the data licences
 
 ## Hard rules

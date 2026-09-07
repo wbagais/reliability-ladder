@@ -32,6 +32,18 @@
 | rerun-cadec-s1-d1 | base | 204 | 151 | 0.740 | 0.351 | **0.260** | 98 | 48.0 | 0 | 0.253 | 0.396 |
 | rerun-cadec-s1-d2 | base | 207 | 154 | 0.744 | 0.377 | **0.280** | 96 | 46.4 | 0 | 0.276 | 0.404 |
 
+## Every rung's verdict as a shipping rule (one denominator: all records; F1 span-exact over what ships)
+| draw | ship only when… | reads rung | ships | right code, exact span | exact span, wrong code | right code, boundary off | neither | to a person | of them right | accuracy | **yield** | F1 | extra tokens |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rerun-cadec-s1-d0 | everything | 0 | 206 | 53 | 20 | 27 | 106 | 0 | 0 | 0.257 | **0.257** | 0.252 | 0 |
+| rerun-cadec-s1-d0 | accept | 0 | 144 | 53 | 20 | 27 | 44 | 62 | 0 | 0.368 | **0.257** | 0.292 | 0 |
+| rerun-cadec-s1-d1 | everything | 0 | 204 | 53 | 26 | 33 | 92 | 0 | 0 | 0.260 | **0.260** | 0.253 | 0 |
+| rerun-cadec-s1-d1 | accept | 0 | 151 | 53 | 26 | 33 | 39 | 53 | 0 | 0.351 | **0.260** | 0.287 | 0 |
+| rerun-cadec-s1-d2 | everything | 0 | 207 | 58 | 23 | 29 | 97 | 0 | 0 | 0.280 | **0.280** | 0.276 | 0 |
+| rerun-cadec-s1-d2 | accept | 0 | 154 | 58 | 23 | 29 | 44 | 53 | 0 | 0.377 | **0.280** | 0.312 | 0 |
+| mean of 3 | everything | 0 | 205.7 | | | | | 0.0 | 0.0 | 0.266 | **0.266** | 0.260 | 0 |
+| mean of 3 | accept | 0 | 149.7 | | | | | 56.0 | 0.0 | 0.365 | **0.266** | 0.297 | 0 |
+
 ## Cost per rung, base draws (tokens / calls / p95 s / human minutes / records routed)
 - rerun-cadec-s1-d0: r0: 82,753 / 53 / 51.59 / 0.0 / 0
 - rerun-cadec-s1-d1: r0: 81,546 / 55 / 44.27 / 0.0 / 0
@@ -41,6 +53,12 @@
 - byte-identical draws: False
 - mentions 226: all agree 141 (62.39%), same span diff code 25, same code diff span 4, both differ 11, found by two 18, found by one 27
 - same span all draws 73.45%; same code where all found 80.11%
+
+## Gold lane occupancy (rung 1 replayed over the split's scorable reaction gold, no model; manifest lexical_mode = exact)
+| lexical_mode | n | coded | concept-less (all BAND) | ACCEPT | BAND | REJECT |
+|---|---|---|---|---|---|---|
+| exact | 226 | 216 | 10 | 73 (32.3%) | 153 (67.7%) | 0 (0.0%) |
+| contained | 226 | 216 | 10 | 104 (46.0%) | 122 (54.0%) | 0 (0.0%) |
 
 ## Provenance
 - rerun-cadec-s1-d0: cache `/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-s1-d0`, git {'sha': 'c093eaa', 'branch': 'claude/plan-next-sessions-docs-17c0bc', 'dirty': False, 'dirty_files': 0}, 2026-09-04T01:05:43Z → 2026-09-04T01:18:24Z

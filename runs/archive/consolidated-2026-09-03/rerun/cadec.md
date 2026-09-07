@@ -136,6 +136,42 @@
 | rerun-cadec-d2 | lexarm | 238 | 90 | 0.378 | 0.656 | **0.248** | 31 | 13.0 | 148 | 0.261 | 0.283 |
 | rerun-cadec-d2 | spine | 238 | 51 | 0.214 | 0.824 | **0.176** | 9 | 3.8 | 187 | 0.186 | 0.186 |
 
+## Every rung's verdict as a shipping rule (one denominator: all records; F1 span-exact over what ships)
+| draw | ship only when… | reads rung | ships | right code, exact span | exact span, wrong code | right code, boundary off | neither | to a person | of them right | accuracy | **yield** | F1 | extra tokens |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| rerun-cadec-d0 | everything | 0 | 230 | 87 | 28 | 21 | 94 | 0 | 0 | 0.378 | **0.378** | 0.393 | 0 |
+| rerun-cadec-d0 | everything_after_r3 | 3 | 230 | 88 | 28 | 23 | 91 | 0 | 0 | 0.383 | **0.383** | 0.397 | 410,638 |
+| rerun-cadec-d0 | accept | 4 | 53 | 39 | 2 | 0 | 12 | 177 | 49 | 0.736 | **0.170** | 0.283 | 0 |
+| rerun-cadec-d0 | accept_contained | 4 | 91 | 53 | 5 | 8 | 25 | 139 | 35 | 0.582 | **0.230** | 0.340 | 0 |
+| rerun-cadec-d0 | r3_unanimous | 3 | 108 | 51 | 13 | 15 | 29 | 122 | 37 | 0.472 | **0.222** | 0.315 | 410,638 |
+| rerun-cadec-d0 | r3_two_agree | 3 | 185 | 77 | 22 | 21 | 65 | 45 | 11 | 0.416 | **0.335** | 0.387 | 410,638 |
+| rerun-cadec-d0 | r4_blind_pass | 4 | 136 | 63 | 16 | 15 | 42 | 94 | 25 | 0.463 | **0.274** | 0.357 | 84,036 |
+| rerun-cadec-d0 | r4_menu_pass | 4 | 136 | 74 | 9 | 14 | 39 | 94 | 14 | 0.544 | **0.322** | 0.420 | 84,036 |
+| rerun-cadec-d1 | everything | 0 | 230 | 87 | 28 | 21 | 94 | 0 | 0 | 0.378 | **0.378** | 0.393 | 0 |
+| rerun-cadec-d1 | everything_after_r3 | 3 | 230 | 86 | 30 | 24 | 90 | 0 | 0 | 0.374 | **0.374** | 0.388 | 432,341 |
+| rerun-cadec-d1 | accept | 4 | 53 | 40 | 1 | 0 | 12 | 177 | 46 | 0.755 | **0.174** | 0.290 | 0 |
+| rerun-cadec-d1 | accept_contained | 4 | 91 | 53 | 5 | 8 | 25 | 139 | 33 | 0.582 | **0.230** | 0.340 | 0 |
+| rerun-cadec-d1 | r3_unanimous | 3 | 116 | 57 | 10 | 15 | 34 | 114 | 29 | 0.491 | **0.248** | 0.342 | 432,341 |
+| rerun-cadec-d1 | r3_two_agree | 3 | 190 | 78 | 27 | 22 | 63 | 40 | 8 | 0.411 | **0.339** | 0.386 | 432,341 |
+| rerun-cadec-d1 | r4_blind_pass | 4 | 137 | 61 | 19 | 16 | 41 | 93 | 25 | 0.445 | **0.265** | 0.345 | 84,031 |
+| rerun-cadec-d1 | r4_menu_pass | 4 | 142 | 75 | 14 | 15 | 38 | 88 | 11 | 0.528 | **0.326** | 0.419 | 84,031 |
+| rerun-cadec-d2 | everything | 0 | 238 | 98 | 30 | 20 | 90 | 0 | 0 | 0.412 | **0.412** | 0.434 | 0 |
+| rerun-cadec-d2 | everything_after_r3 | 3 | 238 | 97 | 31 | 23 | 87 | 0 | 0 | 0.408 | **0.408** | 0.429 | 431,518 |
+| rerun-cadec-d2 | accept | 4 | 51 | 42 | 2 | 1 | 6 | 187 | 55 | 0.824 | **0.176** | 0.304 | 0 |
+| rerun-cadec-d2 | accept_contained | 4 | 90 | 59 | 5 | 8 | 18 | 148 | 38 | 0.656 | **0.248** | 0.378 | 0 |
+| rerun-cadec-d2 | r3_unanimous | 3 | 123 | 64 | 14 | 14 | 31 | 115 | 33 | 0.520 | **0.269** | 0.378 | 431,518 |
+| rerun-cadec-d2 | r3_two_agree | 3 | 184 | 83 | 24 | 20 | 57 | 54 | 14 | 0.451 | **0.349** | 0.416 | 431,518 |
+| rerun-cadec-d2 | r4_blind_pass | 4 | 142 | 70 | 21 | 14 | 37 | 96 | 27 | 0.493 | **0.294** | 0.389 | 88,240 |
+| rerun-cadec-d2 | r4_menu_pass | 4 | 146 | 82 | 16 | 15 | 33 | 92 | 15 | 0.562 | **0.345** | 0.451 | 88,240 |
+| mean of 3 | everything | 0 | 232.7 | | | | | 0.0 | 0.0 | 0.389 | **0.389** | 0.406 | 0 |
+| mean of 3 | everything_after_r3 | 3 | 232.7 | | | | | 0.0 | 0.0 | 0.388 | **0.388** | 0.405 | 424,832 |
+| mean of 3 | accept | 4 | 52.3 | | | | | 180.3 | 50.0 | 0.771 | **0.173** | 0.292 | 0 |
+| mean of 3 | accept_contained | 4 | 90.7 | | | | | 142.0 | 35.3 | 0.607 | **0.236** | 0.353 | 0 |
+| mean of 3 | r3_unanimous | 3 | 115.7 | | | | | 117.0 | 33.0 | 0.495 | **0.246** | 0.345 | 424,832 |
+| mean of 3 | r3_two_agree | 3 | 186.3 | | | | | 46.3 | 11.0 | 0.426 | **0.341** | 0.396 | 424,832 |
+| mean of 3 | r4_blind_pass | 4 | 138.3 | | | | | 94.3 | 25.7 | 0.467 | **0.278** | 0.363 | 85,436 |
+| mean of 3 | r4_menu_pass | 4 | 141.3 | | | | | 91.3 | 13.3 | 0.545 | **0.331** | 0.430 | 85,436 |
+
 ## What `contained` admits that `exact` leaves in BAND (item 8)
 - rerun-cadec-d0: moved 38; by direction {'span_in_term': {'n': 12, 'correct': 4, 'on_no_gold': 4}, 'term_in_span': {'n': 26, 'correct': 11, 'on_no_gold': 4}}
     - ARTHROTEC.78#1 "stool" -> 267055007 |black stool| via span_in_term "Black stool" extra ['black']: unmatched / incorrect

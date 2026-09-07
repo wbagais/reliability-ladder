@@ -157,6 +157,7 @@ def analyse(man: dict, prefixes: list[str], arms: list[str], full_vocab: bool) -
         d["final"] = analysis.policy_row(analysis.rows_at(run["state"], max(run["records"])).values())
         d["stack_f1"] = score_both(run["final"], golds, exclude, vocab)
         report["draws"][Path(prefix).name] = d
+        arm_runs: dict = {}
         for arm in arms:
             ap = f"{prefix}-{arm}"
             if not Path(ap).with_name(Path(ap).name + ".records.jsonl").exists():
@@ -178,6 +179,17 @@ def analyse(man: dict, prefixes: list[str], arms: list[str], full_vocab: bool) -
                     run["records"][1], a["records"][1],
                     analysis.rows_at(a["state"], 1).values(), vocab)
             report["arms"].setdefault(arm, {})[Path(prefix).name] = entry
+            arm_runs[arm] = a
+        d["shipping_rules"] = analysis.shipping_rules(
+            run["records"], run["state"], run["final"],
+            f1=lambda recs: round(score.score_run(recs, golds, span_match="exact",
+                                                  exclude=exclude, vocab=vocab)["f1"], 4),
+            tokens_by_rung={int(k): v["tokens"] for k, v in d["cost"].items()},
+            lexarm=(arm_runs["lexarm"]["final"], arm_runs["lexarm"]["state"]) if "lexarm" in arm_runs else None,
+            menu=(arm_runs["judgemenu"]["records"][4], arm_runs["judgemenu"]["state"])
+            if "judgemenu" in arm_runs and 4 in arm_runs["judgemenu"]["records"] else None)
+    report["shipping_rules_mean"] = analysis.shipping_rules_mean(
+        [d["shipping_rules"] for d in report["draws"].values()])
     if len(draws) >= 2:
         report["consensus"] = analysis.consensus([d["records"][0] for d in draws])
         report["sha256_identical_draws"] = len({d["sha256"].get(0) for d in draws}) == 1
@@ -240,6 +252,17 @@ def fmt(report: dict) -> str:
             for arm in report["arms"] if name in report["arms"][arm]]
         for arm, f, sf in rows:
             L.append(f"| {name} | {arm} | {f['n']} | {f['ships']} | {f['coverage']:.3f} | {f['accuracy']:.3f} | **{f['yield']:.3f}** | {f['errors']} | {f['err_per_100']:.1f} | {f['to_person']} | {sf['exact']['f1']:.3f} | {sf['overlap']['f1']:.3f} |")
+    L.append("")
+    L.append("## Every rung's verdict as a shipping rule (one denominator: all records; F1 span-exact over what ships)")
+    L.append("| draw | ship only when… | reads rung | ships | right code, exact span | exact span, wrong code | right code, boundary off | neither | to a person | of them right | accuracy | **yield** | F1 | extra tokens |")
+    L.append("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|")
+    for name, d in report["draws"].items():
+        for r in d.get("shipping_rules", []):
+            L.append(f"| {name} | {r['rule']} | {r['reads_rung']} | {r['ships']} | {r['correct']} | {r['span_only']} | {r['code_only']} | {r['neither']} "
+                     f"| {r['to_person']} | {r['person_correct']} | {r['accuracy']:.3f} | **{r['yield']:.3f}** | {r.get('f1', float('nan')):.3f} | {r['extra_tokens']:,} |")
+    for r in report.get("shipping_rules_mean", []):
+        L.append(f"| mean of {r['draws']} | {r['rule']} | {r['reads_rung']} | {r['ships']} | | | | "
+                 f"| {r['to_person']} | {r['person_correct']} | {r['accuracy']:.3f} | **{r['yield']:.3f}** | {r.get('f1', float('nan')):.3f} | {r['extra_tokens']:,} |")
     L.append("")
     if "lexarm" in report["arms"]:
         L.append("## What `contained` admits that `exact` leaves in BAND (item 8)")

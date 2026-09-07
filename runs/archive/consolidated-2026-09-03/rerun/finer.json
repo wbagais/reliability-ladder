@@ -1301,7 +1301,114 @@
             "modernised": 0
           }
         }
-      }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 304,
+          "correct": 46,
+          "span_only": 72,
+          "code_only": 3,
+          "neither": 183,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.15132,
+          "yield": 0.15132,
+          "f1": 0.1962,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "everything_after_r3",
+          "reads_rung": 3,
+          "ships": 304,
+          "correct": 52,
+          "span_only": 66,
+          "code_only": 3,
+          "neither": 183,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.17105,
+          "yield": 0.17105,
+          "f1": 0.2217,
+          "extra_tokens": 2631243
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 4,
+          "ships": 0,
+          "correct": 0,
+          "span_only": 0,
+          "code_only": 0,
+          "neither": 0,
+          "to_person": 304,
+          "person_correct": 52,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "f1": 0.0,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "r3_unanimous",
+          "reads_rung": 3,
+          "ships": 97,
+          "correct": 24,
+          "span_only": 16,
+          "code_only": 2,
+          "neither": 55,
+          "to_person": 207,
+          "person_correct": 28,
+          "accuracy": 0.24742,
+          "yield": 0.07895,
+          "f1": 0.1832,
+          "extra_tokens": 2631243
+        },
+        {
+          "rule": "r3_two_agree",
+          "reads_rung": 3,
+          "ships": 214,
+          "correct": 44,
+          "span_only": 43,
+          "code_only": 3,
+          "neither": 124,
+          "to_person": 90,
+          "person_correct": 8,
+          "accuracy": 0.20561,
+          "yield": 0.14474,
+          "f1": 0.2322,
+          "extra_tokens": 2631243
+        },
+        {
+          "rule": "r4_blind_pass",
+          "reads_rung": 4,
+          "ships": 45,
+          "correct": 20,
+          "span_only": 9,
+          "code_only": 2,
+          "neither": 14,
+          "to_person": 259,
+          "person_correct": 32,
+          "accuracy": 0.44444,
+          "yield": 0.06579,
+          "f1": 0.1905,
+          "extra_tokens": 269910
+        },
+        {
+          "rule": "r4_menu_pass",
+          "reads_rung": 4,
+          "ships": 190,
+          "correct": 51,
+          "span_only": 43,
+          "code_only": 3,
+          "neither": 93,
+          "to_person": 114,
+          "person_correct": 1,
+          "accuracy": 0.26842,
+          "yield": 0.16776,
+          "f1": 0.2873,
+          "extra_tokens": 269910
+        }
+      ]
     },
     "rerun-finer-d1": {
       "sha256_r0": "3cde146cc9bf40fcbd81ae12e830376bc01e6995c3f845817ce6e4debea16df3",
@@ -2713,7 +2820,114 @@
             "modernised": 0
           }
         }
-      }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 304,
+          "correct": 46,
+          "span_only": 72,
+          "code_only": 3,
+          "neither": 183,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.15132,
+          "yield": 0.15132,
+          "f1": 0.1962,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "everything_after_r3",
+          "reads_rung": 3,
+          "ships": 304,
+          "correct": 54,
+          "span_only": 64,
+          "code_only": 5,
+          "neither": 181,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.17763,
+          "yield": 0.17763,
+          "f1": 0.2303,
+          "extra_tokens": 2613262
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 4,
+          "ships": 0,
+          "correct": 0,
+          "span_only": 0,
+          "code_only": 0,
+          "neither": 0,
+          "to_person": 304,
+          "person_correct": 54,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "f1": 0.0,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "r3_unanimous",
+          "reads_rung": 3,
+          "ships": 68,
+          "correct": 23,
+          "span_only": 9,
+          "code_only": 0,
+          "neither": 36,
+          "to_person": 236,
+          "person_correct": 31,
+          "accuracy": 0.33824,
+          "yield": 0.07566,
+          "f1": 0.1974,
+          "extra_tokens": 2613262
+        },
+        {
+          "rule": "r3_two_agree",
+          "reads_rung": 3,
+          "ships": 194,
+          "correct": 47,
+          "span_only": 32,
+          "code_only": 5,
+          "neither": 110,
+          "to_person": 110,
+          "person_correct": 7,
+          "accuracy": 0.24227,
+          "yield": 0.15461,
+          "f1": 0.2618,
+          "extra_tokens": 2613262
+        },
+        {
+          "rule": "r4_blind_pass",
+          "reads_rung": 4,
+          "ships": 47,
+          "correct": 19,
+          "span_only": 11,
+          "code_only": 3,
+          "neither": 14,
+          "to_person": 257,
+          "person_correct": 35,
+          "accuracy": 0.40426,
+          "yield": 0.0625,
+          "f1": 0.1792,
+          "extra_tokens": 269887
+        },
+        {
+          "rule": "r4_menu_pass",
+          "reads_rung": 4,
+          "ships": 192,
+          "correct": 53,
+          "span_only": 43,
+          "code_only": 5,
+          "neither": 91,
+          "to_person": 112,
+          "person_correct": 1,
+          "accuracy": 0.27604,
+          "yield": 0.17434,
+          "f1": 0.2969,
+          "extra_tokens": 269887
+        }
+      ]
     },
     "rerun-finer-d2": {
       "sha256_r0": "3cde146cc9bf40fcbd81ae12e830376bc01e6995c3f845817ce6e4debea16df3",
@@ -4245,7 +4459,114 @@
             "modernised": 0
           }
         }
-      }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 304,
+          "correct": 46,
+          "span_only": 72,
+          "code_only": 3,
+          "neither": 183,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.15132,
+          "yield": 0.15132,
+          "f1": 0.1962,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "everything_after_r3",
+          "reads_rung": 3,
+          "ships": 304,
+          "correct": 54,
+          "span_only": 64,
+          "code_only": 5,
+          "neither": 181,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.17763,
+          "yield": 0.17763,
+          "f1": 0.2303,
+          "extra_tokens": 2604531
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 4,
+          "ships": 0,
+          "correct": 0,
+          "span_only": 0,
+          "code_only": 0,
+          "neither": 0,
+          "to_person": 304,
+          "person_correct": 54,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "f1": 0.0,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "r3_unanimous",
+          "reads_rung": 3,
+          "ships": 101,
+          "correct": 33,
+          "span_only": 14,
+          "code_only": 0,
+          "neither": 54,
+          "to_person": 203,
+          "person_correct": 21,
+          "accuracy": 0.32673,
+          "yield": 0.10855,
+          "f1": 0.2481,
+          "extra_tokens": 2604531
+        },
+        {
+          "rule": "r3_two_agree",
+          "reads_rung": 3,
+          "ships": 213,
+          "correct": 51,
+          "span_only": 39,
+          "code_only": 4,
+          "neither": 119,
+          "to_person": 91,
+          "person_correct": 3,
+          "accuracy": 0.23944,
+          "yield": 0.16776,
+          "f1": 0.2698,
+          "extra_tokens": 2604531
+        },
+        {
+          "rule": "r4_blind_pass",
+          "reads_rung": 4,
+          "ships": 46,
+          "correct": 17,
+          "span_only": 10,
+          "code_only": 2,
+          "neither": 17,
+          "to_person": 258,
+          "person_correct": 37,
+          "accuracy": 0.36957,
+          "yield": 0.05592,
+          "f1": 0.1611,
+          "extra_tokens": 269818
+        },
+        {
+          "rule": "r4_menu_pass",
+          "reads_rung": 4,
+          "ships": 204,
+          "correct": 53,
+          "span_only": 40,
+          "code_only": 5,
+          "neither": 106,
+          "to_person": 100,
+          "person_correct": 1,
+          "accuracy": 0.2598,
+          "yield": 0.17434,
+          "f1": 0.2873,
+          "extra_tokens": 269818
+        }
+      ]
     }
   },
   "arms": {
@@ -5444,6 +5765,100 @@
       }
     }
   },
+  "gold_lanes": {},
+  "shipping_rules_mean": [
+    {
+      "rule": "everything",
+      "reads_rung": 0,
+      "draws": 3,
+      "ships": 304.0,
+      "correct": 46.0,
+      "to_person": 0.0,
+      "person_correct": 0.0,
+      "accuracy": 0.151,
+      "yield": 0.151,
+      "f1": 0.196,
+      "extra_tokens": 0
+    },
+    {
+      "rule": "everything_after_r3",
+      "reads_rung": 3,
+      "draws": 3,
+      "ships": 304.0,
+      "correct": 53.3,
+      "to_person": 0.0,
+      "person_correct": 0.0,
+      "accuracy": 0.175,
+      "yield": 0.175,
+      "f1": 0.227,
+      "extra_tokens": 2616345
+    },
+    {
+      "rule": "accept",
+      "reads_rung": 4,
+      "draws": 3,
+      "ships": 0.0,
+      "correct": 0.0,
+      "to_person": 304.0,
+      "person_correct": 53.3,
+      "accuracy": 0.0,
+      "yield": 0.0,
+      "f1": 0.0,
+      "extra_tokens": 0
+    },
+    {
+      "rule": "r3_unanimous",
+      "reads_rung": 3,
+      "draws": 3,
+      "ships": 88.7,
+      "correct": 26.7,
+      "to_person": 215.3,
+      "person_correct": 26.7,
+      "accuracy": 0.304,
+      "yield": 0.088,
+      "f1": 0.21,
+      "extra_tokens": 2616345
+    },
+    {
+      "rule": "r3_two_agree",
+      "reads_rung": 3,
+      "draws": 3,
+      "ships": 207.0,
+      "correct": 47.3,
+      "to_person": 97.0,
+      "person_correct": 6.0,
+      "accuracy": 0.229,
+      "yield": 0.156,
+      "f1": 0.255,
+      "extra_tokens": 2616345
+    },
+    {
+      "rule": "r4_blind_pass",
+      "reads_rung": 4,
+      "draws": 3,
+      "ships": 46.0,
+      "correct": 18.7,
+      "to_person": 258.0,
+      "person_correct": 34.7,
+      "accuracy": 0.406,
+      "yield": 0.061,
+      "f1": 0.177,
+      "extra_tokens": 269872
+    },
+    {
+      "rule": "r4_menu_pass",
+      "reads_rung": 4,
+      "draws": 3,
+      "ships": 195.3,
+      "correct": 52.3,
+      "to_person": 108.7,
+      "person_correct": 1.0,
+      "accuracy": 0.268,
+      "yield": 0.172,
+      "f1": 0.29,
+      "extra_tokens": 269872
+    }
+  ],
   "consensus": {
     "draws": 3,
     "mentions": 298,

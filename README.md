@@ -156,7 +156,13 @@ Drop `--limit 3` for the full split — 60 documents, roughly 25 minutes on a
 
 ### Reproduce the article’s findings
 
-Five of them, from gold and source, with no model calls:
+**The full guide is [`docs/REPRODUCE.md`](docs/REPRODUCE.md)** — three layers, from
+re-scoring the tracked run files in seconds on any machine, through re-deriving
+every report from the raw run, to re-running the rungs themselves on your own
+data. The run behind every dev-side number is tracked, corpus-free, at
+`runs/archive/consolidated-2026-09-03/`, and the InfoQ figures are drawn from it.
+
+Five of the findings, from gold and source, with no model calls:
 
 ```bash
 PYTHONPATH=. python3 scripts/reproduce.py

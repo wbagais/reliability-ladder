@@ -473,3 +473,161 @@ def gold_lane_occupancy(golds: Iterable[Any], exclude: set[str] | None,
         "concept_less_lanes": dict(concept_less),
         "pct": {k: round(100.0 * v / n, 1) for k, v in sorted(total.items())} if n else {},
     }
+
+
+# --- every rung's verdict read as a shipping rule (the dial) --------------------
+
+#: The rules, in the article's order, with the rung whose state rows say
+#: whether a shipped answer was right. Rung 4 changes no code, so the judge
+#: rules and ACCEPT (rung 5's verdict over rung 4's answers) all read rung 4.
+_RULE_ORDER = ("everything", "everything_after_r3", "accept", "accept_contained",
+               "r3_unanimous", "r3_two_agree", "r4_blind_pass", "r4_menu_pass")
+
+_SHIPPED_SPLIT = ("correct", "span_only", "code_only", "neither")
+
+
+def _four_way(row: dict[str, Any] | None) -> str:
+    """One state row into the shipped-set figure's four classes, most
+    specific first: right code on the exact span; a gold mention at this
+    exact span but the wrong code (`incorrect`); the right code on a span
+    whose boundary is off (exact-unmatched, overlap-correct); neither."""
+    if row is None:
+        return "neither"
+    if row.get("outcome") == "correct":
+        return "correct"
+    if row.get("outcome") == "incorrect":
+        return "span_only"
+    if row.get("outcome_overlap") == "correct":
+        return "code_only"
+    return "neither"
+
+
+def _answer_rung(records: dict[int, list[Record]]) -> int:
+    """The last rung that could still change a code: rung 4 if it ran, else 3,
+    else 0. Rungs 5 and 6 withhold and route; they do not answer."""
+    return max((r for r in records if r <= 4), default=0)
+
+
+def _shipping_row(name: str, reads_rung: int, shipped_ids: Iterable[str],
+                  records_at: list[Record], state_at: dict[str, dict[str, Any]],
+                  n: int, f1, extra_tokens: int) -> dict[str, Any]:
+    shipped = set(shipped_ids)
+    split = Counter(_four_way(state_at.get(rid)) for rid in shipped)
+    held = [rid for rid in state_at if rid not in shipped]
+    row: dict[str, Any] = {"rule": name, "reads_rung": reads_rung, "ships": len(shipped)}
+    row.update({k: split.get(k, 0) for k in _SHIPPED_SPLIT})
+    row["to_person"] = n - len(shipped)
+    row["person_correct"] = sum(1 for rid in held if state_at[rid].get("outcome") == "correct")
+    row["accuracy"] = round(row["correct"] / len(shipped), 5) if shipped else 0.0
+    row["yield"] = round(row["correct"] / n, 5) if n else 0.0
+    if f1 is not None:
+        row["f1"] = f1([r for r in records_at if r.record_id in shipped])
+    row["extra_tokens"] = int(extra_tokens)
+    return row
+
+
+def shipping_rules(records: dict[int, list[Record]], state_rows: Iterable[dict[str, Any]],
+                   final: list[Record], *, f1=None, tokens_by_rung: dict[int, int] | None = None,
+                   lexarm: tuple[list[Record], Iterable[dict[str, Any]]] | None = None,
+                   menu: tuple[list[Record], Iterable[dict[str, Any]]] | None = None,
+                   ) -> list[dict[str, Any]]:
+    """Every rung's verdict read as a "ship only when…" rule over the SAME
+    records — the article's dial table and its shipped-set figure.
+
+    One denominator: every record in the state table at rung 0, so `yield`
+    (correct / all) cannot be raised by withholding. Each row: what ships,
+    split four ways by the state table's span-exact and overlap outcomes at
+    `reads_rung` (`correct` / `span_only` / `code_only` / `neither`, see
+    `_four_way`), what goes to a person and how many of those were right at
+    that rung, accuracy on what ships, yield, `f1` from the caller's scorer
+    over the SHIPPED records alone (so a withheld answer counts as a miss;
+    omitted when no scorer is given) and `extra_tokens`, the tokens of the
+    rung whose verdict the rule reads (zero for the free rules).
+
+    Rules: `everything` reads rung 0 as it stood; `everything_after_r3` the
+    same records after voting; `accept` is the run's own final zone (rung 5's
+    verdict over rung 1's ACCEPT) with correctness read at rung 4, the last
+    rung that changes a code; `accept_contained` the same on the lexarm's
+    final rows; `r3_unanimous` ALL k samples returned the same code — a split
+    or a missing sample goes to a person, which is the article's definition;
+    `r3_two_agree` a top count of two or more (rung 3's own seen >= 2 rule, so
+    a lone sample is not a vote); `r4_blind_pass` and
+    `r4_menu_pass` the judge's `pass` in the base run and in the `-judgemenu`
+    arm, each read against its own rung 4 state rows.
+    """
+    state_rows = list(state_rows)
+    tokens = tokens_by_rung or {}
+    at = {r: rows_at(state_rows, r) for r in (0, 3, 4)}
+    n = len(at[0])
+    answer = _answer_rung(records)
+    at_answer = rows_at(state_rows, answer)
+
+    def shipped_of(recs: list[Record]) -> list[str]:
+        return [r.record_id for r in recs
+                if r.zone not in (ZONE_ABSTAIN, ZONE_REJECT, ZONE_ESCALATE) and r.sct]
+
+    def votes(rec: Record) -> dict[str, int]:
+        return dict(rec.checks.get("r3_votes") or {})
+
+    def k_of(rec: Record) -> int:
+        return int((rec.checks.get("r3") or {}).get("k", 3))
+
+    r0, r3, r4 = records.get(0, []), records.get(3, []), records.get(4, [])
+    rows = [_shipping_row("everything", 0, (r.record_id for r in r0), r0, at[0], n, f1, 0)]
+    if 3 in records:
+        rows.append(_shipping_row("everything_after_r3", 3, (r.record_id for r in r3),
+                                  r3, at[3], n, f1, tokens.get(3, 0)))
+    rows.append(_shipping_row("accept", answer, shipped_of(final),
+                              final, at_answer, n, f1, 0))
+    if lexarm is not None:
+        lex_final, lex_state = lexarm
+        rows.append(_shipping_row("accept_contained", answer, shipped_of(lex_final),
+                                  lex_final, rows_at(list(lex_state), answer), n, f1, 0))
+    if 3 in records:
+        rows.append(_shipping_row(
+            "r3_unanimous", 3,
+            (r.record_id for r in r3 if len(votes(r)) == 1 and sum(votes(r).values()) >= k_of(r)),
+            r3, at[3], n, f1, tokens.get(3, 0)))
+        rows.append(_shipping_row(
+            "r3_two_agree", 3,
+            (r.record_id for r in r3 if votes(r) and max(votes(r).values()) >= 2),
+            r3, at[3], n, f1, tokens.get(3, 0)))
+    if 4 in records:
+        rows.append(_shipping_row(
+            "r4_blind_pass", 4,
+            (r.record_id for r in r4 if r.checks.get("r4_verdict") == "pass"),
+            r4, at[4], n, f1, tokens.get(4, 0)))
+    if menu is not None:
+        menu_r4, menu_state = menu
+        rows.append(_shipping_row(
+            "r4_menu_pass", 4,
+            (r.record_id for r in menu_r4 if r.checks.get("r4_verdict") == "pass"),
+            menu_r4, rows_at(list(menu_state), 4), n, f1, tokens.get(4, 0)))
+    return rows
+
+
+_MEAN_FIELDS = ("ships", "correct", "to_person", "person_correct", "accuracy", "yield",
+                "f1", "extra_tokens")
+
+
+def shipping_rules_mean(draws: list[list[dict[str, Any]]]) -> list[dict[str, Any]]:
+    """The article's table: each rule averaged over the draws it appears in.
+    Counts to one decimal, rates to three, tokens to the nearest whole."""
+    by_rule: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for rows in draws:
+        for r in rows:
+            by_rule[r["rule"]].append(r)
+    out = []
+    for name in _RULE_ORDER:
+        rs = by_rule.get(name)
+        if not rs:
+            continue
+        m: dict[str, Any] = {"rule": name, "reads_rung": rs[0]["reads_rung"], "draws": len(rs)}
+        for k in _MEAN_FIELDS:
+            vals = [r[k] for r in rs if k in r]
+            if not vals:
+                continue
+            mean = sum(vals) / len(vals)
+            m[k] = int(round(mean)) if k == "extra_tokens" else round(mean, 3 if k in ("accuracy", "yield", "f1") else 1)
+        out.append(m)
+    return out
