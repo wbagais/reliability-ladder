@@ -1,0 +1,19 @@
+=== 2026-09-03 18:26:15 rerun-cadec-s0-d0 ===
+[run] rung 0 (bare LLM      ) 1895.19s  routed  NEW=179
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-s0-d0.*
+=== 2026-09-03 18:57:51 rerun-cadec-s0-d1 ===
+[run] rung 0 (bare LLM      ) 2057.24s  routed  NEW=186
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-s0-d1.*
+=== 2026-09-03 19:32:09 rerun-cadec-s0-d2 ===
+[run] rung 0 (bare LLM      ) 2013.21s  routed  NEW=196
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-s0-d2.*
+=== 2026-09-03 20:05:43 rerun-cadec-s1-d0 ===
+[run] rung 0 (bare LLM      ) 760.38s  routed  NEW=206
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-s1-d0.*
+=== 2026-09-03 20:18:24 rerun-cadec-s1-d1 ===
+[run] rung 0 (bare LLM      ) 729.45s  routed  NEW=204
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-s1-d1.*
+=== 2026-09-03 20:30:34 rerun-cadec-s1-d2 ===
+[run] rung 0 (bare LLM      ) 758.38s  routed  NEW=207
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-s1-d2.*
+=== 2026-09-03 20:43:14 STEPS DONE ===

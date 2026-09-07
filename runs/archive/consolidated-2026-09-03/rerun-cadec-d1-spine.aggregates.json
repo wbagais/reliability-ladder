@@ -1,0 +1,44 @@
+{
+  "run_id": "rerun-cadec-d1-spine",
+  "split": "dev",
+  "order": [
+    5,
+    6
+  ],
+  "missing_rungs": [],
+  "n_records": 230,
+  "n_documents": 40,
+  "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d1",
+  "models": {},
+  "temperature": 0.0,
+  "git": {
+    "sha": "c488a46",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": "c488a46",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-03T10:00:04Z",
+  "finished_utc": "2026-09-03T10:00:04Z",
+  "rungs": {
+    "6": {
+      "mode": "simulated",
+      "queue": 177,
+      "unreviewable": 0,
+      "human_minutes": 354.0,
+      "minutes_source": "simulated",
+      "minutes_per_record": 2.0,
+      "seconds": 0.002,
+      "wall_s": 0.002
+    },
+    "5": {
+      "seconds": 0.003,
+      "wall_s": 0.003
+    }
+  }
+}

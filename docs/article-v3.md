@@ -13,7 +13,7 @@
 > quoted. The replays of a free check over the answer key in sections 4 and 5 —
 > lane occupancy, the planted corruptions, the type check's false-rejection
 > rate — involve no model; they were re-run on the base run's configuration
-> and denominator on 2026-09-04 (`out/rerun/cadec.md`, `cadec-probe-*.json`)
+> and denominator on 2026-09-04 (`runs/archive/consolidated-2026-09-03/rerun/cadec.md`, `cadec-probe-*.json`)
 > and are quoted from that replay. Where an earlier experiment is mentioned it
 > is named as such, without its figures; those live in the decisions log. What
 > remains open is listed in section 11.

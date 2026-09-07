@@ -1,0 +1,161 @@
+{
+  "run_id": "rerun-cadec-d0-lexarm",
+  "split": "dev",
+  "order": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "missing_rungs": [],
+  "n_records": 230,
+  "n_documents": 40,
+  "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d0",
+  "models": {
+    "0": "ollama/gpt-oss:20b",
+    "2": "ollama/gpt-oss:20b",
+    "3": "ollama/gpt-oss:20b",
+    "4": "ollama/ibm/granite4:micro-h"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": "061c6c3",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": "061c6c3",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-03T08:58:44Z",
+  "finished_utc": "2026-09-03T08:59:39Z",
+  "rungs": {
+    "0": {
+      "documents": 40,
+      "records": 230,
+      "tokens_in": 105087,
+      "tokens_out": 56681,
+      "tool_calls": 0,
+      "api_calls": 94,
+      "parse_failed": 0,
+      "usd": 0.0,
+      "pick_parse_failed": 0,
+      "truncated": 0,
+      "multi_code": 0,
+      "timed_out": 0,
+      "refused": 0,
+      "shape_coerced": 0,
+      "code_unknown": 0,
+      "no_pick": 10,
+      "bad_pick": 0,
+      "declined_shortlist": 9,
+      "trimmed": 45,
+      "pick_fallback": 19,
+      "split": 13,
+      "dropped_ungrounded": 10,
+      "dropped_fragment": 0,
+      "dropped_duplicate": 2,
+      "dropped_datelike": 0,
+      "t0": 1788425924.514616,
+      "seconds": 14.65,
+      "wall_s": 15.085
+    },
+    "2": {
+      "attempted": 2,
+      "rescued": 1,
+      "still_failing": 1,
+      "reasserted": 0,
+      "unchanged": 228,
+      "declined": 0,
+      "parse_failed": 0,
+      "tokens_in": 691,
+      "tokens_out": 568,
+      "t0": 1788425939.281985,
+      "seconds": 0.0,
+      "wall_s": 0.002
+    },
+    "3": {
+      "records": 230,
+      "calls": 266,
+      "documents": 37,
+      "tokens_in": 298148,
+      "tokens_out": 112490,
+      "unanimous": 164,
+      "split": 39,
+      "tie": 15,
+      "changed": 25,
+      "single_sample": 4,
+      "unanimous_none": 0,
+      "not_resampled": 12,
+      "parse_failed": 3,
+      "revalidated": 0,
+      "stale_verdict": 25,
+      "spread": {
+        "3": 108,
+        "2-1": 39,
+        "1-1": 7,
+        "2": 38,
+        "1": 18,
+        "1-1-1": 8
+      },
+      "t0": 1788425939.764399,
+      "usd": 0.0,
+      "seconds": 39.83,
+      "wall_s": 40.275
+    },
+    "4": {
+      "records": 230,
+      "tokens_in": 71401,
+      "tokens_out": 12635,
+      "parse_failed": 7,
+      "verdicts": {
+        "pass": 136,
+        "fail": 87
+      },
+      "agree_r1": 135,
+      "disagree_r1": 88,
+      "span_ok": 175,
+      "span_bad": 48,
+      "code_ok": 143,
+      "code_bad": 80,
+      "r1_verdicts": {
+        "BAND": 132,
+        "ACCEPT": 90,
+        "REJECT": 1
+      },
+      "judged": 223,
+      "menu": "off",
+      "menu_shown": 0,
+      "menu_missing": 0,
+      "best_is_pick": 0,
+      "t0": 1788425979.649889,
+      "usd": 0.0,
+      "seconds": 0.04,
+      "wall_s": 0.04
+    },
+    "6": {
+      "mode": "simulated",
+      "queue": 139,
+      "unreviewable": 0,
+      "human_minutes": 278.0,
+      "minutes_source": "simulated",
+      "minutes_per_record": 2.0,
+      "seconds": 0.001,
+      "wall_s": 0.001
+    },
+    "1": {
+      "seconds": 0.028,
+      "wall_s": 0.028
+    },
+    "5": {
+      "seconds": 0.002,
+      "wall_s": 0.002
+    }
+  }
+}

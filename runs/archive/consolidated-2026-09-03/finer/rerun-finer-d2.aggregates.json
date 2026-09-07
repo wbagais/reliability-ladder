@@ -1,0 +1,160 @@
+{
+  "run_id": "rerun-finer-d2",
+  "split": "dev",
+  "order": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "missing_rungs": [],
+  "n_records": 304,
+  "n_documents": 40,
+  "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d2",
+  "models": {
+    "0": "ollama/gpt-oss:20b",
+    "2": "ollama/gpt-oss:20b",
+    "3": "ollama/gpt-oss:20b",
+    "4": "ollama/ibm/granite4:micro-h"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": "5c9ffd2",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": "5c9ffd2",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-03T17:36:10Z",
+  "finished_utc": "2026-09-03T19:57:02Z",
+  "rungs": {
+    "0": {
+      "documents": 40,
+      "records": 304,
+      "tokens_in": 882819,
+      "tokens_out": 64541,
+      "tool_calls": 0,
+      "api_calls": 110,
+      "parse_failed": 0,
+      "usd": 0.0,
+      "pick_parse_failed": 0,
+      "truncated": 0,
+      "multi_code": 0,
+      "timed_out": 0,
+      "refused": 0,
+      "shape_coerced": 0,
+      "code_unknown": 0,
+      "no_pick": 17,
+      "bad_pick": 0,
+      "declined_shortlist": 99,
+      "trimmed": 32,
+      "pick_fallback": 116,
+      "split": 0,
+      "dropped_ungrounded": 0,
+      "dropped_fragment": 0,
+      "dropped_duplicate": 46,
+      "dropped_datelike": 0,
+      "t0": 1788456971.955318,
+      "seconds": 2334.47,
+      "wall_s": 2335.658
+    },
+    "2": {
+      "attempted": 0,
+      "rescued": 0,
+      "still_failing": 0,
+      "reasserted": 0,
+      "unchanged": 304,
+      "declined": 0,
+      "parse_failed": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "t0": 1788459306.904168,
+      "seconds": 0.0,
+      "wall_s": 0.003
+    },
+    "3": {
+      "records": 304,
+      "calls": 301,
+      "documents": 34,
+      "tokens_in": 2445506,
+      "tokens_out": 159025,
+      "unanimous": 125,
+      "split": 106,
+      "tie": 60,
+      "changed": 94,
+      "single_sample": 10,
+      "unanimous_none": 0,
+      "not_resampled": 13,
+      "parse_failed": 0,
+      "revalidated": 0,
+      "stale_verdict": 94,
+      "spread": {
+        "2-1": 106,
+        "1-1": 15,
+        "3": 101,
+        "1-1-1": 45,
+        "1": 18,
+        "2": 6
+      },
+      "t0": 1788459308.193115,
+      "usd": 0.0,
+      "seconds": 5508.45,
+      "wall_s": 5509.659
+    },
+    "4": {
+      "records": 304,
+      "tokens_in": 252987,
+      "tokens_out": 16831,
+      "parse_failed": 9,
+      "verdicts": {
+        "fail": 249,
+        "pass": 46
+      },
+      "agree_r1": 48,
+      "disagree_r1": 247,
+      "span_ok": 153,
+      "span_bad": 142,
+      "code_ok": 52,
+      "code_bad": 243,
+      "r1_verdicts": {
+        "BAND": 293,
+        "REJECT": 2
+      },
+      "judged": 295,
+      "menu": "off",
+      "menu_shown": 0,
+      "menu_missing": 0,
+      "best_is_pick": 0,
+      "t0": 1788464816.854491,
+      "usd": 0.0,
+      "seconds": 605.02,
+      "wall_s": 604.959
+    },
+    "6": {
+      "mode": "simulated",
+      "queue": 304,
+      "unreviewable": 3,
+      "human_minutes": 608.0,
+      "minutes_source": "simulated",
+      "minutes_per_record": 2.0,
+      "seconds": 0.003,
+      "wall_s": 0.003
+    },
+    "1": {
+      "seconds": 0.094,
+      "wall_s": 0.094
+    },
+    "5": {
+      "seconds": 0.003,
+      "wall_s": 0.003
+    }
+  }
+}

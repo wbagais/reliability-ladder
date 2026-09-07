@@ -1,0 +1,8 @@
+rung,layer,n_records,accept,band,reject,abstained,escalated,verified,r1_reject_pct,r1_mode,coverage,f1_sct_strict,yield,settled,corrupted,sct_outdated,sct_abstained,err_per_100,sct_modernised,tokens_per_record,p95_s,reviews_per_100,marginal_tokens_per_error,marginal_reviews_per_error,ci_low,ci_high
+0,bare LLM,304,0,0,0,0,0,0,,,1.0,0.15132,0.15132,0,258,0,0,84.868,0,3116.32,0.0078,0.0,,,,
+1,deterministic,304,0,301,3,0,0,0,0.987,observe,1.0,0.15132,0.15132,0,258,0,0,84.868,0,0.0,0.0005,0.0,,,,
+2,self-correct,304,0,0,0,0,0,0,,,1.0,0.15132,0.15132,0,258,0,0,84.868,0,0.0,0.0,0.0,,,,
+3,voting,304,0,0,0,0,0,0,,,1.0,0.17763,0.17763,0,250,0,0,82.237,0,8596.26,0.0207,0.0,326657.8,0.0,,
+4,LLM judge,304,0,0,0,0,0,0,,,1.0,0.17763,0.17763,0,250,0,0,82.237,0,2995.88,5.378,0.0,,,,
+5,abstention,304,0,0,0,304,0,0,,,0.0,0.0,0.0,304,0,0,0,0.0,0,0.0,0.0,0.0,0.0,0.0,,
+6,human loop,304,0,0,0,0,304,0,,,0.0,0.0,0.0,304,0,0,0,0.0,0,0.0,0.0,100.0,,,,

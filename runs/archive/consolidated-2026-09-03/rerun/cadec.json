@@ -1,0 +1,5960 @@
+{
+  "manifest": "cadec-pharmacovigilance-triage",
+  "corpus": "CADEC",
+  "n_docs": 40,
+  "n_gold_scored": 226,
+  "draws": {
+    "rerun-cadec-d0": {
+      "sha256_r0": "c96289dbd958f2284639026402d6b5d5c4bb05fdb7a06b242d57aeff411803e7",
+      "sha256_final": "2722749791ce4e3c7bbb274dae6f7427b225c48cfb0a2c50c766b4424d2adb03",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d0",
+      "git": {
+        "sha": "f3ff539",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-03T07:47:05Z",
+      "finished": "2026-09-03T08:44:45Z",
+      "spans_proposed": 230,
+      "rung0": {
+        "exact": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.4009,
+          "recall": 0.385,
+          "f1": 0.3928,
+          "detection": {
+            "n_matched": 116,
+            "precision": 0.5346,
+            "recall": 0.5133,
+            "f1": 0.5237
+          },
+          "coding": {
+            "n": 116,
+            "accuracy": 0.75,
+            "correct": 87,
+            "outdated": 0,
+            "abstained": 1,
+            "incorrect": 28,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.3097,
+            0.4681
+          ]
+        },
+        "overlap": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.4839,
+          "recall": 0.4646,
+          "f1": 0.474,
+          "detection": {
+            "n_matched": 178,
+            "precision": 0.8203,
+            "recall": 0.7876,
+            "f1": 0.8036
+          },
+          "coding": {
+            "n": 178,
+            "accuracy": 0.5899,
+            "correct": 105,
+            "outdated": 0,
+            "abstained": 1,
+            "incorrect": 72,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 226,
+          "n_pred": 217,
+          "excluded": 18,
+          "matched": 116,
+          "missed": 110,
+          "invented": 101,
+          "on_menu": 108,
+          "lost_retrieval": 8,
+          "correct": 87,
+          "lost_pick": 21,
+          "lost_pick_by_lane": {
+            "model": 19,
+            "fallback": 2
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 226,
+          "n_pred": 217,
+          "excluded": 18,
+          "matched": 178,
+          "missed": 48,
+          "invented": 39,
+          "on_menu": 148,
+          "lost_retrieval": 30,
+          "correct": 105,
+          "lost_pick": 43,
+          "lost_pick_by_lane": {
+            "model": 41,
+            "fallback": 2
+          }
+        }
+      },
+      "lanes": {
+        "BAND": {
+          "n": 175,
+          "correct": 47,
+          "on_no_gold": 40,
+          "matched_overlap": 135,
+          "correct_overlap": 66,
+          "correct_pct": 26.86,
+          "correct_pct_matched_overlap": 48.89
+        },
+        "ACCEPT": {
+          "n": 53,
+          "correct": 40,
+          "on_no_gold": 4,
+          "matched_overlap": 49,
+          "correct_overlap": 37,
+          "correct_pct": 75.47,
+          "correct_pct_matched_overlap": 75.51
+        },
+        "REJECT": {
+          "n": 2,
+          "correct": 0,
+          "on_no_gold": 0,
+          "matched_overlap": 2,
+          "correct_overlap": 0,
+          "correct_pct": 0.0,
+          "correct_pct_matched_overlap": 0.0
+        }
+      },
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 87,
+          "abstained": 1
+        },
+        "1": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 87,
+          "abstained": 1
+        },
+        "2": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 87,
+          "abstained": 1
+        },
+        "3": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 88
+        },
+        "4": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 88
+        },
+        "5": {
+          "unmatched": 114,
+          "abstained": 75,
+          "correct": 39,
+          "incorrect": 2
+        },
+        "6": {
+          "unmatched": 114,
+          "abstained": 75,
+          "correct": 39,
+          "incorrect": 2
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 161768,
+          "api_calls": 94,
+          "p95_s": 78.79,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "1": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "2": {
+          "tokens": 1259,
+          "api_calls": 2,
+          "p95_s": 6.07,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "3": {
+          "tokens": 410638,
+          "api_calls": 266,
+          "p95_s": 117.9,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "4": {
+          "tokens": 84036,
+          "api_calls": 230,
+          "p95_s": 1.46,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "5": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "6": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 354.0,
+          "records_routed": 177
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 230,
+          "tokens_in": 105087,
+          "tokens_out": 56681,
+          "tool_calls": 0,
+          "api_calls": 94,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 10,
+          "bad_pick": 0,
+          "declined_shortlist": 9,
+          "trimmed": 45,
+          "pick_fallback": 19,
+          "split": 13,
+          "dropped_ungrounded": 10,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 2,
+          "dropped_datelike": 0,
+          "t0": 1788421626.316428,
+          "seconds": 1053.9,
+          "wall_s": 1054.352
+        },
+        "2": {
+          "attempted": 2,
+          "rescued": 1,
+          "still_failing": 1,
+          "reasserted": 0,
+          "unchanged": 228,
+          "declined": 0,
+          "parse_failed": 0,
+          "tokens_in": 691,
+          "tokens_out": 568,
+          "t0": 1788422680.4697201,
+          "seconds": 10.49,
+          "wall_s": 10.491
+        },
+        "3": {
+          "records": 230,
+          "calls": 266,
+          "documents": 37,
+          "tokens_in": 298148,
+          "tokens_out": 112490,
+          "unanimous": 164,
+          "split": 39,
+          "tie": 15,
+          "changed": 25,
+          "single_sample": 4,
+          "unanimous_none": 0,
+          "not_resampled": 12,
+          "parse_failed": 3,
+          "revalidated": 0,
+          "stale_verdict": 25,
+          "spread": {
+            "3": 108,
+            "2-1": 39,
+            "1-1": 7,
+            "2": 38,
+            "1": 18,
+            "1-1-1": 8
+          },
+          "t0": 1788422691.8113012,
+          "usd": 0.0,
+          "seconds": 2113.62,
+          "wall_s": 2114.388
+        },
+        "4": {
+          "records": 230,
+          "tokens_in": 71401,
+          "tokens_out": 12635,
+          "parse_failed": 7,
+          "verdicts": {
+            "pass": 136,
+            "fail": 87
+          },
+          "agree_r1": 135,
+          "disagree_r1": 88,
+          "span_ok": 175,
+          "span_bad": 48,
+          "code_ok": 143,
+          "code_bad": 80,
+          "r1_verdicts": {
+            "BAND": 169,
+            "ACCEPT": 53,
+            "REJECT": 1
+          },
+          "judged": 223,
+          "menu": "off",
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_is_pick": 0,
+          "t0": 1788424805.5074098,
+          "usd": 0.0,
+          "seconds": 279.42,
+          "wall_s": 279.42
+        },
+        "6": {
+          "mode": "simulated",
+          "queue": 177,
+          "unreviewable": 0,
+          "human_minutes": 354.0,
+          "minutes_source": "simulated",
+          "minutes_per_record": 2.0,
+          "seconds": 0.002,
+          "wall_s": 0.002
+        },
+        "1": {
+          "seconds": 0.107,
+          "wall_s": 0.107
+        },
+        "5": {
+          "seconds": 0.002,
+          "wall_s": 0.002
+        }
+      },
+      "r3": {
+        "by_lane": {
+          "BAND": {
+            "unanimous": 108,
+            "changed": 22,
+            "split": 21,
+            "tie": 14,
+            "not_resampled": 8,
+            "single_sample": 3
+          },
+          "ACCEPT": {
+            "unanimous": 41,
+            "single_sample": 1,
+            "not_resampled": 4,
+            "tie": 1,
+            "split": 4,
+            "changed": 2
+          },
+          "REJECT": {
+            "changed": 1
+          }
+        },
+        "changes": [
+          {
+            "record_id": "ARTHROTEC.107#2",
+            "lane": "BAND",
+            "was": "282973006",
+            "now": "151811000119109",
+            "votes": {
+              "151811000119109": 2,
+              "54840006": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "ARTHROTEC.57#1",
+            "lane": "BAND",
+            "was": "246871006",
+            "now": "9126005",
+            "votes": {
+              "9126005": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "ARTHROTEC.78#1",
+            "lane": "BAND",
+            "was": "267055007",
+            "now": "35064005",
+            "votes": {
+              "35064005": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "ARTHROTEC.8#2",
+            "lane": "BAND",
+            "was": "55607006",
+            "now": "22253000",
+            "votes": {
+              "22253000": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.159#13",
+            "lane": "BAND",
+            "was": "162471005",
+            "now": "225013001",
+            "votes": {
+              "225013001": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.231#1",
+            "lane": "BAND",
+            "was": "82991003",
+            "now": "279044000",
+            "votes": {
+              "279044000": 2,
+              "68962001": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.24#2",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "1264030002",
+            "votes": {
+              "1264030002": 2,
+              "202490009": 1
+            },
+            "before": "abstained",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.380#0",
+            "lane": "BAND",
+            "was": "40884005",
+            "now": "45326000",
+            "votes": {
+              "68962001": 1,
+              "45326000": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.380#2",
+            "lane": "REJECT",
+            "was": "202379000",
+            "now": "1348356003",
+            "votes": {
+              "202379000": 1,
+              "1348356003": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.445#2",
+            "lane": "BAND",
+            "was": "278040002",
+            "now": "56317004",
+            "votes": {
+              "56317004": 2,
+              "278040002": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.445#7",
+            "lane": "BAND",
+            "was": "59050008",
+            "now": "224233001",
+            "votes": {
+              "224233001": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.460#7",
+            "lane": "BAND",
+            "was": "84229001",
+            "now": "84946008",
+            "votes": {
+              "84946008": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.460#15",
+            "lane": "BAND",
+            "was": "721157004",
+            "now": "247602005",
+            "votes": {
+              "247602005": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.460#16",
+            "lane": "BAND",
+            "was": "73145009",
+            "now": "228354000",
+            "votes": {
+              "228354000": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.48#5",
+            "lane": "BAND",
+            "was": "301823007",
+            "now": "90673000",
+            "votes": {
+              "301823007": 1,
+              "90673000": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.48#12",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "286783004",
+            "votes": {
+              "286783004": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.53#1",
+            "lane": "BAND",
+            "was": "82423001",
+            "now": "22253000",
+            "votes": {
+              "22253000": 2,
+              "10601006": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.54#1",
+            "lane": "BAND",
+            "was": "203095000",
+            "now": "55300003",
+            "votes": {
+              "161891005": 1,
+              "55300003": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.739#1",
+            "lane": "BAND",
+            "was": "271327008",
+            "now": "82423001",
+            "votes": {
+              "1264024002": 1,
+              "82423001": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.761#3",
+            "lane": "BAND",
+            "was": "67233009",
+            "now": "301345002",
+            "votes": {
+              "301345002": 2,
+              "CONCEPT_LESS": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.78#0",
+            "lane": "BAND",
+            "was": "276444007",
+            "now": "418290006",
+            "votes": {
+              "418290006": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.8#5",
+            "lane": "ACCEPT",
+            "was": "22253000",
+            "now": "1144586002",
+            "votes": {
+              "1144586002": 2
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.806#0",
+            "lane": "BAND",
+            "was": "771083005",
+            "now": "76948002",
+            "votes": {
+              "76948002": 2,
+              "15749341000119107": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.921#1",
+            "lane": "BAND",
+            "was": "395080004",
+            "now": "367391008",
+            "votes": {
+              "395080004": 1,
+              "367391008": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.935#9",
+            "lane": "ACCEPT",
+            "was": "249489001",
+            "now": "225589000",
+            "votes": {
+              "249489001": 1,
+              "225589000": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          }
+        ],
+        "changed": 25,
+        "correct_destroyed": 2,
+        "correct_gained": 3,
+        "net_correct": 1,
+        "not_resampled_before": {
+          "unmatched": 9,
+          "correct": 2,
+          "incorrect": 1
+        }
+      },
+      "r4": {
+        "judged": 223,
+        "parse_failed": 7,
+        "pass": 136,
+        "fail": 87,
+        "span_bad": 48,
+        "code_bad": 80,
+        "menu_shown": 0,
+        "menu_missing": 0,
+        "best_correct": 0,
+        "best_is_pick": 0,
+        "correct_given_pass": 0.4632352941176471,
+        "correct_given_fail": 0.27586206896551724,
+        "separation": 1.6792279411764708
+      },
+      "final": {
+        "n": 230,
+        "ships": 53,
+        "coverage": 0.23043,
+        "accuracy": 0.73585,
+        "yield": 0.16957,
+        "correct": 39,
+        "errors": 14,
+        "err_per_100": 6.087,
+        "to_person": 177
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.1797,
+          "recall": 0.1726,
+          "f1": 0.1761,
+          "detection": {
+            "n_matched": 116,
+            "precision": 0.5346,
+            "recall": 0.5133,
+            "f1": 0.5237
+          },
+          "coding": {
+            "n": 116,
+            "accuracy": 0.3362,
+            "correct": 39,
+            "outdated": 0,
+            "abstained": 75,
+            "incorrect": 2,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1182,
+            0.241
+          ]
+        },
+        "overlap": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.1751,
+          "recall": 0.1681,
+          "f1": 0.1716,
+          "detection": {
+            "n_matched": 178,
+            "precision": 0.8203,
+            "recall": 0.7876,
+            "f1": 0.8036
+          },
+          "coding": {
+            "n": 178,
+            "accuracy": 0.2135,
+            "correct": 38,
+            "outdated": 0,
+            "abstained": 131,
+            "incorrect": 9,
+            "modernised": 0
+          }
+        }
+      }
+    },
+    "rerun-cadec-d1": {
+      "sha256_r0": "c96289dbd958f2284639026402d6b5d5c4bb05fdb7a06b242d57aeff411803e7",
+      "sha256_final": "7e28fc92fb7db63263bc94767bd19dd8871791c842407f9827f7f62dd992ee76",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d1",
+      "git": {
+        "sha": "061c6c3",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-03T08:59:40Z",
+      "finished": "2026-09-03T09:59:44Z",
+      "spans_proposed": 230,
+      "rung0": {
+        "exact": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.4009,
+          "recall": 0.385,
+          "f1": 0.3928,
+          "detection": {
+            "n_matched": 116,
+            "precision": 0.5346,
+            "recall": 0.5133,
+            "f1": 0.5237
+          },
+          "coding": {
+            "n": 116,
+            "accuracy": 0.75,
+            "correct": 87,
+            "outdated": 0,
+            "abstained": 1,
+            "incorrect": 28,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.3097,
+            0.4681
+          ]
+        },
+        "overlap": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.4839,
+          "recall": 0.4646,
+          "f1": 0.474,
+          "detection": {
+            "n_matched": 178,
+            "precision": 0.8203,
+            "recall": 0.7876,
+            "f1": 0.8036
+          },
+          "coding": {
+            "n": 178,
+            "accuracy": 0.5899,
+            "correct": 105,
+            "outdated": 0,
+            "abstained": 1,
+            "incorrect": 72,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 226,
+          "n_pred": 217,
+          "excluded": 18,
+          "matched": 116,
+          "missed": 110,
+          "invented": 101,
+          "on_menu": 108,
+          "lost_retrieval": 8,
+          "correct": 87,
+          "lost_pick": 21,
+          "lost_pick_by_lane": {
+            "model": 19,
+            "fallback": 2
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 226,
+          "n_pred": 217,
+          "excluded": 18,
+          "matched": 178,
+          "missed": 48,
+          "invented": 39,
+          "on_menu": 148,
+          "lost_retrieval": 30,
+          "correct": 105,
+          "lost_pick": 43,
+          "lost_pick_by_lane": {
+            "model": 41,
+            "fallback": 2
+          }
+        }
+      },
+      "lanes": {
+        "BAND": {
+          "n": 175,
+          "correct": 47,
+          "on_no_gold": 40,
+          "matched_overlap": 135,
+          "correct_overlap": 66,
+          "correct_pct": 26.86,
+          "correct_pct_matched_overlap": 48.89
+        },
+        "ACCEPT": {
+          "n": 53,
+          "correct": 40,
+          "on_no_gold": 4,
+          "matched_overlap": 49,
+          "correct_overlap": 37,
+          "correct_pct": 75.47,
+          "correct_pct_matched_overlap": 75.51
+        },
+        "REJECT": {
+          "n": 2,
+          "correct": 0,
+          "on_no_gold": 0,
+          "matched_overlap": 2,
+          "correct_overlap": 0,
+          "correct_pct": 0.0,
+          "correct_pct_matched_overlap": 0.0
+        }
+      },
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 87,
+          "abstained": 1
+        },
+        "1": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 87,
+          "abstained": 1
+        },
+        "2": {
+          "unmatched": 114,
+          "incorrect": 28,
+          "correct": 87,
+          "abstained": 1
+        },
+        "3": {
+          "unmatched": 114,
+          "incorrect": 30,
+          "correct": 86
+        },
+        "4": {
+          "unmatched": 114,
+          "incorrect": 30,
+          "correct": 86
+        },
+        "5": {
+          "unmatched": 114,
+          "abstained": 75,
+          "correct": 40,
+          "incorrect": 1
+        },
+        "6": {
+          "unmatched": 114,
+          "abstained": 75,
+          "correct": 40,
+          "incorrect": 1
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 161768,
+          "api_calls": 94,
+          "p95_s": 83.3,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "1": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "2": {
+          "tokens": 1259,
+          "api_calls": 2,
+          "p95_s": 6.06,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "3": {
+          "tokens": 432341,
+          "api_calls": 274,
+          "p95_s": 136.87,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "4": {
+          "tokens": 84031,
+          "api_calls": 230,
+          "p95_s": 1.44,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "5": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "6": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 354.0,
+          "records_routed": 177
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 230,
+          "tokens_in": 105087,
+          "tokens_out": 56681,
+          "tool_calls": 0,
+          "api_calls": 94,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 10,
+          "bad_pick": 0,
+          "declined_shortlist": 9,
+          "trimmed": 45,
+          "pick_fallback": 19,
+          "split": 13,
+          "dropped_ungrounded": 10,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 2,
+          "dropped_datelike": 0,
+          "t0": 1788425980.7058718,
+          "seconds": 1071.63,
+          "wall_s": 1072.043
+        },
+        "2": {
+          "attempted": 2,
+          "rescued": 1,
+          "still_failing": 1,
+          "reasserted": 0,
+          "unchanged": 228,
+          "declined": 0,
+          "parse_failed": 0,
+          "tokens_in": 691,
+          "tokens_out": 568,
+          "t0": 1788427052.5692868,
+          "seconds": 10.45,
+          "wall_s": 10.453
+        },
+        "3": {
+          "records": 230,
+          "calls": 274,
+          "documents": 37,
+          "tokens_in": 314323,
+          "tokens_out": 118018,
+          "unanimous": 149,
+          "split": 52,
+          "tie": 17,
+          "changed": 28,
+          "single_sample": 3,
+          "unanimous_none": 0,
+          "not_resampled": 12,
+          "parse_failed": 0,
+          "revalidated": 0,
+          "stale_verdict": 28,
+          "spread": {
+            "3": 116,
+            "1": 11,
+            "2-1": 52,
+            "1-1": 8,
+            "2": 22,
+            "1-1-1": 9
+          },
+          "t0": 1788427063.84528,
+          "usd": 0.0,
+          "seconds": 2239.99,
+          "wall_s": 2240.807
+        },
+        "4": {
+          "records": 230,
+          "tokens_in": 71391,
+          "tokens_out": 12640,
+          "parse_failed": 4,
+          "verdicts": {
+            "pass": 137,
+            "fail": 89
+          },
+          "agree_r1": 136,
+          "disagree_r1": 90,
+          "span_ok": 178,
+          "span_bad": 48,
+          "code_ok": 145,
+          "code_bad": 81,
+          "r1_verdicts": {
+            "BAND": 172,
+            "ACCEPT": 53,
+            "REJECT": 1
+          },
+          "judged": 226,
+          "menu": "off",
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_is_pick": 0,
+          "t0": 1788429303.905697,
+          "usd": 0.0,
+          "seconds": 280.14,
+          "wall_s": 280.139
+        },
+        "6": {
+          "mode": "simulated",
+          "queue": 177,
+          "unreviewable": 0,
+          "human_minutes": 354.0,
+          "minutes_source": "simulated",
+          "minutes_per_record": 2.0,
+          "seconds": 0.002,
+          "wall_s": 0.002
+        },
+        "1": {
+          "seconds": 0.107,
+          "wall_s": 0.107
+        },
+        "5": {
+          "seconds": 0.002,
+          "wall_s": 0.002
+        }
+      },
+      "r3": {
+        "by_lane": {
+          "BAND": {
+            "unanimous": 95,
+            "single_sample": 3,
+            "split": 31,
+            "changed": 27,
+            "tie": 12,
+            "not_resampled": 8
+          },
+          "ACCEPT": {
+            "unanimous": 39,
+            "tie": 4,
+            "not_resampled": 4,
+            "split": 5,
+            "changed": 1
+          },
+          "REJECT": {
+            "tie": 1
+          }
+        },
+        "changes": [
+          {
+            "record_id": "ARTHROTEC.57#1",
+            "lane": "BAND",
+            "was": "246871006",
+            "now": "9126005",
+            "votes": {
+              "9126005": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.159#13",
+            "lane": "BAND",
+            "was": "162471005",
+            "now": "225013001",
+            "votes": {
+              "225013001": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.24#0",
+            "lane": "BAND",
+            "was": "49218002",
+            "now": "68962001",
+            "votes": {
+              "68962001": 2,
+              "49218002": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.24#1",
+            "lane": "BAND",
+            "was": "10601006",
+            "now": "68962001",
+            "votes": {
+              "68962001": 2,
+              "316941000119108": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.24#2",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "68962001",
+            "votes": {
+              "68962001": 2,
+              "1264030002": 1
+            },
+            "before": "abstained",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.24#3",
+            "lane": "BAND",
+            "was": "262966007",
+            "now": "95847005",
+            "votes": {
+              "95847005": 2,
+              "262966007": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.380#0",
+            "lane": "BAND",
+            "was": "40884005",
+            "now": "45326000",
+            "votes": {
+              "68962001": 1,
+              "45326000": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.401#7",
+            "lane": "BAND",
+            "was": "719232003",
+            "now": "248244005",
+            "votes": {
+              "248244005": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.445#2",
+            "lane": "BAND",
+            "was": "278040002",
+            "now": "56317004",
+            "votes": {
+              "56317004": 2,
+              "278040002": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.445#7",
+            "lane": "BAND",
+            "was": "59050008",
+            "now": "224233001",
+            "votes": {
+              "224233001": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.460#11",
+            "lane": "BAND",
+            "was": "1071841000000108",
+            "now": "160685001",
+            "votes": {
+              "160685001": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.460#13",
+            "lane": "BAND",
+            "was": "161873000",
+            "now": "10601006",
+            "votes": {
+              "275318002": 1,
+              "10601006": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.460#15",
+            "lane": "BAND",
+            "was": "721157004",
+            "now": "716442002",
+            "votes": {
+              "716442002": 2,
+              "247602005": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.460#16",
+            "lane": "BAND",
+            "was": "73145009",
+            "now": "228354000",
+            "votes": {
+              "228354000": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.48#5",
+            "lane": "BAND",
+            "was": "301823007",
+            "now": "90673000",
+            "votes": {
+              "90673000": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.48#12",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "286783004",
+            "votes": {
+              "286783004": 2,
+              "CONCEPT_LESS": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.53#2",
+            "lane": "BAND",
+            "was": "65124004",
+            "now": "299322007",
+            "votes": {
+              "299322007": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.53#4",
+            "lane": "BAND",
+            "was": "22253000",
+            "now": "250044006",
+            "votes": {
+              "250044006": 2,
+              "22253000": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.54#1",
+            "lane": "BAND",
+            "was": "203095000",
+            "now": "55300003",
+            "votes": {
+              "55300003": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.54#6",
+            "lane": "BAND",
+            "was": "225019002",
+            "now": "406556003",
+            "votes": {
+              "406556003": 2,
+              "22253000": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.54#7",
+            "lane": "BAND",
+            "was": "45352006",
+            "now": "203095000",
+            "votes": {
+              "203095000": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.739#1",
+            "lane": "BAND",
+            "was": "271327008",
+            "now": "82423001",
+            "votes": {
+              "82423001": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.757#6",
+            "lane": "BAND",
+            "was": "22253000",
+            "now": "76948002",
+            "votes": {
+              "76948002": 2,
+              "22253000": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.761#3",
+            "lane": "BAND",
+            "was": "67233009",
+            "now": "301345002",
+            "votes": {
+              "CONCEPT_LESS": 1,
+              "301345002": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.806#0",
+            "lane": "BAND",
+            "was": "771083005",
+            "now": "15749341000119107",
+            "votes": {
+              "15749341000119107": 2,
+              "76948002": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.839#6",
+            "lane": "BAND",
+            "was": "82991003",
+            "now": "68962001",
+            "votes": {
+              "68962001": 2
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.853#4",
+            "lane": "BAND",
+            "was": "282145008",
+            "now": "282144007",
+            "votes": {
+              "282144007": 2,
+              "282145008": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.935#9",
+            "lane": "ACCEPT",
+            "was": "249489001",
+            "now": "225589000",
+            "votes": {
+              "249489001": 1,
+              "225589000": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          }
+        ],
+        "changed": 28,
+        "correct_destroyed": 3,
+        "correct_gained": 2,
+        "net_correct": -1,
+        "not_resampled_before": {
+          "correct": 5,
+          "unmatched": 7
+        }
+      },
+      "r4": {
+        "judged": 226,
+        "parse_failed": 4,
+        "pass": 137,
+        "fail": 89,
+        "span_bad": 48,
+        "code_bad": 81,
+        "menu_shown": 0,
+        "menu_missing": 0,
+        "best_correct": 0,
+        "best_is_pick": 0,
+        "correct_given_pass": 0.44525547445255476,
+        "correct_given_fail": 0.2696629213483146,
+        "separation": 1.6511557177615572
+      },
+      "final": {
+        "n": 230,
+        "ships": 53,
+        "coverage": 0.23043,
+        "accuracy": 0.75472,
+        "yield": 0.17391,
+        "correct": 40,
+        "errors": 13,
+        "err_per_100": 5.652,
+        "to_person": 177
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.1843,
+          "recall": 0.177,
+          "f1": 0.1806,
+          "detection": {
+            "n_matched": 116,
+            "precision": 0.5346,
+            "recall": 0.5133,
+            "f1": 0.5237
+          },
+          "coding": {
+            "n": 116,
+            "accuracy": 0.3448,
+            "correct": 40,
+            "outdated": 0,
+            "abstained": 75,
+            "incorrect": 1,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1224,
+            0.2476
+          ]
+        },
+        "overlap": {
+          "n_pred": 217,
+          "n_gold": 226,
+          "precision": 0.1797,
+          "recall": 0.1726,
+          "f1": 0.1761,
+          "detection": {
+            "n_matched": 178,
+            "precision": 0.8203,
+            "recall": 0.7876,
+            "f1": 0.8036
+          },
+          "coding": {
+            "n": 178,
+            "accuracy": 0.2191,
+            "correct": 39,
+            "outdated": 0,
+            "abstained": 131,
+            "incorrect": 8,
+            "modernised": 0
+          }
+        }
+      }
+    },
+    "rerun-cadec-d2": {
+      "sha256_r0": "c362641240a8a871dfcdf606cc302b8db5c2da6b2f1e19ee4c1b3d64909243dd",
+      "sha256_final": "e3ff2253c5e0585655dd085c95fa7ec443117f1e69d94202e1edf1c57a755b9e",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d2",
+      "git": {
+        "sha": "c488a46",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-03T10:14:51Z",
+      "finished": "2026-09-03T11:13:00Z",
+      "spans_proposed": 238,
+      "rung0": {
+        "exact": {
+          "n_pred": 226,
+          "n_gold": 226,
+          "precision": 0.4336,
+          "recall": 0.4336,
+          "f1": 0.4336,
+          "detection": {
+            "n_matched": 129,
+            "precision": 0.5708,
+            "recall": 0.5708,
+            "f1": 0.5708
+          },
+          "coding": {
+            "n": 129,
+            "accuracy": 0.7597,
+            "correct": 98,
+            "outdated": 0,
+            "abstained": 1,
+            "incorrect": 30,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.3596,
+            0.5054
+          ]
+        },
+        "overlap": {
+          "n_pred": 226,
+          "n_gold": 226,
+          "precision": 0.5044,
+          "recall": 0.5044,
+          "f1": 0.5044,
+          "detection": {
+            "n_matched": 186,
+            "precision": 0.823,
+            "recall": 0.823,
+            "f1": 0.823
+          },
+          "coding": {
+            "n": 186,
+            "accuracy": 0.6129,
+            "correct": 114,
+            "outdated": 0,
+            "abstained": 1,
+            "incorrect": 71,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 226,
+          "n_pred": 226,
+          "excluded": 18,
+          "matched": 129,
+          "missed": 97,
+          "invented": 97,
+          "on_menu": 121,
+          "lost_retrieval": 8,
+          "correct": 98,
+          "lost_pick": 23,
+          "lost_pick_by_lane": {
+            "model": 22,
+            "fallback": 1
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 226,
+          "n_pred": 226,
+          "excluded": 18,
+          "matched": 186,
+          "missed": 40,
+          "invented": 40,
+          "on_menu": 157,
+          "lost_retrieval": 29,
+          "correct": 114,
+          "lost_pick": 43,
+          "lost_pick_by_lane": {
+            "model": 40,
+            "fallback": 3
+          }
+        }
+      },
+      "lanes": {
+        "BAND": {
+          "n": 184,
+          "correct": 56,
+          "on_no_gold": 41,
+          "matched_overlap": 143,
+          "correct_overlap": 73,
+          "correct_pct": 30.43,
+          "correct_pct_matched_overlap": 51.05
+        },
+        "ACCEPT": {
+          "n": 51,
+          "correct": 42,
+          "on_no_gold": 2,
+          "matched_overlap": 49,
+          "correct_overlap": 39,
+          "correct_pct": 82.35,
+          "correct_pct_matched_overlap": 79.59
+        },
+        "REJECT": {
+          "n": 3,
+          "correct": 0,
+          "on_no_gold": 0,
+          "matched_overlap": 3,
+          "correct_overlap": 0,
+          "correct_pct": 0.0,
+          "correct_pct_matched_overlap": 0.0
+        }
+      },
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 109,
+          "incorrect": 30,
+          "correct": 98,
+          "abstained": 1
+        },
+        "1": {
+          "unmatched": 109,
+          "incorrect": 30,
+          "correct": 98,
+          "abstained": 1
+        },
+        "2": {
+          "unmatched": 109,
+          "incorrect": 30,
+          "correct": 98,
+          "abstained": 1
+        },
+        "3": {
+          "unmatched": 109,
+          "incorrect": 31,
+          "correct": 97,
+          "abstained": 1
+        },
+        "4": {
+          "unmatched": 109,
+          "incorrect": 31,
+          "correct": 97,
+          "abstained": 1
+        },
+        "5": {
+          "unmatched": 109,
+          "abstained": 85,
+          "correct": 42,
+          "incorrect": 2
+        },
+        "6": {
+          "unmatched": 109,
+          "abstained": 85,
+          "correct": 42,
+          "incorrect": 2
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 155159,
+          "api_calls": 94,
+          "p95_s": 59.21,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "1": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "2": {
+          "tokens": 1631,
+          "api_calls": 3,
+          "p95_s": 5.84,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "3": {
+          "tokens": 431518,
+          "api_calls": 273,
+          "p95_s": 144.24,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "4": {
+          "tokens": 88240,
+          "api_calls": 238,
+          "p95_s": 1.45,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "5": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "6": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 374.0,
+          "records_routed": 187
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 238,
+          "tokens_in": 106512,
+          "tokens_out": 48647,
+          "tool_calls": 0,
+          "api_calls": 94,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 6,
+          "bad_pick": 0,
+          "declined_shortlist": 12,
+          "trimmed": 53,
+          "pick_fallback": 18,
+          "split": 16,
+          "dropped_ungrounded": 10,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 1,
+          "dropped_datelike": 0,
+          "t0": 1788430492.298719,
+          "seconds": 931.18,
+          "wall_s": 931.606
+        },
+        "2": {
+          "attempted": 3,
+          "rescued": 1,
+          "still_failing": 1,
+          "reasserted": 0,
+          "unchanged": 235,
+          "declined": 1,
+          "parse_failed": 0,
+          "tokens_in": 936,
+          "tokens_out": 695,
+          "t0": 1788431423.700005,
+          "seconds": 12.65,
+          "wall_s": 12.655
+        },
+        "3": {
+          "records": 238,
+          "calls": 273,
+          "documents": 37,
+          "tokens_in": 311547,
+          "tokens_out": 119971,
+          "unanimous": 162,
+          "split": 43,
+          "tie": 21,
+          "changed": 27,
+          "single_sample": 8,
+          "unanimous_none": 0,
+          "not_resampled": 12,
+          "parse_failed": 0,
+          "revalidated": 0,
+          "stale_verdict": 27,
+          "spread": {
+            "3": 123,
+            "1": 21,
+            "1-1-1": 12,
+            "2-1": 43,
+            "1-1": 9,
+            "2": 18
+          },
+          "t0": 1788431437.188365,
+          "usd": 0.0,
+          "seconds": 2252.61,
+          "wall_s": 2253.348
+        },
+        "4": {
+          "records": 238,
+          "tokens_in": 75133,
+          "tokens_out": 13107,
+          "parse_failed": 7,
+          "verdicts": {
+            "pass": 142,
+            "fail": 89
+          },
+          "agree_r1": 142,
+          "disagree_r1": 89,
+          "span_ok": 183,
+          "span_bad": 48,
+          "code_ok": 151,
+          "code_bad": 80,
+          "r1_verdicts": {
+            "BAND": 178,
+            "ACCEPT": 51,
+            "REJECT": 2
+          },
+          "judged": 231,
+          "menu": "off",
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_is_pick": 0,
+          "t0": 1788433689.884785,
+          "usd": 0.0,
+          "seconds": 290.17,
+          "wall_s": 290.301
+        },
+        "6": {
+          "mode": "simulated",
+          "queue": 187,
+          "unreviewable": 0,
+          "human_minutes": 374.0,
+          "minutes_source": "simulated",
+          "minutes_per_record": 2.0,
+          "seconds": 0.002,
+          "wall_s": 0.002
+        },
+        "1": {
+          "seconds": 0.093,
+          "wall_s": 0.093
+        },
+        "5": {
+          "seconds": 0.003,
+          "wall_s": 0.003
+        }
+      },
+      "r3": {
+        "by_lane": {
+          "BAND": {
+            "unanimous": 102,
+            "single_sample": 8,
+            "tie": 19,
+            "not_resampled": 9,
+            "changed": 26,
+            "split": 21
+          },
+          "ACCEPT": {
+            "unanimous": 42,
+            "not_resampled": 3,
+            "tie": 2,
+            "split": 4
+          },
+          "REJECT": {
+            "split": 1,
+            "changed": 1
+          }
+        },
+        "changes": [
+          {
+            "record_id": "ARTHROTEC.78#0",
+            "lane": "BAND",
+            "was": "21522001",
+            "now": "76948002",
+            "votes": {
+              "76948002": 2,
+              "21522001": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.108#2",
+            "lane": "BAND",
+            "was": "248277009",
+            "now": "248276000",
+            "votes": {
+              "248276000": 3
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.159#7",
+            "lane": "BAND",
+            "was": "82272006",
+            "now": "271584002",
+            "votes": {
+              "271584002": 2,
+              "82272006": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.231#3",
+            "lane": "BAND",
+            "was": "281016006",
+            "now": "386807006",
+            "votes": {
+              "386807006": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.231#4",
+            "lane": "BAND",
+            "was": "282199003",
+            "now": "161898004",
+            "votes": {
+              "161898004": 2,
+              "282199003": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.24#0",
+            "lane": "BAND",
+            "was": "76948002",
+            "now": "68962001",
+            "votes": {
+              "68962001": 3
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.24#3",
+            "lane": "BAND",
+            "was": "262966007",
+            "now": "26544005",
+            "votes": {
+              "26544005": 2,
+              "262966007": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.380#2",
+            "lane": "REJECT",
+            "was": "1348356003",
+            "now": "202379000",
+            "votes": {
+              "202379000": 2,
+              "1348356003": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.445#2",
+            "lane": "BAND",
+            "was": "56317004",
+            "now": "278040002",
+            "votes": {
+              "278040002": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.445#4",
+            "lane": "BAND",
+            "was": "271789005",
+            "now": "404640003",
+            "votes": {
+              "404640003": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.460#9",
+            "lane": "BAND",
+            "was": "86597007",
+            "now": "26628009",
+            "votes": {
+              "26628009": 2,
+              "247640008": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.48#4",
+            "lane": "BAND",
+            "was": "90673000",
+            "now": "57143002",
+            "votes": {
+              "57143002": 2,
+              "90673000": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.48#5",
+            "lane": "BAND",
+            "was": "301823007",
+            "now": "1264062004",
+            "votes": {
+              "1264062004": 2,
+              "90673000": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.48#6",
+            "lane": "BAND",
+            "was": "80313002",
+            "now": "249390006",
+            "votes": {
+              "249390006": 2,
+              "80313002": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.53#1",
+            "lane": "BAND",
+            "was": "82423001",
+            "now": "10601006",
+            "votes": {
+              "10601006": 2,
+              "82423001": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.53#2",
+            "lane": "BAND",
+            "was": "65124004",
+            "now": "299322007",
+            "votes": {
+              "299322007": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.54#1",
+            "lane": "BAND",
+            "was": "55300003",
+            "now": "203095000",
+            "votes": {
+              "203095000": 3
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.739#1",
+            "lane": "BAND",
+            "was": "271327008",
+            "now": "82423001",
+            "votes": {
+              "82423001": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.761#3",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "301345002",
+            "votes": {
+              "301345002": 2,
+              "CONCEPT_LESS": 1
+            },
+            "before": "abstained",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.761#5",
+            "lane": "BAND",
+            "was": "225723003",
+            "now": "CONCEPT_LESS",
+            "votes": {
+              "CONCEPT_LESS": 2,
+              "270903007": 1
+            },
+            "before": "incorrect",
+            "after": "abstained"
+          },
+          {
+            "record_id": "LIPITOR.78#0",
+            "lane": "BAND",
+            "was": "276444007",
+            "now": "418290006",
+            "votes": {
+              "418290006": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.8#1",
+            "lane": "BAND",
+            "was": "49218002",
+            "now": "78514002",
+            "votes": {
+              "78514002": 2,
+              "49218002": 1
+            },
+            "before": "correct",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.8#5",
+            "lane": "BAND",
+            "was": "1144586002",
+            "now": "22253000",
+            "votes": {
+              "22253000": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "LIPITOR.839#0",
+            "lane": "BAND",
+            "was": "25064002",
+            "now": "162308004",
+            "votes": {
+              "162308004": 2,
+              "25064002": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "LIPITOR.839#7",
+            "lane": "BAND",
+            "was": "22253000",
+            "now": "367391008",
+            "votes": {
+              "367391008": 2,
+              "22253000": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.853#4",
+            "lane": "BAND",
+            "was": "282145008",
+            "now": "282144007",
+            "votes": {
+              "282145008": 1,
+              "282144007": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "LIPITOR.921#1",
+            "lane": "BAND",
+            "was": "395080004",
+            "now": "367391008",
+            "votes": {
+              "367391008": 2,
+              "395080004": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          }
+        ],
+        "changed": 27,
+        "correct_destroyed": 5,
+        "correct_gained": 4,
+        "net_correct": -1,
+        "not_resampled_before": {
+          "unmatched": 9,
+          "incorrect": 1,
+          "correct": 2
+        }
+      },
+      "r4": {
+        "judged": 231,
+        "parse_failed": 7,
+        "pass": 142,
+        "fail": 89,
+        "span_bad": 48,
+        "code_bad": 80,
+        "menu_shown": 0,
+        "menu_missing": 0,
+        "best_correct": 0,
+        "best_is_pick": 0,
+        "correct_given_pass": 0.49295774647887325,
+        "correct_given_fail": 0.29213483146067415,
+        "separation": 1.6874322860238353
+      },
+      "final": {
+        "n": 238,
+        "ships": 51,
+        "coverage": 0.21429,
+        "accuracy": 0.82353,
+        "yield": 0.17647,
+        "correct": 42,
+        "errors": 9,
+        "err_per_100": 3.782,
+        "to_person": 187
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 226,
+          "n_gold": 226,
+          "precision": 0.1858,
+          "recall": 0.1858,
+          "f1": 0.1858,
+          "detection": {
+            "n_matched": 129,
+            "precision": 0.5708,
+            "recall": 0.5708,
+            "f1": 0.5708
+          },
+          "coding": {
+            "n": 129,
+            "accuracy": 0.3256,
+            "correct": 42,
+            "outdated": 0,
+            "abstained": 85,
+            "incorrect": 2,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1224,
+            0.2545
+          ]
+        },
+        "overlap": {
+          "n_pred": 226,
+          "n_gold": 226,
+          "precision": 0.1858,
+          "recall": 0.1858,
+          "f1": 0.1858,
+          "detection": {
+            "n_matched": 186,
+            "precision": 0.823,
+            "recall": 0.823,
+            "f1": 0.823
+          },
+          "coding": {
+            "n": 186,
+            "accuracy": 0.2258,
+            "correct": 42,
+            "outdated": 0,
+            "abstained": 138,
+            "incorrect": 6,
+            "modernised": 0
+          }
+        }
+      }
+    }
+  },
+  "arms": {
+    "judgemenu": {
+      "rerun-cadec-d0": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 230,
+          "ships": 53,
+          "coverage": 0.23043,
+          "accuracy": 0.73585,
+          "yield": 0.16957,
+          "correct": 39,
+          "errors": 14,
+          "err_per_100": 6.087,
+          "to_person": 177
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1797,
+            "recall": 0.1726,
+            "f1": 0.1761,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.3362,
+              "correct": 39,
+              "outdated": 0,
+              "abstained": 75,
+              "incorrect": 2,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1182,
+              0.241
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1751,
+            "recall": 0.1681,
+            "f1": 0.1716,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.2135,
+              "correct": 38,
+              "outdated": 0,
+              "abstained": 131,
+              "incorrect": 9,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 161768,
+            "api_calls": 94,
+            "p95_s": 0.99,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1259,
+            "api_calls": 2,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 410638,
+            "api_calls": 266,
+            "p95_s": 2.55,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 155464,
+            "api_calls": 230,
+            "p95_s": 1.95,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 354.0,
+            "records_routed": 177
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 175,
+            "correct": 47,
+            "on_no_gold": 40,
+            "matched_overlap": 135,
+            "correct_overlap": 66,
+            "correct_pct": 26.86,
+            "correct_pct_matched_overlap": 48.89
+          },
+          "ACCEPT": {
+            "n": 53,
+            "correct": 40,
+            "on_no_gold": 4,
+            "matched_overlap": 49,
+            "correct_overlap": 37,
+            "correct_pct": 75.47,
+            "correct_pct_matched_overlap": 75.51
+          },
+          "REJECT": {
+            "n": 2,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 2,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 230,
+          "parse_failed": 0,
+          "pass": 136,
+          "fail": 94,
+          "span_bad": 11,
+          "code_bad": 93,
+          "menu_shown": 230,
+          "menu_missing": 70,
+          "best_correct": 78,
+          "best_is_pick": 145,
+          "correct_given_pass": 0.5441176470588235,
+          "correct_given_fail": 0.14893617021276595,
+          "separation": 3.653361344537815
+        }
+      },
+      "rerun-cadec-d1": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 230,
+          "ships": 53,
+          "coverage": 0.23043,
+          "accuracy": 0.75472,
+          "yield": 0.17391,
+          "correct": 40,
+          "errors": 13,
+          "err_per_100": 5.652,
+          "to_person": 177
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1843,
+            "recall": 0.177,
+            "f1": 0.1806,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.3448,
+              "correct": 40,
+              "outdated": 0,
+              "abstained": 75,
+              "incorrect": 1,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2476
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1797,
+            "recall": 0.1726,
+            "f1": 0.1761,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.2191,
+              "correct": 39,
+              "outdated": 0,
+              "abstained": 131,
+              "incorrect": 8,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 161768,
+            "api_calls": 94,
+            "p95_s": 1.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1259,
+            "api_calls": 2,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 432341,
+            "api_calls": 274,
+            "p95_s": 2.81,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 155398,
+            "api_calls": 230,
+            "p95_s": 2.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 354.0,
+            "records_routed": 177
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 175,
+            "correct": 47,
+            "on_no_gold": 40,
+            "matched_overlap": 135,
+            "correct_overlap": 66,
+            "correct_pct": 26.86,
+            "correct_pct_matched_overlap": 48.89
+          },
+          "ACCEPT": {
+            "n": 53,
+            "correct": 40,
+            "on_no_gold": 4,
+            "matched_overlap": 49,
+            "correct_overlap": 37,
+            "correct_pct": 75.47,
+            "correct_pct_matched_overlap": 75.51
+          },
+          "REJECT": {
+            "n": 2,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 2,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 230,
+          "parse_failed": 0,
+          "pass": 142,
+          "fail": 88,
+          "span_bad": 12,
+          "code_bad": 87,
+          "menu_shown": 230,
+          "menu_missing": 69,
+          "best_correct": 77,
+          "best_is_pick": 147,
+          "correct_given_pass": 0.528169014084507,
+          "correct_given_fail": 0.125,
+          "separation": 4.225352112676056
+        }
+      },
+      "rerun-cadec-d2": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 238,
+          "ships": 51,
+          "coverage": 0.21429,
+          "accuracy": 0.82353,
+          "yield": 0.17647,
+          "correct": 42,
+          "errors": 9,
+          "err_per_100": 3.782,
+          "to_person": 187
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.1858,
+            "recall": 0.1858,
+            "f1": 0.1858,
+            "detection": {
+              "n_matched": 129,
+              "precision": 0.5708,
+              "recall": 0.5708,
+              "f1": 0.5708
+            },
+            "coding": {
+              "n": 129,
+              "accuracy": 0.3256,
+              "correct": 42,
+              "outdated": 0,
+              "abstained": 85,
+              "incorrect": 2,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2545
+            ]
+          },
+          "overlap": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.1858,
+            "recall": 0.1858,
+            "f1": 0.1858,
+            "detection": {
+              "n_matched": 186,
+              "precision": 0.823,
+              "recall": 0.823,
+              "f1": 0.823
+            },
+            "coding": {
+              "n": 186,
+              "accuracy": 0.2258,
+              "correct": 42,
+              "outdated": 0,
+              "abstained": 138,
+              "incorrect": 6,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 155159,
+            "api_calls": 94,
+            "p95_s": 0.96,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1631,
+            "api_calls": 3,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 431518,
+            "api_calls": 273,
+            "p95_s": 2.7,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 162125,
+            "api_calls": 238,
+            "p95_s": 1.98,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 374.0,
+            "records_routed": 187
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 184,
+            "correct": 56,
+            "on_no_gold": 41,
+            "matched_overlap": 143,
+            "correct_overlap": 73,
+            "correct_pct": 30.43,
+            "correct_pct_matched_overlap": 51.05
+          },
+          "ACCEPT": {
+            "n": 51,
+            "correct": 42,
+            "on_no_gold": 2,
+            "matched_overlap": 49,
+            "correct_overlap": 39,
+            "correct_pct": 82.35,
+            "correct_pct_matched_overlap": 79.59
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 3,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 238,
+          "parse_failed": 0,
+          "pass": 146,
+          "fail": 92,
+          "span_bad": 8,
+          "code_bad": 91,
+          "menu_shown": 238,
+          "menu_missing": 65,
+          "best_correct": 85,
+          "best_is_pick": 152,
+          "correct_given_pass": 0.5616438356164384,
+          "correct_given_fail": 0.16304347826086957,
+          "separation": 3.444748858447489
+        }
+      }
+    },
+    "judgeshuffle": {
+      "rerun-cadec-d0": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 230,
+          "ships": 53,
+          "coverage": 0.23043,
+          "accuracy": 0.73585,
+          "yield": 0.16957,
+          "correct": 39,
+          "errors": 14,
+          "err_per_100": 6.087,
+          "to_person": 177
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1797,
+            "recall": 0.1726,
+            "f1": 0.1761,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.3362,
+              "correct": 39,
+              "outdated": 0,
+              "abstained": 75,
+              "incorrect": 2,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1182,
+              0.241
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1751,
+            "recall": 0.1681,
+            "f1": 0.1716,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.2135,
+              "correct": 38,
+              "outdated": 0,
+              "abstained": 131,
+              "incorrect": 9,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 161768,
+            "api_calls": 94,
+            "p95_s": 0.93,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1259,
+            "api_calls": 2,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 410638,
+            "api_calls": 266,
+            "p95_s": 2.3,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 155354,
+            "api_calls": 230,
+            "p95_s": 1.87,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 354.0,
+            "records_routed": 177
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 175,
+            "correct": 47,
+            "on_no_gold": 40,
+            "matched_overlap": 135,
+            "correct_overlap": 66,
+            "correct_pct": 26.86,
+            "correct_pct_matched_overlap": 48.89
+          },
+          "ACCEPT": {
+            "n": 53,
+            "correct": 40,
+            "on_no_gold": 4,
+            "matched_overlap": 49,
+            "correct_overlap": 37,
+            "correct_pct": 75.47,
+            "correct_pct_matched_overlap": 75.51
+          },
+          "REJECT": {
+            "n": 2,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 2,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 230,
+          "parse_failed": 0,
+          "pass": 143,
+          "fail": 87,
+          "span_bad": 14,
+          "code_bad": 85,
+          "menu_shown": 230,
+          "menu_missing": 66,
+          "best_correct": 77,
+          "best_is_pick": 150,
+          "correct_given_pass": 0.5244755244755245,
+          "correct_given_fail": 0.14942528735632185,
+          "separation": 3.5099515868746636
+        }
+      },
+      "rerun-cadec-d1": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 230,
+          "ships": 53,
+          "coverage": 0.23043,
+          "accuracy": 0.75472,
+          "yield": 0.17391,
+          "correct": 40,
+          "errors": 13,
+          "err_per_100": 5.652,
+          "to_person": 177
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1843,
+            "recall": 0.177,
+            "f1": 0.1806,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.3448,
+              "correct": 40,
+              "outdated": 0,
+              "abstained": 75,
+              "incorrect": 1,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2476
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1797,
+            "recall": 0.1726,
+            "f1": 0.1761,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.2191,
+              "correct": 39,
+              "outdated": 0,
+              "abstained": 131,
+              "incorrect": 8,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 161768,
+            "api_calls": 94,
+            "p95_s": 0.9,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1259,
+            "api_calls": 2,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 432341,
+            "api_calls": 274,
+            "p95_s": 2.59,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 155297,
+            "api_calls": 230,
+            "p95_s": 1.94,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 354.0,
+            "records_routed": 177
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 175,
+            "correct": 47,
+            "on_no_gold": 40,
+            "matched_overlap": 135,
+            "correct_overlap": 66,
+            "correct_pct": 26.86,
+            "correct_pct_matched_overlap": 48.89
+          },
+          "ACCEPT": {
+            "n": 53,
+            "correct": 40,
+            "on_no_gold": 4,
+            "matched_overlap": 49,
+            "correct_overlap": 37,
+            "correct_pct": 75.47,
+            "correct_pct_matched_overlap": 75.51
+          },
+          "REJECT": {
+            "n": 2,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 2,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 230,
+          "parse_failed": 0,
+          "pass": 144,
+          "fail": 86,
+          "span_bad": 14,
+          "code_bad": 84,
+          "menu_shown": 230,
+          "menu_missing": 66,
+          "best_correct": 77,
+          "best_is_pick": 153,
+          "correct_given_pass": 0.5208333333333334,
+          "correct_given_fail": 0.12790697674418605,
+          "separation": 4.071969696969697
+        }
+      },
+      "rerun-cadec-d2": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 238,
+          "ships": 51,
+          "coverage": 0.21429,
+          "accuracy": 0.82353,
+          "yield": 0.17647,
+          "correct": 42,
+          "errors": 9,
+          "err_per_100": 3.782,
+          "to_person": 187
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.1858,
+            "recall": 0.1858,
+            "f1": 0.1858,
+            "detection": {
+              "n_matched": 129,
+              "precision": 0.5708,
+              "recall": 0.5708,
+              "f1": 0.5708
+            },
+            "coding": {
+              "n": 129,
+              "accuracy": 0.3256,
+              "correct": 42,
+              "outdated": 0,
+              "abstained": 85,
+              "incorrect": 2,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2545
+            ]
+          },
+          "overlap": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.1858,
+            "recall": 0.1858,
+            "f1": 0.1858,
+            "detection": {
+              "n_matched": 186,
+              "precision": 0.823,
+              "recall": 0.823,
+              "f1": 0.823
+            },
+            "coding": {
+              "n": 186,
+              "accuracy": 0.2258,
+              "correct": 42,
+              "outdated": 0,
+              "abstained": 138,
+              "incorrect": 6,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 155159,
+            "api_calls": 94,
+            "p95_s": 0.93,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1631,
+            "api_calls": 3,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 431518,
+            "api_calls": 273,
+            "p95_s": 2.64,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 161850,
+            "api_calls": 238,
+            "p95_s": 1.96,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 374.0,
+            "records_routed": 187
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 184,
+            "correct": 56,
+            "on_no_gold": 41,
+            "matched_overlap": 143,
+            "correct_overlap": 73,
+            "correct_pct": 30.43,
+            "correct_pct_matched_overlap": 51.05
+          },
+          "ACCEPT": {
+            "n": 51,
+            "correct": 42,
+            "on_no_gold": 2,
+            "matched_overlap": 49,
+            "correct_overlap": 39,
+            "correct_pct": 82.35,
+            "correct_pct_matched_overlap": 79.59
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 3,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 238,
+          "parse_failed": 0,
+          "pass": 148,
+          "fail": 90,
+          "span_bad": 10,
+          "code_bad": 89,
+          "menu_shown": 238,
+          "menu_missing": 65,
+          "best_correct": 85,
+          "best_is_pick": 153,
+          "correct_given_pass": 0.5608108108108109,
+          "correct_given_fail": 0.15555555555555556,
+          "separation": 3.6052123552123554
+        }
+      }
+    },
+    "lexarm": {
+      "rerun-cadec-d0": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 230,
+          "ships": 91,
+          "coverage": 0.39565,
+          "accuracy": 0.58242,
+          "yield": 0.23043,
+          "correct": 53,
+          "errors": 38,
+          "err_per_100": 16.522,
+          "to_person": 139
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.2442,
+            "recall": 0.2345,
+            "f1": 0.2393,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.4569,
+              "correct": 53,
+              "outdated": 0,
+              "abstained": 58,
+              "incorrect": 5,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.177,
+              0.3032
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.2673,
+            "recall": 0.2566,
+            "f1": 0.2619,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.3258,
+              "correct": 58,
+              "outdated": 0,
+              "abstained": 102,
+              "incorrect": 18,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 161768,
+            "api_calls": 94,
+            "p95_s": 0.93,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1259,
+            "api_calls": 2,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 410638,
+            "api_calls": 266,
+            "p95_s": 2.36,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 84036,
+            "api_calls": 230,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 278.0,
+            "records_routed": 139
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 137,
+            "correct": 32,
+            "on_no_gold": 32,
+            "matched_overlap": 105,
+            "correct_overlap": 44,
+            "correct_pct": 23.36,
+            "correct_pct_matched_overlap": 41.9
+          },
+          "ACCEPT": {
+            "n": 91,
+            "correct": 55,
+            "on_no_gold": 12,
+            "matched_overlap": 79,
+            "correct_overlap": 59,
+            "correct_pct": 60.44,
+            "correct_pct_matched_overlap": 74.68
+          },
+          "REJECT": {
+            "n": 2,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 2,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 223,
+          "parse_failed": 7,
+          "pass": 136,
+          "fail": 87,
+          "span_bad": 48,
+          "code_bad": 80,
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_correct": 0,
+          "best_is_pick": 0,
+          "correct_given_pass": 0.4632352941176471,
+          "correct_given_fail": 0.27586206896551724,
+          "separation": 1.6792279411764708
+        },
+        "lane_moves": {
+          "moved": 38,
+          "records": [
+            {
+              "record_id": "ARTHROTEC.78#1",
+              "text": "stool",
+              "sct": "267055007",
+              "sct_label": "black stool",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Black stool",
+              "extra_words": [
+                "black"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "ARTHROTEC.78#2",
+              "text": "blood in my stool",
+              "sct": "405729008",
+              "sct_label": "blood in stool",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Blood in stool",
+              "extra_words": [
+                "my"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "ARTHROTEC.8#0",
+              "text": "upset my stomach",
+              "sct": "162059005",
+              "sct_label": "upset stomach",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Upset stomach",
+              "extra_words": [
+                "my"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.159#2",
+              "text": "neck",
+              "sct": "81680005",
+              "sct_label": "neck pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Neck pain",
+              "extra_words": [
+                "pain"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.159#9",
+              "text": "constipation problems",
+              "sct": "14760008",
+              "sct_label": "constipation",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Constipation",
+              "extra_words": [
+                "problems"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.380#1",
+              "text": "EXTREME AND EXCRUCIATING MUSCLE PAIN IN NECK",
+              "sct": "81680005",
+              "sct_label": "neck pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Neck pain",
+              "extra_words": [
+                "and",
+                "excruciating",
+                "extreme",
+                "in",
+                "muscle"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.401#4",
+              "text": "loss of short term memory",
+              "sct": "247592009",
+              "sct_label": "short term memory loss",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Short-term memory loss",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.445#2",
+              "text": "hair loss",
+              "sct": "278040002",
+              "sct_label": "loss of hair",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Loss of hair",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.445#3",
+              "text": "pale/yellow complexion",
+              "sct": "398979000",
+              "sct_label": "pale complexion",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Pale complexion (finding)",
+              "extra_words": [
+                "yellow"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.460#4",
+              "text": "wild mood swings",
+              "sct": "18963009",
+              "sct_label": "mood swings",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Mood swings",
+              "extra_words": [
+                "wild"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.460#7",
+              "text": "extreme fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "extreme"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.48#2",
+              "text": "Terrible muscle pain",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "terrible"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#9",
+              "text": "weak",
+              "sct": "13791008",
+              "sct_label": "weakness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Feeling weak",
+              "extra_words": [
+                "feeling"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#10",
+              "text": "difficulty walking and driving",
+              "sct": "719232003",
+              "sct_label": "difficulty walking",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Difficulty walking (finding)",
+              "extra_words": [
+                "and",
+                "driving"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.48#11",
+              "text": "dying",
+              "sct": "225875000",
+              "sct_label": "thoughts about dying",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Thoughts about dying",
+              "extra_words": [
+                "about",
+                "thoughts"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.53#4",
+              "text": "painful step",
+              "sct": "22253000",
+              "sct_label": "painful",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "step"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.54#4",
+              "text": "Severe muscle pain",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "severe"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.54#7",
+              "text": "severe back spasm/cramp",
+              "sct": "45352006",
+              "sct_label": "muscle spasm",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Spasm",
+              "extra_words": [
+                "back",
+                "cramp",
+                "severe"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.70#4",
+              "text": "unknown skin condition on hands",
+              "sct": "95320005",
+              "sct_label": "skin condition",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Skin condition",
+              "extra_words": [
+                "hands",
+                "on",
+                "unknown"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.729#2",
+              "text": "occasional dizziness",
+              "sct": "404640003",
+              "sct_label": "dizziness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Dizziness (finding)",
+              "extra_words": [
+                "occasional"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.739#0",
+              "text": "Chronic pain in all my joints",
+              "sct": "82423001",
+              "sct_label": "chronic pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Chronic pain",
+              "extra_words": [
+                "all",
+                "in",
+                "joints",
+                "my"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.757#6",
+              "text": "very very painful",
+              "sct": "22253000",
+              "sct_label": "pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "very"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.757#11",
+              "text": "concentration",
+              "sct": "26329005",
+              "sct_label": "poor concentration",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Poor concentration",
+              "extra_words": [
+                "poor"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.757#14",
+              "text": "cholesterol",
+              "sct": "365793008",
+              "sct_label": "cholesterol level",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Cholesterol level",
+              "extra_words": [
+                "level"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.757#15",
+              "text": "concerned",
+              "sct": "162561006",
+              "sct_label": "concerned about appearance",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Concerned about appearance",
+              "extra_words": [
+                "about",
+                "appearance"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.762#0",
+              "text": "Nagging muscle pain between blades",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "between",
+                "blades",
+                "nagging"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.762#2",
+              "text": "persistent fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "persistent"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.762#3",
+              "text": "moderate insomnia",
+              "sct": "193462001",
+              "sct_label": "insomnia",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Insomnia",
+              "extra_words": [
+                "moderate"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.8#1",
+              "text": "hip thigh pain",
+              "sct": "49218002",
+              "sct_label": "hip pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Hip pain",
+              "extra_words": [
+                "thigh"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.839#5",
+              "text": "severe fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "severe"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.839#6",
+              "text": "aches and pains",
+              "sct": "82991003",
+              "sct_label": "generalized aches and pains",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Generalised aches and pains",
+              "extra_words": [
+                "generalised"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.853#6",
+              "text": "excessive sleep reqmt",
+              "sct": "77692006",
+              "sct_label": "excessive sleep",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Excessive sleep",
+              "extra_words": [
+                "reqmt"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.853#7",
+              "text": "hair loss",
+              "sct": "278040002",
+              "sct_label": "loss of hair",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Loss of hair",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.882#3",
+              "text": "ears ringing",
+              "sct": "60862001",
+              "sct_label": "ringing in ears",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Ringing in ears",
+              "extra_words": [
+                "in"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.935#0",
+              "text": "stiffness in whole body",
+              "sct": "271587009",
+              "sct_label": "stiffness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Stiffness",
+              "extra_words": [
+                "body",
+                "in",
+                "whole"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.935#3",
+              "text": "loss of weight",
+              "sct": "262285001",
+              "sct_label": "weight loss",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Weight loss",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.935#13",
+              "text": "painful death",
+              "sct": "22253000",
+              "sct_label": "painful",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "death"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.935#14",
+              "text": "ALS",
+              "sct": "86044005",
+              "sct_label": "amyotrophic lateral sclerosis",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "ALS - Amyotrophic lateral sclerosis",
+              "extra_words": [
+                "amyotrophic",
+                "lateral",
+                "sclerosis"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            }
+          ],
+          "by_direction": {
+            "span_in_term": {
+              "n": 12,
+              "correct": 4,
+              "on_no_gold": 4
+            },
+            "term_in_span": {
+              "n": 26,
+              "correct": 11,
+              "on_no_gold": 4
+            }
+          }
+        }
+      },
+      "rerun-cadec-d1": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 230,
+          "ships": 91,
+          "coverage": 0.39565,
+          "accuracy": 0.58242,
+          "yield": 0.23043,
+          "correct": 53,
+          "errors": 38,
+          "err_per_100": 16.522,
+          "to_person": 139
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.2442,
+            "recall": 0.2345,
+            "f1": 0.2393,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.4569,
+              "correct": 53,
+              "outdated": 0,
+              "abstained": 58,
+              "incorrect": 5,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.179,
+              0.3042
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.2673,
+            "recall": 0.2566,
+            "f1": 0.2619,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.3258,
+              "correct": 58,
+              "outdated": 0,
+              "abstained": 102,
+              "incorrect": 18,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 161768,
+            "api_calls": 94,
+            "p95_s": 0.92,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1259,
+            "api_calls": 2,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 432341,
+            "api_calls": 274,
+            "p95_s": 2.58,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 84031,
+            "api_calls": 230,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 278.0,
+            "records_routed": 139
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 137,
+            "correct": 32,
+            "on_no_gold": 32,
+            "matched_overlap": 105,
+            "correct_overlap": 44,
+            "correct_pct": 23.36,
+            "correct_pct_matched_overlap": 41.9
+          },
+          "ACCEPT": {
+            "n": 91,
+            "correct": 55,
+            "on_no_gold": 12,
+            "matched_overlap": 79,
+            "correct_overlap": 59,
+            "correct_pct": 60.44,
+            "correct_pct_matched_overlap": 74.68
+          },
+          "REJECT": {
+            "n": 2,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 2,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 226,
+          "parse_failed": 4,
+          "pass": 137,
+          "fail": 89,
+          "span_bad": 48,
+          "code_bad": 81,
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_correct": 0,
+          "best_is_pick": 0,
+          "correct_given_pass": 0.44525547445255476,
+          "correct_given_fail": 0.2696629213483146,
+          "separation": 1.6511557177615572
+        },
+        "lane_moves": {
+          "moved": 38,
+          "records": [
+            {
+              "record_id": "ARTHROTEC.78#1",
+              "text": "stool",
+              "sct": "267055007",
+              "sct_label": "black stool",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Black stool",
+              "extra_words": [
+                "black"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "ARTHROTEC.78#2",
+              "text": "blood in my stool",
+              "sct": "405729008",
+              "sct_label": "blood in stool",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Blood in stool",
+              "extra_words": [
+                "my"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "ARTHROTEC.8#0",
+              "text": "upset my stomach",
+              "sct": "162059005",
+              "sct_label": "upset stomach",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Upset stomach",
+              "extra_words": [
+                "my"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.159#2",
+              "text": "neck",
+              "sct": "81680005",
+              "sct_label": "neck pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Neck pain",
+              "extra_words": [
+                "pain"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.159#9",
+              "text": "constipation problems",
+              "sct": "14760008",
+              "sct_label": "constipation",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Constipation",
+              "extra_words": [
+                "problems"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.380#1",
+              "text": "EXTREME AND EXCRUCIATING MUSCLE PAIN IN NECK",
+              "sct": "81680005",
+              "sct_label": "neck pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Neck pain",
+              "extra_words": [
+                "and",
+                "excruciating",
+                "extreme",
+                "in",
+                "muscle"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.401#4",
+              "text": "loss of short term memory",
+              "sct": "247592009",
+              "sct_label": "short term memory loss",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Short-term memory loss",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.445#2",
+              "text": "hair loss",
+              "sct": "278040002",
+              "sct_label": "loss of hair",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Loss of hair",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.445#3",
+              "text": "pale/yellow complexion",
+              "sct": "398979000",
+              "sct_label": "pale complexion",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Pale complexion (finding)",
+              "extra_words": [
+                "yellow"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.460#4",
+              "text": "wild mood swings",
+              "sct": "18963009",
+              "sct_label": "mood swings",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Mood swings",
+              "extra_words": [
+                "wild"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.460#7",
+              "text": "extreme fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "extreme"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.48#2",
+              "text": "Terrible muscle pain",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "terrible"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#9",
+              "text": "weak",
+              "sct": "13791008",
+              "sct_label": "weakness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Feeling weak",
+              "extra_words": [
+                "feeling"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#10",
+              "text": "difficulty walking and driving",
+              "sct": "719232003",
+              "sct_label": "difficulty walking",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Difficulty walking (finding)",
+              "extra_words": [
+                "and",
+                "driving"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.48#11",
+              "text": "dying",
+              "sct": "225875000",
+              "sct_label": "thoughts about dying",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Thoughts about dying",
+              "extra_words": [
+                "about",
+                "thoughts"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.53#4",
+              "text": "painful step",
+              "sct": "22253000",
+              "sct_label": "painful",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "step"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.54#4",
+              "text": "Severe muscle pain",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "severe"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.54#7",
+              "text": "severe back spasm/cramp",
+              "sct": "45352006",
+              "sct_label": "muscle spasm",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Spasm",
+              "extra_words": [
+                "back",
+                "cramp",
+                "severe"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.70#4",
+              "text": "unknown skin condition on hands",
+              "sct": "95320005",
+              "sct_label": "skin condition",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Skin condition",
+              "extra_words": [
+                "hands",
+                "on",
+                "unknown"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.729#2",
+              "text": "occasional dizziness",
+              "sct": "404640003",
+              "sct_label": "dizziness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Dizziness (finding)",
+              "extra_words": [
+                "occasional"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.739#0",
+              "text": "Chronic pain in all my joints",
+              "sct": "82423001",
+              "sct_label": "chronic pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Chronic pain",
+              "extra_words": [
+                "all",
+                "in",
+                "joints",
+                "my"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.757#6",
+              "text": "very very painful",
+              "sct": "22253000",
+              "sct_label": "pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "very"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.757#11",
+              "text": "concentration",
+              "sct": "26329005",
+              "sct_label": "poor concentration",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Poor concentration",
+              "extra_words": [
+                "poor"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.757#14",
+              "text": "cholesterol",
+              "sct": "365793008",
+              "sct_label": "cholesterol level",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Cholesterol level",
+              "extra_words": [
+                "level"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.757#15",
+              "text": "concerned",
+              "sct": "162561006",
+              "sct_label": "concerned about appearance",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Concerned about appearance",
+              "extra_words": [
+                "about",
+                "appearance"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.762#0",
+              "text": "Nagging muscle pain between blades",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "between",
+                "blades",
+                "nagging"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.762#2",
+              "text": "persistent fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "persistent"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.762#3",
+              "text": "moderate insomnia",
+              "sct": "193462001",
+              "sct_label": "insomnia",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Insomnia",
+              "extra_words": [
+                "moderate"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.8#1",
+              "text": "hip thigh pain",
+              "sct": "49218002",
+              "sct_label": "hip pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Hip pain",
+              "extra_words": [
+                "thigh"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.839#5",
+              "text": "severe fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "severe"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.839#6",
+              "text": "aches and pains",
+              "sct": "82991003",
+              "sct_label": "generalized aches and pains",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Generalised aches and pains",
+              "extra_words": [
+                "generalised"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.853#6",
+              "text": "excessive sleep reqmt",
+              "sct": "77692006",
+              "sct_label": "excessive sleep",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Excessive sleep",
+              "extra_words": [
+                "reqmt"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.853#7",
+              "text": "hair loss",
+              "sct": "278040002",
+              "sct_label": "loss of hair",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Loss of hair",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.882#3",
+              "text": "ears ringing",
+              "sct": "60862001",
+              "sct_label": "ringing in ears",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Ringing in ears",
+              "extra_words": [
+                "in"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.935#0",
+              "text": "stiffness in whole body",
+              "sct": "271587009",
+              "sct_label": "stiffness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Stiffness",
+              "extra_words": [
+                "body",
+                "in",
+                "whole"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.935#3",
+              "text": "loss of weight",
+              "sct": "262285001",
+              "sct_label": "weight loss",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Weight loss",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.935#13",
+              "text": "painful death",
+              "sct": "22253000",
+              "sct_label": "painful",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "death"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.935#14",
+              "text": "ALS",
+              "sct": "86044005",
+              "sct_label": "amyotrophic lateral sclerosis",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "ALS - Amyotrophic lateral sclerosis",
+              "extra_words": [
+                "amyotrophic",
+                "lateral",
+                "sclerosis"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            }
+          ],
+          "by_direction": {
+            "span_in_term": {
+              "n": 12,
+              "correct": 4,
+              "on_no_gold": 4
+            },
+            "term_in_span": {
+              "n": 26,
+              "correct": 11,
+              "on_no_gold": 4
+            }
+          }
+        }
+      },
+      "rerun-cadec-d2": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 238,
+          "ships": 90,
+          "coverage": 0.37815,
+          "accuracy": 0.65556,
+          "yield": 0.2479,
+          "correct": 59,
+          "errors": 31,
+          "err_per_100": 13.025,
+          "to_person": 148
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.2611,
+            "recall": 0.2611,
+            "f1": 0.2611,
+            "detection": {
+              "n_matched": 129,
+              "precision": 0.5708,
+              "recall": 0.5708,
+              "f1": 0.5708
+            },
+            "coding": {
+              "n": 129,
+              "accuracy": 0.4574,
+              "correct": 59,
+              "outdated": 0,
+              "abstained": 65,
+              "incorrect": 5,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1908,
+              0.3349
+            ]
+          },
+          "overlap": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.2832,
+            "recall": 0.2832,
+            "f1": 0.2832,
+            "detection": {
+              "n_matched": 186,
+              "precision": 0.823,
+              "recall": 0.823,
+              "f1": 0.823
+            },
+            "coding": {
+              "n": 186,
+              "accuracy": 0.3441,
+              "correct": 64,
+              "outdated": 0,
+              "abstained": 107,
+              "incorrect": 15,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 155159,
+            "api_calls": 94,
+            "p95_s": 0.89,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 1631,
+            "api_calls": 3,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 431518,
+            "api_calls": 273,
+            "p95_s": 2.63,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 88240,
+            "api_calls": 238,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 296.0,
+            "records_routed": 148
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 145,
+            "correct": 40,
+            "on_no_gold": 35,
+            "matched_overlap": 110,
+            "correct_overlap": 50,
+            "correct_pct": 27.59,
+            "correct_pct_matched_overlap": 45.45
+          },
+          "ACCEPT": {
+            "n": 90,
+            "correct": 58,
+            "on_no_gold": 8,
+            "matched_overlap": 82,
+            "correct_overlap": 62,
+            "correct_pct": 64.44,
+            "correct_pct_matched_overlap": 75.61
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 0,
+            "matched_overlap": 3,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 231,
+          "parse_failed": 7,
+          "pass": 142,
+          "fail": 89,
+          "span_bad": 48,
+          "code_bad": 80,
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_correct": 0,
+          "best_is_pick": 0,
+          "correct_given_pass": 0.49295774647887325,
+          "correct_given_fail": 0.29213483146067415,
+          "separation": 1.6874322860238353
+        },
+        "lane_moves": {
+          "moved": 39,
+          "records": [
+            {
+              "record_id": "ARTHROTEC.57#1",
+              "text": "spotting problems",
+              "sct": "9126005",
+              "sct_label": "spotting",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Spotting",
+              "extra_words": [
+                "problems"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "ARTHROTEC.78#1",
+              "text": "stool",
+              "sct": "267055007",
+              "sct_label": "black stool",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Black stool",
+              "extra_words": [
+                "black"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "ARTHROTEC.78#2",
+              "text": "blood in my stool",
+              "sct": "405729008",
+              "sct_label": "blood in stool",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Blood in stool",
+              "extra_words": [
+                "my"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "ARTHROTEC.8#0",
+              "text": "upset my stomach",
+              "sct": "162059005",
+              "sct_label": "upset stomach",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Upset stomach",
+              "extra_words": [
+                "my"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.159#7",
+              "text": "hands feel cold",
+              "sct": "82272006",
+              "sct_label": "cold",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Cold",
+              "extra_words": [
+                "feel",
+                "hands"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.159#9",
+              "text": "constipation problems",
+              "sct": "14760008",
+              "sct_label": "constipation",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Constipation",
+              "extra_words": [
+                "problems"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.171#10",
+              "text": "pain",
+              "sct": "429038000",
+              "sct_label": "pain provoked by sleeping",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Pain onset during sleep (finding)",
+              "extra_words": [
+                "during",
+                "onset",
+                "sleep"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.24#0",
+              "text": "severe muscle pain in hips",
+              "sct": "76948002",
+              "sct_label": "severe pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Severe pain",
+              "extra_words": [
+                "hips",
+                "in",
+                "muscle"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.24#1",
+              "text": "severe muscle pain in legs",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "in",
+                "legs",
+                "severe"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.380#1",
+              "text": "EXTREME AND EXCRUCIATING MUSCLE PAIN IN NECK",
+              "sct": "81680005",
+              "sct_label": "neck pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Neck pain",
+              "extra_words": [
+                "and",
+                "excruciating",
+                "extreme",
+                "in",
+                "muscle"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.401#4",
+              "text": "loss of short term memory",
+              "sct": "247592009",
+              "sct_label": "short term memory loss",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Short-term memory loss",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.445#2",
+              "text": "hair loss",
+              "sct": "56317004",
+              "sct_label": "hair loss disorder",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Hair loss disorder",
+              "extra_words": [
+                "disorder"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.445#3",
+              "text": "pale/yellow complexion",
+              "sct": "398979000",
+              "sct_label": "pale complexion",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Pale complexion (finding)",
+              "extra_words": [
+                "yellow"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.460#4",
+              "text": "wild mood swings",
+              "sct": "18963009",
+              "sct_label": "mood swings",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Mood swings",
+              "extra_words": [
+                "wild"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#2",
+              "text": "Terrible muscle pain",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "terrible"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#8",
+              "text": "weak",
+              "sct": "13791008",
+              "sct_label": "weakness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Feeling weak",
+              "extra_words": [
+                "feeling"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.48#9",
+              "text": "difficulty walking and driving",
+              "sct": "719232003",
+              "sct_label": "difficulty walking",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Difficulty walking (finding)",
+              "extra_words": [
+                "and",
+                "driving"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.48#11",
+              "text": "dying",
+              "sct": "225875000",
+              "sct_label": "thoughts about dying",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Thoughts about dying",
+              "extra_words": [
+                "about",
+                "thoughts"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.54#4",
+              "text": "Severe muscle pain",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "severe"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.70#4",
+              "text": "unknown skin condition on hands",
+              "sct": "95320005",
+              "sct_label": "skin condition",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Skin condition",
+              "extra_words": [
+                "hands",
+                "on",
+                "unknown"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.729#2",
+              "text": "occasional dizziness",
+              "sct": "404640003",
+              "sct_label": "dizziness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Dizziness (finding)",
+              "extra_words": [
+                "occasional"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.739#0",
+              "text": "Chronic pain in all my joints",
+              "sct": "82423001",
+              "sct_label": "chronic pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Chronic pain",
+              "extra_words": [
+                "all",
+                "in",
+                "joints",
+                "my"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.757#6",
+              "text": "very very painful",
+              "sct": "22253000",
+              "sct_label": "pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "very"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.757#11",
+              "text": "concentration",
+              "sct": "26329005",
+              "sct_label": "poor concentration",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Poor concentration",
+              "extra_words": [
+                "poor"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.761#2",
+              "text": "weakness",
+              "sct": "249938007",
+              "sct_label": "weakness of back",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Weakness of back",
+              "extra_words": [
+                "back",
+                "of"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.762#0",
+              "text": "Nagging muscle pain between blades",
+              "sct": "68962001",
+              "sct_label": "muscle pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Muscle pain",
+              "extra_words": [
+                "between",
+                "blades",
+                "nagging"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.762#2",
+              "text": "persistent fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "persistent"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.762#3",
+              "text": "moderate insomnia",
+              "sct": "193462001",
+              "sct_label": "insomnia",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Insomnia",
+              "extra_words": [
+                "moderate"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.8#1",
+              "text": "hip thigh pain",
+              "sct": "49218002",
+              "sct_label": "hip pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Hip pain",
+              "extra_words": [
+                "thigh"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.8#5",
+              "text": "pain",
+              "sct": "1144586002",
+              "sct_label": "increased pain",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Increased pain",
+              "extra_words": [
+                "increased"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.839#5",
+              "text": "severe fatigue",
+              "sct": "84229001",
+              "sct_label": "fatigue",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Fatigue",
+              "extra_words": [
+                "severe"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.839#6",
+              "text": "aches and pains",
+              "sct": "82991003",
+              "sct_label": "generalized aches and pains",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Generalised aches and pains",
+              "extra_words": [
+                "generalised"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.853#6",
+              "text": "excessive sleep reqmt",
+              "sct": "77692006",
+              "sct_label": "excessive sleep",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Excessive sleep",
+              "extra_words": [
+                "reqmt"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.853#7",
+              "text": "hair loss",
+              "sct": "278040002",
+              "sct_label": "loss of hair",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Loss of hair",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.882#3",
+              "text": "ears ringing",
+              "sct": "60862001",
+              "sct_label": "ringing in ears",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "Ringing in ears",
+              "extra_words": [
+                "in"
+              ],
+              "outcome": "incorrect",
+              "outcome_overlap": "incorrect"
+            },
+            {
+              "record_id": "LIPITOR.935#0",
+              "text": "stiffness in whole body",
+              "sct": "271587009",
+              "sct_label": "stiffness",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Stiffness",
+              "extra_words": [
+                "body",
+                "in",
+                "whole"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            },
+            {
+              "record_id": "LIPITOR.935#3",
+              "text": "loss of weight",
+              "sct": "262285001",
+              "sct_label": "weight loss",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Weight loss",
+              "extra_words": [
+                "of"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.935#13",
+              "text": "painful death",
+              "sct": "22253000",
+              "sct_label": "painful",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "term_in_span",
+              "term": "Painful",
+              "extra_words": [
+                "death"
+              ],
+              "outcome": "unmatched",
+              "outcome_overlap": "unmatched"
+            },
+            {
+              "record_id": "LIPITOR.935#14",
+              "text": "ALS",
+              "sct": "86044005",
+              "sct_label": "amyotrophic lateral sclerosis",
+              "before": "BAND",
+              "after": "ACCEPT",
+              "direction": "span_in_term",
+              "term": "ALS - Amyotrophic lateral sclerosis",
+              "extra_words": [
+                "amyotrophic",
+                "lateral",
+                "sclerosis"
+              ],
+              "outcome": "correct",
+              "outcome_overlap": "correct"
+            }
+          ],
+          "by_direction": {
+            "term_in_span": {
+              "n": 27,
+              "correct": 13,
+              "on_no_gold": 4
+            },
+            "span_in_term": {
+              "n": 12,
+              "correct": 3,
+              "on_no_gold": 2
+            }
+          }
+        }
+      }
+    },
+    "spine": {
+      "rerun-cadec-d0": {
+        "rung0_identical_to_base": false,
+        "final": {
+          "n": 230,
+          "ships": 53,
+          "coverage": 0.23043,
+          "accuracy": 0.75472,
+          "yield": 0.17391,
+          "correct": 40,
+          "errors": 13,
+          "err_per_100": 5.652,
+          "to_person": 177
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1843,
+            "recall": 0.177,
+            "f1": 0.1806,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.3448,
+              "correct": 40,
+              "outdated": 0,
+              "abstained": 75,
+              "incorrect": 1,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2476
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1843,
+            "recall": 0.177,
+            "f1": 0.1806,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.2247,
+              "correct": 40,
+              "outdated": 0,
+              "abstained": 131,
+              "incorrect": 7,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 354.0,
+            "records_routed": 177
+          }
+        }
+      },
+      "rerun-cadec-d1": {
+        "rung0_identical_to_base": false,
+        "final": {
+          "n": 230,
+          "ships": 53,
+          "coverage": 0.23043,
+          "accuracy": 0.75472,
+          "yield": 0.17391,
+          "correct": 40,
+          "errors": 13,
+          "err_per_100": 5.652,
+          "to_person": 177
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1843,
+            "recall": 0.177,
+            "f1": 0.1806,
+            "detection": {
+              "n_matched": 116,
+              "precision": 0.5346,
+              "recall": 0.5133,
+              "f1": 0.5237
+            },
+            "coding": {
+              "n": 116,
+              "accuracy": 0.3448,
+              "correct": 40,
+              "outdated": 0,
+              "abstained": 75,
+              "incorrect": 1,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2476
+            ]
+          },
+          "overlap": {
+            "n_pred": 217,
+            "n_gold": 226,
+            "precision": 0.1843,
+            "recall": 0.177,
+            "f1": 0.1806,
+            "detection": {
+              "n_matched": 178,
+              "precision": 0.8203,
+              "recall": 0.7876,
+              "f1": 0.8036
+            },
+            "coding": {
+              "n": 178,
+              "accuracy": 0.2247,
+              "correct": 40,
+              "outdated": 0,
+              "abstained": 131,
+              "incorrect": 7,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 354.0,
+            "records_routed": 177
+          }
+        }
+      },
+      "rerun-cadec-d2": {
+        "rung0_identical_to_base": false,
+        "final": {
+          "n": 238,
+          "ships": 51,
+          "coverage": 0.21429,
+          "accuracy": 0.82353,
+          "yield": 0.17647,
+          "correct": 42,
+          "errors": 9,
+          "err_per_100": 3.782,
+          "to_person": 187
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.1858,
+            "recall": 0.1858,
+            "f1": 0.1858,
+            "detection": {
+              "n_matched": 129,
+              "precision": 0.5708,
+              "recall": 0.5708,
+              "f1": 0.5708
+            },
+            "coding": {
+              "n": 129,
+              "accuracy": 0.3256,
+              "correct": 42,
+              "outdated": 0,
+              "abstained": 85,
+              "incorrect": 2,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.1224,
+              0.2545
+            ]
+          },
+          "overlap": {
+            "n_pred": 226,
+            "n_gold": 226,
+            "precision": 0.1858,
+            "recall": 0.1858,
+            "f1": 0.1858,
+            "detection": {
+              "n_matched": 186,
+              "precision": 0.823,
+              "recall": 0.823,
+              "f1": 0.823
+            },
+            "coding": {
+              "n": 186,
+              "accuracy": 0.2258,
+              "correct": 42,
+              "outdated": 0,
+              "abstained": 138,
+              "incorrect": 6,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 374.0,
+            "records_routed": 187
+          }
+        }
+      }
+    }
+  },
+  "gold_lanes": {
+    "manifest_lexical_mode": "exact",
+    "exact": {
+      "n": 226,
+      "coded": 216,
+      "concept_less": 10,
+      "lanes": {
+        "BAND": 153,
+        "ACCEPT": 73
+      },
+      "concept_less_lanes": {
+        "BAND": 10
+      },
+      "pct": {
+        "ACCEPT": 32.3,
+        "BAND": 67.7
+      }
+    },
+    "contained": {
+      "n": 226,
+      "coded": 216,
+      "concept_less": 10,
+      "lanes": {
+        "BAND": 122,
+        "ACCEPT": 104
+      },
+      "concept_less_lanes": {
+        "BAND": 10
+      },
+      "pct": {
+        "ACCEPT": 46.0,
+        "BAND": 54.0
+      }
+    }
+  },
+  "consensus": {
+    "draws": 3,
+    "mentions": 233,
+    "all_agree": 164,
+    "same_span_diff_code": 22,
+    "same_code_diff_span": 1,
+    "both_differ": 10,
+    "found_by_two": 15,
+    "found_by_one": 21,
+    "consensus_pct": 70.39,
+    "same_span_all_three_pct": 79.83,
+    "same_code_given_all_found_pct": 83.76
+  },
+  "sha256_identical_draws": false
+}

@@ -1,0 +1,5461 @@
+{
+  "manifest": "cadec-pharmacovigilance-triage",
+  "corpus": "FiNER-139",
+  "n_docs": 40,
+  "n_gold_scored": 165,
+  "draws": {
+    "rerun-finer-d0": {
+      "sha256_r0": "3cde146cc9bf40fcbd81ae12e830376bc01e6995c3f845817ce6e4debea16df3",
+      "sha256_final": "2b3c91998430c7803c30e7e7abc738119b5182dadd5e5fbe631fc8ac0c2b9567",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d0",
+      "git": {
+        "sha": "c488a46",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-03T11:28:44Z",
+      "finished": "2026-09-03T13:44:46Z",
+      "spans_proposed": 304,
+      "rung0": {
+        "exact": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.1513,
+          "recall": 0.2788,
+          "f1": 0.1962,
+          "detection": {
+            "n_matched": 118,
+            "precision": 0.3882,
+            "recall": 0.7152,
+            "f1": 0.5032
+          },
+          "coding": {
+            "n": 118,
+            "accuracy": 0.3898,
+            "correct": 46,
+            "outdated": 0,
+            "abstained": 0,
+            "incorrect": 72,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.105,
+            0.2821
+          ]
+        },
+        "overlap": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.1612,
+          "recall": 0.297,
+          "f1": 0.209,
+          "detection": {
+            "n_matched": 124,
+            "precision": 0.4079,
+            "recall": 0.7515,
+            "f1": 0.5288
+          },
+          "coding": {
+            "n": 124,
+            "accuracy": 0.3952,
+            "correct": 49,
+            "outdated": 0,
+            "abstained": 0,
+            "incorrect": 75,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 165,
+          "n_pred": 304,
+          "excluded": 0,
+          "matched": 118,
+          "missed": 47,
+          "invented": 186,
+          "on_menu": 118,
+          "lost_retrieval": 0,
+          "correct": 46,
+          "lost_pick": 72,
+          "lost_pick_by_lane": {
+            "model": 56,
+            "fallback": 16
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 165,
+          "n_pred": 304,
+          "excluded": 0,
+          "matched": 124,
+          "missed": 41,
+          "invented": 180,
+          "on_menu": 124,
+          "lost_retrieval": 0,
+          "correct": 49,
+          "lost_pick": 75,
+          "lost_pick_by_lane": {
+            "model": 59,
+            "fallback": 16
+          }
+        }
+      },
+      "lanes": {
+        "BAND": {
+          "n": 301,
+          "correct": 46,
+          "on_no_gold": 174,
+          "matched_overlap": 127,
+          "correct_overlap": 49,
+          "correct_pct": 15.28,
+          "correct_pct_matched_overlap": 38.58
+        },
+        "REJECT": {
+          "n": 3,
+          "correct": 0,
+          "on_no_gold": 3,
+          "matched_overlap": 0,
+          "correct_overlap": 0,
+          "correct_pct": 0.0,
+          "correct_pct_matched_overlap": 0.0
+        }
+      },
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "1": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "2": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "3": {
+          "unmatched": 186,
+          "incorrect": 66,
+          "correct": 52
+        },
+        "4": {
+          "unmatched": 186,
+          "incorrect": 66,
+          "correct": 52
+        },
+        "5": {
+          "unmatched": 186,
+          "abstained": 118
+        },
+        "6": {
+          "unmatched": 186,
+          "abstained": 118
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 947360,
+          "api_calls": 110,
+          "p95_s": 135.1,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "1": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "2": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "3": {
+          "tokens": 2631243,
+          "api_calls": 303,
+          "p95_s": 295.65,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "4": {
+          "tokens": 269910,
+          "api_calls": 304,
+          "p95_s": 2.31,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "5": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "6": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 608.0,
+          "records_routed": 304
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 304,
+          "tokens_in": 882819,
+          "tokens_out": 64541,
+          "tool_calls": 0,
+          "api_calls": 110,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 17,
+          "bad_pick": 0,
+          "declined_shortlist": 99,
+          "trimmed": 32,
+          "pick_fallback": 116,
+          "split": 0,
+          "dropped_ungrounded": 0,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 46,
+          "dropped_datelike": 0,
+          "t0": 1788434925.517604,
+          "seconds": 2210.62,
+          "wall_s": 2211.652
+        },
+        "2": {
+          "attempted": 0,
+          "rescued": 0,
+          "still_failing": 0,
+          "reasserted": 0,
+          "unchanged": 304,
+          "declined": 0,
+          "parse_failed": 0,
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "t0": 1788437136.5924401,
+          "seconds": 0.0,
+          "wall_s": 0.003
+        },
+        "3": {
+          "records": 304,
+          "calls": 303,
+          "documents": 34,
+          "tokens_in": 2477142,
+          "tokens_out": 154101,
+          "unanimous": 119,
+          "split": 110,
+          "tie": 65,
+          "changed": 74,
+          "single_sample": 7,
+          "unanimous_none": 0,
+          "not_resampled": 10,
+          "parse_failed": 0,
+          "revalidated": 0,
+          "stale_verdict": 74,
+          "spread": {
+            "3": 97,
+            "1-1-1": 50,
+            "2-1": 110,
+            "1-1": 15,
+            "1": 15,
+            "2": 7
+          },
+          "t0": 1788437137.8001978,
+          "usd": 0.0,
+          "seconds": 5380.65,
+          "wall_s": 5381.508
+        },
+        "4": {
+          "records": 304,
+          "tokens_in": 253171,
+          "tokens_out": 16739,
+          "parse_failed": 8,
+          "verdicts": {
+            "fail": 251,
+            "pass": 45
+          },
+          "agree_r1": 47,
+          "disagree_r1": 249,
+          "span_ok": 147,
+          "span_bad": 149,
+          "code_ok": 53,
+          "code_bad": 243,
+          "r1_verdicts": {
+            "BAND": 294,
+            "REJECT": 2
+          },
+          "judged": 296,
+          "menu": "off",
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_is_pick": 0,
+          "t0": 1788442518.7278411,
+          "usd": 0.0,
+          "seconds": 567.37,
+          "wall_s": 567.366
+        },
+        "6": {
+          "mode": "simulated",
+          "queue": 304,
+          "unreviewable": 3,
+          "human_minutes": 608.0,
+          "minutes_source": "simulated",
+          "minutes_per_record": 2.0,
+          "seconds": 0.003,
+          "wall_s": 0.003
+        },
+        "1": {
+          "seconds": 0.094,
+          "wall_s": 0.094
+        },
+        "5": {
+          "seconds": 0.003,
+          "wall_s": 0.003
+        }
+      },
+      "r3": {
+        "by_lane": {
+          "BAND": {
+            "unanimous": 87,
+            "tie": 65,
+            "changed": 74,
+            "single_sample": 7,
+            "split": 61,
+            "not_resampled": 7
+          },
+          "REJECT": {
+            "not_resampled": 3
+          }
+        },
+        "changes": [
+          {
+            "record_id": "FINER.test.0103#0",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "Revenues": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0103#1",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "Revenues": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0103#2",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "Revenues": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0103#3",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "Revenues": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#11",
+            "lane": "BAND",
+            "was": "Depreciation",
+            "now": "AmortizationOfIntangibleAssets",
+            "votes": {
+              "Depreciation": 1,
+              "AmortizationOfIntangibleAssets": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0059#12",
+            "lane": "BAND",
+            "was": "Depreciation",
+            "now": "AmortizationOfIntangibleAssets",
+            "votes": {
+              "Depreciation": 1,
+              "AmortizationOfIntangibleAssets": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0073#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "SaleOfStockPricePerShare",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "SaleOfStockPricePerShare": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#3",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "ConcentrationRiskPercentage1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#4",
+            "lane": "BAND",
+            "was": "IncomeLossFromEquityMethodInvestments",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0047#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#1",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "votes": {
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 2,
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#2",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "votes": {
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0047#3",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "votes": {
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0069#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "CONCEPT_LESS": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#1",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "DebtInstrumentFaceAmount": 1,
+              "ConcentrationRiskPercentage1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#3",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#5",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "DebtInstrumentFaceAmount": 1,
+              "ConcentrationRiskPercentage1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "CONCEPT_LESS",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "CONCEPT_LESS": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentBasisSpreadOnVariableRate1",
+            "votes": {
+              "DebtInstrumentBasisSpreadOnVariableRate1": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#5",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "CONCEPT_LESS",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "CONCEPT_LESS": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0085#4",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "InterestExpense",
+            "votes": {
+              "InterestExpense": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0076#0",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "votes": {
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#0",
+            "lane": "BAND",
+            "was": "LineOfCredit",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#1",
+            "lane": "BAND",
+            "was": "LineOfCredit",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#4",
+            "lane": "BAND",
+            "was": "LineOfCredit",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#17",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0008#18",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0043#0",
+            "lane": "BAND",
+            "was": "OperatingLeaseLiability",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0043#1",
+            "lane": "BAND",
+            "was": "OperatingLeaseLiability",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#6",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "RestructuringAndRelatedCostExpectedCost1",
+            "votes": {
+              "RestructuringAndRelatedCostExpectedCost1": 2,
+              "CommonStockDividendsPerShareDeclared": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#7",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "DebtInstrumentBasisSpreadOnVariableRate1",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "DebtInstrumentBasisSpreadOnVariableRate1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#8",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "DerivativeNotionalAmount": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0084#9",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0084#10",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "StockRepurchaseProgramAuthorizedAmount1",
+            "votes": {
+              "StockRepurchaseProgramAuthorizedAmount1": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#2",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "now": "StockRepurchasedAndRetiredDuringPeriodShares",
+            "votes": {
+              "StockRepurchasedAndRetiredDuringPeriodShares": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "StockRepurchaseProgramAuthorizedAmount1",
+            "votes": {
+              "StockRepurchaseProgramAuthorizedAmount1": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#6",
+            "lane": "BAND",
+            "was": "CommonStockDividendsPerShareDeclared",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "CommonStockDividendsPerShareDeclared": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#3",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "votes": {
+              "MinorityInterestOwnershipPercentageByNoncontrollingOwners": 2,
+              "NumberOfOperatingSegments": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#4",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "votes": {
+              "MinorityInterestOwnershipPercentageByNoncontrollingOwners": 2,
+              "ConcentrationRiskPercentage1": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0044#5",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "votes": {
+              "MinorityInterestOwnershipPercentageByNoncontrollingOwners": 2,
+              "ConcentrationRiskPercentage1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#7",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "CommonStockSharesOutstanding",
+            "votes": {
+              "CommonStockSharesOutstanding": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#8",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "votes": {
+              "ConcentrationRiskPercentage1": 1,
+              "MinorityInterestOwnershipPercentageByNoncontrollingOwners": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0080#6",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#5",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#12",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#13",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0010#2",
+            "lane": "BAND",
+            "was": "DebtInstrumentCarryingAmount",
+            "now": "DebtInstrumentRedemptionPricePercentage",
+            "votes": {
+              "DebtInstrumentRedemptionPricePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#2",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "DebtInstrumentBasisSpreadOnVariableRate1",
+            "votes": {
+              "DebtInstrumentBasisSpreadOnVariableRate1": 2,
+              "DebtInstrumentRedemptionPricePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#3",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "DebtInstrumentBasisSpreadOnVariableRate1",
+            "votes": {
+              "DebtInstrumentBasisSpreadOnVariableRate1": 2,
+              "DebtInstrumentRedemptionPricePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#4",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "Revenues": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0024#10",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "Revenues": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#11",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#13",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#14",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentRedemptionPricePercentage",
+            "votes": {
+              "DebtInstrumentRedemptionPricePercentage": 2,
+              "DebtInstrumentCarryingAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#1",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "RevenueRemainingPerformanceObligation": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#2",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "RevenueRemainingPerformanceObligation": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0104#3",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "RevenueRemainingPerformanceObligation": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0104#9",
+            "lane": "BAND",
+            "was": "BusinessCombinationConsiderationTransferred1",
+            "now": "BusinessCombinationAcquisitionRelatedCosts",
+            "votes": {
+              "BusinessCombinationAcquisitionRelatedCosts": 2,
+              "CashAndCashEquivalentsFairValueDisclosure": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0093#8",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "LineOfCredit",
+            "votes": {
+              "LineOfCredit": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#14",
+            "lane": "BAND",
+            "was": "DebtInstrumentConvertibleConversionPrice1",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#19",
+            "lane": "BAND",
+            "was": "InterestExpense",
+            "now": "DeferredFinanceCostsNet",
+            "votes": {
+              "DeferredFinanceCostsNet": 2,
+              "DeferredFinanceCostsGross": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#20",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtWeightedAverageInterestRate",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 1,
+              "DebtWeightedAverageInterestRate": 2
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#24",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#25",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#29",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtWeightedAverageInterestRate": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0052#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "ConcentrationRiskPercentage1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "ConcentrationRiskPercentage1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#16",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#19",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0052#22",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "LineOfCreditFacilityCommitmentFeePercentage",
+            "votes": {
+              "LineOfCreditFacilityCommitmentFeePercentage": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          }
+        ],
+        "changed": 74,
+        "correct_destroyed": 3,
+        "correct_gained": 9,
+        "net_correct": 6,
+        "not_resampled_before": {
+          "unmatched": 9,
+          "correct": 1
+        }
+      },
+      "r4": {
+        "judged": 296,
+        "parse_failed": 8,
+        "pass": 45,
+        "fail": 251,
+        "span_bad": 149,
+        "code_bad": 243,
+        "menu_shown": 0,
+        "menu_missing": 0,
+        "best_correct": 0,
+        "best_is_pick": 0,
+        "correct_given_pass": 0.4444444444444444,
+        "correct_given_fail": 0.12350597609561753,
+        "separation": 3.5985663082437274
+      },
+      "final": {
+        "n": 304,
+        "ships": 0,
+        "coverage": 0.0,
+        "accuracy": 0.0,
+        "yield": 0.0,
+        "correct": 0,
+        "errors": 0,
+        "err_per_100": 0.0,
+        "to_person": 304
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "detection": {
+            "n_matched": 118,
+            "precision": 0.3882,
+            "recall": 0.7152,
+            "f1": 0.5032
+          },
+          "coding": {
+            "n": 118,
+            "accuracy": 0.0,
+            "correct": 0,
+            "outdated": 0,
+            "abstained": 118,
+            "incorrect": 0,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.0,
+            0.0
+          ]
+        },
+        "overlap": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "detection": {
+            "n_matched": 124,
+            "precision": 0.4079,
+            "recall": 0.7515,
+            "f1": 0.5288
+          },
+          "coding": {
+            "n": 124,
+            "accuracy": 0.0,
+            "correct": 0,
+            "outdated": 0,
+            "abstained": 124,
+            "incorrect": 0,
+            "modernised": 0
+          }
+        }
+      }
+    },
+    "rerun-finer-d1": {
+      "sha256_r0": "3cde146cc9bf40fcbd81ae12e830376bc01e6995c3f845817ce6e4debea16df3",
+      "sha256_final": "c11278b89238f1ab40f2bdeecf38060ae770ca86e1f9671b56891afff829a746",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d1",
+      "git": {
+        "sha": "5c9ffd2",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-03T14:32:11Z",
+      "finished": "2026-09-03T16:48:13Z",
+      "spans_proposed": 304,
+      "rung0": {
+        "exact": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.1513,
+          "recall": 0.2788,
+          "f1": 0.1962,
+          "detection": {
+            "n_matched": 118,
+            "precision": 0.3882,
+            "recall": 0.7152,
+            "f1": 0.5032
+          },
+          "coding": {
+            "n": 118,
+            "accuracy": 0.3898,
+            "correct": 46,
+            "outdated": 0,
+            "abstained": 0,
+            "incorrect": 72,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.105,
+            0.2821
+          ]
+        },
+        "overlap": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.1612,
+          "recall": 0.297,
+          "f1": 0.209,
+          "detection": {
+            "n_matched": 124,
+            "precision": 0.4079,
+            "recall": 0.7515,
+            "f1": 0.5288
+          },
+          "coding": {
+            "n": 124,
+            "accuracy": 0.3952,
+            "correct": 49,
+            "outdated": 0,
+            "abstained": 0,
+            "incorrect": 75,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 165,
+          "n_pred": 304,
+          "excluded": 0,
+          "matched": 118,
+          "missed": 47,
+          "invented": 186,
+          "on_menu": 118,
+          "lost_retrieval": 0,
+          "correct": 46,
+          "lost_pick": 72,
+          "lost_pick_by_lane": {
+            "model": 56,
+            "fallback": 16
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 165,
+          "n_pred": 304,
+          "excluded": 0,
+          "matched": 124,
+          "missed": 41,
+          "invented": 180,
+          "on_menu": 124,
+          "lost_retrieval": 0,
+          "correct": 49,
+          "lost_pick": 75,
+          "lost_pick_by_lane": {
+            "model": 59,
+            "fallback": 16
+          }
+        }
+      },
+      "lanes": {
+        "BAND": {
+          "n": 301,
+          "correct": 46,
+          "on_no_gold": 174,
+          "matched_overlap": 127,
+          "correct_overlap": 49,
+          "correct_pct": 15.28,
+          "correct_pct_matched_overlap": 38.58
+        },
+        "REJECT": {
+          "n": 3,
+          "correct": 0,
+          "on_no_gold": 3,
+          "matched_overlap": 0,
+          "correct_overlap": 0,
+          "correct_pct": 0.0,
+          "correct_pct_matched_overlap": 0.0
+        }
+      },
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "1": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "2": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "3": {
+          "unmatched": 186,
+          "incorrect": 64,
+          "correct": 54
+        },
+        "4": {
+          "unmatched": 186,
+          "incorrect": 64,
+          "correct": 54
+        },
+        "5": {
+          "unmatched": 186,
+          "abstained": 118
+        },
+        "6": {
+          "unmatched": 186,
+          "abstained": 118
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 947360,
+          "api_calls": 110,
+          "p95_s": 139.72,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "1": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "2": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "3": {
+          "tokens": 2613262,
+          "api_calls": 299,
+          "p95_s": 356.45,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "4": {
+          "tokens": 269887,
+          "api_calls": 304,
+          "p95_s": 2.31,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "5": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "6": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 608.0,
+          "records_routed": 304
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 304,
+          "tokens_in": 882819,
+          "tokens_out": 64541,
+          "tool_calls": 0,
+          "api_calls": 110,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 17,
+          "bad_pick": 0,
+          "declined_shortlist": 99,
+          "trimmed": 32,
+          "pick_fallback": 116,
+          "split": 0,
+          "dropped_ungrounded": 0,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 46,
+          "dropped_datelike": 0,
+          "t0": 1788445932.747797,
+          "seconds": 2309.24,
+          "wall_s": 2310.427
+        },
+        "2": {
+          "attempted": 0,
+          "rescued": 0,
+          "still_failing": 0,
+          "reasserted": 0,
+          "unchanged": 304,
+          "declined": 0,
+          "parse_failed": 0,
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "t0": 1788448242.446841,
+          "seconds": 0.0,
+          "wall_s": 0.003
+        },
+        "3": {
+          "records": 304,
+          "calls": 299,
+          "documents": 34,
+          "tokens_in": 2464266,
+          "tokens_out": 148996,
+          "unanimous": 96,
+          "split": 117,
+          "tie": 74,
+          "changed": 83,
+          "single_sample": 11,
+          "unanimous_none": 0,
+          "not_resampled": 17,
+          "parse_failed": 0,
+          "revalidated": 0,
+          "stale_verdict": 83,
+          "spread": {
+            "3": 68,
+            "2-1": 117,
+            "1-1": 21,
+            "1-1-1": 53,
+            "2": 9,
+            "1": 19
+          },
+          "t0": 1788448243.600317,
+          "usd": 0.0,
+          "seconds": 5282.45,
+          "wall_s": 5283.414
+        },
+        "4": {
+          "records": 304,
+          "tokens_in": 253143,
+          "tokens_out": 16744,
+          "parse_failed": 8,
+          "verdicts": {
+            "fail": 249,
+            "pass": 47
+          },
+          "agree_r1": 49,
+          "disagree_r1": 247,
+          "span_ok": 147,
+          "span_bad": 149,
+          "code_ok": 55,
+          "code_bad": 241,
+          "r1_verdicts": {
+            "BAND": 294,
+            "REJECT": 2
+          },
+          "judged": 296,
+          "menu": "off",
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_is_pick": 0,
+          "t0": 1788453526.256025,
+          "usd": 0.0,
+          "seconds": 566.79,
+          "wall_s": 566.78
+        },
+        "6": {
+          "mode": "simulated",
+          "queue": 304,
+          "unreviewable": 3,
+          "human_minutes": 608.0,
+          "minutes_source": "simulated",
+          "minutes_per_record": 2.0,
+          "seconds": 0.003,
+          "wall_s": 0.003
+        },
+        "1": {
+          "seconds": 0.093,
+          "wall_s": 0.093
+        },
+        "5": {
+          "seconds": 0.003,
+          "wall_s": 0.003
+        }
+      },
+      "r3": {
+        "by_lane": {
+          "BAND": {
+            "unanimous": 64,
+            "changed": 83,
+            "split": 55,
+            "tie": 74,
+            "single_sample": 11,
+            "not_resampled": 14
+          },
+          "REJECT": {
+            "not_resampled": 3
+          }
+        },
+        "changes": [
+          {
+            "record_id": "FINER.test.0057#8",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0103#0",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0103#1",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0103#2",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0103#3",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "Revenues": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0003#15",
+            "lane": "BAND",
+            "was": "CashAndCashEquivalentsFairValueDisclosure",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "CashAndCashEquivalentsFairValueDisclosure": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0003#16",
+            "lane": "BAND",
+            "was": "BusinessCombinationContingentConsiderationLiability",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentFaceAmount",
+            "votes": {
+              "DebtInstrumentFaceAmount": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DeferredFinanceCostsNet",
+            "votes": {
+              "DeferredFinanceCostsNet": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#2",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "AmortizationOfFinancingCosts",
+            "votes": {
+              "AmortizationOfFinancingCosts": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#5",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "ConcentrationRiskPercentage1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#11",
+            "lane": "BAND",
+            "was": "Depreciation",
+            "now": "AmortizationOfIntangibleAssets",
+            "votes": {
+              "AmortizationOfIntangibleAssets": 2,
+              "Depreciation": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0059#12",
+            "lane": "BAND",
+            "was": "Depreciation",
+            "now": "AmortizationOfIntangibleAssets",
+            "votes": {
+              "AmortizationOfIntangibleAssets": 2,
+              "Depreciation": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0073#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "ClassOfWarrantOrRightExercisePriceOfWarrantsOrRights1",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "ClassOfWarrantOrRightExercisePriceOfWarrantsOrRights1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0022#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "OperatingLeaseWeightedAverageDiscountRatePercent",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "OperatingLeaseWeightedAverageDiscountRatePercent": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0022#5",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentFaceAmount",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "DebtInstrumentFaceAmount": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 1,
+              "DebtInstrumentInterestRateEffectivePercentage": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 1,
+              "DebtInstrumentInterestRateEffectivePercentage": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#3",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#9",
+            "lane": "BAND",
+            "was": "DebtInstrumentCarryingAmount",
+            "now": "DebtInstrumentFaceAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 1,
+              "DebtInstrumentFaceAmount": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#10",
+            "lane": "BAND",
+            "was": "DebtInstrumentCarryingAmount",
+            "now": "RepaymentsOfDebt",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 1,
+              "RepaymentsOfDebt": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#6",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "EffectiveIncomeTaxRateContinuingOperations",
+            "votes": {
+              "EffectiveIncomeTaxRateContinuingOperations": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0047#9",
+            "lane": "BAND",
+            "was": "IncomeLossFromEquityMethodInvestments",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "EffectiveIncomeTaxRateContinuingOperations": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0069#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#1",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#3",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#5",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0075#0",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "ConcentrationRiskPercentage1": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0085#4",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "InterestExpense",
+            "votes": {
+              "InterestExpense": 2,
+              "InterestExpenseDebt": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0008#6",
+            "lane": "BAND",
+            "was": "DebtInstrumentCarryingAmount",
+            "now": "LineOfCredit",
+            "votes": {
+              "LineOfCredit": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0008#17",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "DeferredFinanceCostsNet": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0008#18",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DeferredFinanceCostsNet",
+            "votes": {
+              "DeferredFinanceCostsNet": 2,
+              "DebtInstrumentCarryingAmount": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0107#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0043#0",
+            "lane": "BAND",
+            "was": "OperatingLeaseLiability",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0043#1",
+            "lane": "BAND",
+            "was": "OperatingLeaseLiability",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#8",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0084#9",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0084#10",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#1",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "now": "StockRepurchasedAndRetiredDuringPeriodShares",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "StockRepurchasedAndRetiredDuringPeriodShares": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#2",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "now": "StockRepurchasedAndRetiredDuringPeriodShares",
+            "votes": {
+              "StockRepurchasedAndRetiredDuringPeriodShares": 2,
+              "CashAndCashEquivalentsFairValueDisclosure": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#7",
+            "lane": "BAND",
+            "was": "CommonStockDividendsPerShareDeclared",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#9",
+            "lane": "BAND",
+            "was": "CommonStockDividendsPerShareDeclared",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#10",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#11",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#0",
+            "lane": "BAND",
+            "was": "NumberOfOperatingSegments",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "NumberOfRealEstateProperties": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0080#8",
+            "lane": "BAND",
+            "was": "DebtInstrumentBasisSpreadOnVariableRate1",
+            "now": "DebtInstrumentRedemptionPricePercentage",
+            "votes": {
+              "DebtInstrumentRedemptionPricePercentage": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0080#10",
+            "lane": "BAND",
+            "was": "DebtInstrumentFairValue",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentFairValue",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "DebtInstrumentFairValue": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#3",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#5",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#10",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#12",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "CONCEPT_LESS": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#13",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "CONCEPT_LESS": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0010#2",
+            "lane": "BAND",
+            "was": "DebtInstrumentCarryingAmount",
+            "now": "DebtInstrumentRedemptionPricePercentage",
+            "votes": {
+              "DebtInstrumentRedemptionPricePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#4",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "Revenues": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0024#7",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "DebtInstrumentFaceAmount": 1,
+              "AccrualForEnvironmentalLossContingencies": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0024#12",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "EquityMethodInvestmentOwnershipPercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0024#13",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "DebtInstrumentFaceAmount",
+            "votes": {
+              "DebtInstrumentFaceAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0050#0",
+            "lane": "BAND",
+            "was": "AreaOfRealEstateProperty",
+            "now": "OperatingLeaseWeightedAverageDiscountRatePercent",
+            "votes": {
+              "AreaOfRealEstateProperty": 1,
+              "OperatingLeaseWeightedAverageDiscountRatePercent": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0104#0",
+            "lane": "BAND",
+            "was": "ContractWithCustomerLiability",
+            "now": "RevenueRemainingPerformanceObligation",
+            "votes": {
+              "RevenueRemainingPerformanceObligation": 2,
+              "ContractWithCustomerLiability": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#1",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "RevenueRemainingPerformanceObligation": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#2",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "RevenueRemainingPerformanceObligation": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0104#3",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 2,
+              "RevenueRemainingPerformanceObligation": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0104#6",
+            "lane": "BAND",
+            "was": "BusinessCombinationConsiderationTransferred1",
+            "now": "BusinessCombinationAcquisitionRelatedCosts",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "BusinessCombinationAcquisitionRelatedCosts": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#13",
+            "lane": "BAND",
+            "was": "InterestExpense",
+            "now": "InterestExpenseDebt",
+            "votes": {
+              "InterestExpenseDebt": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#17",
+            "lane": "BAND",
+            "was": "InterestExpense",
+            "now": "InterestExpenseDebt",
+            "votes": {
+              "InterestExpenseDebt": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#19",
+            "lane": "BAND",
+            "was": "InterestExpense",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "DebtInstrumentUnamortizedDiscount": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#20",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtWeightedAverageInterestRate",
+            "votes": {
+              "DebtWeightedAverageInterestRate": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#21",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtWeightedAverageInterestRate",
+            "votes": {
+              "DebtWeightedAverageInterestRate": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#24",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 2,
+              "DeferredFinanceCostsGross": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#25",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 2,
+              "DeferredFinanceCostsGross": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "LongTermDebt",
+            "votes": {
+              "LongTermDebt": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognizedPeriodForRecognition1",
+            "votes": {
+              "EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognizedPeriodForRecognition1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "PublicUtilitiesRequestedRateIncreaseDecreaseAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#7",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "DebtInstrumentInterestRateStatedPercentage": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0052#16",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "CONCEPT_LESS": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#19",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtInstrumentInterestRateStatedPercentage": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0052#26",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "LossContingencyDamagesSoughtValue",
+            "votes": {
+              "LossContingencyDamagesSoughtValue": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0021#0",
+            "lane": "BAND",
+            "was": "PreferredStockDividendRatePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "PreferredStockDividendRatePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0021#1",
+            "lane": "BAND",
+            "was": "PreferredStockDividendRatePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "PreferredStockDividendRatePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0021#2",
+            "lane": "BAND",
+            "was": "PreferredStockDividendRatePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "PreferredStockDividendRatePercentage": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          }
+        ],
+        "changed": 83,
+        "correct_destroyed": 2,
+        "correct_gained": 10,
+        "net_correct": 8,
+        "not_resampled_before": {
+          "unmatched": 15,
+          "correct": 1,
+          "incorrect": 1
+        }
+      },
+      "r4": {
+        "judged": 296,
+        "parse_failed": 8,
+        "pass": 47,
+        "fail": 249,
+        "span_bad": 149,
+        "code_bad": 241,
+        "menu_shown": 0,
+        "menu_missing": 0,
+        "best_correct": 0,
+        "best_is_pick": 0,
+        "correct_given_pass": 0.40425531914893614,
+        "correct_given_fail": 0.13654618473895583,
+        "separation": 2.9605757196495617
+      },
+      "final": {
+        "n": 304,
+        "ships": 0,
+        "coverage": 0.0,
+        "accuracy": 0.0,
+        "yield": 0.0,
+        "correct": 0,
+        "errors": 0,
+        "err_per_100": 0.0,
+        "to_person": 304
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "detection": {
+            "n_matched": 118,
+            "precision": 0.3882,
+            "recall": 0.7152,
+            "f1": 0.5032
+          },
+          "coding": {
+            "n": 118,
+            "accuracy": 0.0,
+            "correct": 0,
+            "outdated": 0,
+            "abstained": 118,
+            "incorrect": 0,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.0,
+            0.0
+          ]
+        },
+        "overlap": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "detection": {
+            "n_matched": 124,
+            "precision": 0.4079,
+            "recall": 0.7515,
+            "f1": 0.5288
+          },
+          "coding": {
+            "n": 124,
+            "accuracy": 0.0,
+            "correct": 0,
+            "outdated": 0,
+            "abstained": 124,
+            "incorrect": 0,
+            "modernised": 0
+          }
+        }
+      }
+    },
+    "rerun-finer-d2": {
+      "sha256_r0": "3cde146cc9bf40fcbd81ae12e830376bc01e6995c3f845817ce6e4debea16df3",
+      "sha256_final": "de58e8c76415ba16430b8cab468227ba457e38e29ddc605e0d16fe92010d1efc",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d2",
+      "git": {
+        "sha": "5c9ffd2",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-03T17:36:10Z",
+      "finished": "2026-09-03T19:57:02Z",
+      "spans_proposed": 304,
+      "rung0": {
+        "exact": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.1513,
+          "recall": 0.2788,
+          "f1": 0.1962,
+          "detection": {
+            "n_matched": 118,
+            "precision": 0.3882,
+            "recall": 0.7152,
+            "f1": 0.5032
+          },
+          "coding": {
+            "n": 118,
+            "accuracy": 0.3898,
+            "correct": 46,
+            "outdated": 0,
+            "abstained": 0,
+            "incorrect": 72,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.105,
+            0.2821
+          ]
+        },
+        "overlap": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.1612,
+          "recall": 0.297,
+          "f1": 0.209,
+          "detection": {
+            "n_matched": 124,
+            "precision": 0.4079,
+            "recall": 0.7515,
+            "f1": 0.5288
+          },
+          "coding": {
+            "n": 124,
+            "accuracy": 0.3952,
+            "correct": 49,
+            "outdated": 0,
+            "abstained": 0,
+            "incorrect": 75,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 165,
+          "n_pred": 304,
+          "excluded": 0,
+          "matched": 118,
+          "missed": 47,
+          "invented": 186,
+          "on_menu": 118,
+          "lost_retrieval": 0,
+          "correct": 46,
+          "lost_pick": 72,
+          "lost_pick_by_lane": {
+            "model": 56,
+            "fallback": 16
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 165,
+          "n_pred": 304,
+          "excluded": 0,
+          "matched": 124,
+          "missed": 41,
+          "invented": 180,
+          "on_menu": 124,
+          "lost_retrieval": 0,
+          "correct": 49,
+          "lost_pick": 75,
+          "lost_pick_by_lane": {
+            "model": 59,
+            "fallback": 16
+          }
+        }
+      },
+      "lanes": {
+        "BAND": {
+          "n": 301,
+          "correct": 46,
+          "on_no_gold": 174,
+          "matched_overlap": 127,
+          "correct_overlap": 49,
+          "correct_pct": 15.28,
+          "correct_pct_matched_overlap": 38.58
+        },
+        "REJECT": {
+          "n": 3,
+          "correct": 0,
+          "on_no_gold": 3,
+          "matched_overlap": 0,
+          "correct_overlap": 0,
+          "correct_pct": 0.0,
+          "correct_pct_matched_overlap": 0.0
+        }
+      },
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "1": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "2": {
+          "unmatched": 186,
+          "incorrect": 72,
+          "correct": 46
+        },
+        "3": {
+          "unmatched": 186,
+          "incorrect": 64,
+          "correct": 54
+        },
+        "4": {
+          "unmatched": 186,
+          "incorrect": 64,
+          "correct": 54
+        },
+        "5": {
+          "unmatched": 186,
+          "abstained": 118
+        },
+        "6": {
+          "unmatched": 186,
+          "abstained": 118
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 947360,
+          "api_calls": 110,
+          "p95_s": 143.04,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "1": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "2": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "3": {
+          "tokens": 2604531,
+          "api_calls": 301,
+          "p95_s": 319.25,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "4": {
+          "tokens": 269818,
+          "api_calls": 304,
+          "p95_s": 2.45,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "5": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        },
+        "6": {
+          "tokens": 0,
+          "api_calls": 0,
+          "p95_s": 0.0,
+          "usd": 0.0,
+          "human_minutes": 608.0,
+          "records_routed": 304
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 304,
+          "tokens_in": 882819,
+          "tokens_out": 64541,
+          "tool_calls": 0,
+          "api_calls": 110,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 17,
+          "bad_pick": 0,
+          "declined_shortlist": 99,
+          "trimmed": 32,
+          "pick_fallback": 116,
+          "split": 0,
+          "dropped_ungrounded": 0,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 46,
+          "dropped_datelike": 0,
+          "t0": 1788456971.955318,
+          "seconds": 2334.47,
+          "wall_s": 2335.658
+        },
+        "2": {
+          "attempted": 0,
+          "rescued": 0,
+          "still_failing": 0,
+          "reasserted": 0,
+          "unchanged": 304,
+          "declined": 0,
+          "parse_failed": 0,
+          "tokens_in": 0,
+          "tokens_out": 0,
+          "t0": 1788459306.904168,
+          "seconds": 0.0,
+          "wall_s": 0.003
+        },
+        "3": {
+          "records": 304,
+          "calls": 301,
+          "documents": 34,
+          "tokens_in": 2445506,
+          "tokens_out": 159025,
+          "unanimous": 125,
+          "split": 106,
+          "tie": 60,
+          "changed": 94,
+          "single_sample": 10,
+          "unanimous_none": 0,
+          "not_resampled": 13,
+          "parse_failed": 0,
+          "revalidated": 0,
+          "stale_verdict": 94,
+          "spread": {
+            "2-1": 106,
+            "1-1": 15,
+            "3": 101,
+            "1-1-1": 45,
+            "1": 18,
+            "2": 6
+          },
+          "t0": 1788459308.193115,
+          "usd": 0.0,
+          "seconds": 5508.45,
+          "wall_s": 5509.659
+        },
+        "4": {
+          "records": 304,
+          "tokens_in": 252987,
+          "tokens_out": 16831,
+          "parse_failed": 9,
+          "verdicts": {
+            "fail": 249,
+            "pass": 46
+          },
+          "agree_r1": 48,
+          "disagree_r1": 247,
+          "span_ok": 153,
+          "span_bad": 142,
+          "code_ok": 52,
+          "code_bad": 243,
+          "r1_verdicts": {
+            "BAND": 293,
+            "REJECT": 2
+          },
+          "judged": 295,
+          "menu": "off",
+          "menu_shown": 0,
+          "menu_missing": 0,
+          "best_is_pick": 0,
+          "t0": 1788464816.854491,
+          "usd": 0.0,
+          "seconds": 605.02,
+          "wall_s": 604.959
+        },
+        "6": {
+          "mode": "simulated",
+          "queue": 304,
+          "unreviewable": 3,
+          "human_minutes": 608.0,
+          "minutes_source": "simulated",
+          "minutes_per_record": 2.0,
+          "seconds": 0.003,
+          "wall_s": 0.003
+        },
+        "1": {
+          "seconds": 0.094,
+          "wall_s": 0.094
+        },
+        "5": {
+          "seconds": 0.003,
+          "wall_s": 0.003
+        }
+      },
+      "r3": {
+        "by_lane": {
+          "BAND": {
+            "split": 44,
+            "tie": 60,
+            "changed": 94,
+            "single_sample": 10,
+            "unanimous": 83,
+            "not_resampled": 10
+          },
+          "REJECT": {
+            "not_resampled": 3
+          }
+        },
+        "changes": [
+          {
+            "record_id": "FINER.test.0103#0",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0103#1",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0103#2",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0103#3",
+            "lane": "BAND",
+            "was": "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "now": "Revenues",
+            "votes": {
+              "Revenues": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0003#14",
+            "lane": "BAND",
+            "was": "AntidilutiveSecuritiesExcludedFromComputationOfEarningsPerShareAmount",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0003#15",
+            "lane": "BAND",
+            "was": "CashAndCashEquivalentsFairValueDisclosure",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "ConcentrationRiskPercentage1": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0003#17",
+            "lane": "BAND",
+            "was": "CommonStockCapitalSharesReservedForFutureIssuance",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0059#11",
+            "lane": "BAND",
+            "was": "Depreciation",
+            "now": "AmortizationOfIntangibleAssets",
+            "votes": {
+              "AmortizationOfIntangibleAssets": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0059#12",
+            "lane": "BAND",
+            "was": "Depreciation",
+            "now": "AmortizationOfIntangibleAssets",
+            "votes": {
+              "AmortizationOfIntangibleAssets": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0073#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "CommonStockSharesOutstanding",
+            "votes": {
+              "CommonStockSharesOutstanding": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0073#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "SharePrice",
+            "votes": {
+              "SharePrice": 2,
+              "ClassOfWarrantOrRightExercisePriceOfWarrantsOrRights1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0025#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#1",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "votes": {
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0047#2",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "votes": {
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 3
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0047#3",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "votes": {
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0047#6",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "EffectiveIncomeTaxRateContinuingOperations",
+            "votes": {
+              "EffectiveIncomeTaxRateContinuingOperations": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0047#9",
+            "lane": "BAND",
+            "was": "IncomeLossFromEquityMethodInvestments",
+            "now": "CONCEPT_LESS",
+            "votes": {
+              "EffectiveIncomeTaxRateContinuingOperations": 1,
+              "CONCEPT_LESS": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0069#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#1",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#3",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0023#5",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionPercentageOfVotingInterestsAcquired",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#0",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "CashAndCashEquivalentsFairValueDisclosure": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtWeightedAverageInterestRate": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#2",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtWeightedAverageInterestRate": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#3",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtWeightedAverageInterestRate": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0016#5",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "CashAndCashEquivalentsFairValueDisclosure": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0085#4",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "InterestExpense",
+            "votes": {
+              "InterestExpense": 3
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0076#0",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "CommonStockSharesOutstanding": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#0",
+            "lane": "BAND",
+            "was": "LineOfCredit",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#1",
+            "lane": "BAND",
+            "was": "LineOfCredit",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "LineOfCreditFacilityMaximumBorrowingCapacity": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0008#4",
+            "lane": "BAND",
+            "was": "LineOfCredit",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "LongTermDebt": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0107#1",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0043#0",
+            "lane": "BAND",
+            "was": "OperatingLeaseLiability",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "OperatingLeaseCost": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0043#1",
+            "lane": "BAND",
+            "was": "OperatingLeaseLiability",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 2,
+              "OperatingLeaseCost": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#6",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "RestructuringAndRelatedCostExpectedCost1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#7",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "DebtInstrumentBasisSpreadOnVariableRate1",
+            "votes": {
+              "DebtInstrumentBasisSpreadOnVariableRate1": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0084#8",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "RestructuringAndRelatedCostExpectedCost1": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0084#9",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "RestructuringAndRelatedCostExpectedCost1": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0084#10",
+            "lane": "BAND",
+            "was": "RestructuringAndRelatedCostExpectedCost1",
+            "now": "RestructuringCharges",
+            "votes": {
+              "RestructuringCharges": 2,
+              "RestructuringAndRelatedCostExpectedCost1": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "StockRepurchaseProgramAuthorizedAmount1",
+            "votes": {
+              "DebtInstrumentMaturityDate": 1,
+              "StockRepurchaseProgramAuthorizedAmount1": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#1",
+            "lane": "BAND",
+            "was": "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued",
+            "now": "StockRepurchasedAndRetiredDuringPeriodShares",
+            "votes": {
+              "CommonStockSharesOutstanding": 1,
+              "StockRepurchasedAndRetiredDuringPeriodShares": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentFaceAmount",
+            "now": "StockRepurchaseProgramAuthorizedAmount1",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "StockRepurchaseProgramAuthorizedAmount1": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0098#10",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0098#11",
+            "lane": "BAND",
+            "was": "CONCEPT_LESS",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#0",
+            "lane": "BAND",
+            "was": "NumberOfOperatingSegments",
+            "now": "NumberOfRealEstateProperties",
+            "votes": {
+              "NumberOfRealEstateProperties": 2,
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#1",
+            "lane": "BAND",
+            "was": "SaleOfStockNumberOfSharesIssuedInTransaction",
+            "now": "CommonStockSharesOutstanding",
+            "votes": {
+              "CommonStockSharesOutstanding": 2,
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#2",
+            "lane": "BAND",
+            "was": "SaleOfStockNumberOfSharesIssuedInTransaction",
+            "now": "CommonStockSharesOutstanding",
+            "votes": {
+              "CommonStockSharesOutstanding": 2,
+              "BusinessAcquisitionEquityInterestsIssuedOrIssuableNumberOfSharesIssued": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#6",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "MinorityInterestOwnershipPercentageByNoncontrollingOwners": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#7",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "DebtInstrumentFaceAmount": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0044#8",
+            "lane": "BAND",
+            "was": "ConcentrationRiskPercentage1",
+            "now": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "MinorityInterestOwnershipPercentageByNoncontrollingOwners": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0046#2",
+            "lane": "BAND",
+            "was": "LeaseAndRentalExpense",
+            "now": "AllocatedShareBasedCompensationExpense",
+            "votes": {
+              "AllocatedShareBasedCompensationExpense": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0046#3",
+            "lane": "BAND",
+            "was": "LeaseAndRentalExpense",
+            "now": "AllocatedShareBasedCompensationExpense",
+            "votes": {
+              "AllocatedShareBasedCompensationExpense": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0046#10",
+            "lane": "BAND",
+            "was": "AllocatedShareBasedCompensationExpense",
+            "now": "ShareBasedCompensation",
+            "votes": {
+              "ShareBasedCompensation": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0046#11",
+            "lane": "BAND",
+            "was": "AllocatedShareBasedCompensationExpense",
+            "now": "ShareBasedCompensation",
+            "votes": {
+              "ShareBasedCompensation": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0046#12",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "CONCEPT_LESS",
+            "votes": {
+              "CONCEPT_LESS": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0080#10",
+            "lane": "BAND",
+            "was": "DebtInstrumentFairValue",
+            "now": "DebtInstrumentCarryingAmount",
+            "votes": {
+              "DebtInstrumentCarryingAmount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0037#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#5",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateEffectivePercentage",
+            "now": "DebtInstrumentInterestRateStatedPercentage",
+            "votes": {
+              "DebtInstrumentInterestRateStatedPercentage": 2,
+              "DebtInstrumentInterestRateEffectivePercentage": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#8",
+            "lane": "BAND",
+            "was": "DerivativeNotionalAmount",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "CONCEPT_LESS": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#10",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtInstrumentInterestRateStatedPercentage": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0037#16",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0010#2",
+            "lane": "BAND",
+            "was": "DebtInstrumentCarryingAmount",
+            "now": "DebtInstrumentRedemptionPricePercentage",
+            "votes": {
+              "DebtInstrumentRedemptionPricePercentage": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0010#7",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DeferredFinanceCostsNet",
+            "votes": {
+              "DeferredFinanceCostsNet": 2,
+              "DeferredFinanceCostsGross": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0010#10",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 3
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0024#4",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0024#10",
+            "lane": "BAND",
+            "was": "MinorityInterestOwnershipPercentageByNoncontrollingOwners",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "BusinessAcquisitionPercentageOfVotingInterestsAcquired": 1,
+              "ConcentrationRiskPercentage1": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0048#1",
+            "lane": "BAND",
+            "was": "SaleOfStockNumberOfSharesIssuedInTransaction",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "CommonStockSharesOutstanding": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#0",
+            "lane": "BAND",
+            "was": "ContractWithCustomerLiability",
+            "now": "RevenueRemainingPerformanceObligation",
+            "votes": {
+              "RevenueRemainingPerformanceObligation": 2,
+              "ContractWithCustomerLiability": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#1",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueRemainingPerformanceObligation",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 1,
+              "RevenueRemainingPerformanceObligation": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0104#2",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueRemainingPerformanceObligation",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 1,
+              "RevenueRemainingPerformanceObligation": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0104#3",
+            "lane": "BAND",
+            "was": "Revenues",
+            "now": "RevenueRemainingPerformanceObligation",
+            "votes": {
+              "RevenueFromContractWithCustomerExcludingAssessedTax": 1,
+              "RevenueRemainingPerformanceObligation": 2
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0104#6",
+            "lane": "BAND",
+            "was": "BusinessCombinationConsiderationTransferred1",
+            "now": "PaymentsToAcquireBusinessesGross",
+            "votes": {
+              "PaymentsToAcquireBusinessesGross": 2,
+              "BusinessCombinationConsiderationTransferred1": 1
+            },
+            "before": "incorrect",
+            "after": "correct"
+          },
+          {
+            "record_id": "FINER.test.0104#8",
+            "lane": "BAND",
+            "was": "BusinessCombinationConsiderationTransferred1",
+            "now": "PaymentsToAcquireBusinessesGross",
+            "votes": {
+              "PaymentsToAcquireBusinessesGross": 2,
+              "BusinessCombinationConsiderationTransferred1": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0104#9",
+            "lane": "BAND",
+            "was": "BusinessCombinationConsiderationTransferred1",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "BusinessCombinationConsiderationTransferred1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0093#8",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "LineOfCredit",
+            "votes": {
+              "InterestExpense": 1,
+              "LineOfCredit": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#2",
+            "lane": "BAND",
+            "was": "DebtInstrumentInterestRateStatedPercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 2,
+              "DebtInstrumentInterestRateStatedPercentage": 1
+            },
+            "before": "correct",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#3",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentConvertibleConversionPrice1",
+            "votes": {
+              "DebtInstrumentConvertibleConversionPrice1": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#4",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentConvertibleConversionPrice1",
+            "votes": {
+              "DebtInstrumentConvertibleConversionPrice1": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#5",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentConvertibleConversionPrice1",
+            "votes": {
+              "DebtInstrumentConvertibleConversionPrice1": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#19",
+            "lane": "BAND",
+            "was": "InterestExpense",
+            "now": "DeferredFinanceCostsGross",
+            "votes": {
+              "DeferredFinanceCostsGross": 2,
+              "DebtInstrumentUnamortizedDiscount": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0013#24",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0013#25",
+            "lane": "BAND",
+            "was": "DeferredFinanceCostsGross",
+            "now": "DebtInstrumentUnamortizedDiscount",
+            "votes": {
+              "DebtInstrumentUnamortizedDiscount": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#0",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "LongTermDebt": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#1",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "EmployeeServiceShareBasedCompensationNonvestedAwardsTotalCompensationCostNotYetRecognizedPeriodForRecognition1": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#4",
+            "lane": "BAND",
+            "was": "DebtInstrumentRedemptionPricePercentage",
+            "now": "ConcentrationRiskPercentage1",
+            "votes": {
+              "ConcentrationRiskPercentage1": 2,
+              "AccrualForEnvironmentalLossContingencies": 1
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#7",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "DebtInstrumentInterestRateEffectivePercentage": 2,
+              "DebtInstrumentInterestRateStatedPercentage": 1
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0052#16",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "DebtInstrumentInterestRateEffectivePercentage": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0052#19",
+            "lane": "BAND",
+            "was": "DebtWeightedAverageInterestRate",
+            "now": "DebtInstrumentInterestRateEffectivePercentage",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "DebtInstrumentInterestRateEffectivePercentage": 2
+            },
+            "before": "incorrect",
+            "after": "incorrect"
+          },
+          {
+            "record_id": "FINER.test.0052#26",
+            "lane": "BAND",
+            "was": "AccrualForEnvironmentalLossContingencies",
+            "now": "DebtInstrumentFaceAmount",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 1,
+              "DebtInstrumentFaceAmount": 2
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0021#0",
+            "lane": "BAND",
+            "was": "PreferredStockDividendRatePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0021#1",
+            "lane": "BAND",
+            "was": "PreferredStockDividendRatePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          },
+          {
+            "record_id": "FINER.test.0021#2",
+            "lane": "BAND",
+            "was": "PreferredStockDividendRatePercentage",
+            "now": "AccrualForEnvironmentalLossContingencies",
+            "votes": {
+              "AccrualForEnvironmentalLossContingencies": 3
+            },
+            "before": "unmatched",
+            "after": "unmatched"
+          }
+        ],
+        "changed": 94,
+        "correct_destroyed": 5,
+        "correct_gained": 13,
+        "net_correct": 8,
+        "not_resampled_before": {
+          "unmatched": 12,
+          "correct": 1
+        }
+      },
+      "r4": {
+        "judged": 295,
+        "parse_failed": 9,
+        "pass": 46,
+        "fail": 249,
+        "span_bad": 142,
+        "code_bad": 243,
+        "menu_shown": 0,
+        "menu_missing": 0,
+        "best_correct": 0,
+        "best_is_pick": 0,
+        "correct_given_pass": 0.3695652173913043,
+        "correct_given_fail": 0.14457831325301204,
+        "separation": 2.556159420289855
+      },
+      "final": {
+        "n": 304,
+        "ships": 0,
+        "coverage": 0.0,
+        "accuracy": 0.0,
+        "yield": 0.0,
+        "correct": 0,
+        "errors": 0,
+        "err_per_100": 0.0,
+        "to_person": 304
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "detection": {
+            "n_matched": 118,
+            "precision": 0.3882,
+            "recall": 0.7152,
+            "f1": 0.5032
+          },
+          "coding": {
+            "n": 118,
+            "accuracy": 0.0,
+            "correct": 0,
+            "outdated": 0,
+            "abstained": 118,
+            "incorrect": 0,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.0,
+            0.0
+          ]
+        },
+        "overlap": {
+          "n_pred": 304,
+          "n_gold": 165,
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "detection": {
+            "n_matched": 124,
+            "precision": 0.4079,
+            "recall": 0.7515,
+            "f1": 0.5288
+          },
+          "coding": {
+            "n": 124,
+            "accuracy": 0.0,
+            "correct": 0,
+            "outdated": 0,
+            "abstained": 124,
+            "incorrect": 0,
+            "modernised": 0
+          }
+        }
+      }
+    }
+  },
+  "arms": {
+    "judgemenu": {
+      "rerun-finer-d0": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 947360,
+            "api_calls": 110,
+            "p95_s": 0.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 2631243,
+            "api_calls": 303,
+            "p95_s": 0.02,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 910795,
+            "api_calls": 304,
+            "p95_s": 5.3,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 301,
+            "correct": 46,
+            "on_no_gold": 174,
+            "matched_overlap": 127,
+            "correct_overlap": 49,
+            "correct_pct": 15.28,
+            "correct_pct_matched_overlap": 38.58
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 3,
+            "matched_overlap": 0,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 302,
+          "parse_failed": 2,
+          "pass": 190,
+          "fail": 112,
+          "span_bad": 56,
+          "code_bad": 100,
+          "menu_shown": 302,
+          "menu_missing": 105,
+          "best_correct": 26,
+          "best_is_pick": 115,
+          "correct_given_pass": 0.26842105263157895,
+          "correct_given_fail": 0.008928571428571428,
+          "separation": 30.063157894736843
+        }
+      },
+      "rerun-finer-d1": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 947360,
+            "api_calls": 110,
+            "p95_s": 0.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 2613262,
+            "api_calls": 299,
+            "p95_s": 0.02,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 910748,
+            "api_calls": 304,
+            "p95_s": 5.38,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 301,
+            "correct": 46,
+            "on_no_gold": 174,
+            "matched_overlap": 127,
+            "correct_overlap": 49,
+            "correct_pct": 15.28,
+            "correct_pct_matched_overlap": 38.58
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 3,
+            "matched_overlap": 0,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 302,
+          "parse_failed": 2,
+          "pass": 192,
+          "fail": 110,
+          "span_bad": 55,
+          "code_bad": 95,
+          "menu_shown": 302,
+          "menu_missing": 100,
+          "best_correct": 26,
+          "best_is_pick": 117,
+          "correct_given_pass": 0.2760416666666667,
+          "correct_given_fail": 0.00909090909090909,
+          "separation": 30.364583333333336
+        }
+      },
+      "rerun-finer-d2": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 947360,
+            "api_calls": 110,
+            "p95_s": 0.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 2604531,
+            "api_calls": 301,
+            "p95_s": 0.02,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 910577,
+            "api_calls": 304,
+            "p95_s": 5.55,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 301,
+            "correct": 46,
+            "on_no_gold": 174,
+            "matched_overlap": 127,
+            "correct_overlap": 49,
+            "correct_pct": 15.28,
+            "correct_pct_matched_overlap": 38.58
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 3,
+            "matched_overlap": 0,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 303,
+          "parse_failed": 1,
+          "pass": 204,
+          "fail": 99,
+          "span_bad": 55,
+          "code_bad": 89,
+          "menu_shown": 303,
+          "menu_missing": 94,
+          "best_correct": 27,
+          "best_is_pick": 120,
+          "correct_given_pass": 0.25980392156862747,
+          "correct_given_fail": 0.010101010101010102,
+          "separation": 25.720588235294116
+        }
+      }
+    },
+    "judgeshuffle": {
+      "rerun-finer-d0": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 947360,
+            "api_calls": 110,
+            "p95_s": 0.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 2631243,
+            "api_calls": 303,
+            "p95_s": 0.02,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 910665,
+            "api_calls": 304,
+            "p95_s": 5.33,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 301,
+            "correct": 46,
+            "on_no_gold": 174,
+            "matched_overlap": 127,
+            "correct_overlap": 49,
+            "correct_pct": 15.28,
+            "correct_pct_matched_overlap": 38.58
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 3,
+            "matched_overlap": 0,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 301,
+          "parse_failed": 3,
+          "pass": 186,
+          "fail": 115,
+          "span_bad": 50,
+          "code_bad": 105,
+          "menu_shown": 301,
+          "menu_missing": 109,
+          "best_correct": 33,
+          "best_is_pick": 119,
+          "correct_given_pass": 0.27419354838709675,
+          "correct_given_fail": 0.008695652173913044,
+          "separation": 31.532258064516125
+        }
+      },
+      "rerun-finer-d1": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 947360,
+            "api_calls": 110,
+            "p95_s": 0.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 2613262,
+            "api_calls": 299,
+            "p95_s": 0.02,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 910559,
+            "api_calls": 304,
+            "p95_s": 5.34,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 301,
+            "correct": 46,
+            "on_no_gold": 174,
+            "matched_overlap": 127,
+            "correct_overlap": 49,
+            "correct_pct": 15.28,
+            "correct_pct_matched_overlap": 38.58
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 3,
+            "matched_overlap": 0,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 301,
+          "parse_failed": 3,
+          "pass": 183,
+          "fail": 118,
+          "span_bad": 54,
+          "code_bad": 104,
+          "menu_shown": 301,
+          "menu_missing": 111,
+          "best_correct": 32,
+          "best_is_pick": 118,
+          "correct_given_pass": 0.28415300546448086,
+          "correct_given_fail": 0.01694915254237288,
+          "separation": 16.76502732240437
+        }
+      },
+      "rerun-finer-d2": {
+        "rung0_identical_to_base": true,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "0": {
+            "tokens": 947360,
+            "api_calls": 110,
+            "p95_s": 0.01,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "1": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "2": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "3": {
+            "tokens": 2604531,
+            "api_calls": 301,
+            "p95_s": 0.02,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "4": {
+            "tokens": 910339,
+            "api_calls": 304,
+            "p95_s": 5.46,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        },
+        "lanes": {
+          "BAND": {
+            "n": 301,
+            "correct": 46,
+            "on_no_gold": 174,
+            "matched_overlap": 127,
+            "correct_overlap": 49,
+            "correct_pct": 15.28,
+            "correct_pct_matched_overlap": 38.58
+          },
+          "REJECT": {
+            "n": 3,
+            "correct": 0,
+            "on_no_gold": 3,
+            "matched_overlap": 0,
+            "correct_overlap": 0,
+            "correct_pct": 0.0,
+            "correct_pct_matched_overlap": 0.0
+          }
+        },
+        "r4": {
+          "judged": 301,
+          "parse_failed": 3,
+          "pass": 195,
+          "fail": 106,
+          "span_bad": 50,
+          "code_bad": 95,
+          "menu_shown": 301,
+          "menu_missing": 99,
+          "best_correct": 32,
+          "best_is_pick": 128,
+          "correct_given_pass": 0.2717948717948718,
+          "correct_given_fail": 0.009433962264150943,
+          "separation": 28.810256410256407
+        }
+      }
+    },
+    "spine": {
+      "rerun-finer-d0": {
+        "rung0_identical_to_base": false,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        }
+      },
+      "rerun-finer-d1": {
+        "rung0_identical_to_base": false,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        }
+      },
+      "rerun-finer-d2": {
+        "rung0_identical_to_base": false,
+        "final": {
+          "n": 304,
+          "ships": 0,
+          "coverage": 0.0,
+          "accuracy": 0.0,
+          "yield": 0.0,
+          "correct": 0,
+          "errors": 0,
+          "err_per_100": 0.0,
+          "to_person": 304
+        },
+        "stack_f1": {
+          "exact": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 118,
+              "precision": 0.3882,
+              "recall": 0.7152,
+              "f1": 0.5032
+            },
+            "coding": {
+              "n": 118,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 118,
+              "incorrect": 0,
+              "modernised": 0
+            },
+            "f1_ci": [
+              0.0,
+              0.0
+            ]
+          },
+          "overlap": {
+            "n_pred": 304,
+            "n_gold": 165,
+            "precision": 0.0,
+            "recall": 0.0,
+            "f1": 0.0,
+            "detection": {
+              "n_matched": 124,
+              "precision": 0.4079,
+              "recall": 0.7515,
+              "f1": 0.5288
+            },
+            "coding": {
+              "n": 124,
+              "accuracy": 0.0,
+              "correct": 0,
+              "outdated": 0,
+              "abstained": 124,
+              "incorrect": 0,
+              "modernised": 0
+            }
+          }
+        },
+        "cost": {
+          "5": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 0.0,
+            "records_routed": 0
+          },
+          "6": {
+            "tokens": 0,
+            "api_calls": 0,
+            "p95_s": 0.0,
+            "usd": 0.0,
+            "human_minutes": 608.0,
+            "records_routed": 304
+          }
+        }
+      }
+    }
+  },
+  "consensus": {
+    "draws": 3,
+    "mentions": 298,
+    "all_agree": 298,
+    "same_span_diff_code": 0,
+    "same_code_diff_span": 0,
+    "both_differ": 0,
+    "found_by_two": 0,
+    "found_by_one": 0,
+    "consensus_pct": 100.0,
+    "same_span_all_three_pct": 100.0,
+    "same_code_given_all_found_pct": 100.0
+  },
+  "sha256_identical_draws": true
+}

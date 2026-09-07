@@ -1,0 +1,61 @@
+{
+  "run_id": "rerun-cadec-s0-d2",
+  "split": "dev",
+  "order": [
+    0
+  ],
+  "missing_rungs": [],
+  "n_records": 196,
+  "n_documents": 40,
+  "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-s0-d2",
+  "models": {
+    "0": "ollama/gpt-oss:20b"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": "c093eaa",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": "c093eaa",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-04T00:32:09Z",
+  "finished_utc": "2026-09-04T01:05:43Z",
+  "rungs": {
+    "0": {
+      "documents": 40,
+      "records": 196,
+      "tokens_in": 39747,
+      "tokens_out": 101396,
+      "tool_calls": 0,
+      "api_calls": 40,
+      "parse_failed": 3,
+      "usd": 0.0,
+      "pick_parse_failed": 0,
+      "truncated": 3,
+      "multi_code": 0,
+      "timed_out": 0,
+      "refused": 0,
+      "shape_coerced": 0,
+      "code_unknown": 36,
+      "no_pick": 0,
+      "bad_pick": 0,
+      "declined_shortlist": 0,
+      "trimmed": 38,
+      "pick_fallback": 0,
+      "split": 0,
+      "dropped_ungrounded": 6,
+      "dropped_fragment": 0,
+      "dropped_duplicate": 3,
+      "dropped_datelike": 0,
+      "t0": 1788481930.286827,
+      "seconds": 2012.79,
+      "wall_s": 2013.208
+    }
+  }
+}

@@ -152,7 +152,15 @@
   `rerun-{cadec,finer}-d{0,1,2}` plus `-judgemenu`, `-judgeshuffle`, CADEC
   `-lexarm`, and `-spine`; ~13 h; archived with checksums (call traces
   included) to the main checkout's
-  `out/archive/reliability-ladder-b2-menu-f77617/`. **Every dev-side number
+  `out/archive/reliability-ladder-b2-menu-f77617/`. **The corpus-free four
+  per run (aggregates, ledger, results.csv, manifest) and the derived
+  reports are TRACKED since 2026-09-07 at
+  `runs/archive/consolidated-2026-09-03/`** (36 runs, `tests/test_runs_archive.py`
+  pins the set and refuses records/state/calls files; the S0/S1 and
+  type-check drivers are `scripts/rerun_{all,steps,typecheck}.sh`). Records,
+  state rows and call traces carry corpus text and stay under `out/`; the
+  matrix cells (`out/matrix/`, 2026-09-06/07) live on pushpdeep's machine
+  and only `matrix.csv` is tracked. **Every dev-side number
   in `docs/article-v3.md` comes from it now; zero `[PENDING]` markers.** The
   two decisions entries carry every per-draw figure. Headlines: CADEC rung 0
   F1 0.393/0.393/0.434 (d0 = d1 byte-identical, d2 diverged); ACCEPT lane
