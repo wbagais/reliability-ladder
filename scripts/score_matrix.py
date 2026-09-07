@@ -56,6 +56,7 @@ KNOWN = {
     "geo":      ("manifest.geo.json",      "lexical", "dev", 40),
     "psytar":   ("manifest.psytar.json",   "dense",  "dev", 40),
     "lgl":      ("manifest.lgl.json",      "lexical", "dev", 40),
+    "trnews":   ("manifest.trnews.json",   "lexical", "dev", 40),
     "linnaeus": ("manifest.linnaeus.json", "lexical", "dev", 25),
     "bc5cdr":   ("manifest.bc5cdr.json",   "lexical", "dev", 40),
 }
@@ -101,7 +102,10 @@ def main() -> int:
         recs = [f for f in glob.glob(f"{d}*.records.jsonl")
                 if not re.search(r"\.r\d+\.records\.jsonl$", f)]
         if recs:
-            cells[(corpus, model)] = recs[0]
+            # The NEWEST run in the cell. A cell re-run after a fix holds both
+            # files, and `recs[0]` is the older one — which silently scored the
+            # pre-fix records and reported this morning's numbers as tonight's.
+            cells[(corpus, model)] = max(recs, key=lambda f: pathlib.Path(f).stat().st_mtime)
 
     if not cells:
         sys.exit(f"no cells in {a.dir}")
