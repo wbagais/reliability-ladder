@@ -18,7 +18,7 @@
     "_split_note": "25/35, not the 40/60 every other arm uses. LINNAEUS has 95 documents and 40+60 leaves NOTHING in the pool \u2014 the few-shot block came back empty and the pool-split guard would have refused the run. Its cells are therefore over a smaller denominator than the rest of the matrix, which is a stated caveat rather than a hidden one.",
     "prompts": {
       "_derivation": "Derived from LINNAEUS's own gold over 4,259 mentions in 95 documents, measured by scripts/gold_span_stats.py, not invented. Two numbers make this corpus unlike the geo arms and both are in the rules below. **Only 34.3% of mentions begin with a capital** \u2014 against 100% on LGL and TR-News \u2014 because the commonest gold forms are 'patients', 'human', 'mice', 'mouse', 'people', 'women', 'yeast': lowercase common nouns. And **18.0% carry an initial and a dot**, five times the geo rate, because an abbreviated binomial is written 'C. elegans' or 'E. coli'. 27.1% are multi-token; 4,077 of 4,259 are a form used more than once.",
-      "entity": "organism the paper mentions",
+      "entity": "organism",
       "entity_short": "organism",
       "entity_plural": "organisms",
       "author": "the paper",
@@ -41,7 +41,7 @@
   "vocabulary": {
     "snomed_release": "SnomedCT_Release_AU1000036_20260731",
     "snomed_release_dir": "data/SnomedCT_Release_AU1000036_20260731",
-    "snomed_db": "ladder/cache/taxonomy.sqlite",
+    "snomed_db": "ladder/cache/taxonomy-clean.sqlite",
     "meddra_release": "CADEC-derived code list (NOT a MedDRA release)",
     "meddra_note": "The only MedDRA table available is the code list CADEC ships with the corpus. Measured 2026-08-22: 666 codes, all 666 appear in CADEC's gold annotations, 0 do not - it is the answer key's code inventory (~3% of MedDRA PT), not a vocabulary. Removing its occurrences/posts/example_mentions columns removes the evidence of derivation, not the derivation. So rungs.1.meddra_check defaults to 'flag': the verdict is recorded and counted in rung 1's comparison and is not a rejection reason. Set 'reject' to include it as one, or point meddra_csv at a subscription release and the caveat goes away.",
     "meddra_csv": "data/meddra_codes.csv",
@@ -55,7 +55,8 @@
       "real": "9606",
       "fake": "999999999999",
       "_note": "A code this vocabulary holds, and one it cannot. Inherited from CADEC's SNOMED gate (162031009) until this was set, which failed every arm at init."
-    }
+    },
+    "_filter_note": "Real Linnaean ranks only, provisional names dropped. The unfiltered index retrieved *Human rotavirus* for the token 'human' and *Aleiodes sp. \"with gland\" 1* for 'with sigma' \u2014 a lexical retriever over 3.0M names finds a match for almost any English word. Neither filter looks at LINNAEUS gold."
   },
   "model": {
     "extractor": "ollama/gpt-oss:20b",
@@ -136,8 +137,7 @@
       "rung0_trim_note": "Phase B(d), 2026-08-25. Trim rung 0's spans to the answer key's boundary convention AFTER locate(): rules LEARNED AT RUNTIME from POOL gold only (ladder/trim.py; dev/test refused) - lead/trail tokens gold leaves outside a boundary >=95% of >=20 sightings, plus an interior clause cut at tokens whose inside_rate <= 2% over >= 50 occurrences ('pain that wakes me up' stops at 'that'). Thresholds measured on the baseline dev records: looser cut points bought exact F1 by cutting spans out of their overlap matches and were rejected. Effect on the phaseB-2 dev run: F1 exact 0.358 -> 0.362, overlap byte-identical; the original quote survives on every trimmed record as checks.span_untrimmed. False reproduces the untrimmed arm.",
       "_rung0_retrieval_note": "LEXICAL. No embedding index exists over this vocabulary, and building one is a separate arm. On CADEC the same substitution was measured to cost ~21 points of recall@20, so no absolute score here is comparable with a dense-retrieval corpus.",
       "rung0_fewshot_docs": [
-        "LINN.pmcA2327290",
-        "LINN.pmcA328328"
+        "LINN.pmcA2327290"
       ],
       "_rung0_fewshot_note": "Chosen by a rule stated before looking: the first two pool documents in split order with at least two mentions. CADEC's ids were inherited and do not exist here; the pool-split guard refuses to start without valid ones."
     },

@@ -5677,3 +5677,25 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   **The fix is not a re-run.** Each affected arm needs a prompts block **derived from its own gold**, the way GeoWebNews's was built from 2,399 mentions and FiNER's from 407 — span statistics first, wording second. Writing four blocks by hand and re-running twelve cells is a session, not a patch, and until then those twelve cells are excluded from every claim.
 
   **The general shape, for the ninth time on this port:** a default that is correct for the corpus it was written for, inherited by a corpus it is wrong for, with nothing in between to notice. The eight before it were few-shot ids, vocabulary gate codes, split sizes, loader options, a corpus version string, a model name prefix, a few-shot pool split, and a sheet name with a trailing space. **A new corpus needs nine things declared and there is no list of them anywhere** — which is the finding underneath all nine, and the argument for a `manifest.template.json` that fails loudly on each missing key rather than defaulting quietly.
+- 2026-09-07 — **THE FREE CHECK SEPARATES 2–3× ON EVERY CLINICAL CORPUS AND IS WORSE THAN NOT CHECKING ON ONE GEOGRAPHIC ONE.** `score_matrix.py` gained the column CADEC's own figure has always reported and the matrix did not: **ACCEPT's correctness over BAND's**. Precision alone cannot say whether a lane did any work — a lane 80% correct beside a BAND at 78% has sorted nothing — and the ratio is what the check is actually for.
+
+  | corpus | vocabulary | separation across four models |
+  |---|---|---|
+  | CADEC | SNOMED | 2.7 – 2.8× *(three draws, other machine)* |
+  | BC5CDR | MeSH | **2.1 – 3.4×** |
+  | PsyTAR | SNOMED | **2.0 – 2.7×** |
+  | GeoWebNews | GeoNames | 1.3 – 5.5× |
+  | LGL | GeoNames | 2.2 – 3.0×, two cells with BAND at 0.0% |
+  | **TR-News** | GeoNames | **0.9× · 0.8× · 0.6×**, and 1.6× |
+
+  **Three clinical corpora, thirteen cells, every one between 2.0 and 3.4×.** Different ontologies, different text genres, model families spanning 4B to 20B. The check sorts, consistently, wherever it fires.
+
+  **The three gazetteer corpora do not agree with each other**, and TR-News is the finding: at 0.6–0.9× on three of four models the ACCEPT lane is **less accurate than the records the check declined to endorse**. It is not merely imprecise there. It is anti-correlated — endorsing, on balance, the answers more likely to be wrong.
+
+  **This corrects the framing of the 2026-09-06 entry.** That entry said the check's precision is a property of the check and its reach a property of everything else, with clinical corpora at 80.9–100% and geographic at 10.3–25.8%. The precision numbers stand. What was wrong was reading the geographic band as *"low but working"*. Measured by separation, GeoWebNews works (2.0× on gpt-oss), LGL works, and TR-News actively harms — three corpora over the same vocabulary, the same adapter, the same retrieval mode and the same task, disagreeing about whether the check helps at all.
+
+  So the claim is not two families with different precision. It is: **the check is stable on clinical vocabularies and unstable on a gazetteer**, and instability includes being worse than useless on one corpus of three.
+
+  Two things the ratio also exposes that the precision column hid. **LGL has two cells where BAND scored 0.0%**, so no ratio exists — a denominator problem invisible in a percentage. And **LINNAEUS's 12.0× is over five scored records** and is noise; it was the most impressive number in the table and is the least trustworthy.
+
+  The column was added while the test-split cells ran, at no cost, from data already on disk. It had been sitting in every ledger since the first geo arm.

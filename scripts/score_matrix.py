@@ -63,7 +63,12 @@ KNOWN = {
 #: For reference only, from runs on another machine. NOT produced by this matrix
 #: and not comparable with it cell for cell — different hardware, and
 #: floating-point differs between a CPU-split model and a GPU one.
-CADEC = ("CADEC", "dense", 0.424, (0.75, 0.82))
+# 32% on dev, 38% corpus-wide. The 43% this line used to carry — and the
+# 42.4% before that — was retracted by the 2026-09-04 gold replay when it
+# was re-run on the base run's own configuration and denominator.
+# Correctness is 75.5 / 75.5 / 82.4 across three draws, with BAND at
+# 26.9 / 26.9 / 30.4 — a 2.7-2.8x separation.
+CADEC = ("CADEC", "dense", 0.32, (0.755, 0.824))
 
 
 def shipped(rec: dict):
@@ -151,7 +156,7 @@ def main() -> int:
     print(f"\n  the free check across {len({r['corpus'] for r in rows})} corpora "
           f"x {len({r['model'] for r in rows})} models · one draw · rungs 0-1\n")
     print(f"  {'corpus':<{w}} {'model':<20} {'retr':<8} {'recs':>5} "
-          f"{'ACCEPT':>7} {'occ':>7} {'scored':>7} {'correct':>8} {'BAND':>7}")
+          f"{'ACCEPT':>7} {'occ':>7} {'scored':>7} {'correct':>8} {'BAND':>7} {'sep':>6}")
     print("  " + "-" * (w + 74))
     last = None
     for r in sorted(rows, key=lambda x: (x["corpus"], x["model"])):
@@ -160,9 +165,11 @@ def main() -> int:
         last = r["corpus"]
         c = "—" if r["correctness"] is None else f"{r['correctness']:.1%}"
         b = "—" if r["band_correctness"] is None else f"{r['band_correctness']:.1%}"
+        sep = ("—" if not (r["correctness"] and r["band_correctness"])
+               else f"{r['correctness']/r['band_correctness']:.1f}x")
         print(f"  {r['corpus']:<{w}} {r['model']:<20} {r['retrieval']:<8} "
               f"{r['records']:5} {r['accept']:7} {r['occupancy']:6.1%} "
-              f"{r['acc_scored']:7} {c:>8} {b:>7}")
+              f"{r['acc_scored']:7} {c:>8} {b:>7} {sep:>6}")
 
     print()
     print(f"  For reference, from runs on ANOTHER MACHINE and not part of this")
@@ -175,6 +182,9 @@ def main() -> int:
     print("  lexical arm and a dense arm differ by about 21 points of recall@20")
     print("  on CADEC, which is larger than most differences in this table.")
     print("  * FiNER has no retrieval at all: its 139 tags ARE the menu.")
+    print("  `sep` is ACCEPT's correctness over BAND's — whether the lane")
+    print("  SORTED, which precision alone cannot show. A lane at 80% beside")
+    print("  a BAND at 78% has sorted nothing. CADEC measures 2.7-2.8x.")
     print()
 
     if a.csv:
