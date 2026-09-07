@@ -1,6 +1,3 @@
-<!-- Paste at the very top of README.md, above the existing title. -->
-<!-- Requires docs/figures/fig0-hero.png, which is already in the repo. -->
-
 <p align="center">
   <img src="docs/figures/fig0-hero.png" width="820"
        alt="Seven ladder rungs rendered as beads, coloured by what each layer bought: two paid for themselves, two cost tokens and changed nothing, three had no measured effect.">
@@ -20,7 +17,6 @@
 </p>
 
 ---
-# The Reliability Ladder
 
 Measure what each reliability layer wrapped around an LLM actually buys — and
 what it costs — so you can stop at the rung your economics justify instead of
@@ -81,13 +77,17 @@ results rather than reconstructed afterwards.
 
 ## Three corpora, and only two of them are yours to run
 
+*This is the article's scope. Five more were added between 2026-09-01 and
+2026-09-07 and are summarised further down — they test whether the claims
+below hold anywhere else.*
+
 Deliberately different in the one respect that decides whether the free check can
 work at all — whether the extracted span and the code’s own name are drawn from
 the same language.
 
 | corpus | domain | vocabulary | licence | free check fires |
 |---|---|---|---|---|
-| **CADEC v2** | patient forum posts | SNOMED CT, 129,675 concepts | **non-transferable** — you need your own copy | 42.4% |
+| **CADEC v2** | patient forum posts | SNOMED CT, 129,675 concepts | **non-transferable** — you need your own copy | 32% |
 | **FiNER-139** | SEC filings | 139 XBRL tags | CC-BY-SA-4.0, redistributable | **0.0%** |
 | **GeoWebNews** | news geography | GeoNames, 13.4M places | GPL-3.0, redistributable | 39.8% |
 
@@ -99,7 +99,26 @@ construction — on any run, with any model, forever.
 ## Run it yourself, without a licence
 
 **Start here.** CADEC cannot be redistributed, so that arm is not reproducible
-from a clean checkout by anyone but you. The FiNER arm is.
+from a clean checkout by anyone but you. The FiNER arm is, and so are five of the
+six corpora added since.
+
+**Step zero, before any GPU time.** Two checks, a second each, no model calls:
+
+```bash
+PYTHONPATH=. python3 scripts/gatecheck.py  --manifest manifest.finer.json
+PYTHONPATH=. python3 scripts/crosscheck.py --manifest manifest.finer.json
+```
+
+`gatecheck` predicts the free check's ceiling from gold alone. On FiNER it
+reports **0.0%** and refuses to recommend the arm — the spans are numerals and
+the tags are English phrases, so the check cannot fire however good the model
+is. That is a full GPU arm's finding, available before booking one.
+
+`crosscheck` reads every declared fact back from an independent source: the
+rendered prompt against the declared entity, the few-shot ids against the pool
+split the guard actually reads, the split ids against the corpus the adapter
+loads, and each named model against what ollama has. Every check in it is a
+defect that reached a rented card first.
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
@@ -493,7 +512,72 @@ manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
 
 **Retired 2026-08-22:** an earlier data-agnostic track (its pipeline, dashboard,
 adapters, schemas and tests), together with its results. The CADEC track imported
-none of it. Every number in this repo is measured on CADEC v2.
+none of it. The numbers in the sections above are measured on CADEC v2 and FiNER-139. Five further corpora were added in September 2026 and are listed under *Five more corpora* below.
+
+## Five more corpora, as additional tests
+
+*Beyond the article's scope, and the reason to trust what is above it.* Between
+2026-09-01 and 2026-09-07 the two claims — that the free check is worth its
+nothing, and that the paid layers are not worth their tokens — were re-run on
+five further corpora across four model families.
+
+| corpus | domain | vocabulary | licence | lane fires | of that, correct |
+|---|---|---|---|---|---|
+| **CADEC v2** | patient forum posts | SNOMED CT | non-transferable | 32% | 76–82% |
+| **PsyTAR** | patient drug reviews | SNOMED CT | **CC BY 4.0** | 19–31% | **80–90%** |
+| **BC5CDR** | biomedical abstracts | MeSH | free mirror | 7–22% | **93–100%** |
+| **GeoWebNews** | news geography | GeoNames | GPL-3.0 | 20–64% | 11–26% |
+| **LGL** | local news | GeoNames | GPL-3.0 | 30–74% | 10–22% |
+| **TR-News** | news geography | GeoNames | GPL-3.0 | 37–72% | 10–17% |
+| **LINNAEUS** | research papers | NCBI Taxonomy | CC-BY | 0–13% | 80% *(n=5)* |
+| **FiNER-139** | SEC filings | 139 XBRL tags | CC-BY-SA-4.0 | **0.0%** | — |
+
+Ranges are across `gpt-oss:20b`, `llama3.1:8b`, `mistral:7b-instruct` and
+`ibm/granite4:micro-h` — 4B to 20B — one draw each on the dev split, rungs 0–1.
+Three draws were measured byte-identical on three corpora, so a single draw is a
+measurement rather than a sample. **CADEC's row is a reference and not a row of
+the same table:** it was produced on different hardware, and floating point
+differs between a CPU-split model and a GPU-resident one.
+
+**The split is the finding, and it is not about medicine.** Clinical
+vocabularies give a SMALL lane that is RIGHT; gazetteers give a LARGE lane that
+is WRONG. Read as ACCEPT's accuracy over the accuracy of what the check
+*declined* to endorse — whether the lane sorted anything at all — the clinical
+corpora separate **2.0–3.8×** and TR-News separates **0.6–0.9×**. There the free
+check is worse than not checking.
+
+**And the paid layers still do not pay.** The full ladder on PsyTAR, three
+draws: self-correction, sampled voting and the LLM judge each routed **zero**
+records, and coverage was identical to rungs 0–1 alone. That was a one-corpus
+claim before 2026-09-07.
+
+Everything is in [`docs/decisions.md`](docs/decisions.md), dated, including the
+corrections — twelve matrix cells that ran with the wrong corpus's prompt, and
+five that ran a different model than their directory name claimed.
+
+## The three checks
+
+Three questions at three moments. Two live here; one is its own repo.
+
+| tool | question | when | knows about corpora |
+|---|---|---|---|
+| [`gatecheck`](scripts/gatecheck.py) | should I run this? | before booking a card | yes |
+| [`crosscheck`](scripts/crosscheck.py) | is it what I declared? | first line of every run | yes |
+| [`stagecheck`](https://gitlab.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
+
+**`stagecheck` is the mature one** — its own repository, 43 tests, no
+dependencies, MIT. It records the two things a pipeline usually does not: the
+bet a stage makes, and the records it could not judge.
+
+**`gatecheck` and `crosscheck` are one evening old** and have known false
+positives; they are in `scripts/` rather than packaged, and the boundary between
+them and `stagecheck` is described in
+[`docs/three-checks.md`](docs/three-checks.md).
+
+The principle they share came out of a week of failures that all looked the
+same: **a load-bearing fact recorded once cannot be checked, and will eventually
+be wrong silently.** Everything that caught a real defect compared two
+independent records of one fact. Everything that got through was recorded once.
 
 ## Licence
 
