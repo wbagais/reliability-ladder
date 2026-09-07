@@ -64,13 +64,15 @@ PASS, FAIL, SKIP = "pass", "FAIL", "skip"
 #: these while declaring a different entity has inherited someone else's task —
 #: which is what happened to four arms and produced twelve unusable cells.
 FOREIGN = {
-    "adverse reaction": "CADEC/PsyTAR",
-    "adverse drug reaction": "CADEC/PsyTAR",
-    "place the article refers to": "GeoWebNews/LGL/TR-News",
-    "organism": "LINNAEUS",
-    "disease or symptom": "BC5CDR",
-    "numeric fact": "FiNER",
+    "reaction": ("adverse reaction", "adverse drug reaction"),
+    "place":    ("place the article refers to",),
+    "organism": ("organism the paper mentions",),
+    "disease":  ("disease or symptom",),
+    "fact":     ("numeric fact",),
 }
+#: Keyed by the OWNING entity, so a corpus is never foreign to itself. The flat
+#: list this replaces matched `place` against "place the article refers to" and
+#: reported all three geo arms as carrying another corpus's task.
 
 
 class Report:
@@ -243,16 +245,24 @@ def crosscheck(path: str, quiet: bool) -> Report:
                   "this corpus does not annotate")
         # Not a failure when the corpus HAS no declared entity and the
         # inherited task is the right one — PsyTAR is adverse reactions.
-        foreign = [] if not entity else [
-            f"{w} ({who})" for w, who in FOREIGN.items()
-            if w in text and w != entity and not entity.startswith(w[:6])]
+        mine = {p for k, ps in FOREIGN.items() if k in entity for p in ps}
+        foreign = [] if not entity else sorted(
+            {f"{p} ({k})" for k, ps in FOREIGN.items() for p in ps
+             if p in text and p not in mine and k not in entity})
         r.add(PASS if not foreign else FAIL, "prompt names no other corpus's entity",
               entity or "(none)", "; ".join(foreign) or "none")
         # A slot holding a clause where a noun phrase belongs rendered as
         # "organism the paper mentions the paper describes".
         words = re.findall(r"[a-z]+", text[:400])
-        tri = Counter(tuple(words[i:i+3]) for i in range(len(words) - 2))
-        dup = [" ".join(t) for t, n in tri.items() if n > 1 and len(set(t)) == 3]
+        dup = []
+        for i in range(len(words) - 5):
+            a, b = words[i:i+3], words[i+3:i+6]
+            # A doubled slot repeats itself IMMEDIATELY, or with one word
+            # between. Two rules that happen to share a phrase do not.
+            if a == b and len(set(a)) == 3:
+                dup.append(" ".join(a + b))
+            elif i + 7 <= len(words) and words[i:i+2] == words[i+3:i+5]:
+                dup.append(" ".join(words[i:i+5]))
         r.add(PASS if not dup else FAIL, "no slot rendered a repeated phrase",
               "", "; ".join(dup[:2]) or "none",
               "" if not dup else "a slot holding a clause where a noun phrase "

@@ -18,7 +18,7 @@
     "version": "BioCreative V CDR (BC5CDR) corpus v010516, Li et al. 2016; MeSH 2025 ASCII, main headings only",
     "prompts": {
       "_derivation": "Derived from BC5CDR's own gold over 4,130 DISEASE mentions in 500 dev documents, measured by scripts/gold_span_stats.py, not invented. **39.4% of surface forms are multi-token**, the highest of the six corpora in this study and nearly double LGL's 23.9%, so a disease mention here is usually a phrase. Only 15.6% begin with a capital and 0% carry an initial and a dot. Median length 12 characters, p95 25. 3,559 of 4,130 are a form used more than once. 100 annotations name two concepts and 59 are marked unresolvable by the annotators; both are dropped with a reason before scoring.",
-      "entity": "disease or symptom the abstract describes",
+      "entity": "disease or symptom",
       "entity_short": "disease",
       "entity_plural": "diseases",
       "author": "the abstract",
