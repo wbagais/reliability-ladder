@@ -95,6 +95,10 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", default="out/matrix")
     ap.add_argument("--csv")
+    ap.add_argument("--split", default=None,
+                    help="override the split in KNOWN. A test-split run "
+                         "scored against dev gold produces a plausible "
+                         "number over the wrong set.")
     a = ap.parse_args()
 
     cells = {}
@@ -121,9 +125,11 @@ def main() -> int:
         if corpus not in KNOWN:
             continue
         manifest, retrieval, split, ndocs = KNOWN[corpus]
-        if corpus not in golds:
-            golds[corpus] = gold_for(manifest, split)
-        gold = golds[corpus]
+        split = a.split or split
+        key = (corpus, split)
+        if key not in golds:
+            golds[key] = gold_for(manifest, split)
+        gold = golds[key]
 
         lanes = defaultdict(lambda: {"n": 0, "scored": 0, "ok": 0})
         total = 0
