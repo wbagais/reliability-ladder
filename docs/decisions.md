@@ -5699,3 +5699,31 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   Two things the ratio also exposes that the precision column hid. **LGL has two cells where BAND scored 0.0%**, so no ratio exists — a denominator problem invisible in a percentage. And **LINNAEUS's 12.0× is over five scored records** and is noise; it was the most impressive number in the table and is the least trustworthy.
 
   The column was added while the test-split cells ran, at no cost, from data already on disk. It had been sitting in every ledger since the first geo arm.
+- 2026-09-07 — **THE FREE CHECK IS STABLE ON CLINICAL VOCABULARIES AND UNSTABLE ON GAZETTEERS, AND THE TWO FAMILIES SIT ON OPPOSITE SIDES OF EVERY COLUMN.** Six corpora, four model families spanning 4B to 20B, one draw each on the dev split at rungs 0–1, every cell verified against its own saved manifest. Determinism was measured byte-identical on three corpora, so a single draw is a measurement rather than a sample.
+
+  | family | corpus | vocabulary | lane fires | of that, correct | separation |
+  |---|---|---|---|---|---|
+  | **clinical** | CADEC *(ref.)* | SNOMED CT | 32% | 76–82% | 2.7–2.8× |
+  | | PsyTAR | SNOMED CT | 19–31% | **80–90%** | 2.0–3.8× |
+  | | BC5CDR | MeSH | 7–22% | **93–100%** | 2.1–3.8× |
+  | **gazetteer** | GeoWebNews | GeoNames | 20–64% | 11–26% | 1.3–5.5× |
+  | | LGL | GeoNames | 30–74% | 10–22% | 2.2–3.0× |
+  | | TR-News | GeoNames | 37–72% | 10–17% | **0.6–1.6×** |
+
+  **Clinical vocabularies give a SMALL lane that is RIGHT. Gazetteers give a LARGE lane that is WRONG.** Both columns invert together and there is no overlap in either: the worst clinical correctness is 76%, the best gazetteer correctness is 26%; the largest clinical lane is 32%, the smallest gazetteer lane is 20%.
+
+  **The occupancy inversion is the part that was not expected.** The check that reaches furthest is the one you can trust least. Occupancy therefore predicts nothing about correctness in either direction, which is why the two were separated in the first place — and why the earlier PsyTAR entry measuring one and claiming the other had to be corrected on 2026-09-05.
+
+  **The held-out splits moved almost nothing.** PsyTAR 80.9–90.3% on dev became **80.0–84.2%** on test with roughly 40% more scored records; BC5CDR's dev 100%s came off to 93.5–100% where the denominators had been smallest, which is what a small-sample artefact does when the sample grows. The finding is not a dev-split accident.
+
+  **AND IT IS NOT ABOUT MEDICINE.** Three ontologies behave alike — SNOMED CT twice, MeSH once — and one gazetteer behaves differently across three corpora built on it. What the clinical vocabularies share is that a clinical term and a patient's or an abstract's wording are drawn from **overlapping registers**: `weight gain`, `seizures`, `hypertension` are both what a person writes and what the ontology calls the concept. A place name and a gazetteer's canonical entry are not: `Britain` against `United Kingdom of Great Britain and Northern Ireland`, `French` against `France`.
+
+  **LINNAEUS is consistent with this and cannot confirm it.** Species is a fourth vocabulary shape — a rank taxonomy — and its one working model gives 12.5% occupancy at 80.0% correct, which lands in the clinical band. Over five scored records. Three of four models produce nothing usable there, and its predicted ceiling is 4.8%.
+
+  **FiNER sits outside both families** at 0.0% on four models. A numeral shares no token with an English phrase, so the check cannot fire whatever the model does — structural, not a low score.
+
+- 2026-09-07 — **CADEC'S OCCUPANCY WAS 32%, NOT 42.4%, AND THE CORRECTION PUTS IT INSIDE THE CLINICAL BAND RATHER THAN ABOVE IT.** The 2026-09-04 gold replay, re-run on the base run's own configuration and denominator, retracted 43% to **32% on dev and 38% corpus-wide**. `scripts/score_matrix.py` had been printing 42.4% as the reference line under every version of the matrix table since 2026-09-06.
+
+  That mattered more than a stale figure usually does. At 42.4% CADEC sat *above* every other clinical corpus and looked like the outlier its thresholds had been tuned on. At 32% it sits with PsyTAR's 19–31% and BC5CDR's 7–22%, and the clinical family is three corpora agreeing rather than two agreeing and one apart.
+
+  The correction was found by reading her article rather than by any check, which is worth noting: **a number quoted from another owner's work has no second source in this repo**, and nothing would have caught it going stale. Correctness — 75.5, 75.5 and 82.4 across three draws — was confirmed at the same time and did not move.
