@@ -6,11 +6,11 @@
 
 ## Key takeaways
 
-- The model produced every answer; the six layers above it sorted those answers by how far to trust them and fixed almost none.
-- A nine-line vocabulary check did the sorting that mattered, turning two-in-five odds into five in six and two in seven for zero tokens; the three paid layers changed one shipped answer in 53.
-- Shipping on any verdict is one dial, precision up and yield down. We show every setting and pick none.
-- Measure the run-to-run floor first: three identical runs at temperature 0 differed by four F1 points, enough to reverse a result's sign.
-- Let the model read and let code hold the knowledge; asked to recall identifiers, the model fabricated 13 to 18 percent of them, and nothing above it can see what it missed.
+- Reliability layers do not make a model more accurate; they tell you which answers to trust. Plan for whoever handles what they refuse to ship.
+- Start with the check that costs nothing: a string comparison against our vocabulary sorted answers into tiers 83 and 28 percent correct; three paid layers changed one shipped answer.
+- Ask the model to read, never to remember: it picked well from a retrieved menu but invented 13 to 18 percent of the codes asked of it.
+- Never trust one run, even at temperature 0: two runs matched byte for byte, the third agreed on 70 percent of mentions, and that gap reversed an improvement's sign.
+- Score what a layer withholds, not only what it ships: precision rises whenever answers are withdrawn; yield does not.
 
 ---
 
@@ -32,7 +32,7 @@ Two caveats. A supervised system does this far better: CONORM [5], fine-tuned on
 
 *End-to-end F1 of what ships is 0.204 span-exact. Errors per 100 records: 59.6 bare, 3.8 shipped.*
 
-As a product this is not shippable: three quarters of the batch went to a person, and that tier holds more correct answers than the shipped one. As a signal it is the result: a zero-token check split two-in-five odds into five in six and two in seven. It improved nothing; it sorted. This article is mostly about the four layers meant to do more.
+As a product this is not shippable: three quarters of the batch went to a person, and that tier holds more correct answers than the shipped one. As a signal it is the result: a zero-token check split two-in-five odds into five in six and two in seven. It improved nothing; it sorted.
 
 ## The pipeline: the model reads, the vocabulary knows
 
@@ -85,7 +85,7 @@ Above this sit the six layers; the judge is a different model family from the ex
 
 **Three identical runs of the unchanged system differed by four points of F1, at temperature zero.**
 
-We ran the extraction step three times, cold, on the same 40 documents, at temperature 0. Two were byte-identical; the third diverged from its fifth request on: 87, 87 and 98 correct of 226, four points of F1.
+We ran the extraction step three times, cold, on the same 40 documents, at temperature 0. Two were byte-identical; the third diverged from its fifth request on: 87, 87 and 98 correct of 226, four points of F1. The third still agreed with the pair on 70 percent of mentions outright, and on 84 percent of codes where all three found the same span; the remainder was worth those four points.
 
 The case that taught us was a menu reranker. A paired bootstrap over documents excluded zero; on the second run the gain was smaller, and on the third the sign reversed. The test answers *would this hold on different documents?*, never *on a different run?*, and here the run-to-run term is the larger one.
 
@@ -166,7 +166,7 @@ Once the right concept is on the menu, the model picks it 81 percent of the time
 
 Neither failure is medical. The 43 mentions the model never touched are single words like `"sore"`; the 67 with the wrong boundary are `"extreme rectal bleed"` for `"rectal bleed"`; the 31 inventions are figures of speech read literally, `"at my wits end"` coded as |Wanders at night|. Our two largest gains were a worked example in the corpus's conventions and a rule to extract denied reactions; no domain model supplied either.
 
-One limit is structural. **Every layer operates on records the extractor already proposed.** The ladder's ceiling is the extractor's detection, 0.521 exact on the held-out split. Reliability engineering of this kind makes answers more trustworthy, not the system more perceptive.
+One limit is structural. **Every layer operates on records the extractor already proposed.** The ladder's ceiling is the extractor's detection, 0.521 exact on the held-out split.
 
 ## Why none of it showed up in a test
 
@@ -190,7 +190,7 @@ The division of labour follows. The model reads and proposes candidates, the one
 
 ## What we could not settle
 
-- **Why a model at temperature 0 repeats itself on two runs and not the third.** Sent alone eight times, the diverging prompt returns one reply; it moves only inside a full run, so the server's state is the suspect.
+- **Why a model at temperature 0 repeats itself on two runs and not the third.** Sent alone eight times, the diverging prompt returns one reply; it moves only inside a full run.
 - **The looser vocabulary match.** It wins on yield in all three runs and roughly triples errors per hundred records; we show both and pick neither.
 - **We assume exactly one code is right.** Where two concepts share a name, a defensible synonym scores wrong; how much miscoding is of that kind is unmeasured.
 - **The judge is a 3.2B model grading a 20B one, and CADEC is from 2015 and almost certainly in pretraining data.** Absolute numbers would move with those; the comparisons would not.
