@@ -52,6 +52,10 @@ results.json
 !app/results.reference.json
 # out/ carries worked examples, and a worked example is a corpus quotation
 out/
+# Published outputs: full records where the licence permits, stripped of
+# quoting fields where it does not. Both score identically.
+!out/published/
+!out/published/**
 
 # ── SECRETS ─────────────────────────────────────────────────────────
 .env
