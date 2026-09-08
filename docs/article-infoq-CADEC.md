@@ -138,17 +138,17 @@ Read each verdict as a shipping rule over the same records, and the layers becom
 
 | ship only when… | ships | to a person | correct | accuracy | yield | **F1** | tokens per run |
 |---|---|---|---|---|---|---|---|
-| the extractor says so: everything, after voting | 233 | 0 | 90 | 0.39 | **0.388** | 0.405 | 0 extra |
-| the vocabulary check says ACCEPT *(the run's setting)* | 52 | 180 | 40 | **0.77** | 0.173 | 0.292 | 0 |
-| the loose vocabulary check says ACCEPT | 91 | 142 | 55 | 0.61 | 0.236 | 0.353 | 0 |
-| all three voting samples agree | 116 | 117 | 57 | 0.50 | 0.246 | 0.345 | ~420,000 |
-| at least two of three samples agree | 186 | 46 | 79 | 0.43 | 0.341 | 0.396 | ~420,000 |
-| the blind judge passes | 138 | 94 | 65 | 0.47 | 0.278 | 0.363 | ~84,000 |
-| the menu-shown judge passes | 141 | 91 | 77 | 0.54 | 0.331 | **0.430** | ~84,000 |
+| the extractor says so: everything, after voting | 230 | 0 | 88 | 0.38 | **0.383** | 0.397 | 0 extra |
+| the vocabulary check says ACCEPT *(the run's setting)* | 53 | 177 | 39 | **0.74** | 0.170 | 0.283 | 0 |
+| the loose vocabulary check says ACCEPT | 91 | 139 | 53 | 0.58 | 0.230 | 0.340 | 0 |
+| all three voting samples agree | 108 | 122 | 51 | 0.47 | 0.222 | 0.315 | ~411,000 |
+| at least two of three samples agree | 185 | 45 | 77 | 0.42 | 0.335 | 0.387 | ~411,000 |
+| the blind judge passes | 136 | 94 | 63 | 0.46 | 0.274 | 0.357 | ~84,000 |
+| the menu-shown judge passes | 136 | 94 | 74 | 0.54 | 0.322 | **0.420** | ~84,000 |
 
-*Means over three development runs of 230, 230 and 238 records against 226 annotated mentions. Accuracy is correct over shipped; yield is correct over all records; F1 is span-exact on what ships, so a withheld answer is a miss. Voting rows send a split or a missing sample to a person; the loose check accepts a span contained in a concept name.*
+*First development run, the 230 records of Figure 2, against 226 annotated mentions; the other two runs are in the layer table above. Accuracy is correct over shipped; yield is correct over all records; F1 is span-exact on what ships, so a withheld answer is a miss. Voting rows send a split or a missing sample to a person; the loose check accepts a span contained in a concept name.*
 
-Filter on any verdict and accuracy rises above the 0.39 of shipping everything, so the paid verdicts were not noise, and every row ships fewer correct answers because every one withholds. F1 sees both sides. ACCEPT and strict voting give up eleven and six points of it to send half or more of the batch to a person; the loose check, loose voting and the blind judge land within about five points of shipping everything; only the menu-shown judge clears it, by two to three points on every run, for 84,000 tokens.
+Filter on any verdict and accuracy rises above the 0.38 of shipping everything, so the paid verdicts were not noise, and every row ships fewer correct answers because every one withholds. F1 sees both sides. ACCEPT and strict voting give up eleven and eight points of it to send half or more of the batch to a person; the loose check, loose voting and the blind judge land within six points of shipping everything; only the menu-shown judge clears it, by two to three points on every run, for 84,000 tokens.
 
 The dotted lines in Figure 2 are the ceiling: no rule ships more than 88 right codes or 116 exact spans, because that is all the extractor found. Everything right of that line is the next section's loss.
 
