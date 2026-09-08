@@ -57,7 +57,12 @@
     "lossy": false,
     "tag_count": 139,
     "_backend_note": "139 US-GAAP tag names, in memory \u2014 not a database. Implements the same schemas/vocabulary.Vocabulary Protocol as Registry and the OLS4 backend, so tests/test_contracts.py covers it unchanged. exists() is membership in a set of 139. is_finding() is vacuously true: there is no semantic-type hierarchy here, and saying so is better than inventing one.",
-    "_ceiling_note": "CADEC's exact-term retrieval found nothing for 202 of 343 gold spans \u2014 a 59% ceiling on every rung that depends on lookup. There is no such ceiling here: 139 names fit in a prompt and retrieval is not needed. That removes a confound and removes a finding at the same time."
+    "_ceiling_note": "CADEC's exact-term retrieval found nothing for 202 of 343 gold spans \u2014 a 59% ceiling on every rung that depends on lookup. There is no such ceiling here: 139 names fit in a prompt and retrieval is not needed. That removes a confound and removes a finding at the same time.",
+    "gate": {
+      "real": "EffectiveIncomeTaxRateContinuingOperations",
+      "fake": "EffectiveIncomeTaxRateContinuingOperations9",
+      "_note": "From this corpus's own gold. Previously absent, so the gate tested CADEC's SNOMED codes instead of this vocabulary's."
+    }
   },
   "model": {
     "extractor": "ollama/llama3.1:8b",
