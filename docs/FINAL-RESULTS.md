@@ -38,6 +38,80 @@ Ireland* is not.
 
 ---
 
+## How to read the table
+
+### The columns, in three groups
+
+**Which experiment this row is**
+
+| column | what it is |
+|---|---|
+| `corpus` | which dataset |
+| `split` | `dev` or `test`. Never compare a dev row with a test row without saying so |
+| `model` | which model did the extracting |
+
+**What the percentages are over** — read these before any percentage
+
+| column | what it is |
+|---|---|
+| `recs` | records the model produced. The denominator for `occ` |
+| `ACCEPT` | how many of those the free check endorsed |
+| `scored` | of the ACCEPT records, how many sat on a gold mention. **The denominator for `correct`** |
+
+The gap between `ACCEPT` and `scored` is answers the annotators never marked.
+Those are not wrong — they are unjudgeable, and they leave the denominator
+rather than counting against the lane.
+
+**The three results**
+
+| column | the question it answers | how to read it |
+|---|---|---|
+| `occ` | **how much did the check find to do?** | high = big lane. Says nothing about quality |
+| `correct` | **when it fired, was it right?** | the precision figure |
+| `BAND` | how accurate were the records it *declined* to endorse | the baseline `correct` has to beat |
+| `sep` | **did the check sort anything at all?** | `correct ÷ BAND`. 1.0× = sorted nothing. Below 1.0× = worse than not checking |
+
+### Five things that will mislead you
+
+**1 · A high `occ` is not good news.** The gazetteer corpora fire on up to 76%
+of records and are right 7–26% of the time; the clinical corpora fire on 7–32%
+and are right 80–100%. The columns invert. A big lane means the check found a
+lot to endorse, not that it was right to.
+
+**2 · `correct` over a small `scored` is not a measurement.** BC5CDR's
+`granite4` dev cell reads 100% over **5 records** — one flip makes it 80%. The
+`scored` column is there so you can see that before quoting the percentage. The
+test split took those denominators to 19–57 and the 100%s came off to 93.5%,
+which is what a small sample does when it grows.
+
+**3 · A dash in `sep` does not mean "fine".** It means BAND scored **0.0%** and
+no ratio exists — see LGL's `granite4`, `mistral` and `qwen3` dev rows. That is
+a denominator problem, not a clean result.
+
+**4 · `sep` moves when the baseline moves, not only when the lane does.**
+TR-News reads 0.9× on dev and 4.2× on test with `gpt-oss`. ACCEPT's own accuracy
+**fell** over that change, 16.9% → 13.4%; the ratio rose because BAND collapsed
+from 19.4% to 3.2%. Always read `sep` beside `correct` and `BAND`, never alone.
+
+**5 · Retrieval is not uniform and it is not in the table.** CADEC and PsyTAR
+retrieve densely; the other five retrieve lexically, worth about 21 points of
+recall@20 on CADEC. **Comparing a PsyTAR row with a TR-News row compares two
+things at once.** Compare within a corpus across models, or within a family.
+
+### What a row cannot tell you
+
+Whether a low `occ` is a **finding** or a **bug**. FiNER's 0.0% is structural —
+a numeral shares no token with an English phrase, so the check cannot fire on
+any run with any model. LINNAEUS's near-zero was a vocabulary build choice, and
+a different index moves the same gold from 5.4% to 35.4%. From the table those
+look identical.
+
+### The quickest honest read
+
+Scan `scored` first, then `correct`, then `sep`. If `scored` is under about 20,
+treat the row as a direction rather than a number. If `sep` is missing, look at
+`BAND` to see why.
+
 ## Every cell
 
 `occ` is ACCEPT ÷ records. `correct` is over `scored` — the ACCEPT records that
