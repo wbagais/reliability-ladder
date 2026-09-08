@@ -125,9 +125,12 @@ for y, (name, c, s, k, w, p, pc, f) in zip(ys, rules):
                 ax.text(left + val / 2, y, str(val), ha="center", va="center", fontsize=8,
                         color="white" if col == GREEN else INK, zorder=4)
             left += val
-    ships = c + s + k + w
-    ax.text(N_FIRST + 3, y, f"ships {ships} · F1 {f:.3f}" + (f" · {p} to a person, {pc} correct" if p else ""),
-            va="center", fontsize=8, color=FREE)
+    # Only what the table cannot show: the withheld records and how many of
+    # them were correct. Ships and F1 per rule are the table's, as three-run
+    # means; printing the first run's beside them was the same row twice with
+    # different numbers.
+    if p:
+        ax.text(N_FIRST + 3, y, f"{p} to a person, {pc} correct", va="center", fontsize=8, color=FREE)
 # reference lines: the most any rule ships with the right code on the exact span,
 # and the most it ships on an exact span at all (right or wrong code)
 best_code = max(r[1] for r in rules); best_span = max(r[1] + r[2] for r in rules)
@@ -148,7 +151,7 @@ ax.legend(handles=[Patch(color=GREEN, label="ships · right code, exact span"),
                    Patch(color=WRONG, label="ships · neither"),
                    Patch(facecolor=PERSON, edgecolor=PERSON_EDGE, label="to a person")],
           loc="lower center", bbox_to_anchor=(0.42, -0.5), ncol=3, frameon=False, fontsize=8)
-ax.set_title("What ships under each rule, and what a person receives", loc="left", fontsize=10, pad=10)
+ax.set_title("What ships under each rule, first run, and what a person receives", loc="left", fontsize=10, pad=10)
 plt.tight_layout()
 plt.savefig(HERE / "infoq-fig5-shipped.png", dpi=200, bbox_inches="tight")
 print("ok shipped")
