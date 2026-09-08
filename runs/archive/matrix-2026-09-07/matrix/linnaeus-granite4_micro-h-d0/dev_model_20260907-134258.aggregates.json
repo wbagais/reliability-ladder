@@ -1,0 +1,66 @@
+{
+  "run_id": "dev_model_20260907-134258",
+  "split": "dev",
+  "order": [
+    0,
+    1
+  ],
+  "missing_rungs": [],
+  "n_records": 31,
+  "n_documents": 25,
+  "llm_cache": "/root/ai-reliability-ladder/.llm_cache",
+  "models": {
+    "0": "ollama/ibm/granite4:micro-h"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": null,
+    "branch": null,
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": null,
+    "branch": null,
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-07T13:42:58Z",
+  "finished_utc": "2026-09-07T13:48:08Z",
+  "rungs": {
+    "0": {
+      "documents": 25,
+      "records": 31,
+      "tokens_in": 956661,
+      "tokens_out": 29452,
+      "tool_calls": 0,
+      "api_calls": 75,
+      "parse_failed": 6,
+      "usd": 0.0,
+      "pick_parse_failed": 4,
+      "truncated": 6,
+      "multi_code": 0,
+      "timed_out": 0,
+      "refused": 0,
+      "shape_coerced": 0,
+      "code_unknown": 0,
+      "no_pick": 148,
+      "bad_pick": 7,
+      "declined_shortlist": 3,
+      "trimmed": 31,
+      "pick_fallback": 180,
+      "split": 11,
+      "dropped_ungrounded": 228,
+      "dropped_fragment": 2,
+      "dropped_duplicate": 16,
+      "dropped_datelike": 0,
+      "t0": 1788788579.2590344,
+      "seconds": 308.82,
+      "wall_s": 309.991
+    },
+    "1": {
+      "seconds": 0.099,
+      "wall_s": 0.099
+    }
+  }
+}

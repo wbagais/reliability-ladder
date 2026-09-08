@@ -108,8 +108,14 @@ def main() -> int:
         if not m:
             continue
         corpus, model, draw = m.groups()
+        # Also `.records.stripped.jsonl`: the published archive carries
+        # records with the quoting fields removed, and they score IDENTICALLY —
+        # scoring reads doc_id, spans, sct and r1_verdict, none of which is
+        # stripped. If the archive could not be scored by the tool in its own
+        # repo, publishing it would be pointless.
         recs = [f for f in glob.glob(f"{d}*.records.jsonl")
-                if not re.search(r"\.r\d+\.records\.jsonl$", f)]
+                + glob.glob(f"{d}*.records.stripped.jsonl")
+                if not re.search(r"\.r\d+\.records(\.stripped)?\.jsonl$", f)]
         if recs:
             # The NEWEST run in the cell. A cell re-run after a fix holds both
             # files, and `recs[0]` is the older one — which silently scored the
@@ -134,6 +140,8 @@ def main() -> int:
         lanes = defaultdict(lambda: {"n": 0, "scored": 0, "ok": 0})
         total = 0
         for line in open(f):
+            if not line.strip():
+                continue
             r = json.loads(line)
             if not r.get("spans"):
                 continue

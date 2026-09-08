@@ -1,0 +1,3 @@
+rung,layer,n_records,accept,band,reject,abstained,escalated,verified,r1_reject_pct,r1_mode,coverage,f1_sct_strict,yield,settled,corrupted,sct_outdated,sct_abstained,err_per_100,sct_modernised,tokens_per_record,p95_s,reviews_per_100,marginal_tokens_per_error,marginal_reviews_per_error,ci_low,ci_high
+0,bare LLM,366,0,0,0,0,0,0,,,1.0,0.19945,0.19945,0,293,0,0,80.055,0,537.83,11.1686,0.0,,,,
+1,deterministic,366,69,297,0,0,0,0,0.0,observe,1.0,0.19945,0.19945,0,293,0,0,80.055,0,0.0,0.0035,0.0,,,,

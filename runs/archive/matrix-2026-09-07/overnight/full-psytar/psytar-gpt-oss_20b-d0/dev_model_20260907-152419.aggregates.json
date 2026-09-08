@@ -1,0 +1,160 @@
+{
+  "run_id": "dev_model_20260907-152419",
+  "split": "dev",
+  "order": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "missing_rungs": [],
+  "n_records": 248,
+  "n_documents": 40,
+  "llm_cache": "/root/ai-reliability-ladder/.llm_cache",
+  "models": {
+    "0": "ollama/gpt-oss:20b",
+    "2": "ollama/gpt-oss:20b",
+    "3": "ollama/gpt-oss:20b",
+    "4": "ollama/ibm/granite4:micro-h"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": null,
+    "branch": null,
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": null,
+    "branch": null,
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-07T15:24:19Z",
+  "finished_utc": "2026-09-07T15:27:25Z",
+  "rungs": {
+    "0": {
+      "documents": 40,
+      "records": 248,
+      "tokens_in": 103805,
+      "tokens_out": 58687,
+      "tool_calls": 0,
+      "api_calls": 94,
+      "parse_failed": 0,
+      "usd": 0.0,
+      "pick_parse_failed": 0,
+      "truncated": 0,
+      "multi_code": 0,
+      "timed_out": 0,
+      "refused": 0,
+      "shape_coerced": 0,
+      "code_unknown": 0,
+      "no_pick": 12,
+      "bad_pick": 0,
+      "declined_shortlist": 4,
+      "trimmed": 24,
+      "pick_fallback": 16,
+      "split": 3,
+      "dropped_ungrounded": 2,
+      "dropped_fragment": 0,
+      "dropped_duplicate": 2,
+      "dropped_datelike": 0,
+      "t0": 1788794660.824221,
+      "seconds": 44.79,
+      "wall_s": 46.152
+    },
+    "2": {
+      "attempted": 0,
+      "rescued": 0,
+      "still_failing": 0,
+      "reasserted": 0,
+      "unchanged": 248,
+      "declined": 0,
+      "parse_failed": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "t0": 1788794706.0660741,
+      "seconds": 0.01,
+      "wall_s": 0.006
+    },
+    "3": {
+      "records": 248,
+      "calls": 276,
+      "documents": 37,
+      "tokens_in": 309248,
+      "tokens_out": 122766,
+      "unanimous": 182,
+      "split": 39,
+      "tie": 15,
+      "changed": 25,
+      "single_sample": 5,
+      "unanimous_none": 0,
+      "not_resampled": 12,
+      "parse_failed": 0,
+      "revalidated": 0,
+      "stale_verdict": 25,
+      "spread": {
+        "1": 15,
+        "3": 150,
+        "2-1": 39,
+        "2": 17,
+        "1-1": 9,
+        "1-1-1": 6
+      },
+      "t0": 1788794707.6610954,
+      "usd": 0.0,
+      "seconds": 136.58,
+      "wall_s": 137.951
+    },
+    "4": {
+      "records": 248,
+      "tokens_in": 81579,
+      "tokens_out": 13259,
+      "parse_failed": 3,
+      "verdicts": {
+        "fail": 100,
+        "pass": 145
+      },
+      "agree_r1": 145,
+      "disagree_r1": 100,
+      "span_ok": 200,
+      "span_bad": 45,
+      "code_ok": 154,
+      "code_bad": 91,
+      "r1_verdicts": {
+        "BAND": 169,
+        "ACCEPT": 76
+      },
+      "judged": 245,
+      "menu": "off",
+      "menu_shown": 0,
+      "menu_missing": 0,
+      "best_is_pick": 0,
+      "t0": 1788794844.4824407,
+      "usd": 0.0,
+      "seconds": 0.04,
+      "wall_s": 0.04
+    },
+    "6": {
+      "mode": "simulated",
+      "queue": 171,
+      "unreviewable": 0,
+      "human_minutes": 342.0,
+      "minutes_source": "simulated",
+      "minutes_per_record": 2.0,
+      "seconds": 0.005,
+      "wall_s": 0.005
+    },
+    "1": {
+      "seconds": 0.055,
+      "wall_s": 0.055
+    },
+    "5": {
+      "seconds": 0.006,
+      "wall_s": 0.006
+    }
+  }
+}

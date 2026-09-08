@@ -53,13 +53,25 @@ import shutil
 import sys
 
 SRC_DIRS = ["out/matrix", "out/matrix-test", "out/overnight"]
-DEST = pathlib.Path("out/published")
+# runs/archive/, following the convention runs/archive/README.md already sets:
+# tracked, documented, and "ledger rows, provenance and aggregate blocks only.
+# No corpus text." Two publishing schemes in one repo would be worse than
+# either, and the other owner's came first.
+DEST = pathlib.Path("runs/archive/matrix-2026-09-07")
 
 #: Fields that quote the corpus. Removed from every published record, for every
 #: corpus — not only CADEC. Uniform because a rule with an exception is a rule
 #: somebody applies wrongly, and the stripped file scores identically.
 QUOTING_FIELDS = ("text", "context", "span_untrimmed", "source", "sentence",
-                  "snippet", "passage")
+                  "snippet", "passage",
+                  # `candidates` is the shortlist rung 0 retrieved — 3,095 of a
+                  # 4,111-byte record, 75% of every published file. It carries
+                  # SNOMED concept LABELS, which is a vocabulary licence
+                  # question rather than a corpus one and was not considered
+                  # when this list was written. Scoring never reads it.
+                  "candidates",
+                  # The per-rung audit trace. Diagnostic, not scoreable.
+                  "r1_audit")
 
 #: Corpora whose licence permits redistribution, so their FULL records may be
 #: published alongside the stripped ones.
@@ -119,6 +131,18 @@ def publish(dry: bool) -> int:
             continue
         for cell in sorted(p for p in root.rglob("*") if p.is_dir()):
             files = list(cell.glob("*"))
+            # ONE RUN PER CELL. A cell re-run after a fix holds both, and only
+            # the newest was ever scored — `score_matrix.py` reported the
+            # PREVIOUS run's numbers for a day because its glob took the first
+            # match. Publishing both would ship the same ambiguity.
+            recs = [f for f in files if f.name.endswith(".records.jsonl")
+                    and not re.search(r"\.r\d+\.records\.jsonl$", f.name)]
+            if len(recs) > 1:
+                newest = max(recs, key=lambda f: f.stat().st_mtime)
+                stem = newest.name.replace(".records.jsonl", "")
+                files = [f for f in files
+                         if not f.name.endswith(".records.jsonl")
+                         or f.name.startswith(stem)]
             if not any(f.name.endswith(".results.csv") for f in files):
                 continue
             corpus = corpus_of(cell.name)
@@ -130,7 +154,7 @@ def publish(dry: bool) -> int:
                 "corpus": corpus,
                 "records": ("none — the finding is in results.csv"
                             if corpus in RECORDS_NOT_WORTH_SHIPPING
-                            else "full" if free else "stripped"),
+                            else "stripped"),   # every corpus, one rule
                 "licence": REDISTRIBUTABLE.get(corpus,
                           NON_TRANSFERABLE.get(corpus, "unknown — treated as non-transferable")),
             })
@@ -152,6 +176,13 @@ def publish(dry: bool) -> int:
                     # nobody wants to clone. The final file scores identically.
                     stats["skipped"] += 1
                 elif f.name.endswith(".records.jsonl"):
+                    # STRIPPED FOR EVERY CORPUS. Six of the seven permit
+                    # redistribution and their full records would be more
+                    # useful — see "Publishing full records" in
+                    # docs/TODO-provenance.md, kept as a deliberate deferral
+                    # rather than an oversight. One rule wins here because the
+                    # conditional version ("full text unless CADEC") is the
+                    # kind that gets applied wrongly later.
                     if corpus in RECORDS_NOT_WORTH_SHIPPING:
                         # FiNER's entire result is 0.0% ACCEPT on five model
                         # families, and that lives in results.csv. Its records
@@ -160,10 +191,6 @@ def publish(dry: bool) -> int:
                         # for a corpus nobody will re-examine. The finding is
                         # fully reproducible without them.
                         stats["skipped"] += 1
-                    elif free:
-                        stats["full"] += 1
-                        if not dry:
-                            shutil.copy2(f, out / f.name)
                     else:
                         stats["stripped"] += 1
                         if not dry:
@@ -174,7 +201,11 @@ def publish(dry: bool) -> int:
                                     kept.append(c)
                             (out / f.name.replace(".records.jsonl",
                                                   ".records.stripped.jsonl")
-                             ).write_text("\n".join(kept) + "\n")
+                             # "\n".join + "\n" leaves a trailing blank
+                             # line, and json.loads raises on it. A published
+                             # file the repo's own scorer cannot read is not
+                             # published.
+                             ).write_text("".join(l + "\n" for l in kept))
                 else:
                     # .calls.jsonl, .ledger.jsonl, .state.jsonl — the model
                     # quoting the corpus back verbatim, and bulky. Never

@@ -1,0 +1,66 @@
+{
+  "run_id": "test_model_20260907-213913",
+  "split": "test",
+  "order": [
+    0,
+    1
+  ],
+  "missing_rungs": [],
+  "n_records": 145,
+  "n_documents": 60,
+  "llm_cache": "/root/ai-reliability-ladder/.llm_cache",
+  "models": {
+    "0": "ollama/llama3.1:8b"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": null,
+    "branch": null,
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": null,
+    "branch": null,
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-07T21:39:13Z",
+  "finished_utc": "2026-09-07T22:11:00Z",
+  "rungs": {
+    "0": {
+      "documents": 60,
+      "records": 145,
+      "tokens_in": 357759,
+      "tokens_out": 159225,
+      "tool_calls": 0,
+      "api_calls": 182,
+      "parse_failed": 26,
+      "usd": 0.0,
+      "pick_parse_failed": 14,
+      "truncated": 38,
+      "multi_code": 0,
+      "timed_out": 0,
+      "refused": 0,
+      "shape_coerced": 0,
+      "code_unknown": 0,
+      "no_pick": 49,
+      "bad_pick": 108,
+      "declined_shortlist": 5,
+      "trimmed": 15,
+      "pick_fallback": 276,
+      "split": 1,
+      "dropped_ungrounded": 560,
+      "dropped_fragment": 0,
+      "dropped_duplicate": 55,
+      "dropped_datelike": 0,
+      "t0": 1788817154.2022922,
+      "seconds": 1905.94,
+      "wall_s": 1906.457
+    },
+    "1": {
+      "seconds": 0.053,
+      "wall_s": 0.053
+    }
+  }
+}
