@@ -51,3 +51,16 @@ def test_the_figure_script_reads_the_report_and_carries_no_hand_typed_counts():
     assert "shipping_rules" in src
     for literal in ("88, 28, 23, 91", "39, 2, 0, 12", "100, 0.39, 155000", "22, 0.77, 0"):
         assert literal not in src, f"hand-typed data still in the figure script: {literal}"
+
+
+def test_the_shipped_set_figure_does_not_restate_the_table():
+    """The article's table already carries ships and F1 per rule as three-run
+    means. The figure is the first run alone, so a per-row 'ships N · F1 x'
+    annotation duplicated the table with different numbers (230 against 233,
+    0.397 against 0.405) and left the reader to reconcile them. The figure
+    keeps only what the table cannot show, the withheld records and how many
+    of them were correct, and says 'first run' in its title."""
+    src = FIGS.read_text()
+    assert 'f"ships {ships}' not in src
+    assert "F1 {f:.3f}" not in src
+    assert 'set_title("What ships under each rule, first run' in src
