@@ -525,7 +525,7 @@ none of it. The numbers in the sections above are measured on CADEC v2 and FiNER
 *Beyond the article's scope, and the reason to trust what is above it.* Between
 2026-09-01 and 2026-09-07 the two claims — that the free check is worth its
 nothing, and that the paid layers are not worth their tokens — were re-run on
-five further corpora across four model families.
+five further corpora across five model families.
 
 | corpus | domain | vocabulary | licence | lane fires | of that, correct |
 |---|---|---|---|---|---|
@@ -539,7 +539,12 @@ five further corpora across four model families.
 | **FiNER-139** | SEC filings | 139 XBRL tags | CC-BY-SA-4.0 | **0.0%** | — |
 
 Ranges are across `gpt-oss:20b`, `llama3.1:8b`, `mistral:7b-instruct` and
-`ibm/granite4:micro-h` — 4B to 20B — one draw each on the dev split, rungs 0–1.
+`ibm/granite4:micro-h` and `qwen3:8b` — 4B to 20B, four architectures —
+one draw each on the dev split, rungs 0–1. Every cell is published:
+[`runs/archive/matrix-2026-09-07/`](runs/archive/matrix-2026-09-07/)
+holds all 59, stripped of quoted text and **scoring identically** —
+`scripts/score_matrix.py --dir runs/archive/matrix-2026-09-07/matrix`
+reproduces the numbers above from the repository alone.
 Three draws were measured byte-identical on three corpora, so a single draw is a
 measurement rather than a sample. **CADEC's row is a reference and not a row of
 the same table:** it was produced on different hardware, and floating point
@@ -575,8 +580,10 @@ Three questions at three moments. Two live here; one is its own repo.
 dependencies, MIT. It records the two things a pipeline usually does not: the
 bet a stage makes, and the records it could not judge.
 
-**`gatecheck` and `crosscheck` are one evening old** and have known false
-positives; they are in `scripts/` rather than packaged, and the boundary between
+**`gatecheck` and `crosscheck` are newer** — 52 tests between them, each written
+from a defect that reached a rented card first, and each made to FAIL on that
+defect before being confirmed to pass on the fix. They live in `ladder/checks/`
+with thin CLI wrappers, rather than packaged separately; the boundary between
 them and `stagecheck` is described in
 [`docs/three-checks.md`](docs/three-checks.md).
 
