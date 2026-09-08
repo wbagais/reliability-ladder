@@ -2,15 +2,17 @@
 
 *Wejdan Bagais and Pushpdeep Mishra*
 
+<!-- Submission rules for this file (word budget, takeaways, captions, Word export): docs/INFOQ-SUBMISSION.md. tests/test_infoq_article.py enforces the mechanical ones. -->
+
 ---
 
 ## Key takeaways
 
-- Reliability layers do not make a model more accurate; they tell you which answers to trust. Plan for who handles what they refuse.
-- Start with a check that costs nothing: matching answers' words against the vocabulary split them into groups 83 and 28 percent right; three paid layers changed one answer.
-- Ask the model to read, never to remember: it picked well from a menu but invented 13 to 18 percent of the codes asked of it.
-- Make repeat runs a validation step: rerun the same inputs, measure how far the answers move, and set the difference you accept; ours agreed on 70 percent at temperature 0.
-- Measure correct answers over all inputs, not only those the system chose to answer; refusing always makes the remaining answers look more accurate.
+- Reliability layers do not make a model more accurate; they tell you which answers to trust, so judge them on correct answers over all inputs.
+- Start with a check that costs nothing: matching answers' words to the vocabulary's own names sorted them by trustworthiness; three paid layers together changed one answer.
+- Ask the model to read, never to remember: it picked well from a menu but invented 13 to 18 percent of codes asked of it.
+- Make repeat runs a validation step: rerun the same inputs, measure how far answers move, set the difference you accept; ours agreed 70 percent at temperature 0.
+- Study the data before adding layers: our biggest gains came from learning the corpus's annotation conventions, not medicine; no layer recovers what the model failed to read.
 
 ---
 
@@ -75,7 +77,7 @@ We arrived at this shape by measuring the alternatives, 40 development documents
 | tokens per run | 141,000–147,000 | 82,000 | 155,000–162,000 |
 | replies that would not parse | 3 of 40, every run | 1 · 0 · 0 | 0 |
 
-The first column is not weak but broken: eight to twelve times worse than the second, for 1.7 times the tokens. It answered `null` on up to 38 percent of records, and of the codes it committed to, 13 to 18 percent exist in no SNOMED release. **An abstention hatch reduces fabrication; it does not remove it.**
+The first column is not weak but broken: eight to twelve times worse than the second. It answered `null` on up to 38 percent of records, and of the codes it committed to, 13 to 18 percent exist in no SNOMED release. **An abstention hatch reduces fabrication; it does not remove it.**
 
 One convention holds throughout: F1 is *span-exact*, so quoting `"extreme rectal bleed"` where the annotators wrote `"rectal bleed"` counts as a false positive and a false negative.
 
@@ -85,7 +87,7 @@ Above this sit the six layers; the judge is a different model family from the ex
 
 **Three identical runs of the unchanged system differed by four points of F1, at temperature zero.**
 
-We ran the extraction step three times, cold, on the same 40 documents, at temperature 0. Two were byte-identical; the third diverged from its fifth request on: 87, 87 and 98 correct of 226, four points of F1. The third still agreed with the pair on 70 percent of mentions outright, and on 84 percent of codes where all three found the same span; the remainder was worth those four points.
+We ran the extraction step three times, cold, on the same 40 documents, at temperature 0. Two were byte-identical; the third diverged from its fifth request on: 87, 87 and 98 correct of 226, four points of F1. It still agreed with the pair on 70 percent of mentions outright, and on 84 percent of codes where all three found the same span; the remainder was worth those four points.
 
 The case that taught us was a menu reranker. A paired bootstrap over documents excluded zero; on the second run the gain was smaller, and on the third the sign reversed. The test answers *would this hold on different documents?*, never *on a different run?*, and here the run-to-run term is the larger one.
 
@@ -172,7 +174,7 @@ One limit is structural. **Every layer operates on records the extractor already
 
 **Every layer passed its own tests. The failures were between them, and in a metric that could not see them.**
 
-Only one verdict travels through the ladder, the vocabulary check's; self-correction, voting and the judge each write a field that nothing reads. No test caught this, because every layer does what it says.
+Only one verdict travels through the ladder, the vocabulary check's; self-correction, voting and the judge each write a field that nothing reads.
 
 Then the metric. Voting overwrote codes without re-validating, so records shipped marked *verified* for a code they no longer held. Fixing that moved exact F1 from 0.204 to 0.204: precision and recall cannot tell an unwarranted answer from a wrong one. **We built six layers to decide which answers to trust, then scored them with a metric that cannot see the difference.**
 
@@ -182,7 +184,7 @@ Then the metric. Voting overwrote codes without re-validating, so records shippe
 
 - **Understand the data before you add a layer.** Our two largest gains came from studying the corpus.
 - **Condition your confidence on something that does not resample**: a vocabulary, a schema, a compiler. Then test it against the answer key, where every rejection is false by construction.
-- **Measure your floor before you measure an improvement.** Three runs minimum, all reported; run any go/no-go probe on the denominator the change will be scored on.
+- **Measure your floor before you measure an improvement.** Three runs minimum, all reported, and decide what difference you will accept; run any go/no-go probe on the denominator the change will be scored on.
 - **Grep for the readers of every field you write.** Forty lines of regex found three unread verdicts; months of green tests had not.
 - **Check that your metric can see the defect you are preventing.** Print yield beside accuracy; a layer that withdraws answers looks good on the wrong column.
 
