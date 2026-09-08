@@ -64,3 +64,25 @@ def test_the_shipped_set_figure_does_not_restate_the_table():
     assert 'f"ships {ships}' not in src
     assert "F1 {f:.3f}" not in src
     assert 'set_title("What ships under each rule, first run' in src
+
+
+def test_the_article_dial_table_is_the_first_run_like_the_figure_above_it():
+    """Until 2026-09-07 the table under Figure 2 gave three-run means while the
+    figure, the ceiling lines and the 'moving from the top row' paragraph were
+    all the first run, so the same rule read ships 230 in the figure and 233
+    in the table. One basis: the first run, the article's own per-run
+    convention, with the other runs in the layer table above."""
+    art = (ROOT / "docs" / "article-infoq-CADEC.md").read_text()
+    lines = art.splitlines()
+    head = next(i for i, l in enumerate(lines) if l.startswith("| ship only when"))
+    rows = lines[head + 2:head + 9]
+    assert all(l.startswith("| ") for l in rows) and not lines[head + 9].startswith("|")
+    d0 = {r["rule"]: r for r in json.loads(REPORT.read_text())["draws"]["rerun-cadec-d0"]["shipping_rules"]}
+    order = ["everything_after_r3", "accept", "accept_contained", "r3_unanimous",
+             "r3_two_agree", "r4_blind_pass", "r4_menu_pass"]
+    for line, rule in zip(rows, order):
+        cells = [c.strip().strip("*") for c in line.strip("|").split("|")][1:7]
+        r = d0[rule]
+        assert cells == [str(r["ships"]), str(r["to_person"]), str(r["correct"]),
+                         f"{r['accuracy']:.2f}", f"{r['yield']:.3f}", f"{r['f1']:.3f}"], (rule, cells)
+    assert "First development run" in art.split("| the menu-shown judge passes")[1][:600]
