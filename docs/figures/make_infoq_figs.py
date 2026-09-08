@@ -42,7 +42,7 @@ plt.rcParams.update({"font.family": ["Helvetica", "Arial", "DejaVu Sans"],
                      "axes.labelcolor": INK, "xtick.color": INK, "ytick.color": INK})
 
 # ---------- Graphviz tables ----------
-for name in ("infoq-fig1-ladder", "infoq-fig3-funnel", "infoq-fig4-flow"):
+for name in ("infoq-fig1-ladder", "infoq-fig3-funnel", "infoq-fig4-flow", "fig7-pipeline-cadec"):
     subprocess.run(["dot", "-Tpng", "-Gdpi=200", str(HERE / f"{name}.dot"),
                     "-o", str(HERE / f"{name}.png")], check=True)
 
