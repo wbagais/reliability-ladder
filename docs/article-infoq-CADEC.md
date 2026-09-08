@@ -213,6 +213,6 @@ Code, ledger, decision records and every figure's source: **github.com/wbagais/r
 
 ## About the authors
 
-**Wejdan Bagais** and **Pushpdeep Mishra**.
+**Wejdan Bagais** is Senior Manager, AI Engineering at US Pharmacopeia (USP), the standards body for medicine quality, where she leads the team building LLM pipelines that turn scientific documents into structured, auditable data. She specialises in reliability for AI in regulated settings: evaluation methodology, provenance, and the line between what a model decides and what deterministic code enforces. She has spent seven years shipping machine learning in healthcare and pharmaceutical quality, and holds an M.S. in Health Informatics from George Mason University.
 
-<!-- two bios to be supplied, about 75 words each -->
+**Pushpdeep Mishra** <!-- bio to be supplied, about 75 words -->
