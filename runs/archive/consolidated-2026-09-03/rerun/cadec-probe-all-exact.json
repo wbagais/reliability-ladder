@@ -1,0 +1,315 @@
+{
+  "n_records": 8666,
+  "corruptions": {
+    "hallucinated_code": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 8663,
+      "banded": 3,
+      "accepted": 0,
+      "detection_rate": 0.99965,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "code_unknown": 8659,
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 1657,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7006,
+          "banded": 3,
+          "accepted": 0,
+          "detection_rate": 0.99957
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "wrong_type_code": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 7009,
+      "banded": 1657,
+      "accepted": 0,
+      "detection_rate": 0.80879,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "wrong_semantic_type": 7005,
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 0,
+          "banded": 1657,
+          "accepted": 0,
+          "detection_rate": 0.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7009,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "span_shift": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 8666,
+      "banded": 0,
+      "accepted": 0,
+      "detection_rate": 1.0,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "span_ungrounded": 8666
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 1657,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7009,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "span_fabricate": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 8666,
+      "banded": 0,
+      "accepted": 0,
+      "detection_rate": 1.0,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "span_ungrounded": 8666
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 1657,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7009,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "plausible_wrong": {
+      "n": 8665,
+      "skipped": 1,
+      "rejected": 4,
+      "banded": 8661,
+      "accepted": 0,
+      "detection_rate": 0.00046,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 0,
+          "banded": 1657,
+          "accepted": 0,
+          "detection_rate": 0.0
+        },
+        "reaction": {
+          "n": 7008,
+          "rejected": 4,
+          "banded": 7004,
+          "accepted": 0,
+          "detection_rate": 0.00057
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "sibling_wrong": {
+      "n": 6681,
+      "skipped": 1985,
+      "rejected": 4,
+      "banded": 6669,
+      "accepted": 8,
+      "detection_rate": 0.0006,
+      "wrongly_accepted_rate": 0.0012,
+      "reasons": {
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 189,
+          "rejected": 0,
+          "banded": 189,
+          "accepted": 0,
+          "detection_rate": 0.0
+        },
+        "reaction": {
+          "n": 6492,
+          "rejected": 4,
+          "banded": 6480,
+          "accepted": 8,
+          "detection_rate": 0.00062
+        }
+      },
+      "examples_wrongly_accepted": [
+        {
+          "text": "knee pain",
+          "gold": [
+            "30989003"
+          ],
+          "gold_term": "Knee pain",
+          "planted": "1003722009",
+          "planted_term": "Pain of knee region"
+        },
+        {
+          "text": "sweats",
+          "gold": [
+            "224962007"
+          ],
+          "gold_term": "Hot sweats",
+          "planted": "415690000",
+          "planted_term": "Sweating"
+        },
+        {
+          "text": "Blurred vision",
+          "gold": [
+            "246636008"
+          ],
+          "gold_term": "Hazy vision",
+          "planted": "111516008",
+          "planted_term": "Blurring of visual image"
+        },
+        {
+          "text": "blurred vision",
+          "gold": [
+            "246636008"
+          ],
+          "gold_term": "Hazy vision",
+          "planted": "111516008",
+          "planted_term": "Blurring of visual image"
+        },
+        {
+          "text": "knee pain",
+          "gold": [
+            "30989003"
+          ],
+          "gold_term": "Knee pain",
+          "planted": "1003722009",
+          "planted_term": "Pain of knee region"
+        },
+        {
+          "text": "sweats",
+          "gold": [
+            "224962007"
+          ],
+          "gold_term": "Hot sweats",
+          "planted": "415690000",
+          "planted_term": "Sweating"
+        }
+      ]
+    },
+    "meddra_hallucinated": {
+      "n": 5983,
+      "skipped": 2683,
+      "rejected": 10,
+      "banded": 3868,
+      "accepted": 2105,
+      "detection_rate": 0.00167,
+      "wrongly_accepted_rate": 0.35183,
+      "reasons": {
+        "span_ungrounded": 4,
+        "code_unknown": 3,
+        "wrong_semantic_type": 3
+      },
+      "by_entity_type": {
+        "reaction": {
+          "n": 5983,
+          "rejected": 10,
+          "banded": 3868,
+          "accepted": 2105,
+          "detection_rate": 0.00167
+        }
+      },
+      "examples_wrongly_accepted": [
+        {
+          "text": "vaginal bleeding",
+          "gold": [
+            "289530006"
+          ],
+          "gold_term": "Bleeding from vagina",
+          "planted": "289530006",
+          "planted_term": "Bleeding from vagina"
+        },
+        {
+          "text": "stomach pain",
+          "gold": [
+            "271681002"
+          ],
+          "gold_term": "Stomach ache",
+          "planted": "271681002",
+          "planted_term": "Stomach ache"
+        },
+        {
+          "text": "headache",
+          "gold": [
+            "25064002"
+          ],
+          "gold_term": "Headache",
+          "planted": "25064002",
+          "planted_term": "Headache"
+        },
+        {
+          "text": "shortness of breath",
+          "gold": [
+            "267036007"
+          ],
+          "gold_term": "Dyspnea",
+          "planted": "267036007",
+          "planted_term": "Dyspnea"
+        },
+        {
+          "text": "depression",
+          "gold": [
+            "35489007"
+          ],
+          "gold_term": "Depressive disorder",
+          "planted": "35489007",
+          "planted_term": "Depressive disorder"
+        },
+        {
+          "text": "bleeding",
+          "gold": [
+            "131148009"
+          ],
+          "gold_term": "Bleeding",
+          "planted": "131148009",
+          "planted_term": "Bleeding"
+        }
+      ]
+    }
+  }
+}

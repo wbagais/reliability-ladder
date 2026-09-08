@@ -1,0 +1,502 @@
+=== 2026-09-03 02:47:05 rerun-cadec-d0 (manifest.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d0 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0.ledger.jsonl
+[run] rerun-cadec-d0  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      ) 1054.35s  routed  NEW=230
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=53  BAND=175  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )  10.49s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        ) 2114.39s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 279.42s  judged  fail=87  pass=136
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=177  VERIFIED=53
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=177  VERIFIED=53
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       53    175       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      177 0.23043
+   6  human loop           0      0       0        0 0.23043
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0.*
+=== 2026-09-03 03:44:45 rerun-cadec-d0-judgemenu (manifest.judgemenu.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d0 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0-judgemenu.ledger.jsonl
+[run] rerun-cadec-d0-judgemenu  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  16.15s  routed  NEW=230
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=53  BAND=175  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  44.57s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 361.74s  judged  fail=94  pass=136
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=177  VERIFIED=53
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=177  VERIFIED=53
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       53    175       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      177 0.23043
+   6  human loop           0      0       0        0 0.23043
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0-judgemenu.*
+=== 2026-09-03 03:51:49 rerun-cadec-d0-judgeshuffle (manifest.judgeshuffle.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d0 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0-judgeshuffle.ledger.jsonl
+[run] rerun-cadec-d0-judgeshuffle  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  15.00s  routed  NEW=230
+[run] rung 1 (deterministic )   0.03s  judged  ACCEPT=53  BAND=175  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  39.83s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 358.90s  judged  fail=87  pass=143
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=177  VERIFIED=53
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=177  VERIFIED=53
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       53    175       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      177 0.23043
+   6  human loop           0      0       0        0 0.23043
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0-judgeshuffle.*
+=== 2026-09-03 03:58:43 rerun-cadec-d0-lexarm (manifest.lexarm.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d0 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0-lexarm.ledger.jsonl
+[run] rerun-cadec-d0-lexarm  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  15.09s  routed  NEW=230
+[run] rung 1 (deterministic )   0.03s  judged  ACCEPT=91  BAND=137  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  40.27s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     )   0.04s  judged  fail=87  pass=136
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=139  VERIFIED=91
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=139  VERIFIED=91
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       91    137       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      139 0.39565
+   6  human loop           0      0       0        0 0.39565
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d0-lexarm.*
+=== 2026-09-03 03:59:40 DRAW 0 cadec DONE ===
+=== 2026-09-03 03:59:40 rerun-cadec-d1 (manifest.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d1 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1.ledger.jsonl
+[run] rerun-cadec-d1  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      ) 1072.04s  routed  NEW=230
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=53  BAND=175  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )  10.45s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        ) 2240.81s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 280.14s  judged  fail=89  pass=137
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=177  VERIFIED=53
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=177  VERIFIED=53
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       53    175       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      177 0.23043
+   6  human loop           0      0       0        0 0.23043
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1.*
+=== 2026-09-03 04:59:44 rerun-cadec-d1-judgemenu (manifest.judgemenu.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d1 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1-judgemenu.ledger.jsonl
+[run] rerun-cadec-d1-judgemenu  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  16.10s  routed  NEW=230
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=53  BAND=175  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  47.26s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 363.59s  judged  fail=88  pass=142
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=177  VERIFIED=53
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=177  VERIFIED=53
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       53    175       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      177 0.23043
+   6  human loop           0      0       0        0 0.23043
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1-judgemenu.*
+=== 2026-09-03 05:06:52 rerun-cadec-d1-judgeshuffle (manifest.judgeshuffle.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d1 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1-judgeshuffle.ledger.jsonl
+[run] rerun-cadec-d1-judgeshuffle  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  14.55s  routed  NEW=230
+[run] rung 1 (deterministic )   0.03s  judged  ACCEPT=53  BAND=175  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  42.82s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 361.41s  judged  fail=86  pass=144
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=177  VERIFIED=53
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=177  VERIFIED=53
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       53    175       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      177 0.23043
+   6  human loop           0      0       0        0 0.23043
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1-judgeshuffle.*
+=== 2026-09-03 05:13:52 rerun-cadec-d1-lexarm (manifest.lexarm.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d1 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1-lexarm.ledger.jsonl
+[run] rerun-cadec-d1-lexarm  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  14.88s  routed  NEW=230
+[run] rung 1 (deterministic )   0.03s  judged  ACCEPT=91  BAND=137  REJECT=2
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=229
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  43.49s  routed  BAND=1  NEW=229
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     )   0.04s  judged  fail=89  pass=137
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=139  VERIFIED=91
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=139  VERIFIED=91
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       91    137       2        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      139 0.39565
+   6  human loop           0      0       0        0 0.39565
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d1-lexarm.*
+=== 2026-09-03 05:14:51 DRAW 1 cadec DONE ===
+=== 2026-09-03 05:14:51 rerun-cadec-d2 (manifest.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d2 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2.ledger.jsonl
+[run] rerun-cadec-d2  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      ) 931.61s  routed  NEW=238
+[run] rung 1 (deterministic )   0.09s  judged  ACCEPT=51  BAND=184  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )  12.65s  routed  BAND=1  NEW=237
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        ) 2253.35s  routed  BAND=1  NEW=237
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 290.30s  judged  fail=89  pass=142
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=187  VERIFIED=51
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=187  VERIFIED=51
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       51    184       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      187 0.21429
+   6  human loop           0      0       0        0 0.21429
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2.*
+=== 2026-09-03 06:13:00 rerun-cadec-d2-judgemenu (manifest.judgemenu.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d2 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2-judgemenu.ledger.jsonl
+[run] rerun-cadec-d2-judgemenu  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  16.52s  routed  NEW=238
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=51  BAND=184  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=237
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  45.97s  routed  BAND=1  NEW=237
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 378.56s  judged  fail=92  pass=146
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=187  VERIFIED=51
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=187  VERIFIED=51
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       51    184       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      187 0.21429
+   6  human loop           0      0       0        0 0.21429
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2-judgemenu.*
+=== 2026-09-03 06:20:22 rerun-cadec-d2-judgeshuffle (manifest.judgeshuffle.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d2 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2-judgeshuffle.ledger.jsonl
+[run] rerun-cadec-d2-judgeshuffle  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  16.13s  routed  NEW=238
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=51  BAND=184  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=237
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  44.82s  routed  BAND=1  NEW=237
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 376.25s  judged  fail=90  pass=148
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=187  VERIFIED=51
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=187  VERIFIED=51
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       51    184       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      187 0.21429
+   6  human loop           0      0       0        0 0.21429
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2-judgeshuffle.*
+=== 2026-09-03 06:27:41 rerun-cadec-d2-lexarm (manifest.lexarm.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-d2 ===
+[run] gold exclusions applied: 414
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2-lexarm.ledger.jsonl
+[run] rerun-cadec-d2-lexarm  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )  15.93s  routed  NEW=238
+[run] rung 1 (deterministic )   0.11s  judged  ACCEPT=90  BAND=145  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  BAND=1  NEW=237
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )  44.88s  routed  BAND=1  NEW=237
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     )   0.03s  judged  fail=89  pass=142
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=148  VERIFIED=90
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=148  VERIFIED=90
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic       90    145       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      1       0        0    1.0
+   3  voting               0      1       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      148 0.37815
+   6  human loop           0      0       0        0 0.37815
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/rerun-cadec-d2-lexarm.*
+=== 2026-09-03 06:28:43 DRAW 2 cadec DONE ===
+=== 2026-09-03 06:28:43 rerun-finer-d0 (manifest.finer.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d0 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d0.ledger.jsonl
+[run] rerun-finer-d0  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      ) 2211.65s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        ) 5381.51s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 567.37s  judged  fail=251  pass=45
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d0.*
+=== 2026-09-03 08:44:47 rerun-finer-d0-judgemenu (manifest.finer.judgemenu.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d0 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d0-judgemenu.ledger.jsonl
+[run] rerun-finer-d0-judgemenu  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )   1.34s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )   1.42s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 1410.55s  judged  fail=112  pass=190
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d0-judgemenu.*
+=== 2026-09-03 09:08:23 rerun-finer-d0-judgeshuffle (manifest.finer.judgeshuffle.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d0 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d0-judgeshuffle.ledger.jsonl
+[run] rerun-finer-d0-judgeshuffle  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )   1.39s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )   1.41s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 1421.75s  judged  fail=115  pass=186
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d0-judgeshuffle.*
+=== 2026-09-03 09:32:10 DRAW 0 finer DONE ===
+=== 2026-09-03 09:32:10 rerun-finer-d1 (manifest.finer.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d1 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d1.ledger.jsonl
+[run] rerun-finer-d1  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      ) 2310.43s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        ) 5283.41s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 566.78s  judged  fail=249  pass=47
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d1.*
+=== 2026-09-03 11:48:13 rerun-finer-d1-judgemenu (manifest.finer.judgemenu.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d1 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d1-judgemenu.ledger.jsonl
+[run] rerun-finer-d1-judgemenu  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )   1.33s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )   1.41s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 1422.54s  judged  fail=110  pass=192
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d1-judgemenu.*
+=== 2026-09-03 12:12:01 rerun-finer-d1-judgeshuffle (manifest.finer.judgeshuffle.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d1 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d1-judgeshuffle.ledger.jsonl
+[run] rerun-finer-d1-judgeshuffle  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )   1.31s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )   1.42s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 1442.18s  judged  fail=118  pass=183
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d1-judgeshuffle.*
+=== 2026-09-03 12:36:09 DRAW 1 finer DONE ===
+=== 2026-09-03 12:36:09 rerun-finer-d2 (manifest.finer.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d2 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d2.ledger.jsonl
+[run] rerun-finer-d2  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      ) 2335.66s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        ) 5509.66s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 604.96s  judged  fail=249  pass=46
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d2.*
+=== 2026-09-03 14:57:02 rerun-finer-d2-judgemenu (manifest.finer.judgemenu.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d2 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d2-judgemenu.ledger.jsonl
+[run] rerun-finer-d2-judgemenu  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )   1.38s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )   1.43s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 1494.67s  judged  fail=99  pass=204
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d2-judgemenu.*
+=== 2026-09-03 15:22:03 rerun-finer-d2-judgeshuffle (manifest.finer.judgeshuffle.json) cache=/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d2 ===
+[run] watch:  python3 scripts/ladder_top.py --file /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d2-judgeshuffle.ledger.jsonl
+[run] rerun-finer-d2-judgeshuffle  split=dev  records=0  order=[0, 1, 2, 3, 4, 5, 6]
+[run] rung 0 model=ollama/gpt-oss:20b (extractor)
+[run] rung 0 (bare LLM      )   1.34s  routed  NEW=304
+[run] rung 1 (deterministic )   0.09s  judged  BAND=301  REJECT=3
+[run] rung 2 model=ollama/gpt-oss:20b (extractor)
+[run] rung 2 (self-correct  )   0.00s  routed  NEW=304
+[run] rung 3 model=ollama/gpt-oss:20b (extractor)
+[run] rung 3 (voting        )   1.40s  routed  NEW=304
+[run] rung 4 model=ollama/ibm/granite4:micro-h (judge)
+[run] rung 4 (LLM judge     ) 1451.15s  judged  fail=106  pass=195
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+rung  layer           accept   band  reject  abstain    cov
+   0  bare LLM             0      0       0        0    1.0
+   1  deterministic        0    301       3        0    1.0   (rung 1 observe: judged, not routed)
+   2  self-correct         0      0       0        0    1.0
+   3  voting               0      0       0        0    1.0
+   4  LLM judge            0      0       0        0    1.0
+   5  abstention           0      0       0      304    0.0
+   6  human loop           0      0       0        0    0.0
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer/rerun-finer-d2-judgeshuffle.*
+=== 2026-09-03 15:46:19 DRAW 2 finer DONE ===
+=== 2026-09-03 15:46:19 ALL DRAWS DONE ===

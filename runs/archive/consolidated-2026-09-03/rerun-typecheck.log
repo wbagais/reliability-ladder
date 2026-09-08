@@ -1,0 +1,25 @@
+=== 2026-09-03 18:22:47 rerun-finer-d0-typecheck ===
+[run] rung 7 (type check    )   0.00s  routed  REJECT=35
+[run] rung 2 (self-correct  )  81.71s  routed  NEW=269  REJECT=35
+[run] rung 3 (voting        )   1.61s  routed  NEW=269  REJECT=35
+[run] rung 4 (LLM judge     )   0.07s  judged  fail=251  pass=45
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer-typecheck/rerun-finer-d0-typecheck.*
+=== 2026-09-03 18:24:13 rerun-finer-d1-typecheck ===
+[run] rung 7 (type check    )   0.00s  routed  REJECT=35
+[run] rung 2 (self-correct  )  52.62s  routed  NEW=269  REJECT=35
+[run] rung 3 (voting        )   1.67s  routed  NEW=269  REJECT=35
+[run] rung 4 (LLM judge     )   0.09s  judged  fail=249  pass=47
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer-typecheck/rerun-finer-d1-typecheck.*
+=== 2026-09-03 18:25:11 rerun-finer-d2-typecheck ===
+[run] rung 7 (type check    )   0.00s  routed  REJECT=35
+[run] rung 2 (self-correct  )  55.80s  routed  NEW=269  REJECT=35
+[run] rung 3 (voting        )   1.48s  routed  NEW=269  REJECT=35
+[run] rung 4 (LLM judge     )   0.07s  judged  fail=249  pass=46
+[run] rung 5 (abstention    )   0.00s  routed  ABSTAIN=304
+[run] rung 6 (human loop    )   0.00s  routed  ESCALATE=304
+wrote /Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/out/finer-typecheck/rerun-finer-d2-typecheck.*
+=== 2026-09-03 18:26:10 TYPECHECK DONE ===

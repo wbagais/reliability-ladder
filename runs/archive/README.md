@@ -24,3 +24,40 @@ document IDs, codes, token counts and latencies. `scripts/preflight.py` passes.
 | `otel-smoke.jsonl` | the one hand-made row from the deleted `ladder/otel.py` |
 
 Timestamps in the filenames are the run ids, not dates.
+
+## `consolidated-2026-09-03/` — the run behind every dev-side article number
+
+Added 2026-09-07. The consolidated re-run (plan item 0b, protocol
+`scripts/consolidated_rerun.sh`; S0/S1 draws `scripts/rerun_steps.sh`; the
+FiNER type-check arm `scripts/rerun_typecheck.sh`; the driver
+`scripts/rerun_all.sh`) produced 36 runs on the dev split. The raw run — records,
+state rows, call traces — carries corpus text and stays under the gitignored
+`out/` (archived with the call traces at the main checkout's
+`out/archive/reliability-ladder-b2-menu-f77617/`). What is tracked here is the
+corpus-free four per run, plus the reports derived from the full artifacts:
+
+| path | what |
+|---|---|
+| `rerun-cadec-d{0,1,2}.*` | CADEC base draws, rungs 0–6 |
+| `rerun-cadec-d*-{judgemenu,judgeshuffle,lexarm}.*` | the arms, replayed on the draw's cache |
+| `rerun-cadec-d*-spine.*` | rungs 5–6 replayed over the r1 snapshot, zero model calls |
+| `rerun-cadec-s{0,1}-d*.*` | S0 and S1 re-measured, rung 0 only |
+| `finer/rerun-finer-d*[-arm].*` | the same for FiNER-139 (no lexarm) |
+| `finer-typecheck/rerun-finer-d*-typecheck.*` | the type-check arm (rung 7, then 2–6) |
+| `rerun/cadec.{md,json}` | `scripts/rerun_analysis.py` over the three base draws and arms — the 2026-09-04 regeneration with the gold-lane occupancy section, the version `docs/article-v3-CADEC.md` was audited against |
+| `rerun/cadec-probe-{all,dev}-{exact,contained}.json` | `python -m ladder.probe`, the corruption probe |
+| `rerun/cadec-s{0,1}.{md,json}`, `rerun/finer.{md,json}` | the S0/S1 and FiNER reports |
+| `rerun-*.log` | the drivers' logs: timings, cache paths, per-rung summaries |
+
+Per run: `.aggregates.json` (per-rung aggregate, models, cache dir, git sha and
+dirty flag), `.ledger.jsonl` (one row per record per rung: ids, zone, verdict,
+reason, tokens, latency, usd, human minutes), `.results.csv` (the per-rung
+summary table) and `.manifest.json` (the configuration as run). The `text`
+values in `rerun/*.json` are the model's extracted spans — annotated spans and
+vocabulary labels, which is the licence rule for examples; never post prose.
+`tests/test_runs_archive.py` pins the 36 run ids, refuses records/state/calls
+files here, checks every ledger row for text-carrying keys and runs the
+preflight scan over the directory.
+
+**Re-deriving the reports needs the raw run and the corpus**; these files let
+a reader open every number's source, not recompute it from git alone.

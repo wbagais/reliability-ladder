@@ -14,7 +14,7 @@
 > model run is quoted. The replays of rung 1 over the answer key in section 4 —
 > lane occupancy, and the planted corruptions — involve no model; they were
 > re-run on the base run's configuration and denominator on 2026-09-04
-> (`out/rerun/cadec.md`, `cadec-probe-*.json`) and are quoted from that
+> (`runs/archive/consolidated-2026-09-03/rerun/cadec.md`, `cadec-probe-*.json`) and are quoted from that
 > replay. Where an earlier experiment is mentioned it
 > is named as such, without its figures; those live in the decisions log. What
 > remains open is listed in section 10.

@@ -1,0 +1,334 @@
+{
+  "n_records": 8666,
+  "corruptions": {
+    "hallucinated_code": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 8663,
+      "banded": 3,
+      "accepted": 0,
+      "detection_rate": 0.99965,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "code_unknown": 8659,
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 1657,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7006,
+          "banded": 3,
+          "accepted": 0,
+          "detection_rate": 0.99957
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "wrong_type_code": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 7009,
+      "banded": 1657,
+      "accepted": 0,
+      "detection_rate": 0.80879,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "wrong_semantic_type": 7005,
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 0,
+          "banded": 1657,
+          "accepted": 0,
+          "detection_rate": 0.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7009,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "span_shift": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 8666,
+      "banded": 0,
+      "accepted": 0,
+      "detection_rate": 1.0,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "span_ungrounded": 8666
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 1657,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7009,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "span_fabricate": {
+      "n": 8666,
+      "skipped": 0,
+      "rejected": 8666,
+      "banded": 0,
+      "accepted": 0,
+      "detection_rate": 1.0,
+      "wrongly_accepted_rate": 0.0,
+      "reasons": {
+        "span_ungrounded": 8666
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 1657,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        },
+        "reaction": {
+          "n": 7009,
+          "rejected": 7009,
+          "banded": 0,
+          "accepted": 0,
+          "detection_rate": 1.0
+        }
+      },
+      "examples_wrongly_accepted": []
+    },
+    "plausible_wrong": {
+      "n": 8665,
+      "skipped": 1,
+      "rejected": 4,
+      "banded": 8659,
+      "accepted": 2,
+      "detection_rate": 0.00046,
+      "wrongly_accepted_rate": 0.00023,
+      "reasons": {
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 1657,
+          "rejected": 0,
+          "banded": 1657,
+          "accepted": 0,
+          "detection_rate": 0.0
+        },
+        "reaction": {
+          "n": 7008,
+          "rejected": 4,
+          "banded": 7002,
+          "accepted": 2,
+          "detection_rate": 0.00057
+        }
+      },
+      "examples_wrongly_accepted": [
+        {
+          "text": "pain",
+          "gold": [
+            "22253000"
+          ],
+          "gold_term": "Pain",
+          "planted": "4568003",
+          "planted_term": "Retrosternal pain"
+        },
+        {
+          "text": "pain",
+          "gold": [
+            "22253000"
+          ],
+          "gold_term": "Pain",
+          "planted": "9209005",
+          "planted_term": "Acute abdomen"
+        }
+      ]
+    },
+    "sibling_wrong": {
+      "n": 6681,
+      "skipped": 1985,
+      "rejected": 4,
+      "banded": 5409,
+      "accepted": 1268,
+      "detection_rate": 0.0006,
+      "wrongly_accepted_rate": 0.18979,
+      "reasons": {
+        "span_ungrounded": 4
+      },
+      "by_entity_type": {
+        "drug": {
+          "n": 189,
+          "rejected": 0,
+          "banded": 145,
+          "accepted": 44,
+          "detection_rate": 0.0
+        },
+        "reaction": {
+          "n": 6492,
+          "rejected": 4,
+          "banded": 5264,
+          "accepted": 1224,
+          "detection_rate": 0.00062
+        }
+      },
+      "examples_wrongly_accepted": [
+        {
+          "text": "arthritis",
+          "gold": [
+            "3723001"
+          ],
+          "gold_term": "Arthritis",
+          "planted": "1073601000119101",
+          "planted_term": "Seropositive rheumatoid arthritis of joint of right foot"
+        },
+        {
+          "text": "headache",
+          "gold": [
+            "25064002"
+          ],
+          "gold_term": "Headache",
+          "planted": "1119236004",
+          "planted_term": "Recurrent thunderclap headache"
+        },
+        {
+          "text": "pain",
+          "gold": [
+            "22253000"
+          ],
+          "gold_term": "Pain",
+          "planted": "102570003",
+          "planted_term": "Inguinal pain"
+        },
+        {
+          "text": "bleeding",
+          "gold": [
+            "131148009"
+          ],
+          "gold_term": "Bleeding",
+          "planted": "12063002",
+          "planted_term": "Rectal hemorrhage"
+        },
+        {
+          "text": "diarrhea",
+          "gold": [
+            "62315008"
+          ],
+          "gold_term": "Diarrhea",
+          "planted": "11003002",
+          "planted_term": "Nervous diarrhea"
+        },
+        {
+          "text": "constipation",
+          "gold": [
+            "14760008"
+          ],
+          "gold_term": "Constipation",
+          "planted": "197118003",
+          "planted_term": "Functional constipation"
+        }
+      ]
+    },
+    "meddra_hallucinated": {
+      "n": 5983,
+      "skipped": 2683,
+      "rejected": 10,
+      "banded": 2979,
+      "accepted": 2994,
+      "detection_rate": 0.00167,
+      "wrongly_accepted_rate": 0.50042,
+      "reasons": {
+        "span_ungrounded": 4,
+        "code_unknown": 3,
+        "wrong_semantic_type": 3
+      },
+      "by_entity_type": {
+        "reaction": {
+          "n": 5983,
+          "rejected": 10,
+          "banded": 2979,
+          "accepted": 2994,
+          "detection_rate": 0.00167
+        }
+      },
+      "examples_wrongly_accepted": [
+        {
+          "text": "bit drowsy",
+          "gold": [
+            "271782001"
+          ],
+          "gold_term": "Drowsy",
+          "planted": "271782001",
+          "planted_term": "Drowsy"
+        },
+        {
+          "text": "vaginal bleeding",
+          "gold": [
+            "289530006"
+          ],
+          "gold_term": "Bleeding from vagina",
+          "planted": "289530006",
+          "planted_term": "Bleeding from vagina"
+        },
+        {
+          "text": "stomach pain",
+          "gold": [
+            "271681002"
+          ],
+          "gold_term": "Stomach ache",
+          "planted": "271681002",
+          "planted_term": "Stomach ache"
+        },
+        {
+          "text": "headache",
+          "gold": [
+            "25064002"
+          ],
+          "gold_term": "Headache",
+          "planted": "25064002",
+          "planted_term": "Headache"
+        },
+        {
+          "text": "shortness of breath",
+          "gold": [
+            "267036007"
+          ],
+          "gold_term": "Dyspnea",
+          "planted": "267036007",
+          "planted_term": "Dyspnea"
+        },
+        {
+          "text": "depression",
+          "gold": [
+            "35489007"
+          ],
+          "gold_term": "Depressive disorder",
+          "planted": "35489007",
+          "planted_term": "Depressive disorder"
+        }
+      ]
+    }
+  }
+}

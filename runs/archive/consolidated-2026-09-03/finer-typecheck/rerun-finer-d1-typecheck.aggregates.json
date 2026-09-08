@@ -1,0 +1,128 @@
+{
+  "run_id": "rerun-finer-d1-typecheck",
+  "split": "dev",
+  "order": [
+    7,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "missing_rungs": [],
+  "n_records": 304,
+  "n_documents": 40,
+  "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-finer-d1",
+  "models": {
+    "2": "ollama/gpt-oss:20b",
+    "3": "ollama/gpt-oss:20b",
+    "4": "ollama/ibm/granite4:micro-h"
+  },
+  "temperature": 0.0,
+  "git": {
+    "sha": "d4ddf46",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "git_at_finish": {
+    "sha": "d4ddf46",
+    "branch": "claude/plan-next-sessions-docs-17c0bc",
+    "dirty": false,
+    "dirty_files": 0
+  },
+  "started_utc": "2026-09-03T23:24:15Z",
+  "finished_utc": "2026-09-03T23:25:10Z",
+  "rungs": {
+    "2": {
+      "attempted": 35,
+      "rescued": 0,
+      "still_failing": 0,
+      "reasserted": 0,
+      "unchanged": 269,
+      "declined": 29,
+      "parse_failed": 6,
+      "tokens_in": 31070,
+      "tokens_out": 3241,
+      "t0": 1788477855.358662,
+      "seconds": 52.62,
+      "wall_s": 52.618
+    },
+    "3": {
+      "records": 304,
+      "calls": 299,
+      "documents": 34,
+      "tokens_in": 2464266,
+      "tokens_out": 148996,
+      "unanimous": 96,
+      "split": 117,
+      "tie": 74,
+      "changed": 83,
+      "single_sample": 11,
+      "unanimous_none": 0,
+      "not_resampled": 17,
+      "parse_failed": 0,
+      "revalidated": 0,
+      "stale_verdict": 83,
+      "spread": {
+        "3": 68,
+        "2-1": 117,
+        "1-1": 21,
+        "1-1-1": 53,
+        "2": 9,
+        "1": 19
+      },
+      "t0": 1788477909.3731542,
+      "usd": 0.0,
+      "seconds": 0.5,
+      "wall_s": 1.673
+    },
+    "4": {
+      "records": 304,
+      "tokens_in": 253143,
+      "tokens_out": 16744,
+      "parse_failed": 8,
+      "verdicts": {
+        "fail": 249,
+        "pass": 47
+      },
+      "agree_r1": 80,
+      "disagree_r1": 216,
+      "span_ok": 147,
+      "span_bad": 149,
+      "code_ok": 55,
+      "code_bad": 241,
+      "r1_verdicts": {
+        "REJECT": 35,
+        "BAND": 261
+      },
+      "judged": 296,
+      "menu": "off",
+      "menu_shown": 0,
+      "menu_missing": 0,
+      "best_is_pick": 0,
+      "t0": 1788477910.077049,
+      "usd": 0.0,
+      "seconds": 0.09,
+      "wall_s": 0.088
+    },
+    "6": {
+      "mode": "simulated",
+      "queue": 304,
+      "unreviewable": 3,
+      "human_minutes": 608.0,
+      "minutes_source": "simulated",
+      "minutes_per_record": 2.0,
+      "seconds": 0.003,
+      "wall_s": 0.003
+    },
+    "7": {
+      "seconds": 0.005,
+      "wall_s": 0.005
+    },
+    "5": {
+      "seconds": 0.003,
+      "wall_s": 0.003
+    }
+  }
+}

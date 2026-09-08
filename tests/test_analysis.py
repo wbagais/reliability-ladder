@@ -377,3 +377,125 @@ def test_gold_lane_occupancy_is_the_scorable_reaction_gold_run_through_rung_1():
     assert occ["lanes"] == {ZONE_ACCEPT: 1, ZONE_BAND: 2}
     assert occ["concept_less_lanes"] == {ZONE_BAND: 1}
     assert occ["pct"] == {ZONE_ACCEPT: 33.3, ZONE_BAND: 66.7}
+
+
+# --- every rung's verdict read as a shipping rule (the dial) ---------------
+
+
+def _st(rid, rung, outcome, overlap=None, zone=ZONE_VERIFIED, sct="1"):
+    return {"record_id": rid, "rung": rung, "outcome": outcome,
+            "outcome_overlap": overlap or outcome, "zone": zone, "sct": sct}
+
+
+def _dial_fixture():
+    """Six records through rungs 0, 3, 4 and 6 (the state table), with the
+    rung 3 votes and rung 4 verdicts on the records. Hand-scored below."""
+    state = [
+        # a: right all the way, 3-0, both judges pass, ACCEPT ships it
+        _st("a", 0, "correct"), _st("a", 3, "correct"), _st("a", 4, "correct"), _st("a", 6, "correct"),
+        # b: wrong code on the exact span at rung 0; rung 3 fixes it 2-1; blind judge fails; withheld
+        _st("b", 0, "incorrect"), _st("b", 3, "correct"), _st("b", 4, "correct"),
+        _st("b", 6, "abstained", zone=ZONE_ESCALATE, sct=None),
+        # c: right code, boundary off (exact unmatched, overlap correct); 2-0; judges pass; withheld
+        _st("c", 0, "unmatched", "correct"), _st("c", 3, "unmatched", "correct"),
+        _st("c", 4, "unmatched", "correct"), _st("c", 6, "abstained", zone=ZONE_ESCALATE, sct=None),
+        # d: neither; 1-1-1 tie; not judged; withheld
+        _st("d", 0, "unmatched"), _st("d", 3, "unmatched"), _st("d", 4, "unmatched"),
+        _st("d", 6, "abstained", zone=ZONE_ESCALATE, sct=None),
+        # e: right at rung 0, rung 3 destroys it on a lone sample; judge fails; ACCEPT ships it anyway
+        _st("e", 0, "correct"), _st("e", 3, "incorrect"), _st("e", 4, "incorrect"), _st("e", 6, "incorrect"),
+        # f: wrong code, exact span, all the way; 3-0; blind judge passes; withheld
+        _st("f", 0, "incorrect"), _st("f", 3, "incorrect"), _st("f", 4, "incorrect"),
+        _st("f", 6, "abstained", zone=ZONE_ESCALATE, sct=None),
+    ]
+    r3 = [rec("a", r3_votes={"1": 3}), rec("b", r3_votes={"1": 2, "9": 1}), rec("c", r3_votes={"1": 2}),
+          rec("d", r3_votes={"1": 1, "8": 1, "9": 1}), rec("e", r3_votes={"7": 1}), rec("f", r3_votes={"9": 3})]
+    r4 = [rec("a", r4_verdict="pass"), rec("b", r4_verdict="fail"), rec("c", r4_verdict="pass"),
+          rec("d", r4_verdict=None), rec("e", r4_verdict="fail"), rec("f", r4_verdict="pass")]
+    final = [rec("a", zone=ZONE_VERIFIED), rec("b", zone=ZONE_ESCALATE, sct=None),
+             rec("c", zone=ZONE_ESCALATE, sct=None), rec("d", zone=ZONE_ESCALATE, sct=None),
+             rec("e", zone=ZONE_VERIFIED), rec("f", zone=ZONE_ESCALATE, sct=None)]
+    records = {0: [rec(x) for x in "abcdef"], 3: r3, 4: r4, 6: final}
+    return records, state, final
+
+
+def test_shipping_rules_split_what_ships_four_ways_and_count_what_a_person_receives():
+    """The 2026-09-04 shipped-set figure, as a function: for each 'ship only
+    when…' rule, what ships split by the state table's exact and overlap
+    outcomes (right code on the exact span / exact span, wrong code / right
+    code, boundary off / neither), what goes to a person and how many of
+    those were right, accuracy, yield over ONE denominator, and F1 over the
+    shipped subset alone so a withheld answer is a miss."""
+    from ladder import analysis
+
+    records, state, final = _dial_fixture()
+    f1 = lambda recs: round(len(recs) / 10, 2)  # a stand-in scorer: visible, checkable
+    rows = analysis.shipping_rules(records, state, final, f1=f1, tokens_by_rung={0: 100, 3: 300, 4: 40})
+    by = {r["rule"]: r for r in rows}
+    assert [r["rule"] for r in rows] == [
+        "everything", "everything_after_r3", "accept", "r3_unanimous", "r3_two_agree", "r4_blind_pass"]
+    # rung 0: a, e right; b, f exact span wrong code; c boundary off; d neither. Nothing to a person.
+    assert by["everything"] == {
+        "rule": "everything", "reads_rung": 0, "ships": 6, "correct": 2, "span_only": 2, "code_only": 1,
+        "neither": 1, "to_person": 0, "person_correct": 0, "accuracy": round(2 / 6, 5),
+        "yield": round(2 / 6, 5), "f1": 0.6, "extra_tokens": 0}
+    # rung 3: a, b right; e, f wrong on the span; c boundary off; d neither
+    assert (by["everything_after_r3"]["correct"], by["everything_after_r3"]["span_only"],
+            by["everything_after_r3"]["code_only"], by["everything_after_r3"]["neither"]) == (2, 2, 1, 1)
+    assert by["everything_after_r3"]["extra_tokens"] == 300
+    # ACCEPT ships a (right) and e (wrong, exact span); four go to a person, of which b was right
+    assert by["accept"]["ships"] == 2 and by["accept"]["correct"] == 1 and by["accept"]["span_only"] == 1
+    assert by["accept"]["to_person"] == 4 and by["accept"]["person_correct"] == 1
+    assert by["accept"]["f1"] == 0.2 and by["accept"]["extra_tokens"] == 0
+    assert by["accept"]["yield"] == round(1 / 6, 5)
+    # unanimous: all three samples returned one code — a, f; c's 2-0 has a missing sample
+    # and goes to a person (the article's rule), e's lone sample is not a vote
+    assert by["r3_unanimous"]["ships"] == 2 and by["r3_unanimous"]["correct"] == 1
+    assert by["r3_unanimous"]["to_person"] == 4 and by["r3_unanimous"]["person_correct"] == 1  # b
+    # two agree: a top count >= 2 — a, b, c, f
+    assert by["r3_two_agree"]["ships"] == 4 and by["r3_two_agree"]["correct"] == 2
+    # blind judge passes a, c, f; reads rung 4; b (right) goes to a person
+    assert by["r4_blind_pass"]["ships"] == 3 and by["r4_blind_pass"]["correct"] == 1
+    assert by["r4_blind_pass"]["code_only"] == 1 and by["r4_blind_pass"]["person_correct"] == 1
+    assert by["r4_blind_pass"]["extra_tokens"] == 40 and by["r4_blind_pass"]["reads_rung"] == 4
+
+
+def test_shipping_rules_add_the_loose_check_and_the_menu_judge_from_their_arms():
+    from ladder import analysis
+
+    records, state, final = _dial_fixture()
+    # the lexarm ships a, b, e on its own final rows; its rung 4 answers are the base's
+    lex_final = [rec("a", zone=ZONE_VERIFIED), rec("b", zone=ZONE_VERIFIED), rec("e", zone=ZONE_VERIFIED)] + \
+                [rec(x, zone=ZONE_ESCALATE, sct=None) for x in "cdf"]
+    lex_state = [r for r in state if r["rung"] != 6] + [
+        _st("a", 6, "correct"), _st("b", 6, "correct"), _st("e", 6, "incorrect"),
+        _st("c", 6, "abstained", zone=ZONE_ESCALATE, sct=None),
+        _st("d", 6, "abstained", zone=ZONE_ESCALATE, sct=None),
+        _st("f", 6, "abstained", zone=ZONE_ESCALATE, sct=None)]
+    # the menu-shown judge passes a and b only
+    menu_r4 = [rec("a", r4_verdict="pass"), rec("b", r4_verdict="pass")] + \
+              [rec(x, r4_verdict="fail") for x in "cdef"]
+    rows = analysis.shipping_rules(records, state, final,
+                                   lexarm=(lex_final, lex_state), menu=(menu_r4, state))
+    by = {r["rule"]: r for r in rows}
+    assert [r["rule"] for r in rows] == [
+        "everything", "everything_after_r3", "accept", "accept_contained",
+        "r3_unanimous", "r3_two_agree", "r4_blind_pass", "r4_menu_pass"]
+    assert by["accept_contained"]["ships"] == 3 and by["accept_contained"]["correct"] == 2
+    assert by["accept_contained"]["to_person"] == 3 and by["accept_contained"]["person_correct"] == 0
+    assert by["r4_menu_pass"]["ships"] == 2 and by["r4_menu_pass"]["correct"] == 2
+    assert by["r4_menu_pass"]["to_person"] == 4 and by["r4_menu_pass"]["person_correct"] == 0
+    assert "f1" not in by["accept"]  # no scorer given, no number invented
+
+
+def test_shipping_rules_mean_averages_each_rule_over_the_draws():
+    from ladder import analysis
+
+    d0 = [{"rule": "accept", "reads_rung": 4, "ships": 53, "correct": 39, "to_person": 177,
+           "person_correct": 49, "accuracy": 0.73585, "yield": 0.16957, "f1": 0.283, "extra_tokens": 0}]
+    d1 = [{"rule": "accept", "reads_rung": 4, "ships": 51, "correct": 42, "to_person": 187,
+           "person_correct": 46, "accuracy": 0.82353, "yield": 0.17647, "f1": 0.301, "extra_tokens": 0}]
+    m = analysis.shipping_rules_mean([d0, d1])
+    assert m == [{"rule": "accept", "reads_rung": 4, "draws": 2, "ships": 52.0, "correct": 40.5,
+                  "to_person": 182.0, "person_correct": 47.5, "accuracy": 0.78, "yield": 0.173,
+                  "f1": 0.292, "extra_tokens": 0}]

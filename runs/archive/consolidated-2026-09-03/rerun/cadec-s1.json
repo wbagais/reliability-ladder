@@ -1,0 +1,812 @@
+{
+  "manifest": "cadec-pharmacovigilance-triage",
+  "corpus": "CADEC",
+  "n_docs": 40,
+  "n_gold_scored": 226,
+  "draws": {
+    "rerun-cadec-s1-d0": {
+      "sha256_r0": "2d52da35af84fb24c1be56a8947caf4d02d7c9b8679dac74d15439ee60441aa6",
+      "sha256_final": "2d52da35af84fb24c1be56a8947caf4d02d7c9b8679dac74d15439ee60441aa6",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-s1-d0",
+      "git": {
+        "sha": "c093eaa",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-04T01:05:43Z",
+      "finished": "2026-09-04T01:18:24Z",
+      "spans_proposed": 206,
+      "rung0": {
+        "exact": {
+          "n_pred": 194,
+          "n_gold": 226,
+          "precision": 0.2732,
+          "recall": 0.2345,
+          "f1": 0.2524,
+          "detection": {
+            "n_matched": 99,
+            "precision": 0.5103,
+            "recall": 0.4381,
+            "f1": 0.4714
+          },
+          "coding": {
+            "n": 99,
+            "accuracy": 0.5354,
+            "correct": 53,
+            "outdated": 0,
+            "abstained": 26,
+            "incorrect": 20,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1802,
+            0.3223
+          ]
+        },
+        "overlap": {
+          "n_pred": 194,
+          "n_gold": 226,
+          "precision": 0.4124,
+          "recall": 0.354,
+          "f1": 0.381,
+          "detection": {
+            "n_matched": 162,
+            "precision": 0.8351,
+            "recall": 0.7168,
+            "f1": 0.7714
+          },
+          "coding": {
+            "n": 162,
+            "accuracy": 0.4938,
+            "correct": 80,
+            "outdated": 0,
+            "abstained": 39,
+            "incorrect": 43,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 226,
+          "n_pred": 194,
+          "excluded": 18,
+          "matched": 99,
+          "missed": 127,
+          "invented": 95,
+          "on_menu": 55,
+          "lost_retrieval": 44,
+          "correct": 53,
+          "lost_pick": 2,
+          "lost_pick_by_lane": {
+            "model": 2
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 226,
+          "n_pred": 194,
+          "excluded": 18,
+          "matched": 162,
+          "missed": 64,
+          "invented": 32,
+          "on_menu": 87,
+          "lost_retrieval": 75,
+          "correct": 80,
+          "lost_pick": 7,
+          "lost_pick_by_lane": {
+            "model": 7
+          }
+        }
+      },
+      "lanes": {},
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 107,
+          "abstained": 26,
+          "correct": 53,
+          "incorrect": 20
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 82753,
+          "api_calls": 53,
+          "p95_s": 51.59,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 206,
+          "tokens_in": 41727,
+          "tokens_out": 41026,
+          "tool_calls": 0,
+          "api_calls": 53,
+          "parse_failed": 1,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 0,
+          "bad_pick": 0,
+          "declined_shortlist": 0,
+          "trimmed": 53,
+          "pick_fallback": 0,
+          "split": 0,
+          "dropped_ungrounded": 11,
+          "dropped_fragment": 2,
+          "dropped_duplicate": 1,
+          "dropped_datelike": 0,
+          "t0": 1788483944.3721259,
+          "seconds": 759.89,
+          "wall_s": 760.383
+        }
+      },
+      "final": {
+        "n": 206,
+        "ships": 144,
+        "coverage": 0.69903,
+        "accuracy": 0.36806,
+        "yield": 0.25728,
+        "correct": 53,
+        "errors": 91,
+        "err_per_100": 44.175,
+        "to_person": 0
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 194,
+          "n_gold": 226,
+          "precision": 0.2732,
+          "recall": 0.2345,
+          "f1": 0.2524,
+          "detection": {
+            "n_matched": 99,
+            "precision": 0.5103,
+            "recall": 0.4381,
+            "f1": 0.4714
+          },
+          "coding": {
+            "n": 99,
+            "accuracy": 0.5354,
+            "correct": 53,
+            "outdated": 0,
+            "abstained": 26,
+            "incorrect": 20,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1802,
+            0.3223
+          ]
+        },
+        "overlap": {
+          "n_pred": 194,
+          "n_gold": 226,
+          "precision": 0.4124,
+          "recall": 0.354,
+          "f1": 0.381,
+          "detection": {
+            "n_matched": 162,
+            "precision": 0.8351,
+            "recall": 0.7168,
+            "f1": 0.7714
+          },
+          "coding": {
+            "n": 162,
+            "accuracy": 0.4938,
+            "correct": 80,
+            "outdated": 0,
+            "abstained": 39,
+            "incorrect": 43,
+            "modernised": 0
+          }
+        }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 206,
+          "correct": 53,
+          "span_only": 20,
+          "code_only": 27,
+          "neither": 106,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.25728,
+          "yield": 0.25728,
+          "f1": 0.2524,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 0,
+          "ships": 144,
+          "correct": 53,
+          "span_only": 20,
+          "code_only": 27,
+          "neither": 44,
+          "to_person": 62,
+          "person_correct": 0,
+          "accuracy": 0.36806,
+          "yield": 0.25728,
+          "f1": 0.292,
+          "extra_tokens": 0
+        }
+      ]
+    },
+    "rerun-cadec-s1-d1": {
+      "sha256_r0": "bd91b5b89437b8fbe54fa780ae2fd4f23c15c860e03bfe136ef3a393e0f1283a",
+      "sha256_final": "bd91b5b89437b8fbe54fa780ae2fd4f23c15c860e03bfe136ef3a393e0f1283a",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-s1-d1",
+      "git": {
+        "sha": "c093eaa",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-04T01:18:25Z",
+      "finished": "2026-09-04T01:30:34Z",
+      "spans_proposed": 204,
+      "rung0": {
+        "exact": {
+          "n_pred": 193,
+          "n_gold": 226,
+          "precision": 0.2746,
+          "recall": 0.2345,
+          "f1": 0.253,
+          "detection": {
+            "n_matched": 100,
+            "precision": 0.5181,
+            "recall": 0.4425,
+            "f1": 0.4773
+          },
+          "coding": {
+            "n": 100,
+            "accuracy": 0.53,
+            "correct": 53,
+            "outdated": 0,
+            "abstained": 21,
+            "incorrect": 26,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1814,
+            0.3213
+          ]
+        },
+        "overlap": {
+          "n_pred": 193,
+          "n_gold": 226,
+          "precision": 0.4301,
+          "recall": 0.3673,
+          "f1": 0.3962,
+          "detection": {
+            "n_matched": 163,
+            "precision": 0.8446,
+            "recall": 0.7212,
+            "f1": 0.778
+          },
+          "coding": {
+            "n": 163,
+            "accuracy": 0.5092,
+            "correct": 83,
+            "outdated": 0,
+            "abstained": 35,
+            "incorrect": 45,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 226,
+          "n_pred": 193,
+          "excluded": 18,
+          "matched": 100,
+          "missed": 126,
+          "invented": 93,
+          "on_menu": 55,
+          "lost_retrieval": 45,
+          "correct": 53,
+          "lost_pick": 2,
+          "lost_pick_by_lane": {
+            "model": 2
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 226,
+          "n_pred": 193,
+          "excluded": 18,
+          "matched": 163,
+          "missed": 63,
+          "invented": 30,
+          "on_menu": 90,
+          "lost_retrieval": 73,
+          "correct": 83,
+          "lost_pick": 7,
+          "lost_pick_by_lane": {
+            "model": 7
+          }
+        }
+      },
+      "lanes": {},
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 104,
+          "abstained": 21,
+          "correct": 53,
+          "incorrect": 26
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 81546,
+          "api_calls": 55,
+          "p95_s": 44.27,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 204,
+          "tokens_in": 43007,
+          "tokens_out": 38539,
+          "tool_calls": 0,
+          "api_calls": 55,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 0,
+          "bad_pick": 0,
+          "declined_shortlist": 1,
+          "trimmed": 44,
+          "pick_fallback": 1,
+          "split": 0,
+          "dropped_ungrounded": 13,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 1,
+          "dropped_datelike": 0,
+          "t0": 1788484705.624326,
+          "seconds": 728.97,
+          "wall_s": 729.449
+        }
+      },
+      "final": {
+        "n": 204,
+        "ships": 151,
+        "coverage": 0.7402,
+        "accuracy": 0.35099,
+        "yield": 0.2598,
+        "correct": 53,
+        "errors": 98,
+        "err_per_100": 48.039,
+        "to_person": 0
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 193,
+          "n_gold": 226,
+          "precision": 0.2746,
+          "recall": 0.2345,
+          "f1": 0.253,
+          "detection": {
+            "n_matched": 100,
+            "precision": 0.5181,
+            "recall": 0.4425,
+            "f1": 0.4773
+          },
+          "coding": {
+            "n": 100,
+            "accuracy": 0.53,
+            "correct": 53,
+            "outdated": 0,
+            "abstained": 21,
+            "incorrect": 26,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.1814,
+            0.3213
+          ]
+        },
+        "overlap": {
+          "n_pred": 193,
+          "n_gold": 226,
+          "precision": 0.4301,
+          "recall": 0.3673,
+          "f1": 0.3962,
+          "detection": {
+            "n_matched": 163,
+            "precision": 0.8446,
+            "recall": 0.7212,
+            "f1": 0.778
+          },
+          "coding": {
+            "n": 163,
+            "accuracy": 0.5092,
+            "correct": 83,
+            "outdated": 0,
+            "abstained": 35,
+            "incorrect": 45,
+            "modernised": 0
+          }
+        }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 204,
+          "correct": 53,
+          "span_only": 26,
+          "code_only": 33,
+          "neither": 92,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.2598,
+          "yield": 0.2598,
+          "f1": 0.253,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 0,
+          "ships": 151,
+          "correct": 53,
+          "span_only": 26,
+          "code_only": 33,
+          "neither": 39,
+          "to_person": 53,
+          "person_correct": 0,
+          "accuracy": 0.35099,
+          "yield": 0.2598,
+          "f1": 0.2873,
+          "extra_tokens": 0
+        }
+      ]
+    },
+    "rerun-cadec-s1-d2": {
+      "sha256_r0": "20118fde1d873f497c20b4d7042531700953331ee579fba35a81ebd0cc1cbcb6",
+      "sha256_final": "20118fde1d873f497c20b4d7042531700953331ee579fba35a81ebd0cc1cbcb6",
+      "llm_cache": "/Users/wejdanbagais/Documents/repo/reliability-ladder/.claude/worktrees/reliability-ladder-b2-menu-f77617/.llm_cache.rerun-cadec-s1-d2",
+      "git": {
+        "sha": "c093eaa",
+        "branch": "claude/plan-next-sessions-docs-17c0bc",
+        "dirty": false,
+        "dirty_files": 0
+      },
+      "started": "2026-09-04T01:30:35Z",
+      "finished": "2026-09-04T01:43:13Z",
+      "spans_proposed": 207,
+      "rung0": {
+        "exact": {
+          "n_pred": 195,
+          "n_gold": 226,
+          "precision": 0.2974,
+          "recall": 0.2566,
+          "f1": 0.2755,
+          "detection": {
+            "n_matched": 104,
+            "precision": 0.5333,
+            "recall": 0.4602,
+            "f1": 0.4941
+          },
+          "coding": {
+            "n": 104,
+            "accuracy": 0.5577,
+            "correct": 58,
+            "outdated": 0,
+            "abstained": 23,
+            "incorrect": 23,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.2055,
+            0.3406
+          ]
+        },
+        "overlap": {
+          "n_pred": 195,
+          "n_gold": 226,
+          "precision": 0.4359,
+          "recall": 0.3761,
+          "f1": 0.4038,
+          "detection": {
+            "n_matched": 165,
+            "precision": 0.8462,
+            "recall": 0.7301,
+            "f1": 0.7838
+          },
+          "coding": {
+            "n": 165,
+            "accuracy": 0.5152,
+            "correct": 85,
+            "outdated": 0,
+            "abstained": 35,
+            "incorrect": 45,
+            "modernised": 0
+          }
+        }
+      },
+      "budget": {
+        "exact": {
+          "span_match": "exact",
+          "n_gold": 226,
+          "n_pred": 195,
+          "excluded": 18,
+          "matched": 104,
+          "missed": 122,
+          "invented": 91,
+          "on_menu": 59,
+          "lost_retrieval": 45,
+          "correct": 58,
+          "lost_pick": 1,
+          "lost_pick_by_lane": {
+            "model": 1
+          }
+        },
+        "overlap": {
+          "span_match": "overlap",
+          "n_gold": 226,
+          "n_pred": 195,
+          "excluded": 18,
+          "matched": 165,
+          "missed": 61,
+          "invented": 30,
+          "on_menu": 89,
+          "lost_retrieval": 76,
+          "correct": 85,
+          "lost_pick": 4,
+          "lost_pick_by_lane": {
+            "model": 4
+          }
+        }
+      },
+      "lanes": {},
+      "outcomes_by_rung": {
+        "0": {
+          "unmatched": 103,
+          "abstained": 23,
+          "correct": 58,
+          "incorrect": 23
+        }
+      },
+      "cost": {
+        "0": {
+          "tokens": 82407,
+          "api_calls": 53,
+          "p95_s": 54.19,
+          "usd": 0.0,
+          "human_minutes": 0.0,
+          "records_routed": 0
+        }
+      },
+      "aggregates": {
+        "0": {
+          "documents": 40,
+          "records": 207,
+          "tokens_in": 41769,
+          "tokens_out": 40638,
+          "tool_calls": 0,
+          "api_calls": 53,
+          "parse_failed": 0,
+          "usd": 0.0,
+          "pick_parse_failed": 0,
+          "truncated": 0,
+          "multi_code": 0,
+          "timed_out": 0,
+          "refused": 0,
+          "shape_coerced": 0,
+          "code_unknown": 0,
+          "no_pick": 0,
+          "bad_pick": 0,
+          "declined_shortlist": 1,
+          "trimmed": 42,
+          "pick_fallback": 1,
+          "split": 0,
+          "dropped_ungrounded": 10,
+          "dropped_fragment": 0,
+          "dropped_duplicate": 2,
+          "dropped_datelike": 0,
+          "t0": 1788485435.885026,
+          "seconds": 757.93,
+          "wall_s": 758.384
+        }
+      },
+      "final": {
+        "n": 207,
+        "ships": 154,
+        "coverage": 0.74396,
+        "accuracy": 0.37662,
+        "yield": 0.28019,
+        "correct": 58,
+        "errors": 96,
+        "err_per_100": 46.377,
+        "to_person": 0
+      },
+      "stack_f1": {
+        "exact": {
+          "n_pred": 195,
+          "n_gold": 226,
+          "precision": 0.2974,
+          "recall": 0.2566,
+          "f1": 0.2755,
+          "detection": {
+            "n_matched": 104,
+            "precision": 0.5333,
+            "recall": 0.4602,
+            "f1": 0.4941
+          },
+          "coding": {
+            "n": 104,
+            "accuracy": 0.5577,
+            "correct": 58,
+            "outdated": 0,
+            "abstained": 23,
+            "incorrect": 23,
+            "modernised": 0
+          },
+          "f1_ci": [
+            0.2055,
+            0.3406
+          ]
+        },
+        "overlap": {
+          "n_pred": 195,
+          "n_gold": 226,
+          "precision": 0.4359,
+          "recall": 0.3761,
+          "f1": 0.4038,
+          "detection": {
+            "n_matched": 165,
+            "precision": 0.8462,
+            "recall": 0.7301,
+            "f1": 0.7838
+          },
+          "coding": {
+            "n": 165,
+            "accuracy": 0.5152,
+            "correct": 85,
+            "outdated": 0,
+            "abstained": 35,
+            "incorrect": 45,
+            "modernised": 0
+          }
+        }
+      },
+      "shipping_rules": [
+        {
+          "rule": "everything",
+          "reads_rung": 0,
+          "ships": 207,
+          "correct": 58,
+          "span_only": 23,
+          "code_only": 29,
+          "neither": 97,
+          "to_person": 0,
+          "person_correct": 0,
+          "accuracy": 0.28019,
+          "yield": 0.28019,
+          "f1": 0.2755,
+          "extra_tokens": 0
+        },
+        {
+          "rule": "accept",
+          "reads_rung": 0,
+          "ships": 154,
+          "correct": 58,
+          "span_only": 23,
+          "code_only": 29,
+          "neither": 44,
+          "to_person": 53,
+          "person_correct": 0,
+          "accuracy": 0.37662,
+          "yield": 0.28019,
+          "f1": 0.3118,
+          "extra_tokens": 0
+        }
+      ]
+    }
+  },
+  "arms": {},
+  "gold_lanes": {
+    "manifest_lexical_mode": "exact",
+    "exact": {
+      "n": 226,
+      "coded": 216,
+      "concept_less": 10,
+      "lanes": {
+        "BAND": 153,
+        "ACCEPT": 73
+      },
+      "concept_less_lanes": {
+        "BAND": 10
+      },
+      "pct": {
+        "ACCEPT": 32.3,
+        "BAND": 67.7
+      }
+    },
+    "contained": {
+      "n": 226,
+      "coded": 216,
+      "concept_less": 10,
+      "lanes": {
+        "BAND": 122,
+        "ACCEPT": 104
+      },
+      "concept_less_lanes": {
+        "BAND": 10
+      },
+      "pct": {
+        "ACCEPT": 46.0,
+        "BAND": 54.0
+      }
+    }
+  },
+  "shipping_rules_mean": [
+    {
+      "rule": "everything",
+      "reads_rung": 0,
+      "draws": 3,
+      "ships": 205.7,
+      "correct": 54.7,
+      "to_person": 0.0,
+      "person_correct": 0.0,
+      "accuracy": 0.266,
+      "yield": 0.266,
+      "f1": 0.26,
+      "extra_tokens": 0
+    },
+    {
+      "rule": "accept",
+      "reads_rung": 0,
+      "draws": 3,
+      "ships": 149.7,
+      "correct": 54.7,
+      "to_person": 56.0,
+      "person_correct": 0.0,
+      "accuracy": 0.365,
+      "yield": 0.266,
+      "f1": 0.297,
+      "extra_tokens": 0
+    }
+  ],
+  "consensus": {
+    "draws": 3,
+    "mentions": 226,
+    "all_agree": 141,
+    "same_span_diff_code": 25,
+    "same_code_diff_span": 4,
+    "both_differ": 11,
+    "found_by_two": 18,
+    "found_by_one": 27,
+    "consensus_pct": 62.39,
+    "same_span_all_three_pct": 73.45,
+    "same_code_given_all_found_pct": 80.11
+  },
+  "sha256_identical_draws": false
+}
