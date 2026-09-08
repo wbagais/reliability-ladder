@@ -6,9 +6,11 @@ fails in CI rather than at submission; the other four (the generative-AI
 disclosure, image copyright, editor access, a proofreading pass) are people's
 work and are listed in docs/INFOQ-SUBMISSION.md. Rules:
 
-  - 2,000 to 3,000 words, counting everything except fenced code blocks and
-    HTML comments (tables, captions, takeaways and references count — the
-    strict reading of "excluding code snippets");
+  - 2,000 to 3,000 words, counting everything except fenced code blocks, HTML
+    comments and the "About the authors" section (tables, captions, takeaways
+    and references count — the strict reading of "excluding code snippets";
+    bios are author metadata InfoQ displays beside the article, not in it);
+  - two author bios of about 75 words each under "About the authors";
   - exactly five key takeaways, each a full sentence, at most 130 words together;
   - the authors named under the title;
   - every image followed by an italic caption that names the image source;
@@ -37,9 +39,17 @@ def _text() -> str:
 
 
 def _body(text: str) -> str:
-    """Everything that counts toward the budget: no fenced code, no HTML comments."""
+    """Everything that counts toward the budget: no fenced code, no HTML
+    comments, and nothing from "About the authors" on (bios are metadata)."""
+    text = text.split("\n## About the authors", 1)[0]
     text = re.sub(r"```.*?```", "", text, flags=re.S)
     return re.sub(r"<!--.*?-->", "", text, flags=re.S)
+
+
+def _bios(text: str) -> list[str]:
+    sec = text.split("\n## About the authors", 1)[1]
+    sec = re.sub(r"<!--.*?-->", "", sec, flags=re.S)
+    return [p.strip() for p in sec.split("\n\n") if p.strip().startswith("**")]
 
 
 def _words(s: str) -> int:
@@ -54,6 +64,21 @@ def _takeaways(text: str) -> list[str]:
 def test_word_budget_2000_to_3000_excluding_code():
     n = _words(_body(_text()))
     assert 2000 <= n <= 3000, f"{n} words excluding code blocks (limit 2,000–3,000)"
+
+
+def test_word_budget_does_not_count_the_author_bios():
+    text = _text()
+    assert "\n## About the authors" in text
+    assert _words(_body(text)) < _words(_body(text.replace("\n## About the authors", "\n## Authors")))
+
+
+@pytest.mark.xfail(strict=True, reason="Pushpdeep's bio is still a placeholder")
+def test_two_author_bios_of_about_75_words():
+    bios = _bios(_text())
+    assert len(bios) == 2, f"expected two bios, got {len(bios)}"
+    for b in bios:
+        n = _words(b)
+        assert 50 <= n <= 100, f"bio should be about 75 words, got {n}: {b[:40]!r}"
 
 
 def test_five_key_takeaways_as_full_sentences_within_130_words():
