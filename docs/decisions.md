@@ -5755,3 +5755,51 @@ the corpus (now symlinked at `data/finer` in this worktree) and rung 7 itself:
   That mattered more than a stale figure usually does. At 42.4% CADEC sat *above* every other clinical corpus and looked like the outlier its thresholds had been tuned on. At 32% it sits with PsyTAR's 19–31% and BC5CDR's 7–22%, and the clinical family is three corpora agreeing rather than two agreeing and one apart.
 
   The correction was found by reading her article rather than by any check, which is worth noting: **a number quoted from another owner's work has no second source in this repo**, and nothing would have caught it going stale. Correctness — 75.5, 75.5 and 82.4 across three draws — was confirmed at the same time and did not move.
+- 2026-09-08 — **CORRECTION: "THE FREE CHECK IS WORSE THAN NOT CHECKING ON TR-NEWS" IS A DEV-SPLIT OBSERVATION AND DOES NOT SURVIVE HELD-OUT DATA.** The 2026-09-07 separation entry reports TR-News at 0.9×, 0.8× and 0.6× on three models of four and calls it the finding: an ACCEPT lane *less accurate* than the records the check declined to endorse. The overnight test-split run contradicts it.
+
+  | model | dev sep | **test sep** |
+  |---|---|---|
+  | gpt-oss:20b | 0.9× | **4.2×** |
+  | granite4:micro-h | 1.6× | **2.8×** |
+  | llama3.1:8b | 0.8× | **1.1×** |
+  | mistral:7b-instruct | 0.6× | **—** *(BAND scored 0.0%)* |
+
+  **And the direction of the improvement is the uncomfortable part.** ACCEPT's correctness did not rise — on gpt-oss it *fell*, 16.9% on dev to 13.4% on test. The ratio improved because BAND collapsed further, 19.4% to 3.2%. The lane did not get better; the baseline got worse.
+
+  So the ratio moved for a reason that says nothing about the check. **A separation figure is a fraction with a small, unstable denominator in it**, and on a corpus where BAND accuracy ranges from 0.0% to 25.0% across eight cells, the fraction is not a stable property of anything. Two of the twelve TR-News cells have BAND at 0.0% and no ratio exists at all.
+
+  **What survives.** The occupancy and correctness columns, which are stable: TR-News fires on 37–76% of records and is right 6.7–16.9% of the time, on dev and test, across five model families. The gazetteer band holds. **What does not survive is the claim that the check is actively harmful there** — that was one split, three cells, and a denominator too small to carry it.
+
+  Recorded as a correction rather than an edit because the original entry was written with confidence and a table, and quoting it later without this would repeat a claim the next run refuted.
+
+- 2026-09-08 — **A FIFTH MODEL FAMILY, AND THE TWO-FAMILY SPLIT HOLDS.** `qwen3:8b` across six corpora — the 8b and not the 4b, which has no `models.yaml` entry, falls back to a 2,000-token budget it spends thinking, and returns empty content.
+
+  | corpus | occupancy | correct | sep |
+  |---|---|---|---|
+  | BC5CDR | 19.4% | **100.0%** | 2.4× |
+  | PsyTAR | 29.9% | **88.2%** | 2.1× |
+  | GeoWebNews | 66.3% | 25.0% | 1.9× |
+  | LGL | 72.7% | 17.7% | — *(BAND 0.0%)* |
+  | TR-News | 76.2% | 15.5% | 0.6× |
+  | FiNER | 0.0% | — | — |
+
+  Small lane right, large lane wrong, in a family that had not been run before. That is **five model families** — 4B to 20B, four architectures — and the inversion appears in every one.
+
+- 2026-09-08 — **LINNAEUS: THE THIRD FIX WORKED ON TWO MORE MODELS AND THE DENOMINATORS ARE STILL TOO SMALL TO USE.** The few-shot passage was capped at 600 characters, on the reasoning that CADEC's examples are two-line forum posts while LINNAEUS's are whole research papers, and one of them plus the rules exceeded what a 4–8B model holds usefully.
+
+  | model | before | after |
+  |---|---|---|
+  | gpt-oss:20b | 6 ACCEPT of 20 | **9 of 59**, 100% correct on 8 scored |
+  | granite4:micro-h | 0 of 175 | **5 of 103**, 75% on 4 |
+  | mistral:7b-instruct | 0 of 12 | **3 of 122**, 100% on 3 |
+  | llama3.1:8b | 0 records at all | **still 0 records at all** |
+
+  Two models moved from producing nothing to producing a lane, which makes the truncation hypothesis right about them. Llama produces no records whatever, across three separate fixes — a prompt rewrite, a vocabulary filter and this — and remains unexplained.
+
+  **The numbers are real and unusable.** Eight, four and three scored records. `gatecheck` predicted a 4.8% ceiling here before any of it ran, and a corpus whose ceiling is 4.8% cannot produce a denominator worth quoting however well the extractor works. LINNAEUS is consistent with the clinical band and confirms nothing.
+
+- 2026-09-08 — **THE PAID LAYERS CHANGED NOTHING ON PSYTAR, IN ALL THREE DRAWS, BYTE-IDENTICALLY.** Rungs 0–6, `gpt-oss:20b`, three draws. Self-correction, sampled voting and the LLM judge each routed **zero** records in every draw, and coverage was 31.048% — exactly what rungs 0–1 produce alone.
+
+  On CADEC the answers were: self-correction fired 2–3 times and corrected nothing, voting changed almost nothing, and the judge's verdict is read by nothing downstream. **That was a one-corpus claim until this run.**
+
+  **And PsyTAR is where rung 2 should have had work.** Rung 1's semantic check encodes CADEC's annotation guide and wrongly rejects codes like |Suicide| there — measured 2026-09-05, 37 correct gold records contradicted. Rung 2 fires only on REJECT. So the one corpus where self-correction had something real to correct is the one where it fired zero times, which means **rung 1 produces no REJECTs on model output at all** — only on gold. The reject path is effectively dead in production, and that is a sharper finding than "the layers do not pay".
