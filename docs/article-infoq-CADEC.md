@@ -6,11 +6,11 @@
 
 ## Key takeaways
 
-- Reliability layers do not make a model more accurate; they tell you which answers to trust. Plan for whoever handles what they refuse to ship.
-- Start with the check that costs nothing: a string comparison against our vocabulary sorted answers into tiers 83 and 28 percent correct; three paid layers changed one shipped answer.
-- Ask the model to read, never to remember: it picked well from a retrieved menu but invented 13 to 18 percent of the codes asked of it.
-- Never trust one run, even at temperature 0: two runs matched byte for byte, the third agreed on 70 percent of mentions, and that gap reversed an improvement's sign.
-- Score what a layer withholds, not only what it ships: precision rises whenever answers are withdrawn; yield does not.
+- Reliability layers do not make a model more accurate; they tell you which answers to trust. Plan for who handles what they refuse.
+- Start with a check that costs nothing: matching answers' words against the vocabulary split them into groups 83 and 28 percent right; three paid layers changed one answer.
+- Ask the model to read, never to remember: it picked well from a menu but invented 13 to 18 percent of the codes asked of it.
+- Make repeat runs a validation step: rerun the same inputs, measure how far the answers move, and set the difference you accept; ours agreed on 70 percent at temperature 0.
+- Measure correct answers over all inputs, not only those the system chose to answer; refusing always makes the remaining answers look more accurate.
 
 ---
 
