@@ -634,7 +634,17 @@ def render_fewshot(examples: list[tuple[str, list[str]]]) -> str:
                 if key in seen else ""
             seen.add(key)
             lines.append(f'  "{m}"{note}')
-        body = "\n   ".join(text.strip().splitlines())
+        # TRUNCATED. CADEC's few-shot examples are two-line forum posts;
+        # LINNAEUS's are whole research papers, and one plus the rules exceeded
+        # what a 4-8B model holds usefully — granite4 emitted sentence
+        # fragments, mistral emitted diseases, llama3.1 emitted nothing. After
+        # this cap granite4 went 0 -> 5 ACCEPT and mistral 0 -> 3; llama still
+        # produces no records at all. The mentions shown are unchanged; only
+        # the passage is cut.
+        _t = text.strip()
+        if len(_t) > 600:
+            _t = _t[:600].rsplit(" ", 1)[0] + " ..."
+        body = "\n   ".join(_t.splitlines())
         out.append(
             f'Example. A post reading:\n  "{body}"\n'
             "has exactly these mentions, each one reported separately:\n"
