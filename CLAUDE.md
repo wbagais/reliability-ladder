@@ -2,6 +2,10 @@
 
 ## Read these first
 - `docs/plan.html` — plan, architecture, and the reasoning behind every design choice
+
+
+- `docs/REPRODUCE.md` — how every article number is regenerated: re-score, re-derive, re-run
+- `docs/INFOQ-SUBMISSION.md` — the rules every edit to `docs/article-infoq-CADEC.md` must keep (word budget, takeaways, captions, the Word export); `tests/test_infoq_article.py` enforces the mechanical ones
 - `README.md` — the ladder, the three cost measures, the data licences
 
 ## Hard rules
