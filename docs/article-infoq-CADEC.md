@@ -136,7 +136,7 @@ Read each verdict as a shipping rule over the same records, and the layers becom
 
 | ship only when… | ships | to a person | correct | accuracy | yield | **F1** | tokens per run |
 |---|---|---|---|---|---|---|---|
-| the extractor says so: everything | 233 | 0 | 90 | 0.39 | **0.388** | 0.405 | 0 extra |
+| the extractor says so: everything, after voting | 233 | 0 | 90 | 0.39 | **0.388** | 0.405 | 0 extra |
 | the vocabulary check says ACCEPT *(the run's setting)* | 52 | 180 | 40 | **0.77** | 0.173 | 0.292 | 0 |
 | the loose vocabulary check says ACCEPT | 91 | 142 | 55 | 0.61 | 0.236 | 0.353 | 0 |
 | all three voting samples agree | 116 | 117 | 57 | 0.50 | 0.246 | 0.345 | ~420,000 |
@@ -146,7 +146,7 @@ Read each verdict as a shipping rule over the same records, and the layers becom
 
 *Means over three development runs of 230, 230 and 238 records against 226 annotated mentions. Accuracy is correct over shipped; yield is correct over all records, shipped or not; F1 is span-exact on what ships, so a withheld answer counts as a miss. Voting rows treat a split or a missing sample as "send to a person". The loose check accepts a span contained in a concept name rather than equal to one.*
 
-Filter on any verdict and accuracy rises above the 0.39 of shipping everything, so the paid verdicts were not noise, and every row ships fewer correct answers, because every one withholds. F1 sees both sides. ACCEPT and strict voting give up eleven and six points of it to send half or more of the batch to a person; the loose check, loose voting and the blind judge land within five points of shipping everything; only the menu-shown judge clears it, by two to three points on every run, for 84,000 tokens.
+Filter on any verdict and accuracy rises above the 0.39 of shipping everything, so the paid verdicts were not noise, and every row ships fewer correct answers, because every one withholds. F1 sees both sides. ACCEPT and strict voting give up eleven and six points of it to send half or more of the batch to a person; the loose check, loose voting and the blind judge land within about five points of shipping everything; only the menu-shown judge clears it, by two to three points on every run, for 84,000 tokens.
 
 The dotted lines in Figure 2 are the ceiling. No rule ships more than 88 right codes, and none can ship more than 116 exact spans, because that is all the extractor found; everything right of that line is the next section's loss.
 
