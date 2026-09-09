@@ -227,9 +227,15 @@ def models_are_installed(a: Arm) -> list[Result]:
         if not isinstance(spec, str) or "/" not in spec:
             continue
         tag = spec.split("/", 1)[1]
-        out.append(Result(PASS if tag in have else FAIL,
+        # A model absent from THIS machine is not a wrong declaration — the
+        # manifest may be correct and the model simply not pulled here. Both
+        # matter, and they need different responses: one says fix the manifest,
+        # the other says pull this before running. Reported as SKIP with the
+        # command, so a genuine mismatch stays visible among them.
+        out.append(Result(PASS if tag in have else SKIP,
                           f"model.{role} is installed", spec,
-                          "present" if tag in have else "NOT in ollama list"))
+                          "present" if tag in have else
+                          f"not on this machine — `ollama pull {tag}`"))
     return out
 
 

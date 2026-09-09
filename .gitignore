@@ -113,3 +113,15 @@ runs/*
 # rule never gets evaluated.
 !runs/archive/
 !runs/archive/**
+
+# Intermediates from assembling the results table. matrix.csv is the
+# tracked one — docs/figures/make_infoq_figs.py reads it and REPRODUCE.md
+# names it at the root.
+final-*.csv
+final-summary.md
+
+# Intermediates from assembling the results table, committed by accident.
+# matrix.csv is the tracked one — docs/figures/make_infoq_figs.py reads it
+# and docs/REPRODUCE.md names it at the root.
+final-*.csv
+final-summary.md

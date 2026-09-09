@@ -1,5 +1,0 @@
-corpus,model,retrieval,docs,records,accept,occupancy,acc_scored,correctness,band_correctness
-linnaeus,gpt-oss_20b,lexical,25,59,9,0.15254237288135594,8,1.0,0.10810810810810811
-linnaeus,granite4_micro-h,lexical,25,103,5,0.04854368932038835,4,0.75,0.0
-linnaeus,llama3.1_8b,lexical,25,0,0,0.0,0,,
-linnaeus,mistral_7b-instruct,lexical,25,122,3,0.02459016393442623,3,1.0,0.0
