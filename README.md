@@ -12,13 +12,13 @@
 
 <table align="center">
 <tr>
-<td align="center"><a href="docs/article-v3.md"><b>the article</b></a></td>
+<td align="center"><a href="docs/article-infoq-CADEC.md"><b>the article</b></a></td>
 <td align="center"><a href="docs/decisions.md"><b>the decision log</b></a></td>
-<td align="center"><a href="#three-checks-this-study-produced"><b>the three checks</b></a></td>
+<td align="center"><a href="#the-three-checks"><b>the three checks</b></a></td>
 <td align="center"><a href="runs/archive/matrix-2026-09-07/"><b>the run archive</b></a></td>
 </tr>
 <tr>
-<td align="center"><sub>what we measured, and what it cost</sub></td>
+<td align="center"><sub>the InfoQ submission; the long cross-corpus version is <a href="docs/article-v3.md">article-v3</a></sub></td>
 <td align="center"><sub>every finding, dated, beside its corrections</sub></td>
 <td align="center"><sub>gatecheck · crosscheck · stagecheck</sub></td>
 <td align="center"><sub>~50 cells, re-scoreable from this repo</sub></td>
@@ -27,17 +27,15 @@
 
 ---
 
-Measure what each reliability layer wrapped around an LLM actually buys — and
-what it costs — so you can stop at the rung your economics justify instead of
-stacking layers by intuition.
+Teams stack reliability layers around an LLM by intuition: validate, retry,
+vote, judge, abstain, escalate. This repository measures what each layer
+actually buys, and what it costs, so you can stop at the rung your economics
+justify.
 
-**Task.** Pharmacovigilance triage: read an archived patient report, identify the
-adverse reactions the writer describes, and normalise each to a SNOMED CT code.
-The system reports *what a document says*. It never asserts that a drug caused
-an effect.
-
-📄 **[Plan, architecture and interactive demo](https://ai-reliability-ladder-9baac5.gitlab.io/)**
-— `docs/plan.html`, published by CI on every push to `main`.
+**The task.** Pharmacovigilance triage: read an archived patient report,
+identify the adverse reactions the writer describes, and normalise each to a
+SNOMED CT code. The system reports *what a document says*. It never asserts
+that a drug caused an effect.
 
 > Rungs 0–2 are research artefacts with deliberate failure rates, unfit for
 > operational use. There is no free-text entry point in the package: the runner
@@ -64,70 +62,6 @@ overlapping registers — *weight gain* is both what a patient writes and what t
 ontology calls it; *Britain* against *United Kingdom of Great Britain and
 Northern Ireland* is not.
 
-Full table: [**Five more corpora**](#five-more-corpora-as-additional-tests) ·
-every correction, dated: [**the decision log**](docs/decisions.md)
-
-
-<!-- toc:start -->
-
-## Contents
-
-- [Three checks this study produced](#three-checks-this-study-produced)
-- [The ladder](#the-ladder)
-- [Cost, in three measures that are never fused](#cost-in-three-measures-that-are-never-fused)
-- [Three corpora, and only two of them are yours to run](#three-corpora-and-only-two-of-them-are-yours-to-run)
-- [Run it yourself, without a licence](#run-it-yourself-without-a-licence)
-- [Quick start](#quick-start)
-- [What rung 1 costs and catches, measured before rung 0 exists](#what-rung-1-costs-and-catches-measured-before-rung-0-exists)
-- [What the full ladder measured](#what-the-full-ladder-measured)
-- [Watching a run](#watching-a-run)
-- [Provenance — what actually ran](#provenance-what-actually-ran)
-- [The ledger, and what it records that tools do not](#the-ledger-and-what-it-records-that-tools-do-not)
-- [Data — read before you clone](#data-read-before-you-clone)
-- [The 3 contracts (see `/schemas`)](#the-3-contracts-see-schemas)
-- [Repo map](#repo-map)
-- [Status](#status)
-- [Five more corpora, as additional tests](#five-more-corpora-as-additional-tests)
-- [The three checks, in detail](#the-three-checks-in-detail)
-- [Where this lives](#where-this-lives)
-- [Licence](#licence)
-
-<!-- toc:end -->
-
-## Three checks this study produced
-
-<p align="center">
-  <img src="docs/assets/lockup-once.svg" width="260"
-       alt="stagecheck — a ledger spine with three rows: judged, failed, and a hatched row for records that could not be judged.">
-</p>
-
-<p align="center"><i>Every stage makes a bet. This one makes you say what it is.</i></p>
-
-Measuring seven layers on seven corpora produced one lesson that outlived the
-measurements: **a load-bearing fact recorded in one place cannot be checked, and
-will eventually be wrong without saying so.** Every defect caught early here was
-caught by comparing two independent records of one fact. Every defect that
-reached a rented GPU was a fact written down once and never read back.
-
-Three small tools came out of that, each answering a different question at a
-different moment:
-
-| tool | the question | when |
-|---|---|---|
-| [`gatecheck`](scripts/gatecheck.py) | should this corpus be run at all? | before booking a card |
-| [`crosscheck`](scripts/crosscheck.py) | is it wired as it is declared? | the first line of every run |
-| **[`stagecheck`](https://github.com/pushpdeep/stagecheck)** | **did the run mean anything?** | **after** |
-
-**[`stagecheck`](https://github.com/pushpdeep/stagecheck) is a separate, installable package** — its own
-repository, 43 tests, no dependencies, MIT — and the only one of the three that
-knows nothing about corpora, deliberately. It records the two things a pipeline
-usually does not: **the bet a stage makes**, and **the records it could not
-judge**. A stage that judged 40 of 100 records and reports 95% accuracy has
-reported a rate over an unnamed set; stagecheck refuses to let that go
-unrecorded.
-
-The other two are described [further down](#the-three-checks-in-detail).
-
 ## The ladder
 
 | Rung | Layer | Mechanism | Extra cost | What it bought |
@@ -136,87 +70,42 @@ The other two are described [further down](#the-three-checks-in-detail).
 | 1 | deterministic | schema · span grounding · negation · code exists · semantic type · lexical match | **none** | the one layer that paid — 80–89% correct in its ACCEPT lane across five model families |
 | 2 | self-correction | one bounded retry, fired **only by a rung 1 rejection**, the reason stated as a fact | +1 call | **nothing.** 0 rescued of 158 on CADEC, 0 of 918 on FiNER |
 | 3 | voting | k samples, majority on the **normalised code**, never the string | k calls | +5 on the tuning set, **0 out of sample**, for 425,355 tokens |
-| 4 | LLM-as-judge | second model, **different family**, scores the record | +1 call | separates 1.23× held out, against the free check’s 2.36–6.12× |
+| 4 | LLM-as-judge | second model, **different family**, scores the record | +1 call | separates 1.23× held out, against the free check's 2.36–6.12× |
 | 5 | abstention | decline anything rung 1 could not corroborate | none | errors 62.9 → 4.0 per 100, at 79 reviews per 100 |
 | 6 | human-in-the-loop | a person settles it — timed, not simulated | human minutes | the only settling authority, and the cost nothing else prices |
 
-Rung ID equals execution position. **This numbering changed on 2026-08-23**, and
-decision-log entries before that date use the old order (2=abstention,
-3=self-correction, 5=voting) — the mapping is in `docs/decisions.md`.
+Rung ID equals execution position, `[0, 1, 2, 3, 4, 5, 6]`, read from
+`manifest.json` so the order is a testable ablation rather than an assertion.
+Rung 1 **judges but does not filter**: its verdict is recorded and every rung
+above it sees the full set, and only rung 5 is allowed to spend coverage on
+that verdict. The numbering changed on 2026-08-23; decision-log entries before
+that date use the old order, mapped in `docs/decisions.md`.
 
-Rung ID equals execution position, `[0, 1, 2, 3, 4, 5, 6]` — abstaining before you
-have tried correction and voting throws away recoverable records. Order lives in
-`manifest.json`, so it is a testable ablation rather than an assertion.
+**Cost is three measures, never fused:** tokens per record, latency p95, and
+records routed to a person. A single dollar figure needs a price table that
+shifts under you and hides the real question — *would you rather spend tokens
+or human attention?*
 
-**Rung 1 judges; it does not filter.** `rungs.1.mode` defaults to `"observe"`:
-the verdict is recorded, counted and reported, and the record's zone is left
-alone, so rungs 3–6 see the full unfiltered set and each rung stays a
-single-rung ablation on identical input. Rung 5 (abstention), which runs last, is where a
-rung 1 verdict is finally allowed to cost coverage. `"gate"` restores the
-filtering flow.
+## Quick start
 
-## Cost, in three measures that are never fused
+The FiNER-139 arm is CC-BY-SA-4.0 and runs from a clean checkout. CADEC cannot
+be redistributed; its arm and the other corpora are in
+[docs/RUNNING.md](docs/RUNNING.md).
 
-**Tokens per record** · **latency p95** · **records routed to a person**.
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
+```
 
-No dollar figure: a single `$/100` needs a price table that shifts under you,
-and it silently merges three costs that are not interchangeable. Keeping them
-apart forces the honest question — *would you rather spend tokens or human
-attention?*
-
-The ledger does carry a `usd` column alongside the three, computed per call
-from `ladder/models.yaml`. It is never fused into them and no headline is
-reported in it — it exists so a hosted run's bill is recoverable from the
-results rather than reconstructed afterwards.
-
-## Three corpora, and only two of them are yours to run
-
-*This is the article's scope. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Five more were added between 2026-09-01 and
-2026-09-07 and are summarised further down — they test whether the claims
-below hold anywhere else.*
-
-Deliberately different in the one respect that decides whether the free check can
-work at all — whether the extracted span and the code’s own name are drawn from
-the same language.
-
-| corpus | domain | vocabulary | licence | free check fires |
-|---|---|---|---|---|
-| **CADEC v2** | patient forum posts | SNOMED CT, 129,675 concepts | **non-transferable** — you need your own copy | 32% |
-| **FiNER-139** | SEC filings | 139 XBRL tags | CC-BY-SA-4.0, redistributable | **0.0%** |
-| **GeoWebNews** | news geography | GeoNames, 13.4M places | GPL-3.0, redistributable | 39.8% |
-
-FiNER’s zero is structural rather than a low score: the spans are numerals
-(`47.6`) and the tags are English phrases
-(`EffectiveIncomeTaxRateContinuingOperations`), so the two share no token by
-construction — on any run, with any model, forever.
-
-## Run it yourself, without a licence
-
-**Start here.** CADEC cannot be redistributed, so that arm is not reproducible
-from a clean checkout by anyone but you. The FiNER arm is, and so are five of the
-six corpora added since.
-
-**Step zero, before any GPU time.** Two checks, a second each, no model calls:
+Two checks before any GPU time, a second each, no model calls. On FiNER,
+`gatecheck` reports a **0.0%** ceiling for the free check and refuses to
+recommend the arm — a full GPU arm's finding, available before booking one.
 
 ```bash
 PYTHONPATH=. python3 scripts/gatecheck.py  --manifest manifest.finer.json
 PYTHONPATH=. python3 scripts/crosscheck.py --manifest manifest.finer.json
 ```
 
-`gatecheck` predicts the free check's ceiling from gold alone. On FiNER it
-reports **0.0%** and refuses to recommend the arm — the spans are numerals and
-the tags are English phrases, so the check cannot fire however good the model
-is. That is a full GPU arm's finding, available before booking one.
-
-`crosscheck` reads every declared fact back from an independent source: the
-rendered prompt against the declared entity, the few-shot ids against the pool
-split the guard actually reads, the split ids against the corpus the adapter
-loads, and each named model against what ollama has. Every check in it is a
-defect that reached a rented card first.
-
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
-```
+Fetch the corpus and freeze the splits:
 
 ```bash
 mkdir -p data/finer && cd data/finer
@@ -228,16 +117,12 @@ python -m ladder.run init --manifest manifest.finer.json
 The free half needs no model and takes seconds:
 
 ```bash
-PYTHONPATH=. python3 scripts/preflight_rungs.py --manifest manifest.finer.json --static
 PYTHONPATH=. python3 scripts/relations_report.py --manifest manifest.finer.json
 ```
 
-That second command is the shortest route to the central finding. It reports
-that the lexical check has **no signal at all** here, and that a
-type-compatibility check has 87.7% — a layer reported dead means *this check
-found no signal*, never *this corpus has none*.
-
-For the model half you need [ollama](https://ollama.com) and ~14 GB of VRAM:
+The model half needs [ollama](https://ollama.com) and ~14 GB of VRAM. Drop
+`--limit 3` for the full split — 60 documents, about 25 minutes on a 48 GB
+card, hours on a laptop.
 
 ```bash
 ollama pull gpt-oss:20b && ollama pull ibm/granite4:micro-h
@@ -245,16 +130,14 @@ PYTHONPATH=. python3 -m ladder.run --manifest manifest.finer.json ladder \
     --split test --limit 3 --plain
 ```
 
-Drop `--limit 3` for the full split — 60 documents, roughly 25 minutes on a
-48 GB card, several hours on a laptop.
+## Reproduce the findings
 
-### Reproduce the article’s findings
+Every published cell scores from this repository alone, with no corpus
+download and no GPU:
 
-**The full guide is [`docs/REPRODUCE.md`](docs/REPRODUCE.md)** — three layers, from
-re-scoring the tracked run files in seconds on any machine, through re-deriving
-every report from the raw run, to re-running the rungs themselves on your own
-data. The run behind every dev-side number is tracked, corpus-free, at
-`runs/archive/consolidated-2026-09-03/`, and the InfoQ figures are drawn from it.
+```bash
+PYTHONPATH=. python3 scripts/score_matrix.py --dir runs/archive/matrix-2026-09-07/matrix
+```
 
 Five of the findings, from gold and source, with no model calls:
 
@@ -262,364 +145,17 @@ Five of the findings, from gold and source, with no model calls:
 PYTHONPATH=. python3 scripts/reproduce.py
 ```
 
-### The GeoWebNews arm
-
-```bash
-git clone --depth 1 https://github.com/milangritta/Pragmatic-Guide-to-Geoparsing-Evaluation /tmp/gwn
-mkdir -p data/gwn && cp -r /tmp/gwn/data/Geocoding data/gwn/
-curl -O https://download.geonames.org/export/dump/allCountries.zip && unzip -q allCountries.zip
-python3 scripts/build_geo_index.py --dump allCountries.txt --out ladder/cache/geonames.sqlite
-PYTHONPATH=. python3 -m ladder.run --manifest manifest.geo.json init
-```
-
-The index is 13.4M rows and takes about a minute. **This arm uses lexical
-retrieval where CADEC uses dense** — no embedded keyword table exists for a
-gazetteer — and on CADEC that substitution cost 21 points of recall@20. No
-absolute score from the geo arm is comparable with CADEC’s.
-
-## Quick start
-
-```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt pytest
-```
-
-**The model is named in `manifest.json` and nowhere else.** `ladder/llm.py`
-carries no default and raises if the manifest names none, so a run always
-knows which model produced its numbers. Override for a single run with
-`--extractor` or `LADDER_MODEL_SPEC`; both are written into the manifest copy
-saved beside the results. Per-model request settings — `max_tokens`,
-`sampling`, `reasoning_effort` — live in `ladder/models.yaml`, because a rung
-must never know which family it is calling.
-
-Five preprocessing steps, in order. Each produces gitignored, licence-bound
-data; a fresh clone runs all four before any rung.
-
-```bash
-python -m ladder.registry --build --release data/SnomedCT_Release_<yours>
-```
-
-```bash
-python -m ladder.keywords --build
-```
-
-```bash
-python -m ladder.clean --build
-```
-
-```bash
-python -m ladder.run init
-```
-
-`registry --build` indexes the RF2 release to SQLite, including the
-retired→replacement association refset that lets a stale code score as
-*outdated* rather than as wrong. `keywords --build` writes `data/keywords.csv`,
-the name→code table rung 0 resolves through — SNOMED-derived only, nothing in
-it reads the answer key. `clean --build` writes `data/exclusions.csv`, the gold
-mentions that cannot be answered and leave the denominator with a stated
-reason.
-
-Optional, for S2's dense retrieval — a few minutes and a local embedding model:
-
-```bash
-python -m ladder.embed --build
-```
-
-An index built before 2026-08-24 has no association table. Add it in place,
-in seconds, rather than rebuilding:
-
-```bash
-python -m ladder.registry --associations --release data/SnomedCT_Release_<yours>
-```
-
-`init` verifies the corpus parses, runs the critical-path gate (a real code
-resolves, a fake one does not) and writes the frozen splits. Then the fixture
-gate — a dozen hand-made records, several deliberately broken:
-
-```bash
-python -m ladder.run gate
-```
-
-```bash
-python -m ladder.run ladder --split test --source gold --run-id gold_control
-```
-
-Before every push — scans the working tree **and git history** for corpus text,
-API keys and forbidden paths:
-
-```bash
-python scripts/preflight.py --history
-```
-
-## What rung 1 costs and catches, measured before rung 0 exists
-
-Both halves of a validation gate can be measured against the answer key alone,
-with no model calls. Whole corpus, 9,111 gold mentions, SNOMED
-AU1000036_20260731.
-
-```bash
-python -m ladder.calibrate --split all --sweep
-```
-
-```bash
-python -m ladder.probe --split all
-```
-
-| | |
-|---|---|
-| false-rejection floor on gold | **12 / 9,111 = 0.13%** — down from 9.3% for the gate as first specified |
-| zone occupancy on gold | ACCEPT 43.1% · BAND 56.8% · REJECT 0.13% |
-| detection: hallucinated code · span shift · fabricated quote | 1.000 · 1.000 · 1.000 |
-| detection: real code in the wrong branch | 1.000 on reaction records |
-| detection: random plausible wrong finding | 0.000 caught, 0.000 wrongly accepted |
-| detection: **near-miss** code (right head word, wrong concept) | 0.001 caught — and **19% wrongly ACCEPTED** under lenient lexical matching, 0.1% under strict |
-
-Read together: deterministic checks are *exact* on their own error classes and
-blind to the interesting one, and a validation gate's leniency setting decides
-whether it declines to have an opinion or endorses one near-miss in five.
-
-The build log — including every place the plan and the corpus disagreed — is
-[docs/decisions.md](docs/decisions.md), with the article-shaped version in
-[docs/article-iterations.md](docs/article-iterations.md).
-
-## What the full ladder measured
-
-> **These are the FIRST dev-split figures, from 2026-08-20, and they are
-> superseded.** Kept because the decision log refers to them. The shipped numbers
-> are on the frozen test split — exact F1 0.204, coding accuracy 0.392, rung 5
-> dropping errors from 59.6 to 3.8 per 100 at 77.1 reviews per 100 — and the
-> cross-corpus results are in [docs/article-v3.md](docs/article-v3.md).
-
-Dev split, 40 documents, `granite4:micro-h` extractor, `llama3.2:3b` judge,
-SNOMED CT-AU `AU1000036_20260731`, local GPU.
-
-| rung | intervention | cost | outcome |
-|---|---|---|---|
-| 0 | bare model | 19,354 tok | 169 mentions · span F1 **0.543** · **0/105 correct codes** |
-| 1 | validation | none | 166 REJECT / 3 BAND / 0 ACCEPT |
-| 3 | self-correction | 72,539 tok | 158 offered · **0 rescued** · 158 declined |
-| 5 | voting k=3 @ 0.7 | 55,704 tok | unanimous on 3 · **166/169 not re-found by any sample** |
-| 4 | LLM-as-judge | 87,130 tok | 96 judged of 169 · span_ok 3 · code_ok 83 |
-| 2 | abstention | none | **169/169 withdrawn**, 0 codes published |
-| 6 | triage desk | — | structurally blocked — see below |
-
-**Zero correct codes throughout.** Every layer produced a metric suggesting
-improvement; the correct-code count never moved off zero.
-
-**Rung 4's two channels are constants.** Against a gold control (226 annotator
-mentions mixed with the 169 model records, judged in one pass): `span_ok` 3% on
-gold and 3% on model output; `code_ok` 92% on correct codes and 86% on
-fabricated ones. The judge is not reading its input. Its agreement with rung 1
-is a property of the comparison set — 100% / 98% / 49% across three sets with
-identical judge behaviour.
-
-```bash
-PYTHONPATH=. python3 scripts/r4_gold_control.py
-```
-
-**Rung 2 is correct and inherits all of it.** 169/169 withdrawn on model output,
-76 kept / 150 withdrawn on gold, no crossover. It reads rung 1's verdict and
-maps it — the discrimination is the lookup's. Coverage cost: **150 of 226
-correct gold codes withheld, 66%**, free here only because the model produced no
-correct codes to lose.
-
-**Rung 6 is measured, not built.** A triage desk over 169 records that are all
-wrong would be re-annotation, not triage. But the third cost measure — records
-routed to a person — was zero everywhere, so the ladder's full cost could not be
-stated. It was run instead as a blind, stratified timing study: 6 records, gold
-and model mixed and presented identically, terminology searchable, decisions and
-seconds recorded, accuracy deliberately not scored.
-
-| | n | median | range |
-|---|---|---|---|
-| with candidates | 3 | 12.5s | 7–19s |
-| without | 3 | 27.1s | 21–46s |
-
-Extrapolated from n=3, by a reviewer who is not a trained coder: the 155 records
-with no valid code are roughly **1.2 reviewer-hours**, against 234,727 tokens
-that produced 0 correct codes.
-
-```bash
-LADDER_N=8 PYTHONPATH=. python3 scripts/r6_desk.py
-```
-
-**The vocabulary is a ceiling.** `Registry.search()` is exact-term retrieval —
-the query is normalised and matched for equality against SNOMED's description
-table. Deliberate: a fuzzy local index has no relevance ranking and would stop
-being comparable with the OLS4 backend. The measured cost had not been taken:
-**141 of 343 gold reaction spans return a candidate, 202 return nothing (59%)**.
-`low back pain` resolves; `lower back pain` does not. Every rung that depends on
-term lookup inherits that ceiling.
-
-**No rung interaction.** Run end to end in the specified order, every per-rung
-figure reproduced exactly.
-
-```bash
-LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py
-```
-
-## Watching a run
-
-Two views over the same append-only ledger, so they cannot disagree.
-
-```bash
-python3 scripts/ladder_top.py            # terminal, follows the ledger
-python3 scripts/ladder_top.py --once     # render a finished run
-LADDER_N=0 PYTHONPATH=. python3 scripts/ladder_run.py --tui
-```
-
-```bash
-python3 -m http.server 8000              # from the repo root
-# then http://localhost:8000/docs/ladder-monitor.html
-```
-
-Both draw each rung over **its own denominator**, never the run total, and both
-render `could_not_run` as a hatch rather than a colour — it is the absence of a
-measurement and must not read as one.
-
-The terminal view adds two panels that have already earned their place. **Watch**
-runs live checks derived from this project's own mistakes: a verdict
-distribution whose minority class is under 10% (agreement over such a set
-measures its composition, not the checker), a rung losing more than a quarter of
-its input to could-not-run, rows with no denominator. **Time** gives per-rung
-latency distribution, throughput, ETA and drift — and it found on its first
-render that rung 4's apparent 6x degradation was a single 134-second model load
-followed by partial GPU offload, not degradation at all.
-
-## Provenance — what actually ran
-
-`ladder/provenance.py` gathers a run stamp from live objects rather than from
-the manifest's intentions, because the two diverge. It records requested against
-resolved model strings, the vocabulary backend and whether it is the lossy one,
-sampling temperature, rung order, git SHA and whether the tree was dirty, and
-whether the model fits in VRAM.
-
-```bash
-PYTHONPATH=. python3 -m ladder.provenance
-```
-
-It warns rather than raises. On its first real run it caught that the pipeline
-judges with `llama3.2:3b` while the manifest specifies `qwen2.5:7b` — two models
-that produced opposite results, and nothing had recorded which one ran.
-
-## The ledger, and what it records that tools do not
-
-One row per record per rung: tokens, calls, latency, outcome — plus two fields
-that no LLM observability platform models.
-
-- **`denominator`** — the named set this row's rate is computed over. Rung 4
-  judged 96 of 169 offered; rung 5 voted on 3 of 169. A rate over the wrong base
-  renders as healthy.
-- **`evaluable`** — `pass` · `fail` · **`could_not_run`**. Three values, never a
-  boolean. Parse failures, not-re-found mentions and unevaluable checks are none
-  of them a pass and none of them a fail.
-
-## Data — read before you clone
-
-No corpus is in this repository, and none can be.
-
-| Source | Terms | Where it lives |
-|---|---|---|
-| **CADEC v2** | CSIRO Data Licence — non-commercial, **non-transferable**, no redistribution | [csiro:10948](https://data.csiro.au/collection/csiro:10948). Each team member accepts it individually; the download directory is gitignored |
-| **SNOMED CT** | affiliate licence for full releases | a local RF2 release indexed by `ladder/registry.py`, or [EBI OLS4](https://www.ebi.ac.uk/ols4) at run time via `ladder/vocab.py` — free, no key |
-| **MedDRA** | subscription (MSSO) | only `data/meddra_codes.example.csv` (10 rows, for tests) is committed |
-
-`data/splits/*.json` holds **document IDs only** — no post text, no annotations.
-Anyone with their own licensed copy reproduces the exact splits; nobody obtains
-the corpus from here. Full detail: [docs/licences.md](docs/licences.md).
-
-### Two vocabulary backends, and they are not equivalent
-
-`ladder/vocab.py` selects one and records it in the manifest:
-
-| backend | source | `lossy` |
-|---|---|---|
-| `local-rf2` | a SNOMED RF2 release indexed to SQLite | **False** — sees retired concepts and extension modules |
-| `ols4` | EBI OLS4 over the network | **True** — active international SNOMED only |
-
-An OLS4-backed `exists()` reports **23.9%** of CADEC gold as codes that do not
-exist: 7.5% retired, 16.4% AU-extension — which is **100% of drug mentions**,
-because CADEC codes drugs to AMT. A rung 1 rejection rate is not comparable
-across backends.
-
-```bash
-python -m ladder.vocab_crosscheck --live 40
-```
-
-## The 3 contracts (see `/schemas`)
-
-1. **runner.py** — `apply(records, sources, cfg) -> records`. Every rung
-   implements it, which makes execution order a config value and a new rung
-   twenty minutes' work.
-2. **vocabulary.py** — the global vocabulary resource, injected once per run
-   rather than per item. Two backends, and every backend declares whether it is
-   `lossy`.
-3. **`ladder/schema.py`** — the record: one **mention**, not one document and
-   not a drug↔reaction pair. Frozen after the fixture gate.
-
-## Repo map
-
-```
-ladder/       schema (the A/B contract) · corpus reader + frozen splits ·
-              registry (local SNOMED index) · vocab (backend selection + OLS4) ·
-              llm (cached model client) · ledger ·
-              negation · run.py · fixture (the gate) · calibrate · probe ·
-              vocab_crosscheck
-ladder/rungs/ r0 (extract + A/B ablation) · r1 (validate) · r2 (abstain) ·
-              r3 (self-correct) · r4 (judge) · r5 (vote)
-schemas/      the contracts
-data/         meddra_codes.example.csv · splits/ (document IDs only)
-docs/         plan.html · decisions.md · cadec-track.md · licences.md ·
-              article-iterations.md
-scripts/      preflight.py · ladder_run.py (full ladder, specified order) ·
-              r4_gold_control.py · full_run.py · dev_sweep.py ·
-              split_by_type.py · count_codes.py
-tests/        against stubs — no network, no keys, no corpus
-manifest.json corpus + vocabulary versions, seed, splits, gold rule, rung order,
-              rung parameters, ablations. Reproducibility and honesty are the
-              same file.
-```
-
-## Status
-
-- [x] Corpus, frozen splits, vocabulary index, ledger, rung 1, rung 5, harness
-- [x] Both model-free characterisations of rung 1
-- [x] Rungs 0 / 3 / 4 / 5 — the full ladder runs end to end
-- [x] All seven rungs measured; gold controls for rungs 2 and 4; end-to-end run
-      in the specified order confirming zero rung interaction
-- [x] Per-record ledger for every rung, with denominators and a three-valued
-      `evaluable`
-- [x] InfoQ article — the 2026-08-24 first draft is archived as
-      [docs/versions/infoq-article-draft-2026-08-24.md](docs/versions/infoq-article-draft-2026-08-24.md);
-      the live draft is [docs/article-v3.md](docs/article-v3.md)
-- [ ] The shared scorer `ladder/score.py` — `run.py` writes the accuracy columns
-      empty rather than guessing, and reports a missing rung rather than faking it
-- [x] Rung 6 measured as a timing study — 1.2 reviewer-hours extrapolated
-- [x] Provenance stamps on every script that produces a figure
-- [x] Contract tests — vocabulary Protocol conformance, exact-term search
-      pinned, the never-fired guards exercised, rung 0's two entry points
-      asserted to agree
-- [ ] Rung 0 mode B — measures prompt wording plus a post-hoc lookup, NOT tool
-      access. The search runs after generation and the model never sees it;
-      worse, exact-term retrieval returns nothing for most mentions, so
-      `honoured_tool` is undefined rather than false. Do not publish the current
-      framing. A real tool loop is untested and is the obvious next experiment
-- [ ] `ladder/rungs/r0.py` has two entry points, `run()` and `apply()`. They now
-      agree and a test enforces it, but the duplication is the underlying issue
-- [ ] `docs/plan.html` — audited against measured results, six blocking items
-      open. See [docs/plan-html-audit.md](docs/plan-html-audit.md)
-- [—] Rung 6 — **structurally blocked, not pending.** Nothing below it produces
-      records worth reviewing
-
-**Retired 2026-08-22:** an earlier data-agnostic track (its pipeline, dashboard,
-adapters, schemas and tests), together with its results. The CADEC track imported
-none of it. The numbers in the sections above are measured on CADEC v2 and FiNER-139. Five further corpora were added in September 2026 and are listed under *Five more corpora* below.
-
-## Five more corpora, as additional tests
-
-*Beyond the article's scope, and the reason to trust what is above it.* Between
-2026-09-01 and 2026-09-07 the two claims — that the free check is worth its
-nothing, and that the paid layers are not worth their tokens — were re-run on
-five further corpora across five model families.
+[docs/REPRODUCE.md](docs/REPRODUCE.md) covers all three layers: re-scoring the
+tracked run files, re-deriving every report from the raw run at
+`runs/archive/consolidated-2026-09-03/`, and re-running the rungs on your own
+data. If a number does not reproduce, [open an issue](CONTRIBUTING.md) — that
+is the most useful thing anyone can send us.
+
+## The corpora
+
+Chosen to differ in the one respect that decides whether the free check can
+work at all: whether the extracted span and the code's own name are drawn from
+the same language.
 
 | corpus | domain | vocabulary | licence | lane fires | of that, correct |
 |---|---|---|---|---|---|
@@ -632,138 +168,95 @@ five further corpora across five model families.
 | **LINNAEUS** | research papers | NCBI Taxonomy | CC-BY | 0–13% | 80% *(n=5)* |
 | **FiNER-139** | SEC filings | 139 XBRL tags | CC-BY-SA-4.0 | **0.0%** | — |
 
-Ranges are across `gpt-oss:20b`, `llama3.1:8b`, `mistral:7b-instruct` and
-`ibm/granite4:micro-h` and `qwen3:8b` — 4B to 20B, four architectures —
-one draw each on the dev split, rungs 0–1. Every cell is published:
-[`runs/archive/matrix-2026-09-07/`](runs/archive/matrix-2026-09-07/)
-holds all 59, stripped of quoted text and **scoring identically** —
-`scripts/score_matrix.py --dir runs/archive/matrix-2026-09-07/matrix`
-reproduces the numbers above from the repository alone.
-Three draws were measured byte-identical on three corpora, so a single draw is a
-measurement rather than a sample. **CADEC's row is a reference and not a row of
-the same table:** it was produced on different hardware, and floating point
-differs between a CPU-split model and a GPU-resident one.
+Ranges are across `gpt-oss:20b`, `llama3.1:8b`, `mistral:7b-instruct`,
+`ibm/granite4:micro-h` and `qwen3:8b`, one draw each on the dev split, rungs
+0–1. Three draws were measured byte-identical on three corpora, so a single
+draw is a measurement rather than a sample. CADEC's row is a reference, not a
+row of the same table: it was produced on different hardware.
 
-**The split is the finding, and it is not about medicine.** Clinical
-vocabularies give a SMALL lane that is RIGHT; gazetteers give a LARGE lane that
-is WRONG. Read as ACCEPT's accuracy over the accuracy of what the check
-*declined* to endorse — whether the lane sorted anything at all — the clinical
-corpora separate **2.0–3.8×** and TR-News separates **0.6–0.9×**. There the free
-check is worse than not checking.
+FiNER's zero is structural: the spans are numerals (`47.6`) and the tags are
+English phrases (`EffectiveIncomeTaxRateContinuingOperations`), so the two
+share no token by construction. Clinical vocabularies give a small lane that is
+right; gazetteers give a large lane that is wrong. Read as ACCEPT's accuracy
+over the accuracy of what the check declined to endorse, the clinical corpora
+separate **2.0–3.8×** and TR-News **0.6–0.9×** — there the free check is worse
+than not checking.
 
-**And the paid layers still do not pay.** The full ladder on PsyTAR, three
-draws: self-correction, sampled voting and the LLM judge each routed **zero**
-records, and coverage was identical to rungs 0–1 alone. That was a one-corpus
-claim before 2026-09-07.
+## The three checks
 
-Everything is in [`docs/decisions.md`](docs/decisions.md), dated, including the
-corrections — twelve matrix cells that ran with the wrong corpus's prompt, and
-five that ran a different model than their directory name claimed.
+Measuring seven layers on seven corpora produced one lesson that outlived the
+measurements: **a load-bearing fact recorded in one place cannot be checked,
+and will eventually be wrong without saying so.** Every defect caught early
+here was caught by comparing two independent records of one fact. Three small
+tools came out of that.
 
-## The three checks, in detail
-
-Three questions at three moments. Two live in this repository; one is its own.
-
-| tool | question | when | knows about corpora |
+| tool | the question | when | knows about corpora |
 |---|---|---|---|
-| [`gatecheck`](scripts/gatecheck.py) | should I run this? | before booking a card | yes |
-| [`crosscheck`](scripts/crosscheck.py) | is it what I declared? | first line of every run | yes |
+| [`gatecheck`](scripts/gatecheck.py) | should this corpus be run at all? | before booking a card | yes |
+| [`crosscheck`](scripts/crosscheck.py) | is it wired as it is declared? | the first line of every run | yes |
 | [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
 
-### stagecheck
+`stagecheck` is a separate, installable package — 43 tests, no dependencies,
+MIT. It records the two things a pipeline usually does not: **the bet a stage
+makes**, and **the records it could not judge**. A stage that judged 40 of 100
+records and reports 95% accuracy has reported a rate over an unnamed set.
+`gatecheck` and `crosscheck` live in `ladder/checks/` with thin CLI wrappers;
+52 tests between them, each written from a defect that reached a rented card
+first. Detail: [docs/three-checks.md](docs/three-checks.md).
 
-<p align="center">
-  <a href="https://github.com/pushpdeep/stagecheck">
-    <img src="docs/assets/lockup-once.svg" width="300"
-         alt="stagecheck — a ledger spine with three rows: judged, failed, and a hatched row for records that could not be judged.">
-  </a>
-</p>
+## Data and licences
 
-**https://github.com/pushpdeep/stagecheck** — 43 tests, no dependencies, MIT.
+No corpus is in this repository, and none can be. `data/splits/*.json` holds
+document IDs only, so anyone with their own licensed copy reproduces the exact
+splits and nobody obtains a corpus from here.
 
-A ledger for pipeline stages that records **two fields nothing else does**: what
-the stage was betting on, and how many records it could not judge. The second is
-the one that matters. A rate computed over the records a stage *could* judge,
-reported as though it covered all of them, is the defect this whole study kept
-finding — and it is invisible in every metric that reports a percentage without
-its denominator.
+| source | terms | where |
+|---|---|---|
+| **CADEC v2** | CSIRO Data Licence — non-commercial, **non-transferable** | [csiro:10948](https://data.csiro.au/collection/csiro:10948); each team member accepts it individually |
+| **SNOMED CT** | affiliate licence for full releases | a local RF2 release indexed by `ladder/registry.py`, or [EBI OLS4](https://www.ebi.ac.uk/ols4) at run time — lossy, and never interchangeable with the local index |
+| **MedDRA** | subscription (MSSO) | only a 10-row example file is committed, for tests |
 
-It knows nothing about corpora, vocabularies or language models, and it should
-not. That is what makes it usable outside this study.
+Code is MIT ([LICENSE](LICENSE)). Third-party data keeps its own terms; the
+full detail is in [docs/licences.md](docs/licences.md). `scripts/preflight.py`
+scans the working tree and git history for corpus text and API keys before
+every push.
 
-### gatecheck
+## Repository layout
 
-Reads a corpus's answer key and predicts what the free check *could* endorse —
-before any GPU time. On FiNER-139 it reports **0.0%** and says the arm cannot
-produce a lane however good the model is, which is a full GPU arm's finding
-available for nothing. On LINNAEUS it reports **4.8%** and flags it thin.
+```
+ladder/         run.py (the runner) · schema.py (the record) · corpus_*.py (one adapter
+                per corpus) · registry.py (local SNOMED index) · vocab.py (backend
+                selection) · llm.py (cached model client, models.yaml) · ledger.py ·
+                score.py · trace.py · analysis.py · provenance.py
+ladder/rungs/   r0 … r6, one file per rung; r7 is the type-compatibility check arm
+ladder/checks/  gate.py and cross.py, behind scripts/gatecheck.py and scripts/crosscheck.py
+schemas/        the runner and vocabulary contracts
+manifest*.json  one manifest per corpus; every arm is a pinned one-key diff
+runs/archive/   the tracked, corpus-free run files every published number comes from
+scripts/        preflight · score_matrix · reproduce · the run and re-run protocols
+tests/          against stubs — no network, no keys, no corpus
+docs/           the articles, the decision log, REPRODUCE, RUNNING, licences
+```
 
-Both warnings fire on exactly the two arms that wasted the most card time before
-the tool existed.
+## Documentation
 
-### crosscheck
-
-Reads every declared fact back from an independent source: the rendered prompt
-against the declared entity, the few-shot ids against the split the guard
-actually reads, the split ids against the corpus the adapter loads, each named
-model against what is installed.
-
-Nine checks, and every one is a defect that reached a rented card first. It
-found a live one within an hour of being written — a manifest whose task
-description rendered as *"the abstract describes the abstract describes"*,
-written an hour after the identical bug had been found, diagnosed and explained
-elsewhere. Care did not prevent the repeat; a second reading of the same fact
-did.
-
-**52 tests between the two**, each written from a real defect and each made to
-fail on that defect before being confirmed to pass on the fix.
-
-<!-- old section follows -->
-
-Three questions at three moments. Two live here; one is its own repo.
-
-| tool | question | when | knows about corpora |
-|---|---|---|---|
-| [`gatecheck`](scripts/gatecheck.py) | should I run this? | before booking a card | yes |
-| [`crosscheck`](scripts/crosscheck.py) | is it what I declared? | first line of every run | yes |
-| [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
-
-**`stagecheck` is the mature one** — its own repository, 43 tests, no
-dependencies, MIT. It records the two things a pipeline usually does not: the
-bet a stage makes, and the records it could not judge.
-
-**`gatecheck` and `crosscheck` are newer** — 52 tests between them, each written
-from a defect that reached a rented card first, and each made to FAIL on that
-defect before being confirmed to pass on the fix. They live in `ladder/checks/`
-with thin CLI wrappers, rather than packaged separately; the boundary between
-them and `stagecheck` is described in
-[`docs/three-checks.md`](docs/three-checks.md).
-
-The principle they share came out of a week of failures that all looked the
-same: **a load-bearing fact recorded once cannot be checked, and will eventually
-be wrong silently.** Everything that caught a real defect compared two
-independent records of one fact. Everything that got through was recorded once.
+| | |
+|---|---|
+| [docs/article-infoq-CADEC.md](docs/article-infoq-CADEC.md) | the InfoQ submission; [docs/article-v3.md](docs/article-v3.md) is the long two-corpus version |
+| [docs/decisions.md](docs/decisions.md) | the durable record — every finding, dated, with its corrections beside it |
+| [docs/REPRODUCE.md](docs/REPRODUCE.md) | re-score, re-derive, re-run |
+| [docs/RUNNING.md](docs/RUNNING.md) | the CADEC and geo arms, watching a run, provenance, the ledger, the contracts |
+| [docs/FINAL-RESULTS.md](docs/FINAL-RESULTS.md) | the matrix, cell by cell |
+| [docs/early-results.md](docs/early-results.md) | the superseded 2026-08-20 figures and the build checklist |
+| [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md) | what moved, when · the quickest way in is to break a number |
 
 ## Where this lives
 
 | | |
 |---|---|
-| **GitLab** *(primary)* | [gitlab.com/pushpdeep/ai-reliability-ladder](https://gitlab.com/pushpdeep/ai-reliability-ladder) — CI publishes the plan and demo from here |
+| **GitLab** *(primary)* | [gitlab.com/pushpdeep/ai-reliability-ladder](https://gitlab.com/pushpdeep/ai-reliability-ladder) — CI publishes the [plan and demo](https://ai-reliability-ladder-9baac5.gitlab.io/) from here |
 | **GitHub** *(mirror)* | [github.com/wbagais/reliability-ladder](https://github.com/wbagais/reliability-ladder) — the address the article prints |
-| **stagecheck** *(separate)* | [github.com/pushpdeep/stagecheck](https://github.com/pushpdeep/stagecheck) — installable on its own, no dependencies |
+| **stagecheck** | [github.com/pushpdeep/stagecheck](https://github.com/pushpdeep/stagecheck) — installable on its own |
 
-The two ladder remotes are the same repository. **If they have diverged, the
-GitLab one is ahead:** it is where the runs, the decision log and the archive
-are pushed from.
-
-| | |
-|---|---|
-| [**CONTRIBUTING**](CONTRIBUTING.md) | the quickest way in is to reproduce one of our numbers and tell us if it does not hold |
-| [**CHANGELOG**](CHANGELOG.md) | what moved, when — including the figures that were corrected after publication |
-| [**the decision log**](docs/decisions.md) | the durable record; corrections sit beside the claims they correct |
-
-## Licence
-
-Code: MIT (see [LICENSE](LICENSE)). Third-party data keeps its own terms —
-CADEC, SNOMED CT and MedDRA are each named explicitly in the carve-out and in
-[docs/licences.md](docs/licences.md).
+The two ladder remotes are the same repository. If they have diverged, the
+GitLab one is ahead.
