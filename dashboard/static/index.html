@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ladder Workbench</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Ladder Workbench <span class="pill">M1 · read-only</span></div>
+  <nav id="tabbar" class="tabbar"></nav>
+</header>
+
+<main id="main">
+  <section id="tab-explorer" class="tab" hidden>
+    <h2>Data explorer <span class="muted">gold corpus, splits, exclusions</span></h2>
+    <div id="explorer-warnings"></div>
+    <div class="cards" id="explorer-stats"></div>
+    <div class="cols">
+      <div class="col">
+        <h3>Zone strip on gold <span class="muted">(V4 — gold replayed through rung 1)</span></h3>
+        <div id="zone-strip"></div>
+        <h3>Splits</h3>
+        <div id="splits-view"></div>
+        <h3>Exclusions <span class="muted">declared, leave the denominator</span></h3>
+        <div id="exclusions" class="scrollbox"></div>
+      </div>
+      <div class="col">
+        <h3>Documents</h3>
+        <div class="controls">
+          <select id="explorer-split">
+            <option value="">dev+pool</option>
+            <option value="dev">dev</option>
+            <option value="pool">pool</option>
+            <option value="test">test (spent)</option>
+          </select>
+          <input id="explorer-q" placeholder="filter doc id…">
+        </div>
+        <div id="spent-banner" class="banner warn" hidden>
+          SPENT SPLIT — phaseF-test-1 is final; test results are read-only
+          displays and nothing is re-run.
+        </div>
+        <div id="doc-list" class="scrollbox"></div>
+        <div id="doc-view"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tab-results" class="tab" hidden>
+    <h2>Results &amp; comparison</h2>
+    <div class="controls">
+      <label>run <select id="results-run"></select></label>
+      <label>baseline <select id="results-baseline"><option value="">none</option></select></label>
+      <label>span <select id="results-span">
+        <option value="exact">exact</option><option value="overlap">overlap</option>
+      </select></label>
+      <span id="results-export"></span>
+    </div>
+    <div id="results-notices"></div>
+    <div id="results-intro"></div>
+
+    <h3>1 · What shipped</h3>
+    <div id="results-headline"></div>
+    <div id="ci-chart"></div>
+
+    <h3>2 · How it got there <span class="muted">(from this run's own manifest copy and ledger)</span></h3>
+    <div id="dep-diagram"></div>
+
+    <h3>3 · The three result layers</h3>
+    <div id="layers-block"></div>
+    <div id="dumbbell"></div>
+
+    <h3>4 · The records' journey <span class="muted">(V2 — abstention's bill as a COUNT)</span></h3>
+    <div id="flow-chart"></div>
+
+    <h3>5 · What it cost <span class="muted">(C5 — three cost measures, never fused; usd carried alongside)</span></h3>
+    <div id="ladder-curve"></div>
+    <div id="cost-panels"></div>
+
+    <h3>6 · What a person still has to do</h3>
+    <div id="human-block"></div>
+
+    <h3>Per-rung stack table</h3>
+    <div id="results-table"></div>
+  </section>
+
+  <section id="tab-walkthrough" class="tab" hidden>
+    <h2>Example walkthrough</h2>
+    <div class="controls">
+      <label>run <select id="walk-run"></select></label>
+      <label>document <select id="walk-doc"></select></label>
+      <label>span <select id="walk-span">
+        <option value="exact">exact</option><option value="overlap">overlap</option>
+      </select></label>
+      <label><input type="checkbox" id="walk-gold"> gold overlay</label>
+    </div>
+    <div id="walk-caveats"></div>
+    <div id="walk-doc-text"></div>
+    <div id="walk-records"></div>
+  </section>
+
+  <section id="tab-trace" class="tab" hidden>
+    <h2>Traceability <span class="muted">any number → its records → ledger, checks, prompt &amp; raw reply</span></h2>
+    <div class="controls">
+      <label>run <select id="trace-run"></select></label>
+      <label>span <select id="trace-span">
+        <option value="exact">exact</option><option value="overlap">overlap</option>
+      </select></label>
+    </div>
+    <div id="trace-aggregates"></div>
+    <div class="cols">
+      <div class="col"><div id="trace-records" class="scrollbox"></div></div>
+      <div class="col"><div id="trace-detail"></div></div>
+    </div>
+  </section>
+
+  <section id="tab-later" class="tab" hidden>
+    <h2 id="later-title"></h2>
+    <p class="muted" id="later-note"></p>
+  </section>
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
