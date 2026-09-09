@@ -242,10 +242,10 @@ for i, text in enumerate(losses):
 ax.set_xlim(0, ex["n_gold"] * 1.55); ax.set_ylim(-0.7, len(stages) - 0.3)
 ax.set_yticks([]); ax.set_xticks([])
 for sp in ax.spines.values(): sp.set_visible(False)
-ax.set_title(f"One extractor, gpt-oss:20b, first run: of {ex['n_gold']} annotated mentions, how many each pipeline stage keeps "
-             f"({ex['correct']} answered right)\neach bar is what the stage above passed on; the dotted steps are the losses. No other model is involved.",
-             loc="left", fontsize=12, pad=12)
-plt.subplots_adjust(left=0.30)
+plt.subplots_adjust(left=0.30, top=0.84)
+fig.text(0.5, 0.95, f"One extractor, gpt-oss:20b, first run: of {ex['n_gold']} annotated mentions, how many each stage keeps\n"
+         f"each bar is what the stage above passed on; the dotted steps are the losses; {ex['correct']} answered right",
+         ha="center", va="top", fontsize=12, color=INK)
 plt.savefig(HERE / "infoq-fig8-funnel.png", dpi=200, bbox_inches="tight")
 print("ok funnel")
 
