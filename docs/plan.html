@@ -7938,25 +7938,25 @@ function renderDemo(){
    path — which is the finding; the two places the picture bends are rung 2's
    rescue (REJECT → BAND) and refusal (ACCEPT ships, the rest is held). */
 const BF={lane:{ACCEPT:"#2d6a4f",BAND:"#c9a227",REJECT:"#a33333"},ships:"#2d6a4f",held:"#c9a227",person:"#3b5aa5",all:"#5a6b73"};
-let bfK="cadec", bfHi=null, bfPlaying=true;
+let bfK="cadec", bfHi=null;
 function bfPath(x1,y1,h1,x2,y2,h2){const c=(x1+x2)/2;return "M"+x1+","+y1+" C"+c+","+y1+" "+c+","+y2+" "+x2+","+y2+" L"+x2+","+(y2+h2)+" C"+c+","+(y2+h2)+" "+c+","+(y1+h1)+" "+x1+","+(y1+h1)+" Z";}
 function bfMid(x1,y1,h1,x2,y2,h2){const c=(x1+x2)/2,a=y1+h1/2,b=y2+h2/2;return "M"+x1+","+a+" C"+c+","+a+" "+c+","+b+" "+x2+","+b;}
 function renderBatch(){
  const f=PD.flow[bfK], n=f.n, W=980, H=430, top=58, PH=290, colW=120, X0=40, NW=14, GAP=10;
  const cx=i=>X0+i*colW, scale=PH/(n+2*GAP);
  const s=S("0 0 "+W+" "+H); s.setAttribute("style","width:100%;height:auto;border:1px solid #ccc;background:#fff;display:block"); s.id="bfSvg";
- const nodes={}; const node=(key,col,y,h,color,label,sub)=>{nodes[key]={x:cx(col),y,h}; if(h<=0)return;
-  E(s,"rect",{x:cx(col),y,width:NW,height:Math.max(h,1.5),fill:color,rx:2});
-  if(label){E(s,"text",{x:cx(col)+NW+5,y:y+Math.min(h/2+4,h+10),"font-size":10.5,"font-family":"Consolas,monospace","font-weight":700,fill:"#111"},label);
-   if(sub)E(s,"text",{x:cx(col)+NW+5,y:y+Math.min(h/2+16,h+22),"font-size":9,"font-family":"Calibri,Arial",fill:"#555"},sub);}};
+ const nodes={}; const node=(key,col,y,h,color,label,sub)=>{nodes[key]={x:cx(col),y,h,col}; if(h<=0)return;
+  E(s,"rect",{x:cx(col),y,width:NW,height:Math.max(h,1.5),fill:color,rx:2,"data-col":col});
+  if(label){E(s,"text",{x:cx(col)+NW+5,y:y+Math.min(h/2+4,h+10),"font-size":10.5,"font-family":"Consolas,monospace","font-weight":700,fill:"#111","data-col":col},label);
+   if(sub)E(s,"text",{x:cx(col)+NW+5,y:y+Math.min(h/2+16,h+22),"font-size":9,"font-family":"Calibri,Arial",fill:"#555","data-col":col},sub);}};
  // column headings: rung, name, cost
  const RN=["extract","check","self-correct","vote","judge","refuse","person"];
  for(let i=0;i<7;i++){const paid=f.tokens[String(i)]>0;
-  E(s,"text",{x:cx(i),y:16,"font-size":12,"font-family":"Consolas,monospace","font-weight":700,fill:"#111"},"R"+i);
-  E(s,"text",{x:cx(i)+22,y:16,"font-size":11,"font-family":"Calibri,Arial","font-weight":700,fill:paid?"#0c6469":"#5a6b73"},RN[i]);
-  E(s,"text",{x:cx(i),y:30,"font-size":9,"font-family":"Consolas,monospace",fill:paid?"#0c6469":"#2d6a4f"},paid?fmt(f.tokens[String(i)])+" tok/rec":"0 · free");
+  E(s,"text",{x:cx(i),y:16,"font-size":12,"font-family":"Consolas,monospace","font-weight":700,fill:"#111","data-col":i},"R"+i);
+  E(s,"text",{x:cx(i)+22,y:16,"font-size":11,"font-family":"Calibri,Arial","font-weight":700,fill:paid?"#0c6469":"#5a6b73","data-col":i},RN[i]);
+  E(s,"text",{x:cx(i),y:30,"font-size":9,"font-family":"Consolas,monospace",fill:paid?"#0c6469":"#2d6a4f","data-col":i},paid?fmt(f.tokens[String(i)])+" tok/rec":"0 · free");
   const note={2:f.rescued+" of "+f.lanes.REJECT+" rescued",3:f.changed+" codes changed · net "+(f.net>0?"+":"")+f.net,4:"pass "+(f.judge.ACCEPT.pass+f.judge.BAND.pass+f.judge.REJECT.pass)+" · fail "+(f.judge.ACCEPT.fail+f.judge.BAND.fail+f.judge.REJECT.fail)+" · read by nothing"}[i];
-  if(note)E(s,"text",{x:cx(i),y:42,"font-size":8.5,"font-family":"Calibri,Arial",fill:"#444"},note);}
+  if(note)E(s,"text",{x:cx(i),y:42,"font-size":8.5,"font-family":"Calibri,Arial",fill:"#444","data-col":i},note);}
  // nodes
  const L=f.lanes, y0=top+GAP*scale;
  node("r0",0,y0,n*scale,BF.all,n+" records",f.right0+" right");
@@ -7966,15 +7966,15 @@ function renderBatch(){
  const L2={ACCEPT:L.ACCEPT,BAND:L.BAND+f.rescued,REJECT:L.REJECT-f.rescued}; y=top; const lane2Y={};
  for(const k of ["ACCEPT","BAND","REJECT"]){lane2Y[k]=y; for(const col of [2,3,4]) node("r"+col+k,col,y,L2[k]*scale,BF.lane[k],col===4?k+" "+L2[k]:null); y+=L2[k]*scale+GAP*scale;}
  // judge shading inside each lane at column 4: pass (solid) / fail (hatched) / unjudged
- for(const k of ["ACCEPT","BAND","REJECT"]){const j=f.judge[k]; let yy=lane2Y[k]; for(const [v,op] of [["pass",1],["fail",.45],["unjudged",.15]]){const h=j[v]*scale; if(h>0){E(s,"rect",{x:cx(4),y:yy,width:NW,height:h,fill:BF.lane[k],opacity:op}); yy+=h;}}}
+ for(const k of ["ACCEPT","BAND","REJECT"]){const j=f.judge[k]; let yy=lane2Y[k]; for(const [v,op] of [["pass",1],["fail",.45],["unjudged",.15]]){const h=j[v]*scale; if(h>0){E(s,"rect",{x:cx(4),y:yy,width:NW,height:h,fill:BF.lane[k],opacity:op,"data-col":4,"data-op":op}); yy+=h;}}}
  const yS=top, yH=top+f.ships*scale+GAP*scale;
  node("r5ships",5,yS,f.ships*scale,BF.ships,"ships "+f.ships,f.ship_right+" right");
  node("r5held",5,yH,f.held*scale,BF.held,"held "+f.held,f.person_right+" right");
  node("r6",6,yH,f.held*scale,BF.person,"to a person "+f.held,f.unreviewable?f.unreviewable+" unreviewable":"the count is the cost");
  // ribbons
  const rib=[]; const ribbon=(a,b,count,color,key)=>{if(count<=0)return; const A=nodes[a],B=nodes[b];
-  const h=count*scale; const p=E(s,"path",{d:bfPath(A.x+NW,A.y+A._o,h,B.x,B.y+B._i,h),fill:color,opacity:.35,class:"bfrib","data-key":key});
-  rib.push({mid:bfMid(A.x+NW,A.y+A._o,h,B.x,B.y+B._i,h),count,color,key}); A._o+=h; B._i+=h;};
+  const h=count*scale; const p=E(s,"path",{d:bfPath(A.x+NW,A.y+A._o,h,B.x,B.y+B._i,h),fill:color,opacity:.35,class:"bfrib","data-key":key,"data-col":B.col});
+  rib.push({mid:bfMid(A.x+NW,A.y+A._o,h,B.x,B.y+B._i,h),count,color,key,col:B.col}); A._o+=h; B._i+=h;};
  for(const k in nodes){nodes[k]._o=0;nodes[k]._i=0;}
  for(const k of ["ACCEPT","BAND","REJECT"]) ribbon("r0","r1"+k,L[k],BF.lane[k],"r0-"+k);
  for(const k of ["ACCEPT","BAND","REJECT"]) ribbon("r1"+k,"r2"+k,k==="REJECT"?L.REJECT-f.rescued:L[k],BF.lane[k],"r1-"+k);
@@ -7984,29 +7984,34 @@ function renderBatch(){
  for(const k of ["BAND","REJECT"]) ribbon("r4"+k,"r5held",f.to5[k].held,BF.held,"r4-"+k);
  ribbon("r5held","r6",f.held,BF.person,"r5-held");
  // ships exits to the right
- if(f.ships>0){const A=nodes.r5ships; E(s,"path",{d:"M"+(A.x+NW)+","+A.y+" L"+(A.x+NW+70)+","+A.y+" L"+(A.x+NW+70)+","+(A.y+A.h)+" L"+(A.x+NW)+","+(A.y+A.h)+" Z",fill:BF.ships,opacity:.35});
-  E(s,"text",{x:A.x+NW+74,y:A.y+A.h/2+4,"font-size":9.5,"font-family":"Calibri,Arial",fill:"#2d6a4f","font-weight":700},"shipped");}
+ if(f.ships>0){const A=nodes.r5ships; E(s,"path",{d:"M"+(A.x+NW)+","+A.y+" L"+(A.x+NW+70)+","+A.y+" L"+(A.x+NW+70)+","+(A.y+A.h)+" L"+(A.x+NW)+","+(A.y+A.h)+" Z",fill:BF.ships,opacity:.35,"data-col":6});
+  E(s,"text",{x:A.x+NW+74,y:A.y+A.h/2+4,"font-size":9.5,"font-family":"Calibri,Arial",fill:"#2d6a4f","font-weight":700,"data-col":6},"shipped");}
  // moving records: dots along every ribbon, count proportional to width
  const total=rib.reduce((a,r)=>a+r.count,0);
  rib.forEach((r,ri)=>{const dots=Math.max(1,Math.round(18*r.count/Math.max(1,n))); for(let d=0;d<dots;d++){
-  const c=E(s,"circle",{r:2.6,fill:r.color,opacity:.9,class:"bfdot","data-key":r.key});
+  const c=E(s,"circle",{r:2.6,fill:r.color,opacity:.9,class:"bfdot","data-key":r.key,"data-col":r.col});
   const m=E(c,"animateMotion",{dur:"3.2s",repeatCount:"indefinite",begin:(-(d*3.2/dots)-ri*0.13).toFixed(2)+"s",path:r.mid});}});
  // the dashed line between free and paid
- E(s,"text",{x:cx(1)+NW+5,y:top+PH+30,"font-size":9,"font-family":"Calibri,Arial",fill:"#444"},"lanes run straight through rungs 2–4: those rungs change what a record says, not where it goes");
+ E(s,"text",{x:cx(1)+NW+5,y:top+PH+30,"font-size":9,"font-family":"Calibri,Arial",fill:"#444","data-col":4},"lanes run straight through rungs 2–4: those rungs change what a record says, not where it goes");
  const host=$("bfSvg")?$("bfSvg").parentNode:$("batchFlow"); host.innerHTML=""; host.appendChild(s);
- if(!bfPlaying)s.pauseAnimations();
- bfHighlight(bfHi);
+ bfHighlight(bfHi); bfReplay();
  const acc=f.ships?(f.ship_right/f.ships).toFixed(2):"—";
  $("bfHead").innerHTML='<b>'+esc(f.label)+'.</b> '+n+' records from '+f.docs+' documents enter. The free check sorts them into three lanes and moves none. The three paid rungs in the middle change no record\'s path — rung 2 rescues '+f.rescued+', rung 3 changes '+f.changed+' codes for a net of '+(f.net>0?"+":"")+f.net+' right answers, rung 4 passes and fails records and nothing reads it. Refusal ships the '+f.ships+' ACCEPT records at accuracy '+acc+' and holds '+f.held+', of which '+f.person_right+' already carry the right code.';
- $("bfPick").innerHTML=[["cadec","CADEC"],["psytar","PsyTAR"],["finer","FiNER-139"]].map(k=>'<button class="chip'+(k[0]===bfK?" on":"")+'" data-k="'+k[0]+'">'+k[1]+'</button>').join('')+'<button class="chip" id="bfPlay" style="margin-left:14px">'+(bfPlaying?"❚❚ pause":"▶ play")+'</button>';
+ $("bfPick").innerHTML=[["cadec","CADEC"],["psytar","PsyTAR"],["finer","FiNER-139"]].map(k=>'<button class="chip'+(k[0]===bfK?" on":"")+'" data-k="'+k[0]+'">'+k[1]+'</button>').join('')+'<button class="chip" id="bfPlay" style="margin-left:14px" title="watch the batch go through the ladder again, rung by rung">▶ replay the run</button>';
  document.querySelectorAll("#bfPick .chip[data-k]").forEach(c=>c.onclick=()=>{bfK=c.dataset.k;bfHi=null;renderBatch();});
- $("bfPlay").onclick=()=>{bfPlaying=!bfPlaying;const sv=$("bfSvg");if(sv){bfPlaying?sv.unpauseAnimations():sv.pauseAnimations();}$("bfPlay").textContent=bfPlaying?"❚❚ pause":"▶ play";};}
+ $("bfPlay").onclick=()=>bfReplay();}
+/* replay: the batch enters at rung 0 and the picture builds one rung at a time, left to right */
+let bfTimers=[];
+function bfReplay(){const sv=$("bfSvg"); if(!sv)return; bfTimers.forEach(clearTimeout); bfTimers=[];
+ const els=[...sv.querySelectorAll("[data-col]")]; els.forEach(e=>{e.style.transition="none"; e.style.opacity=0;});
+ void sv.getBoundingClientRect();
+ for(let c=0;c<=6;c++) bfTimers.push(setTimeout(()=>{els.filter(e=>+e.dataset.col===c).forEach(e=>{e.style.transition="opacity .55s"; e.style.opacity=e.dataset.op||(e.classList.contains("bfrib")?e.getAttribute("opacity"):e.classList.contains("bfdot")?e.getAttribute("opacity"):1);});},250+c*650));}
 /* highlight one record's route through the batch: its lane, the rescue if any, ships or held */
 function bfHighlight(t){bfHi=t; const sv=$("bfSvg"); if(!sv)return;
  const keys=new Set(); if(t){const lane=t.r1.verdict, lane4=t.r2.outcome==="rescued"?"BAND":lane;
   keys.add("r0-"+lane); keys.add("r1-"+lane); if(t.r2.outcome==="rescued")keys.add("rescue"); keys.add("r2-"+lane4); keys.add("r3-"+lane4); keys.add("r4-"+lane4); if(!t.final.shipped)keys.add("r5-held");}
- sv.querySelectorAll(".bfrib").forEach(p=>p.setAttribute("opacity",t?(keys.has(p.dataset.key)?.75:.12):.35));
- sv.querySelectorAll(".bfdot").forEach(d=>d.setAttribute("opacity",t?(keys.has(d.dataset.key)?1:.15):.9));
+ sv.querySelectorAll(".bfrib").forEach(p=>{const o=t?(keys.has(p.dataset.key)?.75:.12):.35; p.setAttribute("opacity",o); if(p.style.opacity!=="0"&&p.style.opacity!=="")p.style.opacity=o;});
+ sv.querySelectorAll(".bfdot").forEach(d=>{const o=t?(keys.has(d.dataset.key)?1:.15):.9; d.setAttribute("opacity",o); if(d.style.opacity!=="0"&&d.style.opacity!=="")d.style.opacity=o;});
  $("bfHiNote").innerHTML=t?'<b>Highlighted:</b> '+esc(t.id)+' — «'+esc(t.span)+'» · '+t.r1.verdict+(t.r2.outcome==="rescued"?" → rescued to BAND":"")+' · '+(t.final.shipped?"ships":"held for a person"):'';}
 
 /* the three datasets side by side: shipped right / shipped wrong / held right / held wrong, scaled to n */
