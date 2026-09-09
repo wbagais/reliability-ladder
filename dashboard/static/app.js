@@ -189,7 +189,8 @@ async function renderExplorer() {
     fillRunSelect($("data-run"), S.runs, true);
     // the newest run ON THIS CORPUS's splits — a matrix cell from another
     // corpus is newer on disk and would read as "everything missed"
-    const first = S.runs.find((r) => r.split === "dev" || r.split === "pool") || S.runs[0];
+    const first = S.runs.find((r) => (r.split === "dev" || r.split === "pool") && r.files.includes("records"))
+      || S.runs.find((r) => r.split === "dev" || r.split === "pool") || S.runs[0];
     if (first) { $("data-run").value = first.key; D.run = first.key; }
   }
   $("spent-banner").hidden = D.split !== "test";
@@ -208,6 +209,7 @@ async function renderExplorer() {
     return;
   }
   D.docs = d.docs;
+  D.recordsAvailable = d.records_available;
   // the drug filter offers what the split holds
   const drugs = [...new Set(d.docs.map((x) => x.drug_group))].sort();
   const sel = $("data-drug");
@@ -256,7 +258,8 @@ function renderDataBody() {
 
 function renderDataTable() {
   let rows = D.docs.filter((x) => !D.drug || x.drug_group === D.drug);
-  const hasRun = rows.length && rows[0].in_run;
+  const hasRun = D.run && D.recordsAvailable;
+  const noRecords = D.run && D.recordsAvailable === false;
   const key = D.sort;
   const val = (x) => {
     if (key === "missed") return x.in_run ? x.in_run.missed : 0;
@@ -285,7 +288,7 @@ function renderDataTable() {
       rows.map((x) => `<tr data-doc="${esc(x.doc_id)}">
         <td class="l">${esc(x.doc_id)}</td><td class="l">${esc(x.drug_group)}</td>
         <td>${x.n_mentions}</td><td>${x.n_discontinuous}</td><td>${x.n_excluded}</td>${inRun(x)}</tr>`).join("") +
-      `</table><div class="muted">click a row to open the document · click a header to sort${hasRun ? " · sort by the run column to find the most missed" : ""}</div>`
+      `</table><div class="muted">click a row to open the document · click a header to sort${hasRun ? " · sort by the run column to find the most missed" : ""}${noRecords ? ` · <b>${esc(D.run)}</b> has no records file on this machine (a tracked copy is corpus-free by design), so no "in run" column` : ""}</div>`
     : `<div class="muted" style="padding:.5rem">no documents match</div>`;
   $("data-table").querySelectorAll("tr[data-doc]").forEach((tr) =>
     (tr.onclick = () => { D.doc = tr.dataset.doc; renderDataBody(); }));

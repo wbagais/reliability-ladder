@@ -659,3 +659,16 @@ def test_docs_list_without_a_run_has_no_in_run_column(client):
 
 def test_docs_list_refuses_an_unknown_run(client):
     assert client.get("/api/corpus/docs", params={"split": "dev", "run": "nope"}).status_code == 404
+
+
+def test_docs_list_says_when_a_run_has_no_records_file(client, tmp_path):
+    """The tracked runs/archive copies are corpus-free by design — no
+    records file. Their "in run" column must read "records not on this
+    machine", never "everything missed"."""
+    d = tmp_path / "out"
+    (d / "ledger-only.ledger.jsonl").write_text("")
+    body = client.get("/api/corpus/docs", params={"split": "dev", "run": "ledger-only"}).json()
+    assert body["run"] == "ledger-only" and body["records_available"] is False
+    assert all(x["in_run"] is None for x in body["docs"])
+    body = client.get("/api/corpus/docs", params={"split": "dev", "run": "syn-run-1"}).json()
+    assert body["records_available"] is True

@@ -400,6 +400,7 @@ em.extra { font-style: normal; font-weight: 700; color: var(--z-abstain); text-d
 .summary .zbar i { display: block; height: 100%; }
 .reference { margin-top: 1.2rem; }
 .reference summary { cursor: pointer; }
+#data-doc-view { position: relative; }
 .doc-head { display: flex; gap: .6rem; align-items: baseline; flex-wrap: wrap; margin: .2rem 0 .3rem; }
 .doc-head .actions { font-size: .82rem; color: var(--muted); }
 .doc-head .actions a { color: var(--accent); margin-right: .6rem; }

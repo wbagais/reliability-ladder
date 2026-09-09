@@ -142,15 +142,22 @@ def docs_payload(state: AppState, split: str | None, q: str | None,
             "n_excluded": sum(1 for m in doc.mentions
                               if m.record_id in excluded),
         })
+    records_available = None
     if run_info is not None:
-        col = in_run_column(state, run_info, [d["doc_id"] for d in docs])
+        # A tracked runs/archive copy is corpus-free by design: no records
+        # file. Say so; an empty record set would read as "everything missed".
+        path = run_info.files.get("records")
+        records_available = bool(path is not None and path.exists())
+        col = in_run_column(state, run_info, [d["doc_id"] for d in docs]) \
+            if records_available else {}
         for d in docs:
-            d["in_run"] = col[d["doc_id"]]
+            d["in_run"] = col.get(d["doc_id"])
     return {
         "split": split or "dev+pool",
         "spent_split": split == "test",
         "run": run_info.run_id if run_info is not None else None,
         "run_key": None,
+        "records_available": records_available,
         "docs": docs,
     }
 
