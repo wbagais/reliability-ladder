@@ -72,7 +72,6 @@ def test_word_budget_does_not_count_the_author_bios():
     assert _words(_body(text)) < _words(_body(text.replace("\n## About the authors", "\n## Authors")))
 
 
-@pytest.mark.xfail(strict=True, reason="Pushpdeep's bio is still a placeholder")
 def test_two_author_bios_of_about_75_words():
     bios = _bios(_text())
     assert len(bios) == 2, f"expected two bios, got {len(bios)}"

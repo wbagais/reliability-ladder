@@ -11,7 +11,7 @@ them at upload time.
 | rule | how it is checked | if it fails |
 |---|---|---|
 | **2,000–3,000 words**, excluding code snippets | every word outside fenced code blocks and HTML comments, up to `## About the authors` — tables, captions, takeaways and the reference list all count (the strict reading); the bios do not, they are author metadata InfoQ shows beside the article | cut prose or a table; never a number |
-| **two author bios**, about 75 words each | each `**Name**` paragraph under `## About the authors` is 50–100 words (the test is `xfail` until the second bio lands) | write it in third person, present tense, current role first |
+| **two author bios**, about 75 words each | each `**Name**` paragraph under `## About the authors` is 50–100 words | write it in third person, present tense, current role first |
 | **five key takeaways**, full sentences, **≤ 130 words together** | five `- ` bullets under `## Key takeaways`, each starting with a capital, ending with a period, at least eight words | rewrite; the takeaways are lessons a reader can apply, each opening with the action and closing with the number that earns it |
 | **authors under the title** | the first non-comment line after the `# ` title is an italic byline containing " and " | keep `*Wejdan Bagais and Pushpdeep Mishra*` there |
 | **captions with image source** | every `![…](…)` is followed by `*Figure N: … Image: the authors.*` and the file exists | add the caption; all figures are the authors' own |
@@ -52,7 +52,7 @@ The two charts read the tracked report; the tables are `.dot` files. See
 2. **Image copyright.** All three figures are the authors' own, generated from files in this repository; no third-party imagery. Keep it that way.
 3. **Editor access.** Enable full editor access for the editorial team on the uploaded document.
 4. **Proofreading pass.** Run a basic spell check before upload (`codespell docs/article-infoq-CADEC.md` found nothing on 2026-09-08). Spelling is British throughout; say so.
-5. **Author bios.** Wejdan's is in (she/her, in the house pattern: role and employer, specialism tied to the article, years and background, degrees); Pushpdeep's is still a placeholder comment — ask for role, employer and one line of background.
+5. **Author bios.** Both in (2026-09-08). Wejdan's uses she/her; Pushpdeep's was supplied in the first person and is written without pronouns until Pushpdeep says which to use.
 6. **The medRxiv reference.** The DOI answers 403 to automated fetches; open it once in a browser before submitting.
 
 ## What the takeaways must keep claiming
