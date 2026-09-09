@@ -10,12 +10,20 @@
   on a task with a real answer key — what each one bought, and what it charged.</i>
 </p>
 
-<p align="center">
-  <a href="docs/article-v3.md">the article</a> ·
-  <a href="docs/decisions.md">the decision log</a> ·
-  <a href="#three-checks-this-study-produced">the three checks</a> ·
-  <a href="docs/figures/">figure sources</a>
-</p>
+<table align="center">
+<tr>
+<td align="center"><a href="docs/article-v3.md"><b>the article</b></a></td>
+<td align="center"><a href="docs/decisions.md"><b>the decision log</b></a></td>
+<td align="center"><a href="#three-checks-this-study-produced"><b>the three checks</b></a></td>
+<td align="center"><a href="runs/archive/matrix-2026-09-07/"><b>the run archive</b></a></td>
+</tr>
+<tr>
+<td align="center"><sub>what we measured, and what it cost</sub></td>
+<td align="center"><sub>every finding, dated, beside its corrections</sub></td>
+<td align="center"><sub>gatecheck · crosscheck · stagecheck</sub></td>
+<td align="center"><sub>~50 cells, re-scoreable from this repo</sub></td>
+</tr>
+</table>
 
 ---
 
@@ -81,6 +89,7 @@ every correction, dated: [**the decision log**](docs/decisions.md)
 - [Status](#status)
 - [Five more corpora, as additional tests](#five-more-corpora-as-additional-tests)
 - [The three checks, in detail](#the-three-checks-in-detail)
+- [Where this lives](#where-this-lives)
 - [Licence](#licence)
 
 <!-- toc:end -->
@@ -162,7 +171,7 @@ results rather than reconstructed afterwards.
 
 ## Three corpora, and only two of them are yours to run
 
-*This is the article's scope. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Five more were added between 2026-09-01 and
+*This is the article's scope. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Five more were added between 2026-09-01 and
 2026-09-07 and are summarised further down — they test whether the claims
 below hold anywhere else.*
 
@@ -734,6 +743,24 @@ The principle they share came out of a week of failures that all looked the
 same: **a load-bearing fact recorded once cannot be checked, and will eventually
 be wrong silently.** Everything that caught a real defect compared two
 independent records of one fact. Everything that got through was recorded once.
+
+## Where this lives
+
+| | |
+|---|---|
+| **GitLab** *(primary)* | [gitlab.com/pushpdeep/ai-reliability-ladder](https://gitlab.com/pushpdeep/ai-reliability-ladder) — CI publishes the plan and demo from here |
+| **GitHub** *(mirror)* | [github.com/wbagais/reliability-ladder](https://github.com/wbagais/reliability-ladder) — the address the article prints |
+| **stagecheck** *(separate)* | [github.com/pushpdeep/stagecheck](https://github.com/pushpdeep/stagecheck) — installable on its own, no dependencies |
+
+The two ladder remotes are the same repository. **If they have diverged, the
+GitLab one is ahead:** it is where the runs, the decision log and the archive
+are pushed from.
+
+| | |
+|---|---|
+| [**CONTRIBUTING**](CONTRIBUTING.md) | the quickest way in is to reproduce one of our numbers and tell us if it does not hold |
+| [**CHANGELOG**](CHANGELOG.md) | what moved, when — including the figures that were corrected after publication |
+| [**the decision log**](docs/decisions.md) | the durable record; corrections sit beside the claims they correct |
 
 ## Licence
 
