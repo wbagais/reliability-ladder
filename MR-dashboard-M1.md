@@ -111,7 +111,7 @@ Still green after the refresh.
 
 ## Tests
 
-96 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
+104 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
 `test_dashboard_golden.py`, `test_dashboard_live.py`), all TDD'd. The live
 tests are CI-safe: scripted extractor and judge bound through the same
 `llm.for_rung` seam the run uses, the nine-concept registry fixture, rung 0's

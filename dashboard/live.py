@@ -243,6 +243,12 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
         job.run_id, meddra=meddra, gold=gold,
     )
     diff_by_rung: dict[str, Any] | None = None
+    # The menu-shown judge: a second rung 4 pass the live run makes itself,
+    # on COPIES of the records, so the sixth shipping rule can be answered.
+    menu_judge = None
+    if 4 in job.order_run and not (man.get("rungs", {}).get("4", {}).get("enabled", True) is False):
+        menu_judge = menu_judge_pass(state, man, result["records"], sources, out_dir, job.run_id)
+
     if gold is not None:
         golds = list(gold.values())
         vocab = state.registry()
@@ -280,10 +286,21 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
         r0_calls = [json.loads(l) for l in p0.read_text(encoding="utf-8").splitlines()
                     if l.strip()]
 
+    disabled = {n for n in job.order_run
+                if (man.get("rungs", {}).get(str(n), {}) or {}).get("enabled", True) is False}
+    menu_verdicts = (menu_judge or {}).get("verdicts", {})
     records = []
     for rec in result["records"]:
         d = rec.to_dict()
         d["timeline"] = timelines.get(rec.record_id, [])
+        d["rules"] = shipping_rules(
+            d, job.order_run, disabled, state.registry(),
+            menu_verdicts.get(rec.record_id) if menu_judge else None,
+            menu_ran=bool(menu_judge) and not menu_judge.get("failed"))
+        run_n = sum(1 for r in d["rules"] if r["state"] != "not_run")
+        held = sum(1 for r in d["rules"] if r["state"] == "hold")
+        d["person"] = {"held": held, "run": run_n,
+                       "share": (held / run_n) if run_n else None}
         # The stations describe rung 0, so they read the record AS RUNG 0
         # LEFT IT (its state row), not the final record — rung 5 withholds
         # the code and rung 3 may have changed it.
@@ -388,7 +405,15 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
         "started_utc": aggregates.get("started_utc"),
         "finished_utc": aggregates.get("finished_utc"),
     }
+    legend = []
+    for rid, name in RULES:
+        rows = [next(r for r in d["rules"] if r["id"] == rid) for d in records if "rules" in d]
+        run_n = sum(1 for r in rows if r["state"] != "not_run")
+        held = sum(1 for r in rows if r["state"] == "hold")
+        legend.append({"id": rid, "name": name, "held": held, "run": run_n,
+                       "share": (held / run_n) if run_n else None})
     return {
+        "menu_judge": menu_judge, "rules_legend": legend,
         "run_id": job.run_id, "source": job.source, "doc_id": job.doc_id,
         "split": job.split, "text": text, "through_rung": job.through_rung,
         "order_run": job.order_run, "scratch_dir": job.scratch_dir,
@@ -402,6 +427,147 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
 
 def _jsonable(x: Any) -> Any:
     return json.loads(json.dumps(x, default=str))
+
+
+# --- the six shipping rules (owner's list, 2026-09-09) -----------------------
+
+#: In legend order. Each is one of Figure 3's verdicts read as a shipping
+#: rule: the record ships if the rule says so, else it is held for a person.
+RULES = [
+    ("V", "strict vocabulary check says ACCEPT"),
+    ("V+", "loose vocabulary check says ACCEPT"),
+    ("3", "all 3 voting samples agree"),
+    ("2", "2 of 3 voting samples agree"),
+    ("J", "blind judge says pass"),
+    ("J+", "menu-shown judge says pass"),
+]
+
+
+def _rule(rid: str, state: str, value: Any = None, note: str | None = None) -> dict:
+    name = dict(RULES)[rid]
+    return {"id": rid, "name": name, "state": state, "value": value, "note": note}
+
+
+def shipping_rules(rec: dict, order_run: list[int], disabled: set[int], vocab: Any,
+                   menu_verdict: str | None, menu_ran: bool) -> list[dict]:
+    """The six rules for one record, from what the rungs recorded on it.
+    `hold` = the rule would send it to a person, `ship` = it would pass it,
+    `not_run` = the run did not compute what the rule needs (left out of the
+    denominator, never counted as a hold)."""
+    c = rec.get("checks") or {}
+    out: list[dict] = []
+
+    # V — strict: rung 1's own word
+    v = c.get("r1_verdict")
+    if 1 not in order_run or 1 in disabled or v is None:
+        out.append(_rule("V", "not_run", note="rung 1 did not run"))
+    else:
+        out.append(_rule("V", "ship" if v == "ACCEPT" else "hold", v,
+                         c.get("reason_band") or c.get("r1_reason")))
+
+    # V+ — loose: ACCEPT, or BAND with a contained lexical match; computed
+    # here because a run checks one mode only (manifest rungs.1.lexical_mode)
+    sct = rec.get("sct") if rec.get("sct") is not None else (c.get("withheld") or {}).get("sct")
+    if 1 not in order_run or 1 in disabled or v is None:
+        out.append(_rule("V+", "not_run", note="rung 1 did not run"))
+    elif v == "ACCEPT":
+        out.append(_rule("V+", "ship", "ACCEPT"))
+    elif v == "BAND" and vocab is not None and sct:
+        try:
+            loose = bool(vocab.lexical_match(rec.get("text") or "", str(sct), mode="contained"))
+        except Exception:
+            loose = False
+        out.append(_rule("V+", "ship" if loose else "hold",
+                         "contained match" if loose else "no contained match"))
+    elif vocab is None:
+        out.append(_rule("V+", "not_run", note="no vocabulary on this machine"))
+    else:
+        out.append(_rule("V+", "hold", v))
+
+    # 3 and 2 — the votes
+    r3 = c.get("r3") or {}
+    if 3 not in order_run or 3 in disabled or not r3:
+        why = "rung 3 disabled" if 3 in disabled else "rung 3 did not run"
+        out.append(_rule("3", "not_run", note=why))
+        out.append(_rule("2", "not_run", note=why))
+    else:
+        raw = [x for x in (r3.get("raw") or []) if x]
+        k = int(r3.get("k") or 3)
+        seen = int(r3.get("seen") or 0)
+        top = Counter(raw).most_common(1)[0][1] if raw else 0
+        votes = " · ".join(f"{code} ×{n}" for code, n in Counter(raw).most_common()) or "no vote"
+        if seen < 2:
+            out.append(_rule("3", "hold", votes, "fewer than 2 samples re-found it"))
+            out.append(_rule("2", "hold", votes, "fewer than 2 samples re-found it"))
+        else:
+            out.append(_rule("3", "ship" if (top == k and len(raw) == k) else "hold", votes))
+            out.append(_rule("2", "ship" if (top >= 2 and not r3.get("tie")) else "hold", votes))
+
+    # J — the blind judge, as the run made it
+    if 4 not in order_run or 4 in disabled:
+        out.append(_rule("J", "not_run", note="rung 4 did not run"))
+    else:
+        jv = c.get("r4_verdict")
+        out.append(_rule("J", "ship" if jv == "pass" else "hold",
+                         jv if jv is not None else "unparsed",
+                         (c.get("r4") or {}).get("why")))
+
+    # J+ — the menu-shown judge, the live run's own second pass
+    if not menu_ran:
+        out.append(_rule("J+", "not_run", note="menu-shown judge not run"))
+    else:
+        out.append(_rule("J+", "ship" if menu_verdict == "pass" else "hold",
+                         menu_verdict if menu_verdict is not None else "unparsed"))
+    return out
+
+
+def menu_judge_pass(state: AppState, man: dict, records: list, sources: dict,
+                    out_dir: Path, run_id: str) -> dict[str, Any] | None:
+    """Rung 4 a second time with `menu: ranked`, on COPIES of the records, so
+    the sixth rule has an answer. Its calls go to their own trace file and
+    nothing it writes reaches the records the view shows."""
+    from ladder import llm as llm_mod
+    from ladder import trace as trace_mod
+    from ladder.ledger import Ledger
+    from ladder.rungs import r4
+
+    try:
+        caller = llm_mod.for_rung(4, man)
+        if caller is None:
+            return None
+        extractor = llm_mod.for_rung(0, man)
+        trace_path = out_dir / f"{run_id}.r4menu.calls.jsonl"
+        caller.trace = trace_mod.CallTrace(trace_path, rung=4, sources=sources,
+                                           role=caller.role, spec=caller.spec)
+        cfg: dict[str, Any] = dict(man.get("rungs", {}).get("4", {}) or {})
+        cfg.update(
+            menu="ranked",
+            ledger=Ledger(out_dir / f"{run_id}.r4menu.ledger.jsonl", run_id=run_id + "-menu"),
+            registry=state.registry(), manifest=man,
+            prompt_slots=(man.get("corpus") or {}).get("prompts"),
+            judge_llm=caller, judge_model=caller.spec,
+            extractor_model=extractor.spec if extractor else None,
+        )
+        copies = [r.copy() for r in records]
+        out = r4.apply(copies, sources, cfg)
+        copies = out[0] if isinstance(out, tuple) else out
+        agg = out[1] if isinstance(out, tuple) else {}
+        cfg["ledger"].close()
+        if caller.trace is not None:
+            caller.trace.close()
+        calls = [json.loads(l) for l in trace_path.read_text(encoding="utf-8").splitlines()
+                 if l.strip()] if trace_path.exists() else []
+        return {
+            "menu": "ranked", "records": len(copies),
+            "verdicts": {r.record_id: (r.checks or {}).get("r4_verdict") for r in copies},
+            "why": {r.record_id: ((r.checks or {}).get("r4") or {}).get("why") for r in copies},
+            "menu_used": {r.record_id: (r.checks or {}).get("r4_menu") for r in copies},
+            "best": {r.record_id: ((r.checks or {}).get("r4") or {}).get("best") for r in copies},
+            "calls": calls, "aggregate": _jsonable(agg),
+        }
+    except Exception as exc:  # the sixth rule reads not_run, with the reason
+        return {"menu": "ranked", "records": 0, "verdicts": {}, "calls": [],
+                "error": str(exc)[:300], "failed": True}
 
 
 # --- the diff against gold, for a corpus document ----------------------------

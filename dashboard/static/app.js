@@ -1383,7 +1383,7 @@ async function renderLive() {
     S.live.options = o;
     const th = $("live-through");
     th.innerHTML = o.rung_order.map((n) =>
-      `<option value="${n}" ${n === 1 ? "selected" : ""}>rung ${n} — ${RUNG_NAMES[n] || ""}</option>`).join("");
+      `<option value="${n}" ${n === o.rung_order[o.rung_order.length - 1] ? "selected" : ""}>rung ${n} — ${RUNG_NAMES[n] || ""}</option>`).join("");
     const sp = $("live-split");
     sp.innerHTML = o.splits_offered.map((s) => `<option value="${s}">${s}</option>`).join("");
     if (!o.corpus_available) {
@@ -1496,29 +1496,21 @@ async function livePoll(id) {
 function renderLiveResult(res) {
   S.live.result = res;
   S.live.selected = null;
-  S.live.rung = res.order_run[res.order_run.length - 1];
+  S.live.rule = null;
+  const cols = liveGridCols(res);
+  S.live.col = cols.length ? cols[cols.length - 1] : res.order_run[res.order_run.length - 1];
   drawLive();
 }
 
-const STATION = { input: "INPUT", find: "FIND", retrieve: "RETRIEVE", pick: "PICK",
-  resolve: "RESOLVE", trim: "TRIM", output: "OUTPUT" };
-
-function liveSelect(rid) {
-  S.live.selected = (S.live.selected === rid) ? null : rid;
-  drawLive();
-}
-
-function liveGoto(n) {
-  const res = S.live.result;
-  if (!res || !res.order_run.includes(n)) return;
-  S.live.rung = n;
-  drawLive();
-}
+/* the grid's rung columns: rungs 1-4 the run ran; rung 0 is the table above,
+   rungs 5 and 6 are the person column */
+function liveGridCols(res) { return res.order_run.filter((n) => n >= 1 && n <= 4); }
 
 function liveStep(d) {
   const res = S.live.result;
-  const i = res.order_run.indexOf(S.live.rung) + d;
-  if (i >= 0 && i < res.order_run.length) liveGoto(res.order_run[i]);
+  const cols = liveGridCols(res);
+  const i = cols.indexOf(S.live.col) + d;
+  if (i >= 0 && i < cols.length) { S.live.col = cols[i]; drawLive(); }
 }
 
 /* the record as rung n left it — its state row, or the last one before n
@@ -1529,360 +1521,256 @@ function rowAt(r, n) {
   return best;
 }
 
-function stationBox(st) {
-  const one = {
-    input: () => `step ${esc(st.step)}`,
-    find: () => st.mention ? `“${esc(st.mention.span_text)}”${st.mention.negated ? " · denied" : ""}`
-      : esc(st.state === "no_call" ? "no find call" : "not in reply"),
-    retrieve: () => st.state === "not_in_step" ? "no menu in this step"
-      : `${st.n} candidates · ${esc(st.retrieval)}`,
-    pick: () => st.state === "not_in_step" ? "from memory"
-      : st.state === "done" ? `line [${st.choice}] ${esc(st.chosen && st.chosen.label)}`
-      : st.state === "fallback" ? `NO PICK → line 0 by rule`
-      : esc(st.state),
-    resolve: () => st.sct ? `${esc(st.sct)} |${esc(st.sct_label || "?")}|` : "no code",
-    trim: () => st.state === "done" ? `“${esc(st.from)}” → “${esc(st.to)}”` : "unchanged",
-    output: () => `“${esc(st.text)}” → ${esc(st.sct || "no code")}`,
-  }[st.id]();
-  return `<div class="station ${esc(st.state)}" title="${esc(st.detail)}">
-    <div class="st-name">${STATION[st.id]}</div><div class="st-one">${one}</div></div>`;
-}
-
-function menuHtml(retrieve, pick) {
-  const chosen = pick && pick.chosen ? pick.chosen.i : null;
-  const fb = pick && pick.state === "fallback";
-  return `<ol class="menu" start="0">` + (retrieve.candidates || []).map((c) => {
-    const isChosen = c.i === chosen;
-    const cls = isChosen ? (fb ? "fallback" : "chosen") : "";
-    return `<li class="${cls}"><span class="muted">[${c.i}]</span> ${esc(c.label)}
-      <span class="muted">${esc(c.code)} · ${Number(c.score).toFixed(3)} ${esc(c.via)}</span>
-      ${isChosen ? `<b>← ${fb ? "filled by the fallback rule, not picked" : "the model's pick"}</b>` : ""}</li>`;
-  }).join("") + `</ol>`;
-}
-
-function r0PathHtml(p, open) {
-  if (!p) return "";
-  const by = Object.fromEntries(p.steps.map((s) => [s.id, s]));
-  const stations = p.steps.map(stationBox).join('<div class="st-arrow">→</div>');
-  const details = p.steps.map((st) => {
-    let extra = "";
-    if (st.id === "find" && st.mention)
-      extra = `<pre class="raw">${esc(JSON.stringify(st.mention, null, 1))}</pre>
-        <div class="muted">offsets by ${esc(st.offsets)} · grounded ${esc(st.span_grounded)}
-        ${st.negation_cue ? ` · rung-1 negation cue “${esc(st.negation_cue)}”` : ""}</div>`;
-    if (st.id === "retrieve" && st.candidates) extra = menuHtml(st, by.pick);
-    if (st.id === "pick" && st.state !== "not_in_step")
-      extra = `<div class="muted">reaction ${esc(st.reaction ?? "?")} in the pick prompt
-        ${st.denied ? "· shown as [denied]" : ""} · reply choice ${esc(st.choice ?? "none")}
-        ${st.fallback ? ` · fallback <b>${esc(st.fallback)}</b>` : ""}
-        ${st.declined ? " · declined" : ""}${st.bad_pick !== null && st.bad_pick !== undefined ? ` · bad pick ${esc(st.bad_pick)}` : ""}</div>`;
-    if (st.id === "resolve")
-      extra = `<div class="muted">code from ${esc(st.code_source || "model")}, label from
-        ${esc(st.label_source || "model")}${st.labels_proposed && st.labels_proposed.length
-          ? ` · labels proposed ${esc(st.labels_proposed.join(", "))}` : ""}
-        ${st.label_unresolved ? " · label unresolved" : ""}${st.code_unknown ? " · code unknown to the table" : ""}</div>`;
-    return `<div class="st-detail"><b>${STATION[st.id]}</b> <span class="muted">${esc(st.state)}</span>
-      — ${esc(st.detail)}${extra}</div>`;
-  }).join("");
-  return `<div class="r0path"><div class="stations">${stations}</div>
-    <details ${open ? "open" : ""}><summary>what happened at each station</summary>${details}</details></div>`;
-}
-
-/* ---- gold vs model, stacked in one cell ---- */
-
+/* ---- words: the ones only one side has ---- */
 const words = (t) => new Set(String(t || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
-
 function diffWords(text, other, cls) {
-  // the words of `text` that `other` does not have, emphasised
   const o = words(other);
   return String(text || "").split(/(\s+)/).map((tok) =>
     /^\s+$/.test(tok) ? tok
       : (o.has(tok.toLowerCase().replace(/[^a-z0-9]/g, "")) || !tok.replace(/[^a-z0-9]/gi, ""))
         ? esc(tok) : `<em class="${cls}">${esc(tok)}</em>`).join("");
 }
-
 const spansStr = (sp) => (sp || []).map((x) => x.join("-")).join(",");
-
-function stackMention(goldText, goldSpans, predText, predSpans, how) {
-  const g = `<div class="g"><span class="who">gold</span> “${diffWords(goldText, predText, "missing")}”
-    <span class="muted">${esc(spansStr(goldSpans))}</span></div>`;
-  const m = predText === null || predText === undefined
-    ? `<div class="m none"><span class="who">model</span> — not found</div>`
-    : `<div class="m"><span class="who">model</span> “${diffWords(predText, goldText, "extra")}”
-      <span class="muted">${esc(spansStr(predSpans))}</span>${how === "exact" ? '<span class="same">= same span</span>' : ""}</div>`;
-  return `<td class="l stack">${g}${m}</td>`;
-}
-
-function stackCode(goldCodes, goldLabels, predSct, predLabel, withheld, found) {
-  const gl = goldCodes.length
-    ? goldCodes.map((c, i) => `${esc(c)} <i>|${esc(goldLabels && goldLabels[i] ? goldLabels[i] : "label unavailable")}|</i>`).join(", ")
-    : "concept-less";
-  const same = predSct !== null && predSct !== undefined && goldCodes.map(String).includes(String(predSct));
-  const ml = !found ? "— not found"
-    : predSct === null || predSct === undefined ? "no code"
-    : `${esc(predSct)} <i>|${esc(predLabel || "?")}|</i>${withheld ? '<span class="wh">withheld</span>' : ""}${same ? '<span class="same">= same code</span>' : ""}`;
-  return `<td class="l stack"><div class="g"><span class="who">gold</span> ${gl}</div>
-    <div class="m ${same ? "" : (found && predSct ? "off" : "none")}"><span class="who">model</span> ${ml}</div></td>`;
-}
-
-const codeWord = { correct: "right", incorrect: "wrong", withheld_correct: "right, withheld",
-  withheld_incorrect: "wrong, withheld", no_code: "no code" };
 
 function pairClass(p) {
   return p.span === "missed" ? "missed"
     : (p.span === "exact" && (p.code === "correct" || p.code === "withheld_correct")) ? "agree" : "differ";
 }
 
-function goldDiffHtml(d, sel, n) {
-  const c = d.counts;
-  const rows = d.pairs.map((p) => {
-    const cls = pairClass(p);
-    return `<tr class="${cls} ${sel && p.pred === sel ? "on" : ""}" ${p.pred ? `data-rid="${esc(p.pred)}"` : ""}>
-      ${stackMention(p.gold.text, p.gold.spans, p.pred ? p.pred_text : null, p.pred_spans, p.span)}
-      ${stackCode(p.gold.sct, p.gold_labels, p.pred ? p.pred_sct : null, p.pred_label, p.withheld, !!p.pred)}
-      <td class="l"><span class="lg ${cls}">${p.span === "missed" ? "missed" : "found, " + p.span + " span"}</span>
-        ${p.code ? `<div><span class="outcome ${/(^|_)correct$/.test(p.code) ? "correct" : "incorrect"}">${esc(codeWord[p.code] || p.code)}</span></div>` : ""}
-        ${p.final_zone ? `<span class="zone ${esc(p.final_zone)}">${esc(p.final_zone)}</span>` : ""}</td></tr>`;
+/* ---- rung 0 against gold: one row per mention from either side ---- */
+
+function menuCell(r) {
+  const p = r && r.r0_path;
+  if (!p) return `<td class="muted">—</td>`;
+  const st = Object.fromEntries(p.steps.map((x) => [x.id, x]));
+  const ret = st.retrieve, pick = st.pick, find = st.find;
+  if (!ret || ret.state === "not_in_step")
+    return `<td class="muted small">${esc((pick && pick.detail) || "no menu in this step")}</td>`;
+  const cands = ret.candidates || [];
+  const chosen = pick && pick.chosen ? pick.chosen.i : null;
+  const fb = pick && pick.state === "fallback";
+  const head = pick.state === "done" ? `picked <b>[${pick.choice}]</b>`
+    : fb ? `<span class="byrule">no pick → line 0 by rule</span>`
+    : pick.state === "declined" ? `declined the menu` : esc(pick.state);
+  const shown = cands.slice(0, 3).map((c) => c.i);
+  if (chosen !== null && !shown.includes(chosen)) shown.push(chosen);
+  const lines = cands.filter((c) => shown.includes(c.i)).map((c) => {
+    const isChosen = c.i === chosen;
+    const cls = isChosen ? (fb ? "fb" : "pick") : "";
+    return `<li class="${cls}"><span class="muted">[${c.i}]</span> ${esc(c.label)}${isChosen ? (fb ? " ← filled by rule, not picked" : " ← the model's pick") : ""}</li>`;
   }).join("");
-  const spur = d.spurious.map((sp) => `<tr class="spurious ${sel && sp.record_id === sel ? "on" : ""}" data-rid="${esc(sp.record_id)}">
-      <td class="l stack"><div class="g none"><span class="who">gold</span> — no mention here</div>
-        <div class="m"><span class="who">model</span> “${esc(sp.text)}” <span class="muted">${esc(spansStr(sp.spans))}</span></div></td>
-      <td class="l stack"><div class="g none"><span class="who">gold</span> —</div>
-        <div class="m off"><span class="who">model</span> ${esc(sp.sct ?? "no code")}${sp.sct_label ? ` <i>|${esc(sp.sct_label)}|</i>` : ""}</div></td>
-      <td class="l"><span class="lg spurious">spurious${sp.unlocatable ? " · unlocatable" : ""}</span>
-        ${sp.zone ? `<div><span class="zone ${esc(sp.zone)}">${esc(sp.zone)}</span></div>` : ""}</td></tr>`).join("");
-  return `<h3>against the gold annotations, as rung ${n} left it
-      <span class="muted">· the scorer's own pairing: exact span first, then overlap · <em class="missing">words only gold has</em> · <em class="extra">words only the model has</em></span></h3>
-    <div class="cards small">
-      <div class="card"><div class="big">${c.gold}</div><div class="muted">gold mentions</div></div>
-      <div class="card"><div class="big">${c.found_exact}</div><div class="muted">found, exact span</div></div>
-      <div class="card"><div class="big">${c.found_overlap}</div><div class="muted">found, overlapping</div></div>
-      <div class="card"><div class="big">${c.missed}</div><div class="muted">missed</div></div>
-      <div class="card"><div class="big">${c.spurious}</div><div class="muted">spurious of ${c.predictions}</div></div>
-    </div>
-    <table class="tl-table diff"><tr><th class="l">mention — gold over model</th>
-      <th class="l">code — gold over model</th><th class="l">at rung ${n}</th></tr>
-      ${rows}${spur}</table>`;
+  const all = cands.map((c) => `[${c.i}] ${c.label} · ${Number(c.score).toFixed(3)}`).join("\n");
+  const denied = find && find.negated ? ' · <span class="chip signal" style="display:inline">shown as [denied]</span>' : "";
+  const trim = st.trim && st.trim.state === "done" ? `<div class="small">quoted “${esc(st.trim.from)}” → kept “${esc(st.trim.to)}”</div>` : "";
+  return `<td title="${esc(all)}"><div class="small">${cands.length} retrieved, ${esc(ret.retrieval)} · ${head}${denied}</div>
+    <ol class="menu" start="0">${lines}${cands.length > shown.length ? `<li class="muted">… ${cands.length - shown.length} more on hover</li>` : ""}</ol>${trim}</td>`;
 }
 
-/* ---- the rail ---- */
-
-function railHtml(res, n) {
-  const nodes = res.order_run.map((k) => {
-    const sm = res.rungs[String(k)].summary || {};
-    const zones = Object.entries(sm.zones || {}).map(([z, c]) =>
-      `<span class="zone ${esc(z)}" title="${c} in ${esc(z)}">${c}</span>`).join(" ");
-    return `<button class="rail-node ${k === n ? "on" : ""} ${sm.disabled ? "disabled" : ""}" data-rung="${k}"
-      title="${sm.disabled ? "disabled in the manifest — a recorded state" : `${sm.records} records · ${sm.changed} changed · ${sm.calls} calls`}">
-      <div class="rn-name">r${k} <span>${esc(RUNG_NAMES[k])}</span></div>
-      <div class="rn-sum">${sm.disabled ? "off" : `${sm.changed} changed · ${sm.calls} call${sm.calls === 1 ? "" : "s"}`}</div>
-      <div class="rn-zones">${zones}</div></button>`;
-  }).join('<div class="rail-link"></div>');
-  const i = res.order_run.indexOf(n);
-  return `<div class="rail">
-    <button class="rail-step" id="rail-prev" ${i <= 0 ? "disabled" : ""} title="← previous rung">‹</button>
-    ${nodes}
-    <button class="rail-step" id="rail-next" ${i >= res.order_run.length - 1 ? "disabled" : ""} title="→ next rung">›</button>
-    <span class="muted rail-hint">← → step the rungs · everything below is the run as rung ${n} left it</span>
-  </div>`;
-}
-
-function pathDots(res, r, n) {
-  return `<div class="dots">` + res.order_run.map((k) => {
-    const row = rowAt(r, k);
-    const z = row ? (row.dropped_this_rung ? "DROPPED" : row.zone) : "none";
-    const chg = row && row.rung === k && row.changed_this_rung;
-    return `<button class="dot ${k === n ? "on" : ""} ${chg ? "chg" : ""}" data-rung="${k}"
-      title="r${k} ${esc(RUNG_NAMES[k])}: ${esc(z)}${row && row.rung !== k ? " (did not run)" : ""}${chg ? " · changed here" : ""}">
-      <i class="zone ${esc(z)}"></i><span>r${k}</span></button>`;
-  }).join('<span class="dot-link"></span>') + `</div>`;
-}
-
-function liveRecordCard(res, r, n, pair, open) {
-  const row = rowAt(r, n) || {};
-  const ran = row.rung === n;
-  const was = (row.was_sct !== undefined && ran) ? row : null;
-  const label = row.sct_label ? ` <i>|${esc(row.sct_label)}|</i>` : "";
-  const header = pair
-    ? `<div class="stackline"><div class="g"><span class="who">gold</span> “${diffWords(pair.gold.text, row.text, "missing")}”
-         → ${esc(pair.gold.sct.join(", ") || "concept-less")}${pair.gold_labels && pair.gold_labels[0] ? ` <i>|${esc(pair.gold_labels[0])}|</i>` : ""}</div>
-       <div class="m"><span class="who">model</span> “${diffWords(row.text, pair.gold.text, "extra")}”
-         → ${esc(row.sct ?? "no code")}${label}</div></div>`
-    : `<div class="stackline"><div class="m"><span class="who">model</span> “${esc(row.text)}” → ${esc(row.sct ?? "no code")}${label}
-       ${res.gold ? '<span class="lg spurious">no gold mention here</span>' : ""}</div></div>`;
-  const change = row.dropped_this_rung ? `<b>dropped here</b>`
-    : !ran ? `<span class="muted">did not run — the record stands as rung ${row.rung ?? "?"} left it</span>`
-    : row.created_this_rung ? `<b>created here</b> by rung 0`
-    : row.changed_this_rung
-      ? `<b>changed here:</b> ${(row.changed_fields || []).filter((f) => f !== "reason").map((f) => f === "sct"
-          ? `code ${esc(row.was_sct ?? "none")} → ${esc(row.sct ?? "none")}`
-          : f === "zone" ? `zone ${esc(row.was_zone)} → ${esc(row.zone)}` : esc(f)).join(" · ")}`
-      : `<span class="muted">unchanged by this rung</span>`;
-  const verdict = [
-    n === 1 && row.r1_verdict ? `rung 1 says <b>${esc(row.r1_verdict)}</b>${row.r1_reason ? ` (${esc(row.r1_reason)})` : ""}` : "",
-    n === 4 && row.r4_verdict ? `rung 4 says <b>${esc(row.r4_verdict)}</b>` : "",
-    n === 3 && row.r3_changed !== null && row.r3_changed !== undefined ? `rung 3 ${row.r3_changed ? "changed it" : "left it"}` : "",
-    row.reason && ran && (row.changed_fields || []).includes("reason") ? `reason ${esc(row.reason)}` : "",
-  ].filter(Boolean).join(" · ");
-  const outcome = res.gold && row.outcome
-    ? `<span class="outcome ${esc(row.outcome)}">${esc(row.outcome)}</span>
-       <span class="muted">exact / ${esc(row.outcome_overlap)} overlap${row.gold_codes && row.gold_codes.length ? ` · gold ${esc(row.gold_codes.join(","))}` : ""}</span>`
-    : "";
-  return `<div class="record-card ${S.live.selected === r.record_id ? "on" : ""}" id="live-rec-${esc(r.record_id)}">
-    <div class="rc-head">
-      <button class="kw ${S.live.selected === r.record_id ? "on" : ""}" data-rid="${esc(r.record_id)}">“${esc(r.text)}”</button>
-      ${row.dropped_this_rung ? '<span class="zone REJECT">dropped</span>' : `<span class="zone ${esc(row.zone)}">${esc(row.zone)}</span>`}
-      ${r.checks && (r.checks.r0_negated ?? r.checks.negated) ? '<span class="chip signal" style="display:inline">denied in the text</span>' : ""}
-      <span class="muted">· ${esc(r.record_id)}</span>
-    </div>
-    ${header}
-    ${pathDots(res, r, n)}
-    <div class="at-rung"><b>at rung ${n}:</b> ${change}${verdict ? ` · ${verdict}` : ""}${outcome ? ` · ${outcome}` : ""}</div>
-    ${n === 0 ? `<h4>rung 0, station by station</h4>${r0PathHtml(r.r0_path, open)}`
-      : `<div class="muted small"><a href="#" class="goto-r0" data-rung="0">↩ rung 0, station by station</a></div>`}
-    <details><summary>recorded checks (final)</summary>
-      <pre class="raw">${esc(JSON.stringify(r.checks || {}, null, 1))}</pre></details>
-  </div>`;
-}
-
-function liveCallsHtml(res, n, p, sel) {
-  const rec = sel ? res.records.find((r) => r.record_id === sel) : null;
-  let calls = p.calls || [];
-  if (rec && (n === 2 || n === 4) && rec.text) {
-    // a per-record prompt embeds the whole post, so the text alone matches
-    // every record's call; the code the record held AT THAT RUNG separates them
-    const row = rowAt(rec, n - 1) || {};
-    const code = row.sct ?? (rec.checks && rec.checks.withheld ? rec.checks.withheld.sct : null);
-    calls = calls.filter((c) => (c.prompt || "").includes(rec.text)
-      && (!code || (c.prompt || "").includes(String(code))));
+function r0Rows(res) {
+  const byId = Object.fromEntries(res.records.map((r) => [r.record_id, r]));
+  const rows = [];
+  const at0 = (r) => rowAt(r, 0) || r;
+  if (res.gold_diff) {
+    for (const p of res.gold_diff.pairs) {
+      const r = p.pred ? byId[p.pred] : null;
+      const r0 = r ? at0(r) : null;
+      rows.push({ pos: p.gold.spans[0][0], cls: pairClass(p), rid: p.pred,
+        mention: `<td class="stack"><div class="g"><span class="who">gold</span>“${diffWords(p.gold.text, r0 && r0.text, "missing")}” <span class="muted">${esc(spansStr(p.gold.spans))}</span>${p.span === "missed" ? ' <span class="lg missed">gold only</span>' : ""}</div>
+          ${r0 ? `<div class="m"><span class="who">model</span>“${diffWords(r0.text, p.gold.text, "extra")}” <span class="muted">${esc(spansStr(r0.spans))}</span>${p.span === "exact" ? '<span class="same">= same span</span>' : ""}</div>`
+               : `<div class="m none"><span class="who">model</span>— not quoted by the model</div>`}</td>`,
+        menu: r ? menuCell(r) : `<td class="muted small">— no menu: nothing was retrieved for a span the model never quoted</td>`,
+        code: `<td class="stack"><div class="g"><span class="who">gold</span>${p.gold.sct.length ? p.gold.sct.map((c, i) => `${esc(c)} <i>|${esc(p.gold_labels && p.gold_labels[i] ? p.gold_labels[i] : "label unavailable")}|</i>`).join(", ") : "concept-less"}</div>
+          ${r0 ? `<div class="m ${p.code && /(^|_)correct$/.test(p.code) ? "" : "off"}"><span class="who">model</span>${r0.sct ? `${esc(r0.sct)} <i>|${esc(r0.sct_label || "?")}|</i>` : "no code"}${p.code === "correct" || p.code === "withheld_correct" ? '<span class="same">= same code</span>' : ""}</div>`
+               : `<div class="m none"><span class="who">model</span>—</div>`}</td>` });
+    }
+    for (const sp of res.gold_diff.spurious) {
+      const r = byId[sp.record_id]; const r0 = at0(r);
+      rows.push({ pos: (r0.spans || [[0]])[0][0], cls: "spurious", rid: sp.record_id,
+        mention: `<td class="stack"><div class="g none"><span class="who">gold</span>— no mention here <span class="lg spurious">model only</span></div>
+          <div class="m"><span class="who">model</span>“${esc(r0.text)}” <span class="muted">${esc(spansStr(r0.spans))}</span></div></td>`,
+        menu: menuCell(r),
+        code: `<td class="stack"><div class="g none"><span class="who">gold</span>—</div>
+          <div class="m"><span class="who">model</span>${r0.sct ? `${esc(r0.sct)} <i>|${esc(r0.sct_label || "?")}|</i>` : "no code"}</div></td>` });
+    }
+  } else {
+    for (const r of res.records) {
+      const r0 = at0(r);
+      rows.push({ pos: (r0.spans || [[0]])[0][0], cls: "", rid: r.record_id,
+        mention: `<td class="stack"><div class="m"><span class="who">model</span>“${esc(r0.text)}” <span class="muted">${esc(spansStr(r0.spans))}</span></div></td>`,
+        menu: menuCell(r),
+        code: `<td class="stack"><div class="m"><span class="who">model</span>${r0.sct ? `${esc(r0.sct)} <i>|${esc(r0.sct_label || "?")}|</i>` : "no code"}</div></td>` });
+    }
   }
-  return calls.map((c) => `<details class="call-card">
-    <summary>call ${c.call_index} · <b>${esc(c.mode)}</b> · ${esc(c.model)}
-      · ${c.tokens_in}+${c.tokens_out} tok · ${Number(c.seconds).toFixed(1)}s
-      ${c.cached ? '<span class="badge cached">cached</span>' : ""}
-      ${c.timed_out ? '<span class="badge bad">timed out</span>' : ""}
-      ${c.truncated ? '<span class="badge bad">truncated</span>' : ""}
-      ${c.sample_index ? `<span class="badge">sample ${c.sample_index}</span>` : ""}
-      ${c.temperature ? `<span class="badge">t=${c.temperature}</span>` : ""}
-      ${rec && (n === 0 || n === 3) ? '<span class="badge">whole post — every keyword shares it</span>' : ""}</summary>
-    <div class="muted">prompt (local-only, never exported):</div>
-    <pre class="raw">${rec ? markText(c.prompt, rec.text) : esc(c.prompt)}</pre>
-    <div class="muted">raw reply:</div><pre class="raw">${rec ? markText(c.raw, rec.text) : esc(c.raw)}</pre>
-    ${c.normalised !== c.raw ? `<div class="muted">after the transport repairs (fence / brace / unwrap):</div><pre class="raw">${esc(c.normalised)}</pre>` : ""}
-  </details>`).join("");
+  rows.sort((a, b) => a.pos - b.pos);
+  return rows;
 }
 
-function markText(text, needle) {
-  // the keyword's own lines, highlighted inside a prompt or reply
-  if (!needle) return esc(String(text ?? ""));
-  return esc(String(text ?? "")).split(esc(needle)).join(`<mark>${esc(needle)}</mark>`);
+function r0TableHtml(res, sel) {
+  const rows = r0Rows(res);
+  const calls = (res.rungs["0"] || {}).calls || [];
+  const find = calls.find((c) => !String(c.mode).endsWith("-pick"));
+  const pick = calls.find((c) => String(c.mode).endsWith("-pick"));
+  const cost = (c) => c ? `${c.tokens_in} + ${c.tokens_out}` : "—";
+  const secs = (c) => c ? `${Number(c.seconds).toFixed(1)} s${c.cached ? " (cached)" : ""}` : "—";
+  const d = res.gold_diff && res.gold_diff.counts;
+  const line = d ? `paired ${d.found_exact + d.found_overlap} (${d.found_exact} exact, ${d.found_overlap} overlap) · model only ${d.spurious} · gold only ${d.missed}`
+    : `${res.records.length} mention${res.records.length === 1 ? "" : "s"} quoted · no gold for a pasted text`;
+  return `<div class="small r0line"><b>rung 0${res.gold_diff ? " against gold" : ""}</b> · ${line}</div>
+    <table class="wire r0">
+      <tr><th class="l" style="width:32%">mention${res.gold_diff ? " — gold over model" : ""}<small>find</small></th>
+          <th class="l" style="width:34%">the menu, and the pick<small>retrieve · pick</small></th>
+          <th class="l">code${res.gold_diff ? " — gold over model" : ""}<small>resolve</small></th></tr>
+      ${rows.map((r) => `<tr class="${r.cls} ${sel && r.rid === sel ? "on" : (sel ? "dim" : "")}" ${r.rid ? `data-rid="${esc(r.rid)}"` : ""}>${r.mention}${r.menu}${r.code}</tr>`).join("")}
+      <tr class="cost0"><td>calls · ${find ? 1 : 0}</td><td>retrieve none · pick ${pick ? 1 : 0}</td><td>none</td></tr>
+      <tr class="cost0"><td>tokens · ${cost(find)}</td><td>— · ${cost(pick)}</td><td>—</td></tr>
+      <tr class="cost0"><td>latency · ${secs(find)}</td><td>— · ${secs(pick)}</td><td>—</td></tr>
+    </table>`;
+}
+
+/* ---- the grid: rungs 1-4 in their own words, then the person column ---- */
+
+const BAND_WORDS = { colloquial_no_lexical_match: "no lexical match", no_lexical_match: "no lexical match" };
+
+function cellR1(r) {
+  const c = r.checks || {}, v = c.r1_verdict;
+  if (!v) return `<td class="c gray">—</td>`;
+  const why = v === "BAND" ? (BAND_WORDS[c.reason_band] || c.reason_band || "") : (c.r1_reason || "");
+  const audit = c.r1_audit && c.r1_audit.checks ? Object.entries(c.r1_audit.checks).map(([k, x]) => `${k}: ${x}`).join("\n") : "";
+  return `<td class="c" title="${esc(audit)}"><span class="zone ${esc(v)}">${esc(v)}</span>${why ? `<br><span class="small">${esc(why)}</span>` : ""}</td>`;
+}
+function cellR2(r) {
+  const x = (r.checks || {}).r2;
+  if (!x || (x.outcome === "unchanged" && !x.now)) return `<td class="c gray" title="${esc(x ? x.why || "" : "")}">skipped${x && x.why ? `<br><span class="small">${esc(x.why.replace("not a correctable rung 1 rejection", "nothing to state back"))}</span>` : ""}</td>`;
+  const was = x.was || {}, now = x.now || {};
+  return `<td class="c"><b>${esc(x.outcome)}</b><br><span class="small">${esc(was.sct ?? "none")} → ${esc(now.sct ?? "none")}${x.reason ? ` · on ${esc(x.reason)}` : ""}</span></td>`;
+}
+function cellR3(r, res) {
+  const agg = (res.rungs["3"] || {}).aggregate || {};
+  if (agg.disabled) return `<td class="c gray">off<br><span class="small">disabled in the manifest</span></td>`;
+  const x = (r.checks || {}).r3;
+  if (!x) return `<td class="c gray">—</td>`;
+  const raw = (x.raw || []).filter(Boolean);
+  const k = x.k || 3, seen = x.seen || 0;
+  if (seen < 2) return `<td class="c"><span class="muted">not re-found</span><br><span class="small">${seen} of ${k} samples found it</span></td>`;
+  const counts = {};
+  for (const v of raw) counts[v] = (counts[v] || 0) + 1;
+  const top = Math.max(...Object.values(counts));
+  const votes = Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([code, n]) => `${esc(code)} ×${n}`).join(" · ");
+  return `<td class="c" title="${esc(raw.join(", "))}">${votes}<br><b>${Math.round(100 * top / k)}%</b> agree${x.tie ? " · tie" : ""}${x.changed ? " · changed the code" : ""}</td>`;
+}
+function cellR4(r) {
+  const c = r.checks || {}, v = c.r4_verdict, x = c.r4 || {};
+  if (v === undefined) return `<td class="c gray">—</td>`;
+  if (v === null) return `<td class="c"><span class="muted">unparsed</span></td>`;
+  const why = x.why || "";
+  return `<td class="c" title="${esc(why)}"><b class="${v === "pass" ? "" : "bad"}">${esc(v)}</b> ${esc(x.confidence ?? c.r4_confidence ?? "")}${x.best !== null && x.best !== undefined ? ` · best [${esc(x.best)}]` : ""}<br><span class="small">“${esc(why.length > 140 ? why.slice(0, 137) + "…" : why)}”</span></td>`;
+}
+function ruleToken(rule, cls = "") {
+  const st = rule.state === "hold" ? "hold" : rule.state === "ship" ? "ship" : "nr";
+  const tip = `${rule.name} — ${rule.state === "not_run" ? (rule.note || "not run") : rule.state + (rule.value ? " · " + rule.value : "") + (rule.note ? " · " + rule.note : "")}`;
+  return `<span class="${st} ${cls}" title="${esc(tip)}">${esc(rule.id)}</span>`;
+}
+function cellPerson(r, rule) {
+  const rules = r.rules || [];
+  if (rule) {
+    const x = rules.find((q) => q.id === rule);
+    if (!x) return `<td class="c gray">—</td>`;
+    return `<td class="c narrow"><span class="rules v">${ruleToken(x)}</span><br><span class="small">${x.state === "not_run" ? "not run" : x.state === "hold" ? "holds it" : "ships it"}</span></td>`;
+  }
+  const p = r.person || {};
+  const pct = p.share === null || p.share === undefined ? "—" : `${Math.round(100 * p.share)}%`;
+  return `<td class="c narrow" title="${p.held} of ${p.run} rules run hold it"><b>${pct}</b><br><span class="rules v">${rules.map((x) => ruleToken(x)).join("")}</span></td>`;
+}
+
+function gridHtml(res, sel, col, rule) {
+  const cols = liveGridCols(res);
+  const cellFor = { 1: cellR1, 2: cellR2, 3: (r) => cellR3(r, res), 4: cellR4 };
+  const meaning = { 1: "one word", 2: "skipped or did", 3: "k outputs, agreement", 4: "its words" };
+  const q6 = res.rungs["6"] ? res.rungs["6"].cost : null;
+  const head = cols.map((n) => `<th class="${n === col ? "on" : ""}" data-col="${n}">r${n} ${esc(RUNG_NAMES[n])}<small>${meaning[n]}</small></th>`).join("");
+  const rows = res.records.map((r) => `<tr class="${sel === r.record_id ? "on" : (sel ? "dim" : "")}">
+      <td class="kw ${sel === r.record_id ? "on" : ""}" data-rid="${esc(r.record_id)}">${esc(r.text)}${r.checks && (r.checks.r0_negated ?? r.checks.negated) ? ' <span class="chip signal" style="display:inline">denied</span>' : ""}</td>
+      ${cols.map((n) => cellFor[n](r)).join("")}${cellPerson(r, rule)}</tr>`).join("");
+  const c = (n, f) => { const x = res.rungs[String(n)] && res.rungs[String(n)].cost; return x ? f(x) : "—"; };
+  const cost = `<tr class="cost first"><td class="kw">calls</td>${cols.map((n) => `<td>${c(n, (x) => x.api_calls)}</td>`).join("")}<td>—</td></tr>
+    <tr class="cost"><td class="kw">tokens</td>${cols.map((n) => `<td>${c(n, (x) => x.tokens.toLocaleString())}</td>`).join("")}<td>—</td></tr>
+    <tr class="cost"><td class="kw">latency p95</td>${cols.map((n) => `<td>${c(n, (x) => x.latency_p95_ms === null ? "—" : (x.latency_p95_ms / 1000).toFixed(1) + " s")}</td>`).join("")}<td>—</td></tr>`;
+  return `<table class="grid cells">
+    <tr><th style="border:none;min-width:0"></th>${head}
+      <th class="person-h">person<small>${q6 ? `${q6.routed_to_person} queued · ${q6.human_minutes} min declared` : "rungs 5 and 6 not run"}</small></th></tr>
+    ${rows || `<tr><td colspan="${cols.length + 2}" class="muted">rung 0 produced no records for this text — a parse failure or an empty answer is a real outcome; its raw reply is in the rung 0 line above</td></tr>`}
+    ${cost}</table>`;
+}
+
+function legendHtml(res, rule) {
+  const rows = (res.rules_legend || []).map((x) => {
+    const pct = x.share === null ? "not run" : `${Math.round(100 * x.share)}%`;
+    return `<tr class="${rule === x.id ? "on" : ""} ${x.share === null ? "nr" : ""}" data-rule="${esc(x.id)}">
+      <td><span class="rules"><span class="${x.share === null ? "nr" : ""}">${esc(x.id)}</span></span></td>
+      <td>${esc(x.name)}</td><td class="pct">${pct}</td></tr>`;
+  }).join("");
+  return `<div class="legendbox"><div class="small"><b>person</b> · six rules · share of keywords each holds · click one to show it alone${rule ? ` · <b>showing ${esc(rule)}</b>` : ""}</div>
+    <table class="legendv">${rows}</table>
+    <div class="small"><span class="rules"><span class="hold">V</span></span> holds it for a person · <span class="rules"><span class="ship">V</span></span> ships it · <span class="rules"><span class="nr">V</span></span> not run</div></div>`;
 }
 
 function drawLive() {
   const res = S.live.result;
   if (!res) return;
-  const sel = S.live.selected;
-  const n = S.live.rung;
-  const d = res.gold_diff_by_rung ? res.gold_diff_by_rung[String(n)] : null;
-  const verdictOf = {};
-  const goldState = {};
-  const pairOf = {};
+  const sel = S.live.selected, col = S.live.col, rule = S.live.rule;
+  const d = res.gold_diff_by_rung ? (res.gold_diff_by_rung[String(col)] || res.gold_diff) : null;
+  const verdictOf = {}, goldState = {};
   if (d) {
     for (const p of d.pairs) {
       goldState[p.gold.record_id] = p.span === "missed" ? "missed" : "found";
-      if (p.pred) { verdictOf[p.pred] = pairClass(p); pairOf[p.pred] = p; }
+      if (p.pred) verdictOf[p.pred] = pairClass(p);
     }
     for (const sp of d.spurious) verdictOf[sp.record_id] = "spurious";
   }
   const marks = [];
   for (const r of res.records) {
-    const row = rowAt(r, n);
+    const row = rowAt(r, col);
     if (!row || row.dropped_this_rung) continue;
+    let cls = d ? (verdictOf[r.record_id] || "spurious") : "";
+    if (rule) { const x = (r.rules || []).find((q) => q.id === rule); cls = x ? (x.state === "hold" ? "held" : x.state === "ship" ? "ships" : "") : ""; }
     for (const [a, b] of row.spans || [])
       if (a >= 0) marks.push({ start: a, end: b, rid: r.record_id,
-        cls: "pred-span" + (d ? " " + (verdictOf[r.record_id] || "spurious") : "")
-          + (sel === r.record_id ? " selected" : (sel ? " dim" : "")),
-        title: `${r.record_id} → ${row.sct ?? "no code"} (${row.zone})`
-          + (d ? ` — ${verdictOf[r.record_id] || "spurious"} vs gold` : "") + " — click to follow it" });
+        cls: "pred-span " + cls + (sel === r.record_id ? " selected" : (sel ? " dim" : "")),
+        title: `${r.record_id} → ${row.sct ?? "no code"} (${row.zone}) — click to follow it` });
   }
   if (res.gold)
     for (const m of res.gold) for (const [a, b] of m.spans)
       if (a >= 0) marks.push({ start: a, end: b,
         cls: "gold-span" + (m.excluded ? " excluded" : "") + (goldState[m.record_id] === "missed" ? " missed" : ""),
-        title: `GOLD ${m.record_id} “${m.text}” → ${m.sct.join(",") || "concept-less"}${goldState[m.record_id] === "missed" ? " — MISSED" : ""}` });
-
-  const shown = sel ? res.records.filter((r) => r.record_id === sel) : res.records;
-  const chips = res.records.map((r) =>
-    `<button class="kw ${sel === r.record_id ? "on" : ""}" data-rid="${esc(r.record_id)}"
-      title="${esc(r.record_id)}">“${esc(r.text)}”</button>`).join("");
-  const cards = shown.map((r) => liveRecordCard(res, r, n, pairOf[r.record_id], !!sel)).join("") ||
-    `<div class="banner warn">rung 0 produced no records for this text
-     (see its aggregate and raw reply below — a parse failure or an empty answer is a real outcome)</div>`;
-
-  const p = res.rungs[String(n)];
-  const cost = p.cost;
-  const agg = p.aggregate || {};
-  const aggHtml = agg.disabled ? `<span class="zone NEW">disabled in the manifest — a recorded state, not a silent skip</span>`
-    : `<details><summary>aggregate the rung reported</summary><pre class="raw">${esc(JSON.stringify(agg, null, 1))}</pre></details>`;
-  const routed = n === 6 ? `<div class="card"><div class="big">${cost.routed_to_person}</div>
-      <div class="muted">routed to a person (the headline cost)</div></div>
-    <div class="card"><div class="big">${cost.human_minutes}</div>
-      <div class="muted">minutes at the declared rate</div></div>` : "";
-  const calls = liveCallsHtml(res, n, p, sel);
-  const panel = `<div class="rung-panel"><h3>rung ${n} ${esc(RUNG_NAMES[n])}: cost and ${sel ? "the calls that carry this keyword" : "every model call"}
-    <span class="muted">· ${p.ledger.length} ledger row${p.ledger.length === 1 ? "" : "s"} · wall ${cost.wall_s ?? "—"}s</span></h3>
-    <div class="cards small">
-      <div class="card"><div class="big">${cost.tokens}</div><div class="muted">tokens (${cost.tokens_in} in + ${cost.tokens_out} out)</div></div>
-      <div class="card"><div class="big">${cost.api_calls}</div><div class="muted">model calls</div></div>
-      <div class="card"><div class="big">${cost.latency_p95_ms === null ? "·no value·" : (cost.latency_p95_ms / 1000).toFixed(1) + "s"}</div>
-        <div class="muted">latency p95 (cold calls only)</div></div>
-      ${routed}
-    </div>
-    ${aggHtml}
-    ${calls || `<div class="muted">${sel && (p.calls || []).length ? "no call of this rung carries the selected keyword" : "no model calls — this rung has no model"}</div>`}
-  </div>`;
-
+        title: `GOLD ${m.record_id} “${m.text}” → ${m.sct.join(",") || "concept-less"}${goldState[m.record_id] === "missed" ? " — gold only" : ""}` });
+  const legend = rule
+    ? `<span class="lg held">held for a person</span> · <span class="lg ships">ships</span> under rule ${esc(rule)}`
+    : d ? `<span class="lg agree">agrees</span> · <span class="lg differ">differs</span> · <span class="lg spurious">model only</span> · <span class="lg missed">gold only</span>`
+        : `violet = the model's records`;
   const pv = res.provenance;
+  const mj = res.menu_judge;
   $("live-result").innerHTML = `
     ${caveatChips(res.caveats)}
-    ${railHtml(res, n)}
-    <div class="live-frame" key="${n}">
-    <h3>the text, as rung ${n} left it <span class="muted">· ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")}
-      · ran rungs ${res.order_run.join(",")} · ${res.calls_total} model call${res.calls_total === 1 ? "" : "s"}${res.calls_cached ? `, ${res.calls_cached} from cache` : ""}</span></h3>
     <div class="doc-text live">${highlight(res.text, marks)}</div>
-    <div class="muted">${d ? `<span class="lg agree">agrees</span> exact span and right code (a withheld right answer counts) ·
-        <span class="lg differ">differs</span> found but the span or the code is off ·
-        <span class="lg spurious">spurious</span> a record with no gold mention ·
-        <span class="lg missed">missed</span> gold the extractor never quoted`
-      : `blue = the records rung ${n} left`}
-      · <b>click a keyword</b> in the text or below to follow just that one</div>
-    ${d ? goldDiffHtml(d, sel, n) : ""}
-    <div id="live-keywords" class="kwstrip">
-      <button class="kw ${sel ? "" : "on"}" data-rid="">all ${res.records.length}</button>${chips}
-      ${sel ? `<span class="muted">following “${esc((res.records.find((r) => r.record_id === sel) || {}).text)}” — the calls below are narrowed to it</span>` : ""}
-    </div>
-    ${cards}
-    ${panel}
-    </div>
-    <div class="prov">live ${esc(pv.run_id)} · split ${esc(pv.split)} · backend ${esc(pv.backend)}
-      · manifest ${esc(pv.manifest_hash)} · models ${esc(JSON.stringify(pv.models))}
-      · temperature ${esc(pv.temperature)} · git ${esc(pv.git && pv.git.sha ? pv.git.sha.slice(0, 8) : "—")}${pv.git && pv.git.dirty ? " (dirty)" : ""}
-      · cache ${esc(pv.llm_cache)} · scratch deleted</div>`;
+    <div class="small">as rung ${col} left it · ${legend} · click a keyword to follow one row · ← → walk the grid's columns${mj && mj.failed ? ` · <span class="bad">menu-shown judge failed: ${esc(mj.error)}</span>` : ""}</div>
+    ${r0TableHtml(res, sel)}
+    ${gridHtml(res, sel, col, rule)}
+    <div class="small">hover a cell for the full value · gray = the rung did nothing here, or did not run · the three cost rows are the three measures, never fused</div>
+    ${legendHtml(res, rule)}
+    <div class="prov">live ${esc(pv.run_id)} · ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")} · ran rungs ${res.order_run.join(",")} · ${res.calls_total} model call${res.calls_total === 1 ? "" : "s"}${res.calls_cached ? `, ${res.calls_cached} from cache` : ""}${mj && mj.calls ? ` + ${mj.calls.length} menu-judge` : ""}
+      · backend ${esc(pv.backend)} · manifest ${esc(pv.manifest_hash)} · models ${esc(JSON.stringify(pv.models))}
+      · temperature ${esc(pv.temperature)} · git ${esc(pv.git && pv.git.sha ? pv.git.sha.slice(0, 8) : "—")}${pv.git && pv.git.dirty ? " (dirty)" : ""} · scratch deleted</div>`;
   const root = $("live-result");
   root.querySelectorAll("[data-rid]").forEach((el) => {
-    el.onclick = (e) => {
-      e.stopPropagation();
-      const rid = el.dataset.rid.split(" ")[0];
-      if (!rid) { S.live.selected = null; drawLive(); return; }
-      liveSelect(rid);
-    };
+    el.onclick = (e) => { e.stopPropagation(); const rid = el.dataset.rid.split(" ")[0];
+      S.live.selected = (S.live.selected === rid) ? null : rid; drawLive(); };
   });
-  root.querySelectorAll("[data-rung]").forEach((el) => {
-    el.onclick = (e) => { e.preventDefault(); e.stopPropagation(); liveGoto(Number(el.dataset.rung)); };
+  root.querySelectorAll("th[data-col]").forEach((el) => {
+    el.onclick = () => { S.live.col = Number(el.dataset.col); drawLive(); };
   });
-  const prev = $("rail-prev"), next = $("rail-next");
-  if (prev) prev.onclick = () => liveStep(-1);
-  if (next) next.onclick = () => liveStep(1);
+  root.querySelectorAll("tr[data-rule]").forEach((el) => {
+    el.onclick = () => { const id = el.dataset.rule; S.live.rule = (S.live.rule === id) ? null : id; drawLive(); };
+  });
 }
 
 /* ================= R5 — traceability ================= */

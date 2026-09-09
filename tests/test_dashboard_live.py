@@ -538,3 +538,54 @@ def test_each_rung_carries_a_summary_for_the_rail(runner):
     assert s["3"]["disabled"] is True and s["3"]["records"] == 1
     assert s["5"]["zones"] == {"ABSTAIN": 1}
     assert s["6"]["zones"] == {"ESCALATE": 1} and s["6"]["changed"] == 1
+
+
+# --- the six shipping rules per record (sketch, the "person" column) --------
+
+
+def test_every_record_carries_the_six_shipping_rules_in_legend_order(runner):
+    """V strict vocabulary ACCEPT · V+ loose vocabulary ACCEPT · 3 all votes
+    agree · 2 two of three agree · J blind judge pass · J+ menu-shown judge
+    pass. Each holds, ships, or was not run; rules not run leave the
+    denominator. Rung 3 is disabled in this manifest, so 3 and 2 are not
+    run; the fake judge passes blind and menu-shown alike."""
+    res = runner.start(text=TEXT, through_rung=6).result
+    rules = res["records"][0]["rules"]
+    assert [r["id"] for r in rules] == ["V", "V+", "3", "2", "J", "J+"]
+    by = {r["id"]: r for r in rules}
+    # rung 2 rescued the code, and the rescued record reads BAND — a hold
+    assert by["V"]["state"] == "hold" and by["V"]["value"] == "BAND"
+    assert by["V+"]["state"] == "hold"           # "rectal bleed" ⊄ "Rectal hemorrhage"
+    assert by["3"]["state"] == "not_run" and by["2"]["state"] == "not_run"
+    assert by["J"]["state"] == "ship" and by["J"]["value"] == "pass"
+    assert by["J+"]["state"] == "ship" and by["J+"]["value"] == "pass"
+    share = res["records"][0]["person"]
+    assert share == {"held": 2, "run": 4, "share": 0.5}
+
+
+def test_rules_not_reached_are_not_run_when_the_run_stops_early(runner):
+    res = runner.start(text=TEXT, through_rung=1).result
+    by = {r["id"]: r for r in res["records"][0]["rules"]}
+    assert by["V"]["state"] == "hold"
+    assert by["J"]["state"] == "not_run" and by["J+"]["state"] == "not_run"
+    assert res["records"][0]["person"] == {"held": 2, "run": 2, "share": 1.0}
+
+
+def test_the_menu_shown_judge_is_a_second_pass_the_live_run_makes_itself(runner):
+    """A batch run judges blind (`rungs.4.menu: off`). The live run judges
+    a second time with the menu shown, so J+ can be answered; its calls are
+    kept apart from the blind ones and never touch the records."""
+    res = runner.start(text=TEXT, through_rung=4).result
+    mj = res["menu_judge"]
+    assert mj["menu"] == "ranked" and mj["records"] == 1
+    assert [c["mode"] for c in mj["calls"]] == ["judge"]
+    assert res["records"][0]["checks"]["r4_menu"] in ("none", "off", None)
+
+
+def test_the_legend_carries_the_share_of_keywords_each_rule_holds(runner):
+    res = runner.start(text=TEXT, through_rung=6).result
+    lg = {r["id"]: r for r in res["rules_legend"]}
+    assert lg["V"] == {"id": "V", "name": "strict vocabulary check says ACCEPT",
+                       "held": 1, "run": 1, "share": 1.0}
+    assert lg["3"]["run"] == 0 and lg["3"]["share"] is None
+    assert lg["J"]["share"] == 0.0
