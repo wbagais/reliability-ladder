@@ -448,7 +448,7 @@ CADEC is non-transferable, so a record shows its <b>quoted span</b> (the model's
 <div id="bfHead" class="note good" style="margin:8px 0 10px"></div>
 <div id="batchFlow"></div>
 <div id="bfHiNote" style="font-size:10pt;color:#333;margin:6px 0 0;min-height:1.2em"></div>
-<p class="figcap">Every ribbon is a count of records in a tracked file — the run's ledger for CADEC and FiNER, the published stripped records for PsyTAR — and <code>tests/test_plan_html.py</code> recomputes each one. Judge shading inside a lane at rung 4: solid = pass, faint = fail, faintest = unjudged. "Right" is the right code on the exact span, from the run's results table.</p>
+<p class="figcap">Every ribbon is a count of records in a tracked file — the run's ledger for CADEC and FiNER, the published stripped records for PsyTAR — and <code>tests/test_plan_html.py</code> recomputes each one. Teal sliver inside a lane at rung 3: the records whose code the vote changed. Judge shading inside a lane at rung 4: solid = pass, faint = fail, faintest = unjudged. "Right" is the right code on the exact span, from the run's results table.</p>
 <h3>The three datasets side by side</h3>
 <p>Same ladder, same models, same rules. What differs is how much of the batch the free check can vouch for, and how much of what it holds back was already right.</p>
 <div id="bfCompare"></div>
@@ -741,7 +741,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
   "psytar": "runs/archive/matrix-2026-09-07/overnight/full-psytar/psytar-gpt-oss_20b-d0/*.results.csv",
   "matrix": "matrix.csv (scripts/score_matrix.py over runs/archive/matrix-2026-09-07/)",
   "heldout": "docs/decisions.md, 2026-08-26 Phase F entry (phaseF-test-1; raw artifacts deleted 2026-08-31)",
-  "flow": "per record from the tracked <run>.ledger.jsonl (CADEC, FiNER: rung 1 verdict, rung 2 outcome, rung 4 verdict, rung 5 zone) and the PsyTAR cell's records.stripped.jsonl; totals and tokens from results.csv; changed and unreviewable from aggregates.json",
+  "flow": "per record from the tracked <run>.ledger.jsonl (CADEC, FiNER: rung 1 verdict, rung 2 outcome, rung 4 verdict, rung 5 zone) and the PsyTAR cell's records.stripped.jsonl; totals and tokens from results.csv; changed and unreviewable from aggregates.json; changed_by_lane from rerun/cadec.json and rerun/finer.json (r3 by_lane) and, for PsyTAR, the stripped records' r3.changed",
   "demo": "scripts/plan_demo.py: CADEC and FiNER over the archived raw run (out/archive/\u2026, records per rung, state rows, the -judgemenu arm); PsyTAR over the tracked records.stripped.jsonl (no span text, no answer key on this machine); spans \u2264 7 words, labels from the registry"
  },
  "heldout": {
@@ -1975,7 +1975,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "right0": 87,
    "changed": 25,
    "net": 1,
-   "unreviewable": 0
+   "unreviewable": 0,
+   "changed_by_lane": {
+    "ACCEPT": 2,
+    "BAND": 22,
+    "REJECT": 1
+   }
   },
   "psytar": {
    "label": "PsyTAR \u00b7 psytar-gpt-oss_20b-d0 \u00b7 dev",
@@ -2034,7 +2039,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "right0": 63,
    "changed": 25,
    "net": 3,
-   "unreviewable": 0
+   "unreviewable": 0,
+   "changed_by_lane": {
+    "ACCEPT": 1,
+    "BAND": 24,
+    "REJECT": 0
+   }
   },
   "finer": {
    "label": "FiNER-139 \u00b7 rerun-finer-d0 \u00b7 dev",
@@ -2093,7 +2103,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "right0": 46,
    "changed": 74,
    "net": 6,
-   "unreviewable": 3
+   "unreviewable": 3,
+   "changed_by_lane": {
+    "ACCEPT": 0,
+    "BAND": 74,
+    "REJECT": 0
+   }
   }
  },
  "demo": [
@@ -7955,7 +7970,7 @@ function renderBatch(){
   E(s,"text",{x:cx(i),y:16,"font-size":12,"font-family":"Consolas,monospace","font-weight":700,fill:"#111","data-col":i},"R"+i);
   E(s,"text",{x:cx(i)+22,y:16,"font-size":11,"font-family":"Calibri,Arial","font-weight":700,fill:paid?"#0c6469":"#5a6b73","data-col":i},RN[i]);
   E(s,"text",{x:cx(i),y:30,"font-size":9,"font-family":"Consolas,monospace",fill:paid?"#0c6469":"#2d6a4f","data-col":i},paid?fmt(f.tokens[String(i)])+" tok/rec":"0 · free");
-  const note={2:f.rescued+" of "+f.lanes.REJECT+" rescued",3:f.changed+" codes changed · net "+(f.net>0?"+":"")+f.net,4:"pass "+(f.judge.ACCEPT.pass+f.judge.BAND.pass+f.judge.REJECT.pass)+" · fail "+(f.judge.ACCEPT.fail+f.judge.BAND.fail+f.judge.REJECT.fail)+" · read by nothing"}[i];
+  const note={2:f.rescued+" of "+f.lanes.REJECT+" REJECTs rescued into BAND",3:f.changed+" codes changed · net "+(f.net>0?"+":"")+f.net,4:"pass "+(f.judge.ACCEPT.pass+f.judge.BAND.pass+f.judge.REJECT.pass)+" · fail "+(f.judge.ACCEPT.fail+f.judge.BAND.fail+f.judge.REJECT.fail)+" · read by nothing"}[i];
   if(note)E(s,"text",{x:cx(i),y:42,"font-size":8.5,"font-family":"Calibri,Arial",fill:"#444","data-col":i},note);}
  // nodes
  const L=f.lanes, y0=top+GAP*scale;
@@ -7966,6 +7981,9 @@ function renderBatch(){
  const L2={ACCEPT:L.ACCEPT,BAND:L.BAND+f.rescued,REJECT:L.REJECT-f.rescued}; y=top; const lane2Y={};
  for(const k of ["ACCEPT","BAND","REJECT"]){lane2Y[k]=y; for(const col of [2,3,4]) node("r"+col+k,col,y,L2[k]*scale,BF.lane[k],col===4?k+" "+L2[k]:null); y+=L2[k]*scale+GAP*scale;}
  // judge shading inside each lane at column 4: pass (solid) / fail (hatched) / unjudged
+ for(const k of ["ACCEPT","BAND","REJECT"]){const ch=(f.changed_by_lane||{})[k]||0; if(ch>0){const h=ch*scale;
+  E(s,"rect",{x:cx(3),y:lane2Y[k]+L2[k]*scale-h,width:NW,height:Math.max(h,1.5),fill:"#0c6469","data-col":3});
+  E(s,"text",{x:cx(3)+NW+5,y:lane2Y[k]+L2[k]*scale-Math.max(h,1.5)/2+3.5,"font-size":9,"font-family":"Calibri,Arial",fill:"#0c6469","data-col":3},ch+" code"+(ch===1?"":"s")+" changed");}}
  for(const k of ["ACCEPT","BAND","REJECT"]){const j=f.judge[k]; let yy=lane2Y[k]; for(const [v,op] of [["pass",1],["fail",.45],["unjudged",.15]]){const h=j[v]*scale; if(h>0){E(s,"rect",{x:cx(4),y:yy,width:NW,height:h,fill:BF.lane[k],opacity:op,"data-col":4,"data-op":op}); yy+=h;}}}
  const yS=top, yH=top+f.ships*scale+GAP*scale;
  node("r5ships",5,yS,f.ships*scale,BF.ships,"ships "+f.ships,f.ship_right+" right");
@@ -7992,7 +8010,7 @@ function renderBatch(){
   const c=E(s,"circle",{r:2.6,fill:r.color,opacity:.9,class:"bfdot","data-key":r.key,"data-col":r.col});
   const m=E(c,"animateMotion",{dur:"3.2s",repeatCount:"indefinite",begin:(-(d*3.2/dots)-ri*0.13).toFixed(2)+"s",path:r.mid});}});
  // the dashed line between free and paid
- E(s,"text",{x:cx(1)+NW+5,y:top+PH+30,"font-size":9,"font-family":"Calibri,Arial",fill:"#444","data-col":4},"lanes run straight through rungs 2–4: those rungs change what a record says, not where it goes");
+ E(s,"text",{x:cx(1)+NW+5,y:top+PH+30,"font-size":9,"font-family":"Calibri,Arial",fill:"#444","data-col":4},"the lanes keep their size through rungs 2–4: those rungs change what a record says (the teal slivers at rung 3), never where it goes");
  const host=$("bfSvg")?$("bfSvg").parentNode:$("batchFlow"); host.innerHTML=""; host.appendChild(s);
  bfHighlight(bfHi); bfReplay();
  const acc=f.ships?(f.ship_right/f.ships).toFixed(2):"—";

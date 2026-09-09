@@ -349,3 +349,22 @@ def test_the_batch_flow_is_recomputed_from_the_tracked_per_record_files():
         f = flow[corpus]
         assert f["ship_right"] == round(rows[5]["f1_sct_strict"] * f["ships"]) if f["ships"] else f["ship_right"] == 0
         assert f["ship_right"] + f["person_right"] == round(rows[4]["yield"] * f["n"]), corpus
+
+
+def test_the_codes_voting_changed_per_lane_come_from_the_tracked_reports():
+    flow = _data()["flow"]
+    cad = json.loads(REPORT.read_text())["draws"]["rerun-cadec-d0"]["r3"]["by_lane"]
+    fin = json.loads(FINER_REPORT.read_text())["draws"]["rerun-finer-d0"]["r3"]["by_lane"]
+    psy: dict = {}
+    with sorted(PSYTAR.glob("*.records.stripped.jsonl"))[0].open() as fh:
+        for line in fh:
+            r = json.loads(line)
+            if (r["checks"].get("r3") or {}).get("changed"):
+                psy[r["checks"]["r1_verdict"]] = psy.get(r["checks"]["r1_verdict"], 0) + 1
+    for corpus, want in (("cadec", cad), ("finer", fin)):
+        for lane in ("ACCEPT", "BAND", "REJECT"):
+            assert flow[corpus]["changed_by_lane"][lane] == want.get(lane, {}).get("changed", 0), (corpus, lane)
+    for lane in ("ACCEPT", "BAND", "REJECT"):
+        assert flow["psytar"]["changed_by_lane"][lane] == psy.get(lane, 0), lane
+    for corpus in flow:
+        assert sum(flow[corpus]["changed_by_lane"].values()) == flow[corpus]["changed"], corpus
