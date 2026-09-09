@@ -1,4 +1,4 @@
-# Testing Six LLM Reliability Layers: What Each Bought and What It Cost
+# Reliability Layers Don't Make an LLM Right. They Tell You Which Answers to Trust.
 
 *Wejdan Bagais and Pushpdeep Mishra*
 
@@ -52,7 +52,7 @@ That is the extractor the six layers sit on. Before measuring what a layer adds,
 
 **Three identical runs of the unchanged extractor differed by four points of F1, at temperature zero.**
 
-We ran the extraction step three times, cold, on the same 40 documents. Two runs were byte-identical. The third diverged and finished with 98 correct mentions against the pair's 87. Grouped by mention, the three runs give 233 mentions:
+We ran the extraction step three times, cold, on the same 40 documents. Two runs were byte-identical. The third diverged and finished with 98 correct mentions against the pair's 87. Grouped by mention, the runs give 233 mentions:
 
 | across the three runs | mentions |
 |---|---|
@@ -75,7 +75,7 @@ From then on every change was measured on three runs and reported as the range a
 
 Development split, three runs of 40 documents; figures below are ranges across the runs:
 
-- **Vocabulary check, 0 tokens. Did its job.** It sorts every answer into three lanes. REJECT: the code does not exist or the quote is not in the post. ACCEPT: the span's words match one of the concept's own names, `"chronic pain"` against |Chronic pain|. BAND: neither. ACCEPT was 76 to 82 percent correct and BAND 27 to 30 percent, a 2.7 to 2.8× separation. The check can prove an answer wrong, never right, and its ceiling is that only 32 percent of annotated mentions are worded so a perfect answer could land in ACCEPT.
+- **Vocabulary check, 0 tokens. Did its job.** It sorts answers into three lanes. REJECT: the code does not exist or the quote is not in the post. ACCEPT: the span's words match one of the concept's own names, `"chronic pain"` against |Chronic pain|. BAND: neither. ACCEPT was 76 to 82 percent correct and BAND 27 to 30 percent, a 2.7 to 2.8× separation. The check can prove an answer wrong, never right, and its ceiling is that only 32 percent of annotated mentions are worded so a perfect answer could land in ACCEPT.
 - **Self-correction, about 1,500 tokens. Barely exercised.** It fires only on REJECT, restating the failure to the model as a fact ("code 999999 does not exist"). It fired two or three times per run and corrected nothing: unmeasured, not refuted.
 - **Voting, 411,000–432,000 tokens. Did not help.** Three samples of the extractor, majority wins. It changed about 27 codes a run, as many right-to-wrong as wrong-to-right: net −1 to +1, destroying 2 to 5 right answers. The voter is the answerer, so a vote carries no information the answer lacked.
 - **Second-model judge, 84,000–88,000 tokens. Worked once shown the menu; nothing read its verdict.** A second, smaller model, 3.2B parameters against the extractor's 20B, is asked whether each answer is right. Shown only the quote and a nine-digit code, it barely told right from wrong. Shown the menu the extractor chose from, it separates 3.4 to 4.2×, more sharply than the free check, and can say *the right answer is not on this list*. No later layer reads its verdict.

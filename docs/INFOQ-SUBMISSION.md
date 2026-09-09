@@ -29,7 +29,7 @@ Run before committing an article edit:
 Every edit to the markdown must be followed by this, or the sync test fails:
 
 ```bash
-cd docs && pandoc article-infoq-CADEC.md -o "Group 3 – Testing Six LLM Reliability Layers: What Each Bought and What It Cost.docx" --from gfm --resource-path=.
+cd docs && pandoc article-infoq-CADEC.md -o "Group 3 – Reliability Layers Don't Make an LLM Right. They Tell You Which Answers to Trust.docx" --from gfm --resource-path=.
 ```
 
 If the title changes, the file name changes with it: delete the old `.docx`
