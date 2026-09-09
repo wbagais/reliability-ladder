@@ -80,8 +80,36 @@ def stats_payload(state: AppState) -> dict[str, Any] | None:
     }
 
 
+def in_run_column(state: AppState, info, doc_ids: list[str]) -> dict[str, dict]:
+    """How a run did on each document: its final zones there and the pairing
+    against the document's gold — exact, overlap, missed, model-only —
+    through the scorer's own pairing (`dashboard.live.gold_diff`), never a
+    second rule. Documents the run never touched read zero, not blank."""
+    from dashboard.live import gold_diff
+
+    corpus = state.corpus() or {}
+    excluded = state.exclusions()
+    by_doc: dict[str, list] = {}
+    for rec in state.records(info):
+        by_doc.setdefault(rec.doc_id, []).append(rec)
+    out: dict[str, dict] = {}
+    for d in doc_ids:
+        recs = by_doc.get(d, [])
+        golds = [m for m in corpus[d].mentions if m.record_id not in excluded] \
+            if d in corpus else []
+        diff = gold_diff(recs, golds)
+        c = diff["counts"]
+        out[d] = {
+            "zones": dict(sorted(Counter(r.zone for r in recs).items())),
+            "exact": c["found_exact"], "overlap": c["found_overlap"],
+            "missed": c["missed"], "model_only": c["spurious"],
+            "gold": c["gold"], "records": len(recs),
+        }
+    return out
+
+
 def docs_payload(state: AppState, split: str | None, q: str | None,
-                 drug: str | None) -> dict[str, Any] | None:
+                 drug: str | None, run_info=None) -> dict[str, Any] | None:
     corpus = state.corpus()
     if corpus is None:
         return None
@@ -114,9 +142,15 @@ def docs_payload(state: AppState, split: str | None, q: str | None,
             "n_excluded": sum(1 for m in doc.mentions
                               if m.record_id in excluded),
         })
+    if run_info is not None:
+        col = in_run_column(state, run_info, [d["doc_id"] for d in docs])
+        for d in docs:
+            d["in_run"] = col[d["doc_id"]]
     return {
         "split": split or "dev+pool",
         "spent_split": split == "test",
+        "run": run_info.run_id if run_info is not None else None,
+        "run_key": None,
         "docs": docs,
     }
 

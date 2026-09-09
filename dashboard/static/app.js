@@ -130,8 +130,7 @@ function wireControls() {
   $("results-run").onchange = (e) => { S.resultsRun = e.target.value; renderResults(); };
   $("results-baseline").onchange = (e) => { S.baseline = e.target.value || null; renderResults(); };
   $("results-span").onchange = (e) => { S.span = e.target.value; renderResults(); };
-  $("explorer-split").onchange = renderDocs;
-  $("explorer-q").oninput = debounce(renderDocs, 300);
+  wireData();
   $("walk-run").onchange = (e) => { S.walkRun = e.target.value; S.walkDoc = null; renderWalkthrough(); };
   $("walk-doc").onchange = (e) => { S.walkDoc = e.target.value; renderWalkDoc(); };
   $("walk-span").onchange = (e) => { S.walkSpan = e.target.value; renderWalkDoc(); };
@@ -145,112 +144,11 @@ function debounce(fn, ms) {
   let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
-/* ================= R1 — data explorer ================= */
-
-async function renderExplorer() {
-  const stats = await api("/api/corpus/stats");
-  const w = $("explorer-warnings");
-  w.innerHTML = "";
-  if (!stats.available) {
-    $("explorer-stats").innerHTML =
-      `<div class="banner warn">Corpus unavailable on this machine — ` +
-      `${esc(stats.reason)}. Run views still work; gold views degrade.</div>`;
-  } else {
-    w.innerHTML = (stats.warnings || []).map(
-      (x) => `<div class="banner warn">⚠ ${esc(x)}</div>`).join("");
-    const disc = stats.discontinuous;
-    const cards = [
-      ["documents", stats.n_docs],
-      ["gold mentions", stats.n_mentions],
-      ["reactions", stats.by_entity_type.reaction ?? 0],
-      ["drugs", stats.by_entity_type.drug ?? 0],
-      ["concept-less", stats.concept_less],
-      ["post-coordinated", stats.post_coordinated],
-      ["disjunctions", stats.disjunctions],
-      [`discontinuous (${(disc.fraction * 100).toFixed(1)}%)`, disc.reaction_mentions],
-    ];
-    if (stats.codes.available)
-      cards.push(["codes active/retired/absent",
-        `${stats.codes.active ?? 0}/${stats.codes.retired ?? 0}/${stats.codes.absent ?? 0}`]);
-    $("explorer-stats").innerHTML = cards.map(
-      ([k, v]) => `<div class="card"><div class="big">${esc(v)}</div>` +
-        `<div class="muted">${esc(k)}</div></div>`).join("") +
-      provFooter(stats.provenance);
-  }
-  renderZoneStrip();
-  renderSplits();
-  renderExclusions();
-  renderDocs();
-}
-
-async function renderZoneStrip() {
-  const el = $("zone-strip");
-  const z = await api("/api/corpus/zones", { split: "dev" });
-  if (!z.available) {
-    el.innerHTML = `<div class="banner warn">V4 unavailable — ${esc(z.reason)}</div>` +
-      provFooter(z.provenance);
-    return;
-  }
-  const zones = z.zones || {};
-  const total = z.n || Object.values(zones).reduce((a, b) => a + b, 0);
-  const w = 560, h = 46;
-  let x = 0, parts = "";
-  for (const name of ["ACCEPT", "BAND", "REJECT"]) {
-    const n = zones[name] || 0;
-    const bw = total ? (n / total) * w : 0;
-    parts += `<rect x="${x}" y="0" width="${bw}" height="24"
-      fill="var(--z-${name.toLowerCase()})"></rect>` +
-      (bw > 40 ? `<text x="${x + bw / 2}" y="16" text-anchor="middle"
-        font-size="11" fill="#fff">${name} ${n}</text>` : "");
-    x += bw;
-  }
-  el.innerHTML = `<div class="chart">${svgOpen(w, h)}${parts}
-    <text x="0" y="40" font-size="11" class="svgmuted">gold replay, split dev —
-    every REJECT is false by construction (floor ${(z.false_rejection_rate * 100).toFixed(2)}%,
-    BAND ${(z.band_rate * 100).toFixed(1)}%)</text></svg>
-    ${caveatChips(z.caveats)}${provFooter(z.provenance)}</div>`;
-}
-
-async function renderSplits() {
-  const s = await api("/api/corpus/splits");
-  $("splits-view").innerHTML =
-    `<table><tr><th class="l">split</th><th>docs</th></tr>` +
-    Object.entries(s.splits).map(([k, v]) =>
-      `<tr><td class="l">${esc(k)}</td><td>${v.n_docs}</td></tr>`).join("") +
-    `</table><div class="muted">seed ${esc(s.seed)} · stratified by ${esc(s.stratified_by)}</div>` +
-    provFooter(s.provenance);
-}
-
-async function renderExclusions() {
-  const e = await api("/api/corpus/exclusions");
-  $("exclusions").innerHTML =
-    `<table><tr><th class="l">record</th><th class="l">reason</th><th class="l">detail</th></tr>` +
-    e.rows.map((r) => `<tr><td class="l">${esc(r.record_id)}</td>` +
-      `<td class="l">${esc(r.reason)}</td><td class="l">${esc(r.detail)}</td></tr>`).join("") +
-    `</table>` + provFooter(e.provenance);
-}
-
-async function renderDocs() {
-  const split = $("explorer-split").value || null;
-  const q = $("explorer-q").value || null;
-  const d = await api("/api/corpus/docs", { split, q });
-  $("spent-banner").hidden = !d.spent_split;
-  $("doc-list").innerHTML = d.docs.length || d.available === false
-    ? `<table><tr><th class="l">doc</th><th class="l">group</th><th>mentions</th>
-       <th>reactions</th><th>discont.</th><th>excluded</th></tr>` +
-      (d.docs || []).map((x) =>
-        `<tr class="rowbtn" data-doc="${esc(x.doc_id)}">
-         <td class="l">${esc(x.doc_id)}</td><td class="l">${esc(x.drug_group)}</td>
-         <td>${x.n_mentions}</td><td>${x.n_reactions}</td>
-         <td>${x.n_discontinuous}</td><td>${x.n_excluded}</td></tr>`).join("") +
-      `</table>` + provFooter(d.provenance)
-    : `<div class="muted" style="padding:.5rem">no documents</div>`;
-  $("doc-list").querySelectorAll("tr[data-doc]").forEach(
-    (tr) => (tr.onclick = () => renderDocView(tr.dataset.doc)));
-}
+/* ---------------- text highlighting (shared by Data, Live, Results) ---------------- */
 
 function highlight(text, marks) {
-  // marks: [{start, end, cls, title}] — render text with layered spans.
+  // marks: [{start, end, cls, title, rid?}] — render text with layered spans;
+  // a mark's record id is emitted as data-rid so the span is addressable.
   const points = new Set([0, text.length]);
   for (const m of marks) { points.add(m.start); points.add(m.end); }
   const cuts = [...points].sort((a, b) => a - b);
@@ -261,76 +159,254 @@ function highlight(text, marks) {
     const on = marks.filter((m) => m.start <= a && b <= m.end);
     if (!on.length) { html += esc(seg); continue; }
     const cls = [...new Set(on.map((m) => m.cls))].join(" ");
-    const title = on.map((m) => m.title).join(" | ");
+    const title = on.map((m) => m.title).filter(Boolean).join(" | ");
     const rids = [...new Set(on.map((m) => m.rid).filter(Boolean))];
     const rid = rids.length ? ` data-rid="${esc(rids.join(" "))}"` : "";
-    html += `<span class="${cls}"${rid} title="${esc(title)}">${esc(seg)}</span>`;
+    html += `<span class="${cls}"${rid}${title ? ` title="${esc(title)}"` : ""}>${esc(seg)}</span>`;
   }
   return html;
 }
 
-function codeLine(c, registryAvailable) {
-  // The desk's display rule: never a bare SCTID alone when the registry can
-  // label it; when it cannot, SAY so rather than showing nothing.
-  if (c.label) return `${c.code} |${c.label}|`;
-  if (!registryAvailable) return `${c.code} (label unavailable — no SNOMED index)`;
-  if (c.in_vocabulary === false) return `${c.code} (absent from this release)`;
-  return `${c.code} (no label in release)`;
+/* ================= Data — filters, one line, then the document or the table ================= */
+
+const D = { split: "dev", drug: "", doc: null, run: null, docs: [], sort: "doc_id",
+  showExcluded: true, showDisc: true, pinned: null };
+
+function wireData() {
+  $("data-split").onchange = (e) => { D.split = e.target.value; D.doc = null; renderExplorer(); };
+  $("data-drug").onchange = (e) => { D.drug = e.target.value; renderDataBody(); };
+  $("data-run").onchange = (e) => { D.run = e.target.value || null; renderExplorer(); };
+  $("data-show-excluded").onchange = (e) => { D.showExcluded = e.target.checked; renderDataBody(); };
+  $("data-show-disc").onchange = (e) => { D.showDisc = e.target.checked; renderDataBody(); };
+  const inp = $("data-doc");
+  inp.onchange = () => { const v = inp.value.trim(); if (D.docs.some((d) => d.doc_id === v)) { D.doc = v; renderDataBody(); } };
+  inp.onkeydown = (e) => { if (e.key === "Escape") { inp.value = ""; D.doc = null; renderDataBody(); } };
+  $("data-doc-clear").onclick = () => { inp.value = ""; D.doc = null; renderDataBody(); };
 }
 
-function mentionCodesHtml(m, registryAvailable) {
-  if (m.concept_less)
-    return `<span class="muted">CONCEPT_LESS — the annotators found no
-      concept that fits</span>`;
-  const kind = m.gold_kind === "all_of"
-    ? ' <span class="muted">(post-coordinated: A + B)</span>'
-    : m.gold_kind === "any_of"
-      ? ' <span class="muted">(disjunction: either counts)</span>' : "";
-  return m.codes.map((c) => esc(codeLine(c, registryAvailable)))
-    .join("<br>") + kind;
-}
-
-async function renderDocView(docId) {
+async function renderExplorer() {
+  if (!$("data-run").options.length) {
+    fillRunSelect($("data-run"), S.runs, true);
+    // the newest run ON THIS CORPUS's splits — a matrix cell from another
+    // corpus is newer on disk and would read as "everything missed"
+    const first = S.runs.find((r) => r.split === "dev" || r.split === "pool") || S.runs[0];
+    if (first) { $("data-run").value = first.key; D.run = first.key; }
+  }
+  $("spent-banner").hidden = D.split !== "test";
+  let d;
   try {
-    const d = await api("/api/corpus/doc", { doc_id: docId });
-    const marks = [];
-    for (const m of d.mentions) {
-      const codesText = m.concept_less ? "CONCEPT_LESS" :
-        m.codes.map((c) => codeLine(c, d.registry_available)).join("; ");
-      for (const [a, b] of m.spans) {
-        if (a < 0) continue;
-        marks.push({
-          start: a, end: b,
-          cls: "gold-span" + (m.excluded ? " excluded" : "") +
-               (m.discontinuous ? " seg" : ""),
-          title: `${m.record_id} ${m.entity_type} → ${codesText}` +
-                 (m.excluded ? ` — EXCLUDED (${m.exclusion_reason})` : "") +
-                 (m.discontinuous ? " — discontinuous" : ""),
-        });
-      }
-    }
-    const rows = d.mentions.map((m) =>
-      `<tr${m.excluded ? ' class="hatch"' : ""}>
-        <td class="l">${esc(m.record_id)}</td>
-        <td class="l">${esc(m.cadec_type)}</td>
-        <td class="l">“${esc(m.text)}”${m.discontinuous ? ' <span class="muted">(discontinuous)</span>' : ""}</td>
-        <td class="l">${mentionCodesHtml(m, d.registry_available)}</td>
-        <td class="l">${m.excluded ? `EXCLUDED (${esc(m.exclusion_reason)})` : ""}</td>
-      </tr>`).join("");
-    $("doc-view").innerHTML =
-      `<h3>${esc(d.doc_id)} <span class="muted">${esc(d.drug_group)}</span></h3>
-       <div class="doc-text">${highlight(d.text, marks)}</div>
-       <div class="muted">underline = gold span (dotted = excluded, renders as
-       excluded, not as an error; dashed outline = discontinuous segment)</div>
-       ${d.registry_available ? "" : `<div class="banner warn">SNOMED index
-       unavailable — codes shown without vocabulary labels (stated, not
-       blank)</div>`}
-       <table><tr><th class="l">mention</th><th class="l">type</th>
-       <th class="l">span text</th><th class="l">gold code(s) · |vocabulary label|</th>
-       <th class="l">excluded</th></tr>${rows}</table>` +
-      provFooter(d.provenance);
+    d = await api("/api/corpus/docs", { split: D.split, run: D.run });
   } catch (err) {
-    $("doc-view").innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;
+    $("data-summary").innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;
+    return;
+  }
+  if (d.available === false) {
+    $("data-summary").innerHTML = `<div class="banner warn">Corpus unavailable on this
+      machine — ${esc(d.reason)}. Run views still work; gold views degrade.</div>`;
+    $("data-doc-view").innerHTML = ""; $("data-table").innerHTML = "";
+    renderReference();
+    return;
+  }
+  D.docs = d.docs;
+  // the drug filter offers what the split holds
+  const drugs = [...new Set(d.docs.map((x) => x.drug_group))].sort();
+  const sel = $("data-drug");
+  const keep = drugs.includes(D.drug) ? D.drug : "";
+  sel.innerHTML = `<option value="">any</option>` + drugs.map((g) =>
+    `<option value="${esc(g)}">${esc(g)}</option>`).join("");
+  sel.value = keep; D.drug = keep;
+  $("data-doc-list").innerHTML = d.docs.map((x) =>
+    `<option value="${esc(x.doc_id)}">${x.n_mentions} gold · ${esc(x.drug_group)}</option>`).join("");
+  renderSummary(d);
+  renderDataBody();
+  renderReference();
+}
+
+async function renderSummary(d) {
+  const docs = d.docs;
+  const nMentions = docs.reduce((a, x) => a + x.n_reactions, 0);
+  const drugs = new Set(docs.map((x) => x.drug_group)).size;
+  let zones = "";
+  try {
+    const z = await api("/api/corpus/zones", { split: D.split });
+    if (z.available) {
+      const zz = z.zones || {}, total = z.n || 1;
+      const seg = (name) => `<i style="width:${((zz[name] || 0) / total * 100).toFixed(1)}%;background:var(--z-${name.toLowerCase()})" title="${name} ${zz[name] || 0}"></i>`;
+      zones = ` · gold through rung 1: <span class="zbar">${seg("ACCEPT")}${seg("BAND")}${seg("REJECT")}</span>
+        ACCEPT ${zz.ACCEPT || 0} · BAND ${zz.BAND || 0} · REJECT ${zz.REJECT || 0}
+        <span class="muted">(${esc(z.provenance && z.provenance.backend)}; every REJECT is false by construction)</span>`;
+    }
+  } catch { /* the strip is optional; the line stands without it */ }
+  $("data-summary").innerHTML = `<b>${esc(D.split)}</b> · ${docs.length} documents · ${nMentions} reaction mentions
+    · ${drugs} drug${drugs === 1 ? "" : "s"}${zones}`;
+}
+
+function renderDataBody() {
+  const clear = $("data-doc-clear");
+  clear.hidden = !D.doc;
+  if (D.doc) {
+    $("data-table").innerHTML = "";
+    $("data-doc").value = D.doc;
+    renderDataDoc(D.doc);
+  } else {
+    $("data-doc-view").innerHTML = "";
+    renderDataTable();
+  }
+}
+
+function renderDataTable() {
+  let rows = D.docs.filter((x) => !D.drug || x.drug_group === D.drug);
+  const hasRun = rows.length && rows[0].in_run;
+  const key = D.sort;
+  const val = (x) => {
+    if (key === "missed") return x.in_run ? x.in_run.missed : 0;
+    if (key === "exact") return x.in_run ? x.in_run.exact : 0;
+    if (key === "records") return x.in_run ? x.in_run.records : 0;
+    return x[key];
+  };
+  rows = rows.slice().sort((a, b) => {
+    const va = val(a), vb = val(b);
+    if (typeof va === "number") return vb - va || a.doc_id.localeCompare(b.doc_id);
+    return String(va).localeCompare(String(vb));
+  });
+  const th = (k, label, cls = "") => `<th class="${cls} sortable ${key === k ? "sorted" : ""}" data-sort="${k}">${label}</th>`;
+  const inRun = (x) => {
+    const r = x.in_run;
+    if (!r) return "";
+    if (!r.records && !r.gold) return `<td class="l muted">—</td>`;
+    const zones = Object.entries(r.zones).map(([z, n]) => `<span class="zone ${esc(z)}" title="${n} ${esc(z)}">${n}</span>`).join("");
+    return `<td class="l inrun">${zones} <span class="muted">· ${r.exact} exact · ${r.overlap} overlap
+      · ${r.missed} missed · ${r.model_only} model only</span></td>`;
+  };
+  $("data-table").innerHTML = rows.length
+    ? `<table class="docs"><tr>${th("doc_id", "document", "l")}${th("drug_group", "drug", "l")}
+        ${th("n_mentions", "gold")}${th("n_discontinuous", "discontinuous")}${th("n_excluded", "excluded")}
+        ${hasRun ? th("missed", `in run ${esc(D.run)}`, "l") : ""}</tr>` +
+      rows.map((x) => `<tr data-doc="${esc(x.doc_id)}">
+        <td class="l">${esc(x.doc_id)}</td><td class="l">${esc(x.drug_group)}</td>
+        <td>${x.n_mentions}</td><td>${x.n_discontinuous}</td><td>${x.n_excluded}</td>${inRun(x)}</tr>`).join("") +
+      `</table><div class="muted">click a row to open the document · click a header to sort${hasRun ? " · sort by the run column to find the most missed" : ""}</div>`
+    : `<div class="muted" style="padding:.5rem">no documents match</div>`;
+  $("data-table").querySelectorAll("tr[data-doc]").forEach((tr) =>
+    (tr.onclick = () => { D.doc = tr.dataset.doc; renderDataBody(); }));
+  $("data-table").querySelectorAll("th[data-sort]").forEach((h) =>
+    (h.onclick = () => { D.sort = h.dataset.sort; renderDataTable(); }));
+}
+
+function codeHtml(c, registryAvailable) {
+  if (registryAvailable === false) return `<span class="code">${esc(c.code)}</span> <span class="k">no index — label unavailable</span>`;
+  if (c.label) return `<span class="code">${esc(c.code)} <i>|${esc(c.label)}|</i></span>`;
+  return `<span class="code">${esc(c.code)}</span> <span class="k">${c.in_vocabulary === false ? "not in this release" : "no label"}</span>`;
+}
+
+function mentionCardHtml(m, d) {
+  const codes = m.concept_less ? `<div class="code k">concept-less — gold has no code here</div>`
+    : m.codes.map((c) => `<div>${codeHtml(c, d.registry_available)}</div>`).join("");
+  const kind = m.gold_kind === "any_of" ? "one of these codes" : m.gold_kind === "all_of" ? "all of these codes" : m.concept_less ? "" : "single code";
+  return `<div><b>“${esc(m.text)}”</b> <span class="k">${esc(m.spans.map((x) => x.join("-")).join(", "))} · ${esc(m.cadec_type)}${m.discontinuous ? " · discontinuous" : ""}</span></div>
+    ${codes}
+    <div class="k">${kind}${m.excluded ? ` · <b>excluded</b> (${esc(m.exclusion_reason)})` : ""}</div>
+    <div class="acts"><a href="#" data-act="live">send to Live ▶</a><span class="k">click a word to pin · Esc to close</span></div>`;
+}
+
+async function renderDataDoc(docId) {
+  const el = $("data-doc-view");
+  el.innerHTML = `<div class="muted">loading…</div>`;
+  let d;
+  try { d = await api("/api/corpus/doc", { doc_id: docId }); }
+  catch (err) { el.innerHTML = `<div class="banner warn">${esc(err.message)}</div>`; return; }
+  const marks = [];
+  const byId = {};
+  for (const m of d.mentions) {
+    byId[m.record_id] = m;
+    if (m.excluded && !D.showExcluded) continue;
+    if (m.discontinuous && !D.showDisc) continue;
+    for (const [a, b] of m.spans) {
+      if (a < 0) continue;
+      marks.push({ start: a, end: b, rid: m.record_id,
+        cls: "gold-span" + (m.excluded ? " excluded" : ""),
+        title: "" });
+    }
+  }
+  const inRun = D.docs.find((x) => x.doc_id === docId);
+  const r = inRun && inRun.in_run;
+  el.innerHTML = `<div class="doc-head"><h3 style="margin:0">${esc(d.doc_id)}</h3>
+      <span class="muted">${esc(d.drug_group)} · ${d.mentions.length} gold mention${d.mentions.length === 1 ? "" : "s"}</span>
+      ${r && (r.records || r.gold) ? `<span class="muted">· in ${esc(D.run)}: ${r.exact} exact · ${r.overlap} overlap · ${r.missed} missed · ${r.model_only} model only</span>` : ""}
+      <span class="actions"><a href="#" id="data-to-live">send to Live ▶</a></span></div>
+    <div class="doc-text data" id="data-text">${highlight(d.text, marks)}</div>
+    <div class="muted">hover an annotated word for its code · click pins · ${d.registry_available ? "" : "no SNOMED index on this machine: codes without labels · "}green = gold${D.showExcluded ? " · dotted = excluded" : ""}</div>
+    ${provFooter(d.provenance)}`;
+  const text = $("data-text");
+  let card = null;
+  const closeCard = () => { if (card) { card.remove(); card = null; } D.pinned = null;
+    text.querySelectorAll(".lit").forEach((x) => x.classList.remove("lit")); };
+  const openCard = (rid, anchor, pinned) => {
+    const m = byId[rid];
+    if (!m) return;
+    if (card) card.remove();
+    text.querySelectorAll(".lit").forEach((x) => x.classList.remove("lit"));
+    text.querySelectorAll(`[data-rid~="${CSS.escape(rid)}"]`).forEach((x) => x.classList.add("lit"));
+    card = document.createElement("div");
+    card.className = "mention-card" + (pinned ? " pinned" : "");
+    card.innerHTML = mentionCardHtml(m, d);
+    el.appendChild(card);
+    const r0 = anchor.getBoundingClientRect(), r1 = el.getBoundingClientRect();
+    card.style.left = Math.max(0, Math.min(r0.left - r1.left, el.clientWidth - card.offsetWidth - 8)) + "px";
+    card.style.top = (r0.bottom - r1.top + 6) + "px";
+    card.querySelector('[data-act="live"]').onclick = (e) => { e.preventDefault(); sendToLive(docId); };
+  };
+  text.querySelectorAll("[data-rid]").forEach((sp) => {
+    const rid = sp.dataset.rid.split(" ")[0];
+    sp.onmouseenter = () => { if (!D.pinned) openCard(rid, sp, false); };
+    sp.onmouseleave = () => { if (!D.pinned) closeCard(); };
+    sp.onclick = (e) => { e.stopPropagation();
+      if (D.pinned === rid) { closeCard(); return; }
+      D.pinned = rid; openCard(rid, sp, true); };
+  });
+  el.onclick = (e) => { if (D.pinned && !e.target.closest(".mention-card")) closeCard(); };
+  document.addEventListener("keydown", function esc(e) {
+    if (e.key === "Escape" && D.pinned) closeCard();
+    if (!document.body.contains(el)) document.removeEventListener("keydown", esc);
+  });
+  $("data-to-live").onclick = (e) => { e.preventDefault(); sendToLive(docId); };
+}
+
+function sendToLive(docId) {
+  const t = S.tabs.find((x) => x.id === "live");
+  if (!t) return;
+  showTab(t);
+  const src = $("live-source");
+  src.value = "corpus"; src.dispatchEvent(new Event("change"));
+  setTimeout(() => { const sel = $("live-doc"); if ([...sel.options].some((o) => o.value === docId)) sel.value = docId; }, 800);
+}
+
+async function renderReference() {
+  try {
+    const stats = await api("/api/corpus/stats");
+    const w = $("explorer-warnings");
+    if (!stats.available) { $("explorer-stats").innerHTML = `<div class="muted">corpus unavailable</div>`; }
+    else {
+      w.innerHTML = (stats.warnings || []).map((x) => `<div class="banner warn">⚠ ${esc(x)}</div>`).join("");
+      const disc = stats.discontinuous;
+      const cards = [["documents", stats.n_docs], ["gold mentions", stats.n_mentions],
+        ["reactions", stats.by_entity_type.reaction ?? 0], ["concept-less", stats.concept_less],
+        ["post-coordinated", stats.post_coordinated], ["disjunctions", stats.disjunctions],
+        [`discontinuous (${(disc.fraction * 100).toFixed(1)}%)`, disc.reaction_mentions]];
+      if (stats.codes.available)
+        cards.push(["codes active/retired/absent", `${stats.codes.active ?? 0}/${stats.codes.retired ?? 0}/${stats.codes.absent ?? 0}`]);
+      $("explorer-stats").innerHTML = cards.map(([k, v]) =>
+        `<div class="card"><div class="big">${esc(v)}</div><div class="muted">${esc(k)}</div></div>`).join("") + provFooter(stats.provenance);
+    }
+    const sp = await api("/api/corpus/splits");
+    $("splits-view").innerHTML = `<table><tr><th class="l">split</th><th>docs</th></tr>` +
+      Object.entries(sp.splits).map(([k, v]) => `<tr><td class="l">${esc(k)}</td><td>${v.n_docs}</td></tr>`).join("") +
+      `</table><div class="muted">seed ${esc(sp.seed)} · stratified by ${esc(sp.stratified_by)}</div>`;
+    const ex = await api("/api/corpus/exclusions");
+    $("exclusions").innerHTML = `<table><tr><th class="l">record</th><th class="l">reason</th><th class="l">detail</th></tr>` +
+      ex.rows.map((r) => `<tr><td class="l">${esc(r.record_id)}</td><td class="l">${esc(r.reason)}</td><td class="l">${esc(r.detail)}</td></tr>`).join("") + `</table>`;
+  } catch (err) {
+    $("explorer-stats").innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;
   }
 }
 

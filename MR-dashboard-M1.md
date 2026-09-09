@@ -31,10 +31,15 @@ absence renders as a stated degradation, never an error.
 
 ### Tabs
 
-- **Data explorer** — corpus stats with warnings on mismatch against the
-  recorded numbers; documents with gold spans highlighted in-text, gold
-  codes shown with their vocabulary labels; excluded mentions as excluded;
-  splits; test split behind an explicit "spent split" banner; V4 zone strip.
+- **Data** (redesigned 2026-09-09, step 1 of the owner's sketch) — a row of
+  filters with a document picker; one summary line (split, documents,
+  reaction mentions, drugs, gold through rung 1 as a zone bar); then either
+  the document — annotated text, hover a word for its code and vocabulary
+  label, click to pin, send to Live — or the table with an "in run" column
+  (the run's zones on each document and its pairing against gold, sortable
+  by most missed). Totals, splits and exclusions behind a reference
+  disclosure. Colour tokens now follow one-colour-one-meaning across the
+  dashboard.
 - **Results** — a narrative in six sections; runs from this checkout's
   `out/`, the **tracked `runs/archive/`** (new) and the main checkout's
   `out/archive/`; headline with bootstrap CIs; the integrated rung-flow

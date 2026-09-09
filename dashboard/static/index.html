@@ -14,37 +14,40 @@
 
 <main id="main">
   <section id="tab-explorer" class="tab" hidden>
-    <h2>Data explorer <span class="muted">gold corpus, splits, exclusions</span></h2>
-    <div id="explorer-warnings"></div>
-    <div class="cards" id="explorer-stats"></div>
-    <div class="cols">
-      <div class="col">
-        <h3>Zone strip on gold <span class="muted">(V4 — gold replayed through rung 1)</span></h3>
-        <div id="zone-strip"></div>
-        <h3>Splits</h3>
-        <div id="splits-view"></div>
-        <h3>Exclusions <span class="muted">declared, leave the denominator</span></h3>
-        <div id="exclusions" class="scrollbox"></div>
-      </div>
-      <div class="col">
-        <h3>Documents</h3>
-        <div class="controls">
-          <select id="explorer-split">
-            <option value="">dev+pool</option>
-            <option value="dev">dev</option>
-            <option value="pool">pool</option>
-            <option value="test">test (spent)</option>
-          </select>
-          <input id="explorer-q" placeholder="filter doc id…">
-        </div>
-        <div id="spent-banner" class="banner warn" hidden>
-          SPENT SPLIT — phaseF-test-1 is final; test results are read-only
-          displays and nothing is re-run.
-        </div>
-        <div id="doc-list" class="scrollbox"></div>
-        <div id="doc-view"></div>
-      </div>
+    <div class="controls data-filters">
+      <label>split <select id="data-split">
+        <option value="dev">dev</option>
+        <option value="pool">pool</option>
+        <option value="test">test (spent)</option>
+      </select></label>
+      <label>drug <select id="data-drug"><option value="">any</option></select></label>
+      <label class="docpick">document
+        <input id="data-doc" list="data-doc-list" placeholder="type to search…" autocomplete="off" spellcheck="false">
+        <datalist id="data-doc-list"></datalist>
+        <button id="data-doc-clear" class="linkish" title="clear the document" hidden>✕</button>
+      </label>
+      <label>run <select id="data-run"></select></label>
+      <label class="toggle"><input type="checkbox" id="data-show-excluded" checked> excluded</label>
+      <label class="toggle"><input type="checkbox" id="data-show-disc" checked> discontinuous</label>
     </div>
+    <div id="data-summary" class="summary"></div>
+    <div id="data-warnings"></div>
+    <div id="spent-banner" class="banner warn" hidden>
+      SPENT SPLIT — phaseF-test-1 is final; test results are read-only
+      displays and nothing is re-run.
+    </div>
+    <div id="data-doc-view"></div>
+    <div id="data-table"></div>
+    <details id="data-reference" class="reference">
+      <summary class="muted">reference: corpus totals, splits, exclusions</summary>
+      <div id="explorer-warnings"></div>
+      <div class="cards small" id="explorer-stats"></div>
+      <div class="cols">
+        <div class="col"><h4>splits</h4><div id="splits-view"></div></div>
+        <div class="col"><h4>exclusions <span class="muted">declared, leave the denominator</span></h4>
+          <div id="exclusions" class="scrollbox"></div></div>
+      </div>
+    </details>
   </section>
 
   <section id="tab-results" class="tab" hidden>

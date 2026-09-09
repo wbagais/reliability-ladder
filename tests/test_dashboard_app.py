@@ -628,3 +628,34 @@ def test_llm_view_falls_back_to_reconstruction_without_call_traces(client):
     r = client.get("/api/run/record_llm", params={
         "run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"}).json()
     assert r["source"] == "reconstruction"
+
+
+# --- Data tab (2026-09-09, sketch section 3): the "in run" column ----------
+
+
+def test_docs_list_carries_how_the_selected_run_did_on_each_document(client):
+    """One column per document: the run's final zones on it and the pairing
+    against its gold — exact, overlap, missed, model-only — through the
+    scorer's own pairing (dashboard.live.gold_diff), so the table is also
+    a way into the results ("most missed" sorts to the interesting ones)."""
+    body = client.get("/api/corpus/docs", params={"split": "dev", "run": "syn-run-1"}).json()
+    by = {d["doc_id"]: d for d in body["docs"]}
+    assert by["SYN.1"]["in_run"] == {"zones": {"VERIFIED": 1}, "exact": 1,
+                                     "overlap": 0, "missed": 0, "model_only": 0,
+                                     "gold": 1, "records": 1}
+    assert by["SYN.2"]["in_run"] == {"zones": {"ESCALATE": 2}, "exact": 1,
+                                     "overlap": 0, "missed": 1, "model_only": 1,
+                                     "gold": 2, "records": 2}
+    assert by["SYN.3"]["in_run"] == {"zones": {}, "exact": 0, "overlap": 0,
+                                     "missed": 0, "model_only": 0, "gold": 0,
+                                     "records": 0}
+    assert body["run"] == "syn-run-1"
+
+
+def test_docs_list_without_a_run_has_no_in_run_column(client):
+    body = client.get("/api/corpus/docs", params={"split": "dev"}).json()
+    assert all("in_run" not in d for d in body["docs"]) and body["run"] is None
+
+
+def test_docs_list_refuses_an_unknown_run(client):
+    assert client.get("/api/corpus/docs", params={"split": "dev", "run": "nope"}).status_code == 404

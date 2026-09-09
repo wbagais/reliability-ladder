@@ -398,12 +398,15 @@ def create_app(state: AppState, live_runner: LiveRunner | None = None) -> FastAP
 
     @app.get("/api/corpus/docs")
     def corpus_docs(split: str | None = None, q: str | None = None,
-                    drug: str | None = None):
-        payload = corpus_views.docs_payload(state, split, q, drug)
+                    drug: str | None = None, run: str | None = None):
+        info = _run(run) if run else None
+        payload = corpus_views.docs_payload(state, split, q, drug, run_info=info)
         if payload is None:
             return {"available": False, "reason": "corpus unavailable",
-                    "spent_split": split == "test", "docs": [],
+                    "spent_split": split == "test", "docs": [], "run": run,
                     "provenance": _corpus_prov()}
+        if info is not None:
+            payload["run_key"] = run
         return {**payload, "provenance": _corpus_prov()}
 
     @app.get("/api/corpus/doc")
