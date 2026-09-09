@@ -11,20 +11,20 @@
 - Reliability layers do not make a model more accurate; they say which answers to trust, so judge them on correct answers over all inputs.
 - Start with a free check: matching answers' words to the vocabulary's own names sorted them by trustworthiness; three paid layers changed one answer, each having little to act on or going unread.
 - Ask the model to read, never to remember: it picked well from a menu but invented 13 to 18 percent of the codes it recalled.
-- Make repeat runs a validation step: rerun the same inputs, measure how far answers move and set the difference you accept; ours agreed 70 percent.
+- Make repeat runs a validation step: rerun the same inputs, measure how far answers move and set the difference you accept; ours agreed on 70 percent.
 - Study the data before adding layers: our biggest gains came from annotation conventions, not medicine; no layer recovers what the model never read.
 
 ---
 
 ## The theory we set out to test
 
-Clinical notes, incident reports, support tickets and forum posts are prose, and a language model can read them. What it reads out is not dependable. Ours was 40 percent right on the task below and reported full confidence on two thirds of its answers; wherever a wrong answer costs something, that is unusable.
+Clinical notes, incident reports, support tickets and forum posts are prose, and a language model can read them. What it produces is not dependable. Ours was right about one answer in three on the task below and reported full confidence on two thirds of its answers; wherever a wrong answer costs something, that is unusable.
 
-We tested six layers that each evaluate the model's output and flag what is wrong so that it can be put right: check each answer against something deterministic, send provable failures back to the model [1], sample it several times and vote [2], have a second model judge it [3], withhold what cannot be corroborated, and send the rest to a person. The theory we set out to test is the one that justifies stacking them: each layer catches errors the layers below missed, so accuracy rises with every layer added. We ran all six on the same records, each priced, with the free deterministic check entered as a competitor. The theory did not hold. The layers sorted the answers by how far to trust them and corrected almost none.
+We tested six layers that each evaluate the model's output and flag what is wrong so that it can be put right: check each answer against something deterministic, send provable failures back to the model [1], sample it several times and vote [2], have a second model judge it [3], withhold what cannot be corroborated, and send the rest to a person. The theory we set out to test is the one that justifies stacking them: each layer catches errors the layers below missed, so accuracy rises with every layer added. We ran all six on the same records, each priced, with the free check entered as a competitor. The theory did not hold. The layers sorted the answers by how far to trust them and corrected almost none.
 
-Testing it needs a graded task, so we chose an annotated corpus: CADEC, the CSIRO Adverse Drug Event Corpus [4], 1,250 forum posts about two drugs, every adverse reaction marked as a span of the writer's own words and given a SNOMED CT code. A gold answer for every mention lets us score each layer's verdicts instead of trusting them. We did not build a CADEC system or tune for the corpus. The aim was to evaluate open-weight models and measure how much each layer raises their accuracy, and CADEC is the instrument.
+Testing it needs a graded task, so we chose an annotated corpus: CADEC, the CSIRO Adverse Drug Event Corpus [4], 1,250 forum posts about two drugs, every adverse reaction marked as a span of the writer's own words and given a SNOMED CT code. A gold answer for every mention lets us score each layer's verdicts instead of trusting them. We did not build a CADEC system or tune for it: the aim was to evaluate open-weight models and measure how much each layer raises their accuracy, and CADEC is the instrument.
 
-A supervised system does far better. CONORM [5], fine-tuned on 875 of CADEC's 1,250 files, reaches an end-to-end F1 of 0.72 under lenient span matching. Our zero-shot extractor, everything it returns, reaches 0.47 to 0.50 under the same matching on our development split, 0.39 to 0.43 span-exact. We are not competing with it: it needs those 875 annotated files, and still cannot say which of its answers to trust, the question the layers exist to answer. Our held-out split was spent once, 60 documents, one run; every other number is development-side and says so. Two things would move the absolute numbers, the small judge and CADEC being, since 2015, almost certainly in training data; the comparisons between layers should hold.
+A supervised system does far better. CONORM [5], fine-tuned on 875 of CADEC's 1,250 files, reaches an end-to-end F1 of 0.72 under lenient span matching. Our zero-shot extractor, everything it returns, reaches 0.47 to 0.50 under the same matching on our development split, 0.39 to 0.43 span-exact. We are not competing with it: it needs those 875 annotated files, and still cannot say which of its answers to trust. Our held-out split was spent once, 60 documents, one run; every other number is development-side and says so. Two things would move the absolute numbers: the judge is small, and CADEC, public since 2015, is almost certainly in its training data. The comparisons between layers should hold.
 
 ## The system under test: the model reads, the vocabulary knows
 
@@ -34,17 +34,17 @@ A supervised system does far better. CONORM [5], fine-tuned on 875 of CADEC's 1,
 
 *Figure 1: The pipeline, left to right, on one illustrative post (CADEC is non-transferable). Teal: a model call; grey: deterministic code. Each card shows what that step produces for the example; a code appears for the first time in the last one. Image: the authors.*
 
-The retriever searches 227,554 keyword-to-code rows; codes are written as `271782001` |Drowsy|, SNOMED's bar notation, throughout.
+Behind the menu, a retriever with no model searches 227,554 keyword-to-code rows. Codes are written as `271782001` |Drowsy|, SNOMED's bar notation, throughout.
 
-We chose this shape by measuring the alternatives on 40 development documents, three cold runs each:
+We chose this shape by measuring the alternatives on 40 development documents, three cold runs each: recall the code from memory, name the concept and look it up, or pick from the menu.
 
 ![Figure 2](figures/infoq-fig7-variants.png)
 
 *Figure 2: F1 of the extractor alone under three ways of getting the code, one dot per cold run, with tokens per run and unparseable replies beneath. Image: the authors.*
 
-Recalling the code is not weak but broken: eight to twelve times worse than naming the concept. It answered `null` on up to 38 percent of records, and of the codes it committed to, 13 to 18 percent exist in no SNOMED release. An abstention option reduces fabrication; it does not remove it.
+Recalling the code is not weak but broken: eight to twelve times worse than naming the concept. It answered `null` on up to 38 percent of records, and of the codes it committed to, 13 to 18 percent exist in no SNOMED release.
 
-F1 is *span-exact* throughout: a quote with the wrong boundary is both a false positive and a false negative.
+F1 is *span-exact* throughout: a wrong boundary is both a false positive and a false negative.
 
 That is the extractor the six layers sit on. Before measuring what a layer adds, we had to know how much its output moves between runs of the same inputs.
 
@@ -65,7 +65,7 @@ We ran the extraction step three times, cold, on the same 40 documents. Two runs
 
 Where all three found the same span, they agreed on the code 84 percent of the time, so what moves between runs is mostly the reading, not the coding. We did not ask why those 22 were coded differently, and should have.
 
-The variation is a property of this model: four other families run three times each, llama3.1:8b, mistral:7b-instruct, qwen3:8b and granite4:micro-h, returned byte-identical output every time. Our extractor, gpt-oss:20b, is the only mixture-of-experts model of the five and the only one that varied; why it varies we could not settle, since the diverging request, sent alone eight times, returns one reply and moves only inside a full run. We kept it for its 6.5 extra points of F1 over llama3.1:8b.
+The variation is a property of this model: four other families run three times each, llama3.1:8b, mistral:7b-instruct, qwen3:8b and granite4:micro-h, returned byte-identical output every time. Our extractor, gpt-oss:20b, is the only mixture-of-experts model of the five and the only one that varied. Why, we could not settle: the diverging request, sent alone eight times, returns one reply; it moves only inside a full run. We kept it for its 6.5 extra points of F1 over llama3.1:8b.
 
 From then on every change was measured on three runs and reported as the range across them.
 
@@ -75,16 +75,16 @@ From then on every change was measured on three runs and reported as the range a
 
 Development split, three runs of 40 documents; figures below are ranges across the runs:
 
-- **Vocabulary check, 0 tokens. Did its job.** Three lanes. REJECT: the code does not exist or the quote is not in the post. ACCEPT: the span's words match one of the concept's own names, `"chronic pain"` against |Chronic pain|. BAND: neither. ACCEPT was 76 to 82 percent correct and BAND 27 to 30 percent, a 2.7 to 2.8× separation. The check can prove an answer wrong, never right, and its ceiling is that only 73 of 226 annotated mentions, 32 percent, are worded so a perfect answer could land in ACCEPT.
+- **Vocabulary check, 0 tokens. Did its job.** It sorts every answer into three lanes. REJECT: the code does not exist or the quote is not in the post. ACCEPT: the span's words match one of the concept's own names, `"chronic pain"` against |Chronic pain|. BAND: neither. ACCEPT was 76 to 82 percent correct and BAND 27 to 30 percent, a 2.7 to 2.8× separation. The check can prove an answer wrong, never right, and its ceiling is that only 32 percent of annotated mentions are worded so a perfect answer could land in ACCEPT.
 - **Self-correction, about 1,500 tokens. Barely exercised.** It fires only on REJECT, restating the failure to the model as a fact ("code 999999 does not exist"). It fired two or three times per run and corrected nothing: unmeasured, not refuted.
 - **Voting, 411,000–432,000 tokens. Did not help.** Three samples of the extractor, majority wins. It changed about 27 codes a run, as many right-to-wrong as wrong-to-right: net −1 to +1, destroying 2 to 5 right answers. The voter is the answerer, so a vote carries no information the answer lacked.
 - **Second-model judge, 84,000–88,000 tokens. Worked once shown the menu; nothing read its verdict.** A second, smaller model, 3.2B parameters against the extractor's 20B, is asked whether each answer is right. Shown only the quote and a nine-digit code, it barely told right from wrong. Shown the menu the extractor chose from, it separates 3.4 to 4.2×, more sharply than the free check, and can say *the right answer is not on this list*. No later layer reads its verdict.
-- **Refusal, 0 tokens. A guard, and it held.** It passes answers that meet a chosen verdict and holds the rest for a person. On the vocabulary check's ACCEPT, our measured setting, 21 to 23 percent of records pass at 0.74 to 0.82 accuracy. A confidence threshold was tried and retired: the extractor reports 1.0 on 66 percent of answers while right 39 percent of the time.
+- **Refusal, 0 tokens. A guard, and it held.** It passes answers that meet a chosen verdict and holds the rest for a person. On ACCEPT, our measured setting, 21 to 23 percent of records pass at 0.74 to 0.82 accuracy. A confidence threshold was tried and retired: the extractor's confidence is 1.0 on two thirds of answers, right or wrong.
 - **A person. Not measured.** What refusal holds back goes to a reviewer, whose decisions are corrections a later model can be trained on.
 
-Then we removed the three paid layers and replayed refusal over the same records: **the set that passed the guard differed by one record on the first run and by none on the other two.**
+Then we removed the three paid layers and replayed refusal: **the set that passed the guard differed by one record on the first run and by none on the other two.**
 
-The two paid verdicts are good for diagnosis, not repair: a split vote marks an answer the model cannot reproduce, and a judge answering *not on this list* marks a failed menu, not a failed pick. We did not use them that way, and should have.
+Voting's and the judge's verdicts are good for diagnosis, not repair: a split vote marks an answer the model cannot reproduce, and a judge answering *not on this list* marks a failed menu, not a failed pick. We did not use them that way, and should have.
 
 ## One dial, not a staircase
 
@@ -94,9 +94,9 @@ The two paid verdicts are good for diagnosis, not repair: a split vote marks an 
 
 *Figure 3: The first run's 230 records under each shipping rule. Dark green: right code on the exact span; light green: exact span, wrong code; light teal: right code, boundary off; grey: neither; amber: to a person. Dotted lines: the most the extractor found. Image: the authors.*
 
-Figure 3 reads each verdict as a shipping rule over the same 230 records; three relationships hold.
+Figure 3 reads each verdict as a shipping rule over the same 230 records. Three things hold.
 
-First, any verdict raises the accuracy of what passes, because withholding is a layer's only lever. No rule ships more than the 88 right answers the extractor found, so every gain in accuracy is paid for in right answers held back. Accuracy alone flatters any guard. Yield, right answers over all records, cannot be, so we report both.
+First, any verdict raises the accuracy of what passes, because withholding is a layer's only lever. No rule ships more than the 88 right answers the extractor found, so every gain in accuracy is paid for in right answers held back. Accuracy alone flatters any guard. Yield, right answers over all records, cannot be flattered, so we report both.
 
 Second, the price differs by verdict. ACCEPT is the most precise rule and the most expensive: moving to it removes 128 errors at the cost of 49 right answers and 177 records for a person, because the check can endorse only the 32 percent of mentions whose wording matches the vocabulary. The menu-shown judge's verdict is informed rather than lexical, and it is the one rule whose F1 beats shipping everything, 0.420 against 0.397.
 
@@ -112,9 +112,9 @@ The held-out split, run once, tells the same story. Before any check, one answer
 
 *Figure 4: Where the development split's 226 annotated mentions go through the shipped extractor, gpt-oss:20b, first run. Each bar is what the stage above kept; the dotted steps are what each stage lost. Teal: a model call; grey: deterministic code. Image: the authors.*
 
-Once a mention is found, the rest of the pipeline is reliable: the right concept reaches the menu for 93 percent of found spans and the model picks it 81 percent of the time. The loss is at finding. Nearly half the annotated mentions are never quoted as the annotators marked them, and none of the reasons are medical: single words like `"sore"` go untouched, boundaries stretch, `"extreme rectal bleed"` for `"rectal bleed"`, and figures of speech are read literally, `"at my wits end"` coded as |Wanders at night|. Two domain-adapted models did not help; a worked example and a denied-reactions rule did.
+Once a mention is found, the pipeline is reliable: the right concept reaches the menu for 93 percent of found spans and the model picks it 81 percent of the time. The loss is at finding. Nearly half the annotated mentions are never quoted as the annotators marked them, and none of the reasons are medical: single words like `"sore"` go untouched, boundaries stretch, `"extreme rectal bleed"` for `"rectal bleed"`, and figures of speech are read literally, `"at my wits end"` coded as |Wanders at night|. Two domain-adapted models did not help; a worked example and a denied-reactions rule did.
 
-**No layer can add a mention.** Every layer above the extractor checks, re-asks, votes on, judges or withholds an answer the extractor already gave; none can find a mention it missed. So the most any stack can ever get right is what the extractor found in the first place: on the held-out split, just over half the annotated mentions, a detection F1 of 0.521. The one way past that ceiling is a second reader: a different model family shown the post and the first model's quotes and asked what was missed. We did not build it. Its additions would be proposals, not verifications, needing the same measurement as the extractor's.
+**No layer can add a mention.** Every layer above the extractor checks, re-asks, votes on, judges or withholds an answer the extractor already gave; none can find a mention it missed. So the most any stack can ever get right is what the extractor found in the first place: on the held-out split, just over half the annotated mentions, a detection F1 of 0.521. The one way past that ceiling is a second reader: a different model family shown the post and the first model's quotes, asked what was missed. We did not build it. Its additions would be proposals, needing the same measurement as the extractor's.
 
 ## Does it hold beyond CADEC?
 
@@ -123,7 +123,7 @@ Once a mention is found, the rest of the pipeline is reliable: the right concept
 Seven further corpora, four model families; for each lesson, does the data agree?
 
 - **Layers sort, they do not fix.** Agrees. On PsyTAR the paid layers changed nothing in any run.
-- **Start with the free check.** Agrees where the vocabulary's names are evidence, reverses where they are not. Clinical vocabularies agree; gazetteers do not: a place name matches the vocabulary and is still the wrong place, and on one news corpus the check endorses the likelier-wrong answers. On financial tag names it never fires.
+- **Start with the free check.** Holds where the vocabulary's names are evidence and reverses where they are not. Clinical vocabularies behave as SNOMED did; gazetteers do not: a place name matches the vocabulary and is still the wrong place, and on one news corpus the check endorses the answers more likely to be wrong. On financial tag names it never fires.
 - **Ask the model to read, never to remember.** Not re-tested; every corpus used the menu.
 - **Make repeat runs a validation step.** Agrees. Every other family repeated itself exactly; our extractor's one instability elsewhere was refusing a document on one run of three.
 - **Study the data before adding layers.** Agrees, with a change: where the model loses is not the same everywhere. On CADEC it loses at reading; on the financial corpus it read well and coded badly, and its worst error was a habit, picking the menu's first line, not a gap in domain knowledge.
@@ -139,7 +139,7 @@ The judge, the nesting of verdicts and the diagnostic use of split votes were me
 
 **Every layer passed its own tests. The two defects that mattered sat between the layers and inside the metric.**
 
-The first was the unread verdicts above. The second was the metric: voting overwrote codes without re-running the vocabulary check, so records shipped marked *verified* for a code they no longer held. Fixing that moved the held-out F1 from 0.204 to 0.204, because precision and recall cannot tell an unwarranted answer from a wrong one. **We built six layers to decide which answers to trust, then scored them with a metric that cannot see the difference.**
+The first was the unread verdicts. The second was the metric: voting overwrote codes without re-running the vocabulary check, so records shipped marked *verified* for a code they no longer held. Fixing that moved the held-out F1 from 0.204 to 0.204, because precision and recall cannot tell an unwarranted answer from a wrong one. **We built six layers to decide which answers to trust, then scored them with a metric that cannot see the difference.**
 
 Both defects share a shape: a load-bearing fact recorded once, so nothing could disagree with it. Three checks built from that lesson, gatecheck, crosscheck and stagecheck, are reached from the repository below.
 
