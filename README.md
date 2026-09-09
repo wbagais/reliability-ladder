@@ -13,6 +13,7 @@
 <p align="center">
   <a href="docs/article-v3.md">the article</a> ·
   <a href="docs/decisions.md">the decision log</a> ·
+  <a href="#three-checks-this-study-produced">the three checks</a> ·
   <a href="docs/figures/">figure sources</a>
 </p>
 
@@ -33,6 +34,40 @@ an effect.
 > Rungs 0–2 are research artefacts with deliberate failure rates, unfit for
 > operational use. There is no free-text entry point in the package: the runner
 > takes a corpus split identifier, never a string.
+
+## Three checks this study produced
+
+<p align="center">
+  <img src="docs/assets/lockup-once.svg" width="260"
+       alt="stagecheck — a ledger spine with three rows: judged, failed, and a hatched row for records that could not be judged.">
+</p>
+
+<p align="center"><i>Every stage makes a bet. This one makes you say what it is.</i></p>
+
+Measuring seven layers on seven corpora produced one lesson that outlived the
+measurements: **a load-bearing fact recorded in one place cannot be checked, and
+will eventually be wrong without saying so.** Every defect caught early here was
+caught by comparing two independent records of one fact. Every defect that
+reached a rented GPU was a fact written down once and never read back.
+
+Three small tools came out of that, each answering a different question at a
+different moment:
+
+| tool | the question | when |
+|---|---|---|
+| [`gatecheck`](scripts/gatecheck.py) | should this corpus be run at all? | before booking a card |
+| [`crosscheck`](scripts/crosscheck.py) | is it wired as it is declared? | the first line of every run |
+| **[`stagecheck`](https://github.com/pushpdeep/stagecheck)** | **did the run mean anything?** | **after** |
+
+**[`stagecheck`](https://github.com/pushpdeep/stagecheck) is a separate, installable package** — its own
+repository, 43 tests, no dependencies, MIT — and the only one of the three that
+knows nothing about corpora, deliberately. It records the two things a pipeline
+usually does not: **the bet a stage makes**, and **the records it could not
+judge**. A stage that judged 40 of 100 records and reports 95% accuracy has
+reported a rate over an unnamed set; stagecheck refuses to let that go
+unrecorded.
+
+The other two are described [further down](#the-three-checks-in-detail).
 
 ## The ladder
 
@@ -566,7 +601,65 @@ Everything is in [`docs/decisions.md`](docs/decisions.md), dated, including the
 corrections — twelve matrix cells that ran with the wrong corpus's prompt, and
 five that ran a different model than their directory name claimed.
 
-## The three checks
+## The three checks, in detail
+
+Three questions at three moments. Two live in this repository; one is its own.
+
+| tool | question | when | knows about corpora |
+|---|---|---|---|
+| [`gatecheck`](scripts/gatecheck.py) | should I run this? | before booking a card | yes |
+| [`crosscheck`](scripts/crosscheck.py) | is it what I declared? | first line of every run | yes |
+| [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
+
+### stagecheck
+
+<p align="center">
+  <a href="https://github.com/pushpdeep/stagecheck">
+    <img src="docs/assets/lockup-once.svg" width="300"
+         alt="stagecheck — a ledger spine with three rows: judged, failed, and a hatched row for records that could not be judged.">
+  </a>
+</p>
+
+**https://github.com/pushpdeep/stagecheck** — 43 tests, no dependencies, MIT.
+
+A ledger for pipeline stages that records **two fields nothing else does**: what
+the stage was betting on, and how many records it could not judge. The second is
+the one that matters. A rate computed over the records a stage *could* judge,
+reported as though it covered all of them, is the defect this whole study kept
+finding — and it is invisible in every metric that reports a percentage without
+its denominator.
+
+It knows nothing about corpora, vocabularies or language models, and it should
+not. That is what makes it usable outside this study.
+
+### gatecheck
+
+Reads a corpus's answer key and predicts what the free check *could* endorse —
+before any GPU time. On FiNER-139 it reports **0.0%** and says the arm cannot
+produce a lane however good the model is, which is a full GPU arm's finding
+available for nothing. On LINNAEUS it reports **4.8%** and flags it thin.
+
+Both warnings fire on exactly the two arms that wasted the most card time before
+the tool existed.
+
+### crosscheck
+
+Reads every declared fact back from an independent source: the rendered prompt
+against the declared entity, the few-shot ids against the split the guard
+actually reads, the split ids against the corpus the adapter loads, each named
+model against what is installed.
+
+Nine checks, and every one is a defect that reached a rented card first. It
+found a live one within an hour of being written — a manifest whose task
+description rendered as *"the abstract describes the abstract describes"*,
+written an hour after the identical bug had been found, diagnosed and explained
+elsewhere. Care did not prevent the repeat; a second reading of the same fact
+did.
+
+**52 tests between the two**, each written from a real defect and each made to
+fail on that defect before being confirmed to pass on the fix.
+
+<!-- old section follows -->
 
 Three questions at three moments. Two live here; one is its own repo.
 
@@ -574,7 +667,7 @@ Three questions at three moments. Two live here; one is its own repo.
 |---|---|---|---|
 | [`gatecheck`](scripts/gatecheck.py) | should I run this? | before booking a card | yes |
 | [`crosscheck`](scripts/crosscheck.py) | is it what I declared? | first line of every run | yes |
-| [`stagecheck`](https://gitlab.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
+| [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
 
 **`stagecheck` is the mature one** — its own repository, 43 tests, no
 dependencies, MIT. It records the two things a pipeline usually does not: the

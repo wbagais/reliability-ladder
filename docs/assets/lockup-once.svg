@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 252 44" width="252" height="44">
+  <defs><pattern id="h" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line class="hl" x1="0" y1="0" x2="0" y2="7" stroke-width="3"/></pattern></defs>
+  <style>
+    .ink{fill:#1A2332}
+    .judged{fill:#2F6B4F}
+    .failed{fill:#A4322B}
+    .hl{stroke:#9A958C}
+    .quiet{fill:#6E6A63}
+    @media (prefers-color-scheme: dark){
+      .ink{fill:#E6E9ED}
+      .judged{fill:#5FBF88}
+      .failed{fill:#E27A72}
+      .hl{stroke:#7E8895}
+      .quiet{fill:#9AA3AF}
+    }
+  </style>
+  <rect class="ink" x="0" y="0" width="7.04" height="44" rx="1.27"/>
+  <rect class="judged" x="11.44" y="7.04" width="0.00" height="7.04" rx="1.27"><animate attributeName="width" values="0;0.0;5.7;11.4;17.2;22.9;28.6;34.3" dur="1.1s" begin="0.00s" fill="freeze" calcMode="discrete"/></rect>
+  <rect class="failed" x="11.44" y="18.48" width="0.00" height="7.04" rx="1.27"><animate attributeName="width" values="0;0.0;3.5;7.0;10.6;14.1;17.6;21.1" dur="1.1s" begin="0.15s" fill="freeze" calcMode="discrete"/></rect>
+  <rect x="11.44" y="29.92" width="0.00" height="7.04" rx="1.27" fill="url(#h)"><animate attributeName="width" values="0;0.0;4.5;9.1;13.6;18.2;22.7;27.3" dur="1.1s" begin="0.30s" fill="freeze" calcMode="discrete"/></rect>
+  <text class="ink" x="68" y="32" font-family="SF Mono,Menlo,Consolas,monospace" font-size="29" font-weight="600" letter-spacing="-.02em">stagecheck</text>
+</svg>

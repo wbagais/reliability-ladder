@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <defs><pattern id="h" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse"><line class="hl" x1="0" y1="0" x2="0" y2="7" stroke-width="3"/></pattern></defs>
+  <style>
+    .ink{fill:#1A2332}
+    .judged{fill:#2F6B4F}
+    .failed{fill:#A4322B}
+    .hl{stroke:#9A958C}
+    .quiet{fill:#6E6A63}
+    @media (prefers-color-scheme: dark){
+      .ink{fill:#E6E9ED}
+      .judged{fill:#5FBF88}
+      .failed{fill:#E27A72}
+      .hl{stroke:#7E8895}
+      .quiet{fill:#9AA3AF}
+    }
+  </style>
+  <rect class="ink" x="0" y="0" width="15.36" height="96" rx="2.76"/>
+  <rect class="judged" x="24.96" y="15.36" width="74.88" height="15.36" rx="2.76"></rect>
+  <rect class="failed" x="24.96" y="40.32" width="46.08" height="15.36" rx="2.76"></rect>
+  <rect x="24.96" y="65.28" width="59.52" height="15.36" rx="2.76" fill="url(#h)"></rect>
+</svg>
