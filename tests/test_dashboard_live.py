@@ -494,3 +494,47 @@ def test_corpus_document_view_pairs_every_gold_mention_with_its_prediction(runne
 
 def test_pasted_text_has_no_gold_diff(runner):
     assert runner.start(text=TEXT, through_rung=1).result["gold_diff"] is None
+
+
+# --- round 3: the rung is the view's time; gold and model in one cell -------
+
+
+def test_gold_diff_labels_gold_codes_through_the_vocabulary(runner, reg):  # noqa: F811
+    """The gold line reads `22253000 |Pain|`, the model line the model's own
+    label — never a bare SCTID alone when the registry can label it, and an
+    honest None when it cannot (the explorer's rule)."""
+    res = runner.start(doc_id="LIVE.1", through_rung=2).result
+    by = {p["gold"]["record_id"]: p for p in res["gold_diff"]["pairs"]}
+    assert by["LIVE.1#0"]["gold_labels"] == ["Rectal hemorrhage"]
+    assert by["LIVE.1#1"]["gold_labels"] == ["Generally unwell"]
+    assert by["LIVE.1#0"]["pred_label"] is not None or by["LIVE.1#0"]["pred_sct"] == "12063002"
+
+
+def test_gold_diff_is_computed_at_every_rung_from_the_snapshots(runner):
+    """Stepping the rail from rung 1 to rung 2 must show the code turn right
+    (rung 2 corrected it) and at rung 5 turn withheld — from the record set
+    AS EACH RUNG LEFT IT (`run_ladder`'s snapshots), never the final one."""
+    res = runner.start(doc_id="LIVE.1", through_rung=6).result
+    by_rung = res["gold_diff_by_rung"]
+    assert sorted(int(k) for k in by_rung) == [0, 1, 2, 3, 4, 5, 6]
+
+    def code_at(n):
+        return next(p for p in by_rung[str(n)]["pairs"]
+                    if p["gold"]["record_id"] == "LIVE.1#0")["code"]
+    assert code_at(1) == "incorrect"
+    assert code_at(2) == "correct"
+    assert code_at(5) == "withheld_correct"
+    assert by_rung["3"] == by_rung["2"], "a disabled rung changes nothing"
+    assert res["gold_diff"] == by_rung["6"]
+
+
+def test_each_rung_carries_a_summary_for_the_rail(runner):
+    res = runner.start(text=TEXT, through_rung=6).result
+    s = {n: p["summary"] for n, p in res["rungs"].items()}
+    assert s["0"] == {"records": 1, "created": 1, "changed": 1, "dropped": 0,
+                      "calls": 1, "zones": {"NEW": 1}, "disabled": False}
+    assert s["1"]["changed"] == 0 and s["1"]["zones"] == {"NEW": 1}
+    assert s["2"]["changed"] == 1 and s["2"]["calls"] == 1
+    assert s["3"]["disabled"] is True and s["3"]["records"] == 1
+    assert s["5"]["zones"] == {"ABSTAIN": 1}
+    assert s["6"]["zones"] == {"ESCALATE": 1} and s["6"]["changed"] == 1

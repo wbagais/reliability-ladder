@@ -64,7 +64,7 @@ const S = {
   resultsRun: null, baseline: null, span: "exact",
   walkRun: null, walkDoc: null, walkSpan: "exact", walkGold: false,
   traceRun: null, traceSpan: "exact", traceFilter: null,
-  live: { options: null, job: null, timer: null, result: null, selected: null },
+  live: { options: null, job: null, timer: null, result: null, selected: null, rung: null },
 };
 
 /* ---------------- boot + tab bar ---------------- */
@@ -1288,6 +1288,13 @@ function wireLive() {
   $("live-run").onclick = liveStart;
   $("live-through").onchange = liveDials;
   if (!$("live-text").value) $("live-text").value = LIVE_EXAMPLE;
+  // ← → step the rung rail while the live result is on screen
+  document.addEventListener("keydown", (e) => {
+    if (S.tab !== "live" || !S.live.result) return;
+    if (/^(TEXTAREA|INPUT|SELECT)$/.test(e.target.tagName)) return;
+    if (e.key === "ArrowLeft") { liveStep(-1); e.preventDefault(); }
+    if (e.key === "ArrowRight") { liveStep(1); e.preventDefault(); }
+  });
 }
 
 async function renderLive() {
@@ -1410,6 +1417,7 @@ async function livePoll(id) {
 function renderLiveResult(res) {
   S.live.result = res;
   S.live.selected = null;
+  S.live.rung = res.order_run[res.order_run.length - 1];
   drawLive();
 }
 
@@ -1419,8 +1427,27 @@ const STATION = { input: "INPUT", find: "FIND", retrieve: "RETRIEVE", pick: "PIC
 function liveSelect(rid) {
   S.live.selected = (S.live.selected === rid) ? null : rid;
   drawLive();
-  const el = $("live-keywords");
-  if (el) el.scrollIntoView({ block: "nearest" });
+}
+
+function liveGoto(n) {
+  const res = S.live.result;
+  if (!res || !res.order_run.includes(n)) return;
+  S.live.rung = n;
+  drawLive();
+}
+
+function liveStep(d) {
+  const res = S.live.result;
+  const i = res.order_run.indexOf(S.live.rung) + d;
+  if (i >= 0 && i < res.order_run.length) liveGoto(res.order_run[i]);
+}
+
+/* the record as rung n left it — its state row, or the last one before n
+   for a rung that did not run (disabled): nothing changed, the row stands */
+function rowAt(r, n) {
+  let best = null;
+  for (const row of r.timeline || []) if (row.rung <= n) best = row;
+  return best;
 }
 
 function stationBox(st) {
@@ -1482,38 +1509,159 @@ function r0PathHtml(p, open) {
     <details ${open ? "open" : ""}><summary>what happened at each station</summary>${details}</details></div>`;
 }
 
-function liveRecordCard(res, r, open) {
-  const tl = r.timeline || [];
-  const rows = tl.map((n) => `<tr class="${n.changed_this_rung ? "changed" : ""}">
-    <td class="l"><b>r${n.rung}</b> ${esc(RUNG_NAMES[n.rung])}</td>
-    <td class="l">${n.dropped_this_rung ? "<i>dropped</i>" : esc(n.sct ?? "no code")}
-      ${n.sct_label ? `<span class="muted">“${esc(n.sct_label)}”</span>` : ""}</td>
-    <td class="l">${n.zone ? `<span class="zone ${esc(n.zone)}">${esc(n.zone)}</span>` : "—"}
-      ${n.reason ? `<span class="muted">${esc(n.reason)}</span>` : ""}</td>
-    <td class="l">${n.r1_verdict ? `r1 ${esc(n.r1_verdict)}${n.r1_reason ? ` (${esc(n.r1_reason)})` : ""}` : ""}
-      ${n.r4_verdict ? ` · r4 ${esc(n.r4_verdict)}` : ""}</td>
-    <td class="l">${n.created_this_rung ? "created" : (n.changed_this_rung
-      ? "changed: " + esc((n.changed_fields || []).join(", ")) : "unchanged")}</td>
-    <td class="l">${res.gold
-      ? `<span class="outcome ${esc(n.outcome)}">${esc(n.outcome)}</span>
-         <span class="muted">/ ${esc(n.outcome_overlap)} overlap${n.gold_codes && n.gold_codes.length ? ` · gold ${esc(n.gold_codes.join(","))}` : ""}</span>`
-      : `<span class="muted">unscored — pasted text has no gold</span>`}</td></tr>`).join("");
-  return `<div class="record-card" id="live-rec-${esc(r.record_id)}">
-    <div><button class="kw ${S.live.selected === r.record_id ? "on" : ""}" data-rid="${esc(r.record_id)}">“${esc(r.text)}”</button>
-      ${r.dropped ? '<span class="zone REJECT">dropped before the last rung</span>'
-        : `<span class="zone ${esc(r.zone)}">${esc(r.zone)}</span>`}
-      → ${esc(r.sct ?? "no code")}
-      ${r.sct_label ? `<span class="muted">“${esc(r.sct_label)}”</span>` : ""}
-      ${r.checks && r.checks.withheld ? `<span class="muted">· withheld answer ${esc(r.checks.withheld.sct)}</span>` : ""}
+/* ---- gold vs model, stacked in one cell ---- */
+
+const words = (t) => new Set(String(t || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+
+function diffWords(text, other, cls) {
+  // the words of `text` that `other` does not have, emphasised
+  const o = words(other);
+  return String(text || "").split(/(\s+)/).map((tok) =>
+    /^\s+$/.test(tok) ? tok
+      : (o.has(tok.toLowerCase().replace(/[^a-z0-9]/g, "")) || !tok.replace(/[^a-z0-9]/gi, ""))
+        ? esc(tok) : `<em class="${cls}">${esc(tok)}</em>`).join("");
+}
+
+const spansStr = (sp) => (sp || []).map((x) => x.join("-")).join(",");
+
+function stackMention(goldText, goldSpans, predText, predSpans, how) {
+  const g = `<div class="g"><span class="who">gold</span> “${diffWords(goldText, predText, "missing")}”
+    <span class="muted">${esc(spansStr(goldSpans))}</span></div>`;
+  const m = predText === null || predText === undefined
+    ? `<div class="m none"><span class="who">model</span> — not found</div>`
+    : `<div class="m"><span class="who">model</span> “${diffWords(predText, goldText, "extra")}”
+      <span class="muted">${esc(spansStr(predSpans))}</span>${how === "exact" ? '<span class="same">= same span</span>' : ""}</div>`;
+  return `<td class="l stack">${g}${m}</td>`;
+}
+
+function stackCode(goldCodes, goldLabels, predSct, predLabel, withheld, found) {
+  const gl = goldCodes.length
+    ? goldCodes.map((c, i) => `${esc(c)} <i>|${esc(goldLabels && goldLabels[i] ? goldLabels[i] : "label unavailable")}|</i>`).join(", ")
+    : "concept-less";
+  const same = predSct !== null && predSct !== undefined && goldCodes.map(String).includes(String(predSct));
+  const ml = !found ? "— not found"
+    : predSct === null || predSct === undefined ? "no code"
+    : `${esc(predSct)} <i>|${esc(predLabel || "?")}|</i>${withheld ? '<span class="wh">withheld</span>' : ""}${same ? '<span class="same">= same code</span>' : ""}`;
+  return `<td class="l stack"><div class="g"><span class="who">gold</span> ${gl}</div>
+    <div class="m ${same ? "" : (found && predSct ? "off" : "none")}"><span class="who">model</span> ${ml}</div></td>`;
+}
+
+const codeWord = { correct: "right", incorrect: "wrong", withheld_correct: "right, withheld",
+  withheld_incorrect: "wrong, withheld", no_code: "no code" };
+
+function pairClass(p) {
+  return p.span === "missed" ? "missed"
+    : (p.span === "exact" && (p.code === "correct" || p.code === "withheld_correct")) ? "agree" : "differ";
+}
+
+function goldDiffHtml(d, sel, n) {
+  const c = d.counts;
+  const rows = d.pairs.map((p) => {
+    const cls = pairClass(p);
+    return `<tr class="${cls} ${sel && p.pred === sel ? "on" : ""}" ${p.pred ? `data-rid="${esc(p.pred)}"` : ""}>
+      ${stackMention(p.gold.text, p.gold.spans, p.pred ? p.pred_text : null, p.pred_spans, p.span)}
+      ${stackCode(p.gold.sct, p.gold_labels, p.pred ? p.pred_sct : null, p.pred_label, p.withheld, !!p.pred)}
+      <td class="l"><span class="lg ${cls}">${p.span === "missed" ? "missed" : "found, " + p.span + " span"}</span>
+        ${p.code ? `<div><span class="outcome ${/(^|_)correct$/.test(p.code) ? "correct" : "incorrect"}">${esc(codeWord[p.code] || p.code)}</span></div>` : ""}
+        ${p.final_zone ? `<span class="zone ${esc(p.final_zone)}">${esc(p.final_zone)}</span>` : ""}</td></tr>`;
+  }).join("");
+  const spur = d.spurious.map((sp) => `<tr class="spurious ${sel && sp.record_id === sel ? "on" : ""}" data-rid="${esc(sp.record_id)}">
+      <td class="l stack"><div class="g none"><span class="who">gold</span> — no mention here</div>
+        <div class="m"><span class="who">model</span> “${esc(sp.text)}” <span class="muted">${esc(spansStr(sp.spans))}</span></div></td>
+      <td class="l stack"><div class="g none"><span class="who">gold</span> —</div>
+        <div class="m off"><span class="who">model</span> ${esc(sp.sct ?? "no code")}${sp.sct_label ? ` <i>|${esc(sp.sct_label)}|</i>` : ""}</div></td>
+      <td class="l"><span class="lg spurious">spurious${sp.unlocatable ? " · unlocatable" : ""}</span>
+        ${sp.zone ? `<div><span class="zone ${esc(sp.zone)}">${esc(sp.zone)}</span></div>` : ""}</td></tr>`).join("");
+  return `<h3>against the gold annotations, as rung ${n} left it
+      <span class="muted">· the scorer's own pairing: exact span first, then overlap · <em class="missing">words only gold has</em> · <em class="extra">words only the model has</em></span></h3>
+    <div class="cards small">
+      <div class="card"><div class="big">${c.gold}</div><div class="muted">gold mentions</div></div>
+      <div class="card"><div class="big">${c.found_exact}</div><div class="muted">found, exact span</div></div>
+      <div class="card"><div class="big">${c.found_overlap}</div><div class="muted">found, overlapping</div></div>
+      <div class="card"><div class="big">${c.missed}</div><div class="muted">missed</div></div>
+      <div class="card"><div class="big">${c.spurious}</div><div class="muted">spurious of ${c.predictions}</div></div>
+    </div>
+    <table class="tl-table diff"><tr><th class="l">mention — gold over model</th>
+      <th class="l">code — gold over model</th><th class="l">at rung ${n}</th></tr>
+      ${rows}${spur}</table>`;
+}
+
+/* ---- the rail ---- */
+
+function railHtml(res, n) {
+  const nodes = res.order_run.map((k) => {
+    const sm = res.rungs[String(k)].summary || {};
+    const zones = Object.entries(sm.zones || {}).map(([z, c]) =>
+      `<span class="zone ${esc(z)}" title="${c} in ${esc(z)}">${c}</span>`).join(" ");
+    return `<button class="rail-node ${k === n ? "on" : ""} ${sm.disabled ? "disabled" : ""}" data-rung="${k}"
+      title="${sm.disabled ? "disabled in the manifest — a recorded state" : `${sm.records} records · ${sm.changed} changed · ${sm.calls} calls`}">
+      <div class="rn-name">r${k} <span>${esc(RUNG_NAMES[k])}</span></div>
+      <div class="rn-sum">${sm.disabled ? "off" : `${sm.changed} changed · ${sm.calls} call${sm.calls === 1 ? "" : "s"}`}</div>
+      <div class="rn-zones">${zones}</div></button>`;
+  }).join('<div class="rail-link"></div>');
+  const i = res.order_run.indexOf(n);
+  return `<div class="rail">
+    <button class="rail-step" id="rail-prev" ${i <= 0 ? "disabled" : ""} title="← previous rung">‹</button>
+    ${nodes}
+    <button class="rail-step" id="rail-next" ${i >= res.order_run.length - 1 ? "disabled" : ""} title="→ next rung">›</button>
+    <span class="muted rail-hint">← → step the rungs · everything below is the run as rung ${n} left it</span>
+  </div>`;
+}
+
+function pathDots(res, r, n) {
+  return `<div class="dots">` + res.order_run.map((k) => {
+    const row = rowAt(r, k);
+    const z = row ? (row.dropped_this_rung ? "DROPPED" : row.zone) : "none";
+    const chg = row && row.rung === k && row.changed_this_rung;
+    return `<button class="dot ${k === n ? "on" : ""} ${chg ? "chg" : ""}" data-rung="${k}"
+      title="r${k} ${esc(RUNG_NAMES[k])}: ${esc(z)}${row && row.rung !== k ? " (did not run)" : ""}${chg ? " · changed here" : ""}">
+      <i class="zone ${esc(z)}"></i><span>r${k}</span></button>`;
+  }).join('<span class="dot-link"></span>') + `</div>`;
+}
+
+function liveRecordCard(res, r, n, pair, open) {
+  const row = rowAt(r, n) || {};
+  const ran = row.rung === n;
+  const was = (row.was_sct !== undefined && ran) ? row : null;
+  const label = row.sct_label ? ` <i>|${esc(row.sct_label)}|</i>` : "";
+  const header = pair
+    ? `<div class="stackline"><div class="g"><span class="who">gold</span> “${diffWords(pair.gold.text, row.text, "missing")}”
+         → ${esc(pair.gold.sct.join(", ") || "concept-less")}${pair.gold_labels && pair.gold_labels[0] ? ` <i>|${esc(pair.gold_labels[0])}|</i>` : ""}</div>
+       <div class="m"><span class="who">model</span> “${diffWords(row.text, pair.gold.text, "extra")}”
+         → ${esc(row.sct ?? "no code")}${label}</div></div>`
+    : `<div class="stackline"><div class="m"><span class="who">model</span> “${esc(row.text)}” → ${esc(row.sct ?? "no code")}${label}
+       ${res.gold ? '<span class="lg spurious">no gold mention here</span>' : ""}</div></div>`;
+  const change = row.dropped_this_rung ? `<b>dropped here</b>`
+    : !ran ? `<span class="muted">did not run — the record stands as rung ${row.rung ?? "?"} left it</span>`
+    : row.created_this_rung ? `<b>created here</b> by rung 0`
+    : row.changed_this_rung
+      ? `<b>changed here:</b> ${(row.changed_fields || []).filter((f) => f !== "reason").map((f) => f === "sct"
+          ? `code ${esc(row.was_sct ?? "none")} → ${esc(row.sct ?? "none")}`
+          : f === "zone" ? `zone ${esc(row.was_zone)} → ${esc(row.zone)}` : esc(f)).join(" · ")}`
+      : `<span class="muted">unchanged by this rung</span>`;
+  const verdict = [
+    n === 1 && row.r1_verdict ? `rung 1 says <b>${esc(row.r1_verdict)}</b>${row.r1_reason ? ` (${esc(row.r1_reason)})` : ""}` : "",
+    n === 4 && row.r4_verdict ? `rung 4 says <b>${esc(row.r4_verdict)}</b>` : "",
+    n === 3 && row.r3_changed !== null && row.r3_changed !== undefined ? `rung 3 ${row.r3_changed ? "changed it" : "left it"}` : "",
+    row.reason && ran && (row.changed_fields || []).includes("reason") ? `reason ${esc(row.reason)}` : "",
+  ].filter(Boolean).join(" · ");
+  const outcome = res.gold && row.outcome
+    ? `<span class="outcome ${esc(row.outcome)}">${esc(row.outcome)}</span>
+       <span class="muted">exact / ${esc(row.outcome_overlap)} overlap${row.gold_codes && row.gold_codes.length ? ` · gold ${esc(row.gold_codes.join(","))}` : ""}</span>`
+    : "";
+  return `<div class="record-card ${S.live.selected === r.record_id ? "on" : ""}" id="live-rec-${esc(r.record_id)}">
+    <div class="rc-head">
+      <button class="kw ${S.live.selected === r.record_id ? "on" : ""}" data-rid="${esc(r.record_id)}">“${esc(r.text)}”</button>
+      ${row.dropped_this_rung ? '<span class="zone REJECT">dropped</span>' : `<span class="zone ${esc(row.zone)}">${esc(row.zone)}</span>`}
       ${r.checks && (r.checks.r0_negated ?? r.checks.negated) ? '<span class="chip signal" style="display:inline">denied in the text</span>' : ""}
-      <span class="muted">· ${esc(r.record_id)}</span></div>
-    <h4>rung 0, station by station</h4>
-    ${r0PathHtml(r.r0_path, open)}
-    <h4>then rung by rung <span class="muted">(the state table the run wrote — a left bar marks a rung that changed the record)</span></h4>
-    <table class="tl-table"><tr><th class="l">rung</th><th class="l">code after this rung</th>
-      <th class="l">zone</th><th class="l">verdicts</th><th class="l">this rung</th>
-      <th class="l">vs gold (exact / overlap)</th></tr>${rows}</table>
-    <details><summary>recorded checks</summary>
+      <span class="muted">· ${esc(r.record_id)}</span>
+    </div>
+    ${header}
+    ${pathDots(res, r, n)}
+    <div class="at-rung"><b>at rung ${n}:</b> ${change}${verdict ? ` · ${verdict}` : ""}${outcome ? ` · ${outcome}` : ""}</div>
+    ${n === 0 ? `<h4>rung 0, station by station</h4>${r0PathHtml(r.r0_path, open)}`
+      : `<div class="muted small"><a href="#" class="goto-r0" data-rung="0">↩ rung 0, station by station</a></div>`}
+    <details><summary>recorded checks (final)</summary>
       <pre class="raw">${esc(JSON.stringify(r.checks || {}, null, 1))}</pre></details>
   </div>`;
 }
@@ -1524,7 +1672,7 @@ function liveCallsHtml(res, n, p, sel) {
   if (rec && (n === 2 || n === 4) && rec.text) {
     // a per-record prompt embeds the whole post, so the text alone matches
     // every record's call; the code the record held AT THAT RUNG separates them
-    const row = (rec.timeline || []).find((t) => t.rung === n - 1) || {};
+    const row = rowAt(rec, n - 1) || {};
     const code = row.sct ?? (rec.checks && rec.checks.withheld ? rec.checks.withheld.sct : null);
     calls = calls.filter((c) => (c.prompt || "").includes(rec.text)
       && (!code || (c.prompt || "").includes(String(code))));
@@ -1591,90 +1739,94 @@ function drawLive() {
   const res = S.live.result;
   if (!res) return;
   const sel = S.live.selected;
-  const marks = [];
-  const d = res.gold_diff;
-  const verdictOf = {};            // record_id -> agree | differ | spurious
-  const goldState = {};            // gold record_id -> found | missed
+  const n = S.live.rung;
+  const d = res.gold_diff_by_rung ? res.gold_diff_by_rung[String(n)] : null;
+  const verdictOf = {};
+  const goldState = {};
+  const pairOf = {};
   if (d) {
     for (const p of d.pairs) {
       goldState[p.gold.record_id] = p.span === "missed" ? "missed" : "found";
-      if (p.pred) verdictOf[p.pred] =
-        (p.span === "exact" && (p.code === "correct" || p.code === "withheld_correct")) ? "agree" : "differ";
+      if (p.pred) { verdictOf[p.pred] = pairClass(p); pairOf[p.pred] = p; }
     }
     for (const sp of d.spurious) verdictOf[sp.record_id] = "spurious";
   }
-  for (const r of res.records)
-    if (!r.dropped) for (const [a, b] of r.spans || [])
+  const marks = [];
+  for (const r of res.records) {
+    const row = rowAt(r, n);
+    if (!row || row.dropped_this_rung) continue;
+    for (const [a, b] of row.spans || [])
       if (a >= 0) marks.push({ start: a, end: b, rid: r.record_id,
         cls: "pred-span" + (d ? " " + (verdictOf[r.record_id] || "spurious") : "")
           + (sel === r.record_id ? " selected" : (sel ? " dim" : "")),
-        title: `${r.record_id} → ${r.sct ?? "no code"} (${r.zone})`
+        title: `${r.record_id} → ${row.sct ?? "no code"} (${row.zone})`
           + (d ? ` — ${verdictOf[r.record_id] || "spurious"} vs gold` : "") + " — click to follow it" });
+  }
   if (res.gold)
     for (const m of res.gold) for (const [a, b] of m.spans)
       if (a >= 0) marks.push({ start: a, end: b,
         cls: "gold-span" + (m.excluded ? " excluded" : "") + (goldState[m.record_id] === "missed" ? " missed" : ""),
         title: `GOLD ${m.record_id} “${m.text}” → ${m.sct.join(",") || "concept-less"}${goldState[m.record_id] === "missed" ? " — MISSED" : ""}` });
-  const finalRung = res.order_run[res.order_run.length - 1];
+
   const shown = sel ? res.records.filter((r) => r.record_id === sel) : res.records;
   const chips = res.records.map((r) =>
     `<button class="kw ${sel === r.record_id ? "on" : ""}" data-rid="${esc(r.record_id)}"
-      title="${esc(r.record_id)} → ${esc(r.sct ?? "no code")}">“${esc(r.text)}”</button>`).join("");
-  const cards = shown.map((r) => liveRecordCard(res, r, !!sel)).join("") ||
+      title="${esc(r.record_id)}">“${esc(r.text)}”</button>`).join("");
+  const cards = shown.map((r) => liveRecordCard(res, r, n, pairOf[r.record_id], !!sel)).join("") ||
     `<div class="banner warn">rung 0 produced no records for this text
      (see its aggregate and raw reply below — a parse failure or an empty answer is a real outcome)</div>`;
 
-  const panels = res.order_run.map((n) => {
-    const p = res.rungs[String(n)];
-    const cost = p.cost;
-    const agg = p.aggregate || {};
-    const aggHtml = agg.disabled ? `<span class="zone NEW">disabled in the manifest — a recorded state, not a silent skip</span>`
-      : `<details><summary>aggregate the rung reported</summary><pre class="raw">${esc(JSON.stringify(agg, null, 1))}</pre></details>`;
-    const routed = n === 6 ? `<div class="card"><div class="big">${cost.routed_to_person}</div>
-        <div class="muted">routed to a person (the headline cost)</div></div>
-      <div class="card"><div class="big">${cost.human_minutes}</div>
-        <div class="muted">minutes at the declared rate</div></div>` : "";
-    const calls = liveCallsHtml(res, n, p, sel);
-    return `<div class="rung-panel"><h4>r${n} ${esc(RUNG_NAMES[n])}
-      <span class="muted">· ${p.ledger.length} ledger row${p.ledger.length === 1 ? "" : "s"}
-      · wall ${cost.wall_s ?? "—"}s</span></h4>
-      <div class="cards">
-        <div class="card"><div class="big">${cost.tokens}</div><div class="muted">tokens (${cost.tokens_in} in + ${cost.tokens_out} out)</div></div>
-        <div class="card"><div class="big">${cost.api_calls}</div><div class="muted">model calls</div></div>
-        <div class="card"><div class="big">${cost.latency_p95_ms === null ? "·no value·" : (cost.latency_p95_ms / 1000).toFixed(1) + "s"}</div>
-          <div class="muted">latency p95 (cold calls only)</div></div>
-        ${routed}
-      </div>
-      ${aggHtml}
-      ${calls || `<div class="muted">${sel && (p.calls || []).length ? "no call of this rung carries the selected keyword" : "no model calls — this rung has no model"}</div>`}
-    </div>`;
-  }).join("");
+  const p = res.rungs[String(n)];
+  const cost = p.cost;
+  const agg = p.aggregate || {};
+  const aggHtml = agg.disabled ? `<span class="zone NEW">disabled in the manifest — a recorded state, not a silent skip</span>`
+    : `<details><summary>aggregate the rung reported</summary><pre class="raw">${esc(JSON.stringify(agg, null, 1))}</pre></details>`;
+  const routed = n === 6 ? `<div class="card"><div class="big">${cost.routed_to_person}</div>
+      <div class="muted">routed to a person (the headline cost)</div></div>
+    <div class="card"><div class="big">${cost.human_minutes}</div>
+      <div class="muted">minutes at the declared rate</div></div>` : "";
+  const calls = liveCallsHtml(res, n, p, sel);
+  const panel = `<div class="rung-panel"><h3>rung ${n} ${esc(RUNG_NAMES[n])}: cost and ${sel ? "the calls that carry this keyword" : "every model call"}
+    <span class="muted">· ${p.ledger.length} ledger row${p.ledger.length === 1 ? "" : "s"} · wall ${cost.wall_s ?? "—"}s</span></h3>
+    <div class="cards small">
+      <div class="card"><div class="big">${cost.tokens}</div><div class="muted">tokens (${cost.tokens_in} in + ${cost.tokens_out} out)</div></div>
+      <div class="card"><div class="big">${cost.api_calls}</div><div class="muted">model calls</div></div>
+      <div class="card"><div class="big">${cost.latency_p95_ms === null ? "·no value·" : (cost.latency_p95_ms / 1000).toFixed(1) + "s"}</div>
+        <div class="muted">latency p95 (cold calls only)</div></div>
+      ${routed}
+    </div>
+    ${aggHtml}
+    ${calls || `<div class="muted">${sel && (p.calls || []).length ? "no call of this rung carries the selected keyword" : "no model calls — this rung has no model"}</div>`}
+  </div>`;
 
   const pv = res.provenance;
   $("live-result").innerHTML = `
     ${caveatChips(res.caveats)}
-    <h3>the text <span class="muted">· ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")}
+    ${railHtml(res, n)}
+    <div class="live-frame" key="${n}">
+    <h3>the text, as rung ${n} left it <span class="muted">· ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")}
       · ran rungs ${res.order_run.join(",")} · ${res.calls_total} model call${res.calls_total === 1 ? "" : "s"}${res.calls_cached ? `, ${res.calls_cached} from cache` : ""}</span></h3>
     <div class="doc-text live">${highlight(res.text, marks)}</div>
     <div class="muted">${d ? `<span class="lg agree">agrees</span> exact span and right code (a withheld right answer counts) ·
         <span class="lg differ">differs</span> found but the span or the code is off ·
         <span class="lg spurious">spurious</span> a record with no gold mention ·
         <span class="lg missed">missed</span> gold the extractor never quoted`
-      : `blue = records as rung ${finalRung} left them`}
+      : `blue = the records rung ${n} left`}
       · <b>click a keyword</b> in the text or below to follow just that one</div>
-    ${d ? goldDiffHtml(d, sel) : ""}
+    ${d ? goldDiffHtml(d, sel, n) : ""}
     <div id="live-keywords" class="kwstrip">
       <button class="kw ${sel ? "" : "on"}" data-rid="">all ${res.records.length}</button>${chips}
       ${sel ? `<span class="muted">following “${esc((res.records.find((r) => r.record_id === sel) || {}).text)}” — the calls below are narrowed to it</span>` : ""}
     </div>
     ${cards}
-    <h3>each rung: cost and ${sel ? "the calls that carry this keyword" : "every model call"}</h3>
-    ${panels}
+    ${panel}
+    </div>
     <div class="prov">live ${esc(pv.run_id)} · split ${esc(pv.split)} · backend ${esc(pv.backend)}
       · manifest ${esc(pv.manifest_hash)} · models ${esc(JSON.stringify(pv.models))}
       · temperature ${esc(pv.temperature)} · git ${esc(pv.git && pv.git.sha ? pv.git.sha.slice(0, 8) : "—")}${pv.git && pv.git.dirty ? " (dirty)" : ""}
       · cache ${esc(pv.llm_cache)} · scratch deleted</div>`;
-  $("live-result").querySelectorAll("[data-rid]").forEach((el) => {
+  const root = $("live-result");
+  root.querySelectorAll("[data-rid]").forEach((el) => {
     el.onclick = (e) => {
       e.stopPropagation();
       const rid = el.dataset.rid.split(" ")[0];
@@ -1682,6 +1834,12 @@ function drawLive() {
       liveSelect(rid);
     };
   });
+  root.querySelectorAll("[data-rung]").forEach((el) => {
+    el.onclick = (e) => { e.preventDefault(); e.stopPropagation(); liveGoto(Number(el.dataset.rung)); };
+  });
+  const prev = $("rail-prev"), next = $("rail-next");
+  if (prev) prev.onclick = () => liveStep(-1);
+  if (next) next.onclick = () => liveStep(1);
 }
 
 /* ================= R5 — traceability ================= */

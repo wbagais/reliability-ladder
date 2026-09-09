@@ -317,3 +317,52 @@ table.diff tr.on td { outline: 2px solid var(--accent); }
 table.diff tr.missed td:first-child { border-left: 3px double var(--z-accept); }
 table.diff tr.differ td:first-child { border-left: 3px solid var(--z-abstain); }
 table.diff tr.agree td:first-child { border-left: 3px solid var(--z-accept); }
+/* round 3: the rail, stacked gold/model cells, the frame */
+.rail { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; margin: .6rem 0 .4rem;
+  position: sticky; top: 0; z-index: 5; background: var(--bg, #fff); padding: .3rem 0; }
+.rail-node { font: inherit; text-align: left; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: .3rem .55rem; min-width: 118px;
+  cursor: pointer; transition: border-color .15s, background .15s; }
+.rail-node:hover { border-color: var(--accent); }
+.rail-node.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--panel)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); }
+.rail-node.disabled { border-style: dashed; color: var(--muted);
+  background: repeating-linear-gradient(45deg, transparent 0 3px, var(--hatch-a) 3px 4px); }
+.rail-node .rn-name { font-weight: 700; font-size: .8rem; }
+.rail-node .rn-name span { font-weight: 400; color: var(--muted); }
+.rail-node .rn-sum { font-size: .7rem; color: var(--muted); }
+.rail-node .rn-zones { margin-top: .15rem; min-height: 1rem; }
+.rail-node .rn-zones .zone { font-size: .66rem; padding: 0 .3rem; }
+.rail-link { flex: 0 0 14px; align-self: center; height: 2px; background: var(--line); }
+.rail-step { font: inherit; font-size: 1.1rem; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px; padding: 0 .55rem; cursor: pointer; margin: 0 .3rem; }
+.rail-step:disabled { opacity: .35; cursor: default; }
+.rail-hint { flex-basis: 100%; font-size: .74rem; margin-top: .2rem; }
+.live-frame { animation: livefade .25s ease-out; }
+@keyframes livefade { from { opacity: .35; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.cards.small .card { padding: .4rem .7rem; min-width: 96px; }
+.cards.small .card .big { font-size: 1.15rem; }
+td.stack { vertical-align: top; }
+td.stack > div, .stackline > div { padding: .1rem .3rem; border-radius: 4px; margin: .1rem 0; font-size: .82rem; }
+td.stack .g, .stackline .g { background: color-mix(in srgb, var(--z-accept) 14%, transparent); border-left: 3px solid var(--z-accept); }
+td.stack .m, .stackline .m { background: color-mix(in srgb, var(--accent) 12%, transparent); border-left: 3px solid var(--accent); }
+td.stack .m.off { border-left-color: var(--z-abstain); background: color-mix(in srgb, var(--z-abstain) 16%, transparent); }
+td.stack .none, .stackline .none { color: var(--muted); font-style: italic; }
+.who { display: inline-block; width: 3.2em; font-size: .66rem; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; color: var(--muted); }
+em.missing { font-style: normal; font-weight: 700; color: var(--z-accept); text-decoration: underline; }
+em.extra { font-style: normal; font-weight: 700; color: var(--z-abstain); text-decoration: underline; }
+.same { font-size: .68rem; color: var(--z-accept); margin-left: .4rem; font-weight: 600; }
+.wh { font-size: .68rem; color: var(--z-abstain); margin-left: .4rem; font-weight: 600; border: 1px solid; border-radius: 4px; padding: 0 .25rem; }
+.stackline { margin: .3rem 0; }
+.rc-head { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+.record-card.on { border-color: var(--accent); }
+.dots { display: flex; align-items: center; gap: 0; margin: .3rem 0; flex-wrap: wrap; }
+.dot { font: inherit; font-size: .68rem; background: none; border: 1px solid transparent; border-radius: 6px;
+  padding: .1rem .3rem; cursor: pointer; display: flex; flex-direction: column; align-items: center; color: var(--muted); }
+.dot i.zone { display: block; width: 12px; height: 12px; border-radius: 50%; padding: 0; }
+.dot i.zone.none, .dot i.zone.DROPPED { background: none; border: 1px dashed var(--muted); }
+.dot.on { border-color: var(--accent); color: var(--accent); }
+.dot.chg i.zone { box-shadow: 0 0 0 2px var(--panel), 0 0 0 3px var(--accent); }
+.dot-link { flex: 0 0 10px; height: 1px; background: var(--line); }
+.at-rung { font-size: .84rem; margin: .2rem 0 .4rem; border-left: 3px solid var(--line); padding-left: .5rem; }
+.muted.small { font-size: .76rem; }

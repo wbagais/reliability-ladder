@@ -28,6 +28,7 @@ import hashlib
 import json
 import re
 import shutil
+from collections import Counter
 import tempfile
 import threading
 import time
@@ -241,8 +242,19 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
         man, job.split, job.order_run, [], sources, state.registry(), out_dir,
         job.run_id, meddra=meddra, gold=gold,
     )
+    diff_by_rung: dict[str, Any] | None = None
     if gold is not None:
-        diff = gold_diff(result["records"], list(gold.values()))
+        golds = list(gold.values())
+        vocab = state.registry()
+        diff = gold_diff(result["records"], golds, vocab)
+        # The diff at EVERY rung, from the record set as each rung left it. A
+        # rung that did not run (disabled) left no snapshot: it changed
+        # nothing, so the previous rung's set stands.
+        diff_by_rung = {}
+        last: list = []
+        for n in job.order_run:
+            last = result["snapshots"].get(n, last)
+            diff_by_rung[str(n)] = gold_diff(last, golds, vocab)
 
     # -- read back what the run wrote ---------------------------------------
     state_rows = trace_mod.read_rows(out_dir / f"{job.run_id}.state.jsonl") \
@@ -300,8 +312,30 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
 
     rungs: dict[str, Any] = {}
     calls_total = calls_cached = 0
+    prev_state: list[dict] = []
     for n in job.order_run:
         rows = [r for r in ledger_rows_all if r["rung"] == n]
+        agg_n = aggregates.get("rungs", {}).get(str(n), {})
+        # The rail's one-line summary of the rung, from the state table. A
+        # disabled rung wrote no state rows and changed nothing: the previous
+        # rung's record set stands and is reported as such.
+        at_n = [row for row in state_rows if row["rung"] == n]
+        disabled = bool(agg_n.get("disabled"))
+        if not at_n and disabled:
+            at_n = [{**row, "created_this_rung": False, "changed_this_rung": False,
+                     "dropped_this_rung": row.get("dropped_this_rung", False)}
+                    for row in prev_state]
+        live_rows = [row for row in at_n if not row.get("dropped_this_rung")]
+        summary = {
+            "records": len(live_rows),
+            "created": sum(1 for row in at_n if row.get("created_this_rung")),
+            "changed": sum(1 for row in at_n if row.get("changed_this_rung")),
+            "dropped": sum(1 for row in at_n if row.get("dropped_this_rung")),
+            "calls": 0,
+            "zones": dict(sorted(Counter(row.get("zone") for row in live_rows).items())),
+            "disabled": disabled,
+        }
+        prev_state = live_rows
         calls = []
         p = out_dir / f"{job.run_id}.r{n}.calls.jsonl"
         if p.exists():
@@ -310,10 +344,12 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
                     calls.append(json.loads(line))
         calls_total += len(calls)
         calls_cached += sum(1 for c in calls if c.get("cached"))
+        summary["calls"] = len(calls)
         lat = sorted(float(c.get("seconds", 0.0)) * 1000 for c in calls
                      if not c.get("cached"))
         rungs[str(n)] = {
-            "aggregate": _jsonable(aggregates.get("rungs", {}).get(str(n), {})),
+            "aggregate": _jsonable(agg_n),
+            "summary": summary,
             "ledger": rows,
             "calls": calls,
             # C5: three measures, side by side, never fused
@@ -356,7 +392,8 @@ def run_one(state: AppState, job: LiveJob, text: str) -> dict[str, Any]:
         "run_id": job.run_id, "source": job.source, "doc_id": job.doc_id,
         "split": job.split, "text": text, "through_rung": job.through_rung,
         "order_run": job.order_run, "scratch_dir": job.scratch_dir,
-        "records": records, "gold": gold_view, "gold_diff": diff, "rungs": rungs,
+        "records": records, "gold": gold_view, "gold_diff": diff,
+        "gold_diff_by_rung": diff_by_rung, "rungs": rungs,
         "calls_total": calls_total, "calls_cached": calls_cached,
         "provenance": provenance, "caveats": caveats_mod.texts(keys),
         "local_only": True,
@@ -370,13 +407,20 @@ def _jsonable(x: Any) -> Any:
 # --- the diff against gold, for a corpus document ----------------------------
 
 
-def gold_diff(records: list, golds: list) -> dict[str, Any]:
+def gold_diff(records: list, golds: list, vocab: Any = None) -> dict[str, Any]:
     """Every gold mention paired with its prediction, through the scorer's
     own `_pair`: exact span keys first, then overlap over what is left, so
     the diff cannot disagree with `score_run`. Code status reads the answer
     the system HAS — a withheld answer that is right is `withheld_correct`,
-    never "no code"."""
+    never "no code". Gold codes carry their vocabulary label when `vocab`
+    can give one (the explorer's rule: never a bare SCTID alone), else None."""
     from ladder.score import _pair
+
+    def _label(code: str) -> str | None:
+        try:
+            return vocab.label(code) if vocab is not None else None
+        except Exception:
+            return None
 
     located = [r for r in records
                if r.spans and all(a >= 0 and b > a for a, b in r.spans)]
@@ -401,6 +445,7 @@ def gold_diff(records: list, golds: list) -> dict[str, Any]:
             "gold": {"record_id": g.record_id, "text": g.text,
                      "spans": [list(x) for x in g.spans], "sct": list(g.sct),
                      "gold_kind": g.gold_kind},
+            "gold_labels": [_label(str(x)) for x in g.sct],
             "span": how, "pred": None, "pred_text": None, "pred_spans": None,
             "pred_sct": None, "pred_label": None, "final_zone": None,
             "withheld": False, "code": None,

@@ -65,7 +65,11 @@ absence renders as a stated degradation, never an error.
   and a corpus document gets a diff against gold through the scorer's own
   pairing (found exact / overlap / missed / spurious, code right or wrong,
   a withheld right answer named as such), with the text coloured by
-  agreement.
+  agreement. **Round 3:** a rung rail at the top selects the rung and the
+  whole view shows the run as that rung left it (← → keys, prev/next, a
+  dot per rung on each record); gold and model stack in one cell, green
+  over blue, with the words only one side has underlined and the gold code
+  labelled through the registry.
 
 ### Hard constraints, each with a test
 
@@ -102,7 +106,7 @@ Still green after the refresh.
 
 ## Tests
 
-93 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
+96 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
 `test_dashboard_golden.py`, `test_dashboard_live.py`), all TDD'd. The live
 tests are CI-safe: scripted extractor and judge bound through the same
 `llm.for_rung` seam the run uses, the nine-concept registry fixture, rung 0's
