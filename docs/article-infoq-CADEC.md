@@ -24,7 +24,7 @@ We tested six layers that each evaluate the model's output and flag what is wron
 
 Testing it needs a graded task, so we chose an annotated corpus: CADEC, the CSIRO Adverse Drug Event Corpus [4], 1,250 forum posts about two drugs, every adverse reaction marked as a span of the writer's own words and given a SNOMED CT code. A gold answer for every mention lets us score each layer's verdicts instead of trusting them. We did not build a CADEC system or tune for it: the aim was to evaluate open-weight models and measure how much each layer raises their accuracy, and CADEC is the instrument.
 
-A supervised system does far better. CONORM [5], fine-tuned on 875 of CADEC's 1,250 files, reaches an end-to-end F1 of 0.72 under lenient span matching. Our zero-shot extractor, everything it returns, reaches 0.47 to 0.50 under the same matching on our development split, 0.39 to 0.43 span-exact. We are not competing with it: it needs those 875 annotated files, and still cannot say which of its answers to trust. Our held-out split was spent once, 60 documents, one run; every other number is development-side and says so. Two things would move the absolute numbers: the judge is small, and CADEC, public since 2015, is almost certainly in its training data. The comparisons between layers should hold.
+A supervised system does far better: CONORM [5], fine-tuned on 875 of CADEC's 1,250 files, reaches an end-to-end F1 of 0.72 under lenient span matching, against our zero-shot extractor's 0.47 to 0.50 on the development split (0.39 to 0.43 span-exact). We are not competing with it: it needs those annotated files, and still cannot say which of its answers to trust. Our held-out split was spent once, 60 documents, one run; every other number is development-side and says so. Two things would move the absolute numbers: the judge is small, and CADEC, public since 2015, is almost certainly in its training data. The comparisons between layers should hold.
 
 ## The system under test: the model reads, the vocabulary knows
 
@@ -34,7 +34,7 @@ A supervised system does far better. CONORM [5], fine-tuned on 875 of CADEC's 1,
 
 *Figure 1: The pipeline, left to right, on one illustrative post (CADEC is non-transferable). Teal: a model call; grey: deterministic code. Each card shows what that step produces for the example; a code appears for the first time in the last one. Image: the authors.*
 
-Behind the menu, a retriever with no model searches 227,554 keyword-to-code rows. Codes are written as `271782001` |Drowsy|, SNOMED's bar notation, throughout.
+Behind the menu, a retriever with no model searches 227,554 keyword-to-code rows; codes are written as `271782001` |Drowsy|, SNOMED's bar notation, and F1 is *span-exact*, so a wrong boundary is both a false positive and a false negative.
 
 We chose this shape by measuring the alternatives on 40 development documents, three cold runs each: recall the code from memory, name the concept and look it up, or pick from the menu.
 
@@ -43,8 +43,6 @@ We chose this shape by measuring the alternatives on 40 development documents, t
 *Figure 2: F1 of the extractor alone under three ways of getting the code, one dot per cold run, with tokens per run and unparseable replies beneath. Image: the authors.*
 
 Recalling the code is not weak but broken: eight to twelve times worse than naming the concept. It answered `null` on up to 38 percent of records, and of the codes it committed to, 13 to 18 percent exist in no SNOMED release.
-
-F1 is *span-exact* throughout: a wrong boundary is both a false positive and a false negative.
 
 That is the extractor the six layers sit on. Before measuring what a layer adds, we had to know how much its output moves between runs of the same inputs.
 
@@ -71,7 +69,7 @@ From then on every change was measured on three runs and reported as the range a
 
 ## What each layer bought, and what it charged
 
-**The two free layers did their jobs: the vocabulary check sorted the answers and refusal withheld the doubtful ones, and neither changed an answer. Of the three paid layers, self-correction almost never fired, voting did not help, and the judge worked but nothing read its verdict.**
+**The two free layers sorted and withheld without changing an answer; of the three paid ones, self-correction almost never fired, voting did not help, and the judge worked but nothing read its verdict.**
 
 Development split, three runs of 40 documents; figures below are ranges across the runs:
 
