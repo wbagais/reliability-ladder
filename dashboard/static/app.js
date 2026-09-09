@@ -64,6 +64,7 @@ const S = {
   resultsRun: null, baseline: null, span: "exact",
   walkRun: null, walkDoc: null, walkSpan: "exact", walkGold: false,
   traceRun: null, traceSpan: "exact", traceFilter: null,
+  resultsDoc: { doc: null, result: null, selected: null, col: null, rule: null },
   live: { options: null, job: null, timer: null, result: null, selected: null, rung: null },
 };
 
@@ -127,7 +128,8 @@ function showTab(t) {
 
 function wireControls() {
   wireLive();
-  $("results-run").onchange = (e) => { S.resultsRun = e.target.value; renderResults(); };
+  $("results-run").onchange = (e) => { S.resultsRun = e.target.value; S.resultsDoc.doc = null; S.resultsDoc.result = null; renderResults(); };
+  $("results-doc").onchange = (e) => { S.resultsDoc.doc = e.target.value || null; renderResultsDoc(); };
   $("results-baseline").onchange = (e) => { S.baseline = e.target.value || null; renderResults(); };
   $("results-span").onchange = (e) => { S.span = e.target.value; renderResults(); };
   wireData();
@@ -432,6 +434,8 @@ const SPAN_EXPLAINER =
    Both are reported — neither is the "true" number alone.</div>`;
 
 async function renderResults() {
+  fillResultsDocs();
+  if (S.resultsDoc.doc) renderResultsDoc(); else $("results-doc-view").innerHTML = "";
   if (!S.resultsRun) return;
   const run = S.resultsRun, span = S.span;
   $("results-export").innerHTML =
@@ -1715,9 +1719,20 @@ function legendHtml(res, rule) {
 }
 
 function drawLive() {
-  const res = S.live.result;
+  if (!S.live.result) return;
+  drawGrid($("live-result"), S.live.result, S.live);
+}
+
+/* ONE renderer for a document through the ladder — the Live tab's result
+   and the Results drill-down draw through it. `st` holds the selection:
+   {selected keyword, col (the grid column the text follows), rule}. */
+function drawGrid(root, res, st) {
   if (!res) return;
-  const sel = S.live.selected, col = S.live.col, rule = S.live.rule;
+  if (st.col === undefined || st.col === null) {
+    const cols = liveGridCols(res);
+    st.col = cols.length ? cols[cols.length - 1] : res.order_run[res.order_run.length - 1];
+  }
+  const sel = st.selected, col = st.col, rule = st.rule;
   const d = res.gold_diff_by_rung ? (res.gold_diff_by_rung[String(col)] || res.gold_diff) : null;
   const verdictOf = {}, goldState = {};
   if (d) {
@@ -1749,7 +1764,7 @@ function drawLive() {
         : `violet = the model's records`;
   const pv = res.provenance;
   const mj = res.menu_judge;
-  $("live-result").innerHTML = `
+  root.innerHTML = `
     ${caveatChips(res.caveats)}
     <div class="doc-text live">${highlight(res.text, marks)}</div>
     <div class="small">as rung ${col} left it · ${legend} · click a keyword to follow one row · ← → walk the grid's columns${mj && mj.failed ? ` · <span class="bad">menu-shown judge failed: ${esc(mj.error)}</span>` : ""}</div>
@@ -1757,20 +1772,61 @@ function drawLive() {
     ${gridHtml(res, sel, col, rule)}
     <div class="small">hover a cell for the full value · gray = the rung did nothing here, or did not run · the three cost rows are the three measures, never fused</div>
     ${legendHtml(res, rule)}
-    <div class="prov">live ${esc(pv.run_id)} · ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")} · ran rungs ${res.order_run.join(",")} · ${res.calls_total} model call${res.calls_total === 1 ? "" : "s"}${res.calls_cached ? `, ${res.calls_cached} from cache` : ""}${mj && mj.calls ? ` + ${mj.calls.length} menu-judge` : ""}
-      · backend ${esc(pv.backend)} · manifest ${esc(pv.manifest_hash)} · models ${esc(JSON.stringify(pv.models))}
-      · temperature ${esc(pv.temperature)} · git ${esc(pv.git && pv.git.sha ? pv.git.sha.slice(0, 8) : "—")}${pv.git && pv.git.dirty ? " (dirty)" : ""} · scratch deleted</div>`;
-  const root = $("live-result");
+    <div class="prov">${res.source === "run" ? `run ${esc(pv.run_id)} · ${esc(res.doc_id)} (${esc(res.split)})${pv.archived ? " · archived" : ""}` : `live ${esc(pv.run_id)} · ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")}`} · ran rungs ${res.order_run.join(",")} · ${res.calls_total} model call${res.calls_total === 1 ? "" : "s"}${res.calls_cached ? `, ${res.calls_cached} from cache` : ""}${mj && mj.calls ? ` + ${mj.calls.length} menu-judge` : ""}
+      · backend ${esc(pv.backend)} · manifest ${esc(pv.manifest_hash)} · models ${esc(JSON.stringify(pv.models || {}))}${pv.temperature !== undefined ? ` · temperature ${esc(pv.temperature)}` : ""}${pv.git ? ` · git ${esc(pv.git.sha ? pv.git.sha.slice(0, 8) : "—")}${pv.git.dirty ? " (dirty)" : ""}` : ""}${res.source === "run" ? "" : " · scratch deleted"}</div>`;
+  const redraw = () => drawGrid(root, res, st);
   root.querySelectorAll("[data-rid]").forEach((el) => {
     el.onclick = (e) => { e.stopPropagation(); const rid = el.dataset.rid.split(" ")[0];
-      S.live.selected = (S.live.selected === rid) ? null : rid; drawLive(); };
+      st.selected = (st.selected === rid) ? null : rid; redraw(); };
   });
   root.querySelectorAll("th[data-col]").forEach((el) => {
-    el.onclick = () => { S.live.col = Number(el.dataset.col); drawLive(); };
+    el.onclick = () => { st.col = Number(el.dataset.col); redraw(); };
   });
   root.querySelectorAll("tr[data-rule]").forEach((el) => {
-    el.onclick = () => { const id = el.dataset.rule; S.live.rule = (S.live.rule === id) ? null : id; drawLive(); };
+    el.onclick = () => { const id = el.dataset.rule; st.rule = (st.rule === id) ? null : id; redraw(); };
   });
+}
+
+/* ---- Results drill-down: this run's document through the same grid ---- */
+
+async function fillResultsDocs() {
+  const sel = $("results-doc");
+  const keep = S.resultsDoc.doc;
+  sel.innerHTML = `<option value="">choose a document…</option>`;
+  try {
+    const d = await api("/api/run/docs", { run: S.resultsRun });
+    for (const x of d.docs) {
+      const o = document.createElement("option");
+      o.value = x.doc_id;
+      const zones = Object.entries(x.zones || {}).map(([z, n]) => `${n} ${z}`).join(", ");
+      o.textContent = `${x.doc_id} — ${x.n_records} record${x.n_records === 1 ? "" : "s"}${zones ? " · " + zones : ""}`;
+      sel.appendChild(o);
+    }
+    if (keep && [...sel.options].some((o) => o.value === keep)) sel.value = keep;
+  } catch (err) {
+    sel.innerHTML = `<option value="">${esc(err.message)}</option>`;
+  }
+}
+
+async function renderResultsDoc() {
+  const el = $("results-doc-view");
+  const st = S.resultsDoc;
+  if (!st.doc) { el.innerHTML = ""; return; }
+  el.innerHTML = `<div class="muted">loading ${esc(st.doc)}…</div>`;
+  try {
+    const res = await api("/api/run/document", { run: S.resultsRun, doc_id: st.doc });
+    st.result = res; st.selected = null; st.col = null; st.rule = null;
+    drawGrid(el, res, st);
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+  } catch (err) {
+    el.innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;
+  }
+}
+
+function openResultsDoc(docId) {
+  S.resultsDoc.doc = docId;
+  $("results-doc").value = docId;
+  renderResultsDoc();
 }
 
 /* ================= R5 — traceability ================= */

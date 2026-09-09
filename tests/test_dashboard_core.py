@@ -346,3 +346,35 @@ def test_default_sources_include_the_tracked_runs_archive(tmp_path):
     assert (tmp_path / "runs" / "archive", True) in state.sources
     assert "x" in state.runs()
     assert state.runs()["x"].archived is True
+
+
+def test_registry_is_opened_per_thread(tmp_path):
+    """FastAPI runs sync routes on a thread pool, and one sqlite connection
+    shared across threads raises `InterfaceError: bad parameter or other API
+    misuse` as soon as two requests overlap — which the Results page does.
+    Each thread gets its own connection; the same thread keeps its one."""
+    import sqlite3
+    import threading
+
+    from dashboard.state import AppState
+
+    db = tmp_path / "ladder" / "cache" / "snomed.sqlite"
+    db.parent.mkdir(parents=True)
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT)")
+    con.execute("CREATE TABLE concept(id TEXT PRIMARY KEY, active INT, is_finding INT, is_finding_hist INT)")
+    con.execute("CREATE TABLE description(concept_id TEXT, term TEXT, norm TEXT, fsn INT)")
+    con.execute("INSERT INTO meta VALUES('release','TEST')")
+    con.commit(); con.close()
+    state = AppState(repo_root=tmp_path, manifest={})
+    main = state.registry()          # opened on this thread FIRST — no race
+    assert main is not None
+    seen = {}
+    def grab(name):
+        seen[name] = state.registry()
+    threads = [threading.Thread(target=grab, args=(f"t{i}",)) for i in range(2)]
+    for t in threads: t.start()
+    for t in threads: t.join()
+    assert main is state.registry(), "the same thread keeps its connection"
+    assert seen["t0"] is not None and seen["t1"] is not None
+    assert seen["t0"] is not seen["t1"] and seen["t0"] is not main

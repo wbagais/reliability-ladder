@@ -11,6 +11,7 @@ degradation, not an error — CI has no corpus, no index, no cache.
 from __future__ import annotations
 
 import csv
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +53,11 @@ class AppState:
         self._splits = splits
         self._exclusion_rows = exclusion_rows
         self._registry = registry
+        # One sqlite connection per THREAD: FastAPI runs sync routes on a
+        # pool, and a connection shared across threads raises
+        # `InterfaceError: bad parameter or other API misuse` the moment two
+        # requests overlap (the Results page fires several at once).
+        self._registry_local = threading.local()
         self._manifest = manifest
         self._records_cache: dict[tuple, list] = {}
         self._zones_cache: dict[tuple, dict] = {}
@@ -157,14 +163,19 @@ class AppState:
         return load_exclusions(path)
 
     def registry(self):
-        """The SNOMED registry, or None (CI, fresh clone) — stated, never faked."""
-        if self._registry is _UNSET:
+        """The SNOMED registry, or None (CI, fresh clone) — stated, never faked.
+        An injected registry (tests) is returned as is; a registry opened
+        from disk is opened once per thread."""
+        if self._registry is not _UNSET:
+            return self._registry
+        loc = self._registry_local
+        if not hasattr(loc, "registry"):
             try:
                 from ladder.registry import Registry
 
                 db = self.manifest().get("vocabulary", {}).get(
                     "snomed_db", self.repo_root / "ladder" / "cache" / "snomed.sqlite")
-                self._registry = Registry(db) if Path(db).exists() else None
+                loc.registry = Registry(db) if Path(db).exists() else None
             except Exception:
-                self._registry = None
-        return self._registry
+                loc.registry = None
+        return loc.registry

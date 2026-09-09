@@ -672,3 +672,46 @@ def test_docs_list_says_when_a_run_has_no_records_file(client, tmp_path):
     assert all(x["in_run"] is None for x in body["docs"])
     body = client.get("/api/corpus/docs", params={"split": "dev", "run": "syn-run-1"}).json()
     assert body["records_available"] is True
+
+
+# --- Results drill-down (2026-09-09, sketch section 6): a run's document ----
+# through the same grid as Live, from the run's own artifacts.
+
+
+def test_run_document_renders_a_batch_documents_grid_from_its_artifacts(client):
+    r = client.get("/api/run/document", params={"run": "syn-run-1", "doc_id": "SYN.2"})
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["source"] == "run" and d["run_id"] == "syn-run-1" and d["doc_id"] == "SYN.2"
+    assert d["text"] == SYN2_TEXT
+    assert d["order_run"] == [0, 1, 2, 3, 4, 5, 6], "the rungs the ledger says ran, in manifest order"
+    assert [x["record_id"] for x in d["records"]] == ["SYN.2#0", "SYN.2#1"]
+    rec = d["records"][0]
+    assert [x["id"] for x in rec["rules"]] == ["V", "V+", "3", "2", "J", "J+"]
+    assert rec["rules"][0]["state"] == "hold" and rec["rules"][0]["value"] == "BAND"
+    assert rec["person"]["run"] >= 1
+    assert rec["r0_path"]["steps"][0]["id"] == "input"
+    # this fixture wrote no state table (pre-2026-09-03 shape): one row, the
+    # final state, and the payload says so
+    assert d["state_available"] is False
+    assert len(rec["timeline"]) == 1 and rec["timeline"][0]["rung"] == 6
+    assert d["gold_diff"]["counts"] == {"gold": 2, "found_exact": 1, "found_overlap": 0,
+                                        "missed": 1, "spurious": 1, "predictions": 2}
+    assert "6" in d["gold_diff_by_rung"]
+    # the ledger names the denominator: the fixture wrote one rung-6 row for
+    # this document, so one is what a person received, not the two records
+    assert d["rungs"]["6"]["cost"]["routed_to_person"] == 1
+    assert d["menu_judge"] is None
+    assert d["provenance"]["live"] is False and d["provenance"]["run_id"] == "syn-run-1"
+    assert d["provenance"]["models"] == {"extractor": "ollama/fake:1b", "judge": "ollama/fake2:1b"}
+    assert "results_drilldown" in d["caveats"]
+    assert [x["id"] for x in d["rules_legend"]] == ["V", "V+", "3", "2", "J", "J+"]
+
+
+def test_run_document_refuses_unknown_document_and_run(client):
+    assert client.get("/api/run/document", params={"run": "syn-run-1", "doc_id": "NOPE"}).status_code == 404
+    assert client.get("/api/run/document", params={"run": "nope", "doc_id": "SYN.2"}).status_code == 404
+
+
+def test_run_document_is_never_exportable(client):
+    assert client.get("/api/export/document", params={"run": "syn-run-1", "doc_id": "SYN.2"}).status_code == 404

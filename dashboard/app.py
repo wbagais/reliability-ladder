@@ -18,8 +18,8 @@ from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from dashboard import caveats as caveats_mod
-from dashboard import (corpus_views, dependencies, ledger_views, llm_view,
-                       scoring, walkthrough)
+from dashboard import (corpus_views, dependencies, document_view, ledger_views,
+                       llm_view, scoring, walkthrough)
 from dashboard.live import LiveError, LiveRunner
 from dashboard.provenance import provenance_for
 from dashboard.runsindex import RunInfo
@@ -322,6 +322,15 @@ def create_app(state: AppState, live_runner: LiveRunner | None = None) -> FastAP
             "provenance": _prov(info, span_match),
             "caveats": _caveats(info),
         }
+
+    @app.get("/api/run/document")
+    def run_document(run: str, doc_id: str):
+        """The Results drill-down: this run's document through the Live grid."""
+        info = _run(run)
+        payload = document_view.run_document_payload(state, info, doc_id)
+        if payload is None:
+            raise HTTPException(404, f"document {doc_id!r} unavailable (corpus absent, or not in it)")
+        return payload
 
     @app.get("/api/run/record_llm")
     def run_record_llm(run: str, doc_id: str, spans: str):

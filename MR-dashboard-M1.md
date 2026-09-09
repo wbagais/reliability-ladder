@@ -45,6 +45,11 @@ absence renders as a stated degradation, never an error.
   `out/archive/`; headline with bootstrap CIs; the integrated rung-flow
   diagram with actual and possible paths, clickable subsets; per-layer
   outcome composition; side-by-side comparison; scrubbed exports.
+- **Results › 7 · A document through the ladder** (redesign step 3) — pick
+  one of the run's documents and see it through the same grid as Live,
+  from the run's own records, state rows, call traces and snapshots;
+  nothing re-run. Older runs without a state table show the final state
+  and say so.
 - **Walkthrough** — per-record rung timeline with "did not fire" ≠ "did not
   run"; per-rung panels from recorded `checks` and ledger rows only.
 - **Traceability** — outcome card → records → one record's ledger rows,
@@ -111,7 +116,7 @@ Still green after the refresh.
 
 ## Tests
 
-104 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
+108 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
 `test_dashboard_golden.py`, `test_dashboard_live.py`), all TDD'd. The live
 tests are CI-safe: scripted extractor and judge bound through the same
 `llm.for_rung` seam the run uses, the nine-concept registry fixture, rung 0's

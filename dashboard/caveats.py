@@ -48,6 +48,16 @@ CAVEATS: dict[str, str] = {
         "measurement: no F1, no run id in the runs list, nothing under out/. "
         "The measured numbers are on the Results tab."
     ),
+    "results_drilldown": (
+        "A batch run's document, drawn from the run's own records, state rows "
+        "and call traces — nothing re-run. The menu-shown judge (J+) is the "
+        "live run's own second pass and is not computed for a batch run."
+    ),
+    "no_state_table": (
+        "This run predates the state table (2026-09-03): only the final state "
+        "of each record is on disk, so the grid shows one row per record and "
+        "rung 0's menu without the calls that produced it."
+    ),
     "live_cache_hits": (
         "Some of these calls were served from .llm_cache (the same prompt was "
         "seen before). A cached call's latency is not the model's, and its "
