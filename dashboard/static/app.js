@@ -1693,42 +1693,6 @@ function liveCallsHtml(res, n, p, sel) {
   </details>`).join("");
 }
 
-function goldDiffHtml(d, sel) {
-  const c = d.counts;
-  const codeWord = { correct: "right", incorrect: "WRONG", withheld_correct: "right, but withheld",
-    withheld_incorrect: "wrong, and withheld", no_code: "no code" };
-  const rows = d.pairs.map((p) => {
-    const cls = p.span === "missed" ? "missed"
-      : (p.span === "exact" && (p.code === "correct" || p.code === "withheld_correct")) ? "agree" : "differ";
-    return `<tr class="${cls} ${sel && p.pred === sel ? "on" : ""}" ${p.pred ? `data-rid="${esc(p.pred)}"` : ""}>
-      <td class="l">“${esc(p.gold.text)}” <span class="muted">${esc(p.gold.spans.map((x) => x.join("-")).join(","))}</span></td>
-      <td class="l">${esc(p.gold.sct.join(", ") || "concept-less")}</td>
-      <td class="l"><span class="lg ${cls}">${p.span === "missed" ? "missed" : "found " + p.span}</span></td>
-      <td class="l">${p.pred ? `“${esc(p.pred_text)}” <span class="muted">${esc((p.pred_spans || []).map((x) => x.join("-")).join(","))}</span>` : "—"}</td>
-      <td class="l">${p.pred ? `${esc(p.pred_sct ?? "no code")}${p.pred_label ? ` <span class="muted">“${esc(p.pred_label)}”</span>` : ""}` : "—"}</td>
-      <td class="l">${p.code ? `<span class="outcome ${p.code.endsWith("correct") && !p.code.endsWith("incorrect") ? "correct" : "incorrect"}">${esc(codeWord[p.code] || p.code)}</span>` : ""}
-        ${p.final_zone ? `<span class="zone ${esc(p.final_zone)}">${esc(p.final_zone)}</span>` : ""}</td></tr>`;
-  }).join("");
-  const spur = d.spurious.map((sp) => `<tr class="spurious ${sel && sp.record_id === sel ? "on" : ""}" data-rid="${esc(sp.record_id)}">
-      <td class="l muted">— no gold mention here</td><td class="l">—</td>
-      <td class="l"><span class="lg spurious">spurious${sp.unlocatable ? " · unlocatable" : ""}</span></td>
-      <td class="l">“${esc(sp.text)}” <span class="muted">${esc((sp.spans || []).map((x) => x.join("-")).join(","))}</span></td>
-      <td class="l">${esc(sp.sct ?? "no code")}${sp.sct_label ? ` <span class="muted">“${esc(sp.sct_label)}”</span>` : ""}</td>
-      <td class="l">${sp.zone ? `<span class="zone ${esc(sp.zone)}">${esc(sp.zone)}</span>` : ""}</td></tr>`).join("");
-  return `<h3>against the gold annotations <span class="muted">· the scorer's own pairing: exact span first, then overlap</span></h3>
-    <div class="cards">
-      <div class="card"><div class="big">${c.gold}</div><div class="muted">gold mentions</div></div>
-      <div class="card"><div class="big">${c.found_exact}</div><div class="muted">found, exact span</div></div>
-      <div class="card"><div class="big">${c.found_overlap}</div><div class="muted">found, overlapping span</div></div>
-      <div class="card"><div class="big">${c.missed}</div><div class="muted">missed</div></div>
-      <div class="card"><div class="big">${c.spurious}</div><div class="muted">spurious of ${c.predictions} predicted</div></div>
-    </div>
-    <table class="tl-table diff"><tr><th class="l">gold mention</th><th class="l">gold code</th>
-      <th class="l">span</th><th class="l">the system's record</th><th class="l">its code</th><th class="l">code vs gold · final zone</th></tr>
-      ${rows}${spur}</table>
-    <div class="muted">one document, not a measurement — the measured detection and coding layers are on the Results tab</div>`;
-}
-
 function markText(text, needle) {
   // the keyword's own lines, highlighted inside a prompt or reply
   if (!needle) return esc(String(text ?? ""));
