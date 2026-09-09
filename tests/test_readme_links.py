@@ -21,6 +21,7 @@ FILES = [
     ROOT / "README.md",
     ROOT / "docs" / "RUNNING.md",
     ROOT / "docs" / "early-results.md",
+    ROOT / "docs" / "three-checks.md",
 ]
 
 _MD_LINK = re.compile(r"\]\(([^)\s]+)\)")
@@ -94,3 +95,18 @@ def test_anchor_rule_matches_the_headings_this_repo_uses() -> None:
         "the-cadec-arm--five-preprocessing-steps"
     assert github_anchor("Two vocabulary backends, and they are not equivalent") == \
         "two-vocabulary-backends-and-they-are-not-equivalent"
+
+
+def test_three_checks_doc_describes_the_checks_that_exist() -> None:
+    """docs/three-checks.md said `crosscheck` did not exist and `gatecheck`
+    was prep_corpus.py for two days after both landed in ladder/checks/. The
+    README links to it as the detail page, so it has to name what is there."""
+    doc = (ROOT / "docs" / "three-checks.md").read_text()
+    assert "does not exist" not in doc
+    assert "prep_corpus.py today" not in doc
+    for must in ("scripts/gatecheck.py", "scripts/crosscheck.py",
+                 "ladder/checks/gate.py", "ladder/checks/cross.py",
+                 "github.com/pushpdeep/stagecheck"):
+        assert must in doc, must
+    assert (ROOT / "docs" / "three-checks.md") in FILES, \
+        "the link check must cover it too"
