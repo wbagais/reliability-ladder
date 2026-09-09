@@ -26,10 +26,14 @@ to the published figure.
 |---|---|---|---|
 | `infoq-fig1-ladder` | — (earlier revision) | `.dot` | hand-written table |
 | `infoq-fig2-dial` | — (earlier revision) | `make_infoq_figs.py` | `shipping_rules_mean`: share shipped, accuracy, extra tokens |
-| `infoq-fig3-funnel` | Figure 3 | `.dot` | hand-written from the report's error budget |
+| `infoq-fig9-matrix` | — (drawn for the article, removed 2026-09-08; the section is about agreement, not numbers) | `make_infoq_figs.py` | `matrix.csv` (repo root; `scripts/score_matrix.py` over `runs/archive/matrix-2026-09-07/`): occupancy and correctness per cell; CADEC from `rerun/cadec.json` `lanes` |
+| `infoq-fig8-funnel` | Figure 4 | `make_infoq_figs.py` | `draws["rerun-cadec-d0"].budget`: the four stages and the losses between them |
+| `infoq-fig3-funnel` | — (the table it replaced) | `.dot` | hand-written; its 43 / 67 finding split predates the report, which says 48 / 62 |
 | `infoq-fig4-flow` | — (earlier revision) | `.dot` | hand-written |
-| `infoq-fig5-shipped` | Figure 2 | `make_infoq_figs.py` | `draws["rerun-cadec-d0"].shipping_rules`: the four-way split, to a person, F1 |
-| `fig7-pipeline-cadec` | Figure 1 | `.dot` | hand-written |
+| `infoq-fig5-shipped` | Figure 3 | `make_infoq_figs.py` | `draws["rerun-cadec-d0"].shipping_rules`: the four-way split, to a person, F1 |
+| `infoq-fig6-pipeline-flow` | Figure 1 | `.dot` | hand-written flowchart (2026-09-08) |
+| `infoq-fig7-variants` | Figure 2 | `make_infoq_figs.py` | `rerun/cadec-s0.json`, `cadec-s1.json`, `cadec.json`: rung-0 F1 per draw, rung-0 tokens and `parse_failed` |
+| `fig7-pipeline-cadec` | — (the table it replaced; still Figure 3 of `article-v3-CADEC.md`) | `.dot` | hand-written |
 
 To regenerate after the report changes:
 
