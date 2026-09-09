@@ -35,6 +35,56 @@ an effect.
 > operational use. There is no free-text entry point in the package: the runner
 > takes a corpus split identifier, never a string.
 
+## What it found
+
+| | |
+|---|---|
+| **measured** | 7 corpora · 5 model families (4B–20B) · ~50 cells · development and held-out splits |
+| **the free check** *(0 tokens)* | endorses a small lane that is **76–100%** right on clinical vocabularies, a large one that is **7–26%** right on gazetteers. The bands do not overlap, and reach runs opposite to accuracy |
+| **the paid layers** *(~500k tokens)* | self-correction, sampled voting and a second-model judge routed **zero** records on PsyTAR across three draws — coverage identical to the free layers alone |
+| **reproducible** | every cell published as scoreable output, scoring identically from this repository alone |
+
+**The one-line version.** Reliability layers do not make a model more accurate.
+They tell you which answers to trust — and the layer that does it best costs
+nothing, while the three that cost tokens changed almost no answer.
+
+**What surprised us.** The check that reaches furthest is the one to trust
+least, and the split is not about medicine: three ontologies behave alike and
+three corpora built on one gazetteer behave alike, in opposite directions. What
+the clinical vocabularies share is that the term and the writing are drawn from
+overlapping registers — *weight gain* is both what a patient writes and what the
+ontology calls it; *Britain* against *United Kingdom of Great Britain and
+Northern Ireland* is not.
+
+Full table: [**Five more corpora**](#five-more-corpora-as-additional-tests) ·
+every correction, dated: [**the decision log**](docs/decisions.md)
+
+
+<!-- toc:start -->
+
+## Contents
+
+- [Three checks this study produced](#three-checks-this-study-produced)
+- [The ladder](#the-ladder)
+- [Cost, in three measures that are never fused](#cost-in-three-measures-that-are-never-fused)
+- [Three corpora, and only two of them are yours to run](#three-corpora-and-only-two-of-them-are-yours-to-run)
+- [Run it yourself, without a licence](#run-it-yourself-without-a-licence)
+- [Quick start](#quick-start)
+- [What rung 1 costs and catches, measured before rung 0 exists](#what-rung-1-costs-and-catches-measured-before-rung-0-exists)
+- [What the full ladder measured](#what-the-full-ladder-measured)
+- [Watching a run](#watching-a-run)
+- [Provenance — what actually ran](#provenance-what-actually-ran)
+- [The ledger, and what it records that tools do not](#the-ledger-and-what-it-records-that-tools-do-not)
+- [Data — read before you clone](#data-read-before-you-clone)
+- [The 3 contracts (see `/schemas`)](#the-3-contracts-see-schemas)
+- [Repo map](#repo-map)
+- [Status](#status)
+- [Five more corpora, as additional tests](#five-more-corpora-as-additional-tests)
+- [The three checks, in detail](#the-three-checks-in-detail)
+- [Licence](#licence)
+
+<!-- toc:end -->
+
 ## Three checks this study produced
 
 <p align="center">
@@ -112,7 +162,7 @@ results rather than reconstructed afterwards.
 
 ## Three corpora, and only two of them are yours to run
 
-*This is the article's scope. Five more were added between 2026-09-01 and
+*This is the article's scope. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Six more were measured and are in [Five more corpora](#five-more-corpora-as-additional-tests) below — do not stop here and conclude the study covers three. Five more were added between 2026-09-01 and
 2026-09-07 and are summarised further down — they test whether the claims
 below hold anywhere else.*
 
