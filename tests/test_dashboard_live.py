@@ -110,7 +110,11 @@ def corpus() -> dict[str, Document]:
     m = GoldMention(doc_id="LIVE.1", index=0, entity_type=REACTION,
                     cadec_type="ADR", text="rectal bleed", spans=[(17, 29)],
                     sct=["12063002"], gold_kind="single")
-    return {"LIVE.1": Document("LIVE.1", "ARTHROTEC", TEXT, [m]),
+    # a second gold mention the extractor never quotes: a MISS in the diff
+    m2 = GoldMention(doc_id="LIVE.1", index=1, entity_type=REACTION,
+                     cadec_type="ADR", text="today", spans=[(30, 35)],
+                     sct=["213257006"], gold_kind="single")
+    return {"LIVE.1": Document("LIVE.1", "ARTHROTEC", TEXT, [m, m2]),
             "TST.1": Document("TST.1", "LIPITOR", "held out text.", [])}
 
 
@@ -191,7 +195,7 @@ def test_a_corpus_document_is_scored_against_its_gold(runner):
     res = runner.start(doc_id="LIVE.1", through_rung=2).result
     assert res["source"] == "corpus" and res["split"] == "dev"
     assert res["doc_id"] == "LIVE.1" and res["text"] == TEXT
-    assert [g["record_id"] for g in res["gold"]] == ["LIVE.1#0"]
+    assert [g["record_id"] for g in res["gold"]] == ["LIVE.1#0", "LIVE.1#1"]
     tl = {row["rung"]: row for row in res["records"][0]["timeline"]}
     assert tl[1]["outcome"] == "incorrect" and tl[1]["gold_codes"] == ["12063002"]
     assert tl[2]["outcome"] == "correct", "rung 2's correction is credited to rung 2"
@@ -331,3 +335,162 @@ def test_background_mode_reports_running_then_done(state, fake_models):
         time.sleep(0.05)
     assert job.status == "done", job.error
     assert job.result["order_run"] == [0, 1]
+
+
+# --- the rung 0 path, per keyword (2026-09-09, owner's round 2) -------------
+# Figure 1's stations — INPUT → FIND → RETRIEVE → PICK → RESOLVE → OUTPUT —
+# rebuilt for ONE record from what rung 0 recorded on it and the two calls
+# it made, so a reader can click a keyword and see what happened to it.
+
+from dashboard.live import rung0_path  # noqa: E402
+
+S2_FIND = {"mentions": [
+    {"span_text": "pounding headache by the afternoon", "context": "and a",
+     "negated": False, "confidence": 0.99},
+    {"span_text": "no stomach pain", "context": "but so far", "negated": True,
+     "confidence": 0.99},
+    {"span_text": "knee", "context": "for my", "negated": False, "confidence": 0.99},
+]}
+S2_PICK_PROMPT = (
+    'reaction 0: "pounding headache by the afternoon"\n     [0] pounding headache\n'
+    '     [1] throbbing headache\n\nreaction 1: [denied] "no stomach pain"\n'
+    '     [0] stomach pain\n     [1] stomach normal\n\nreaction 2: "knee"\n'
+    '     [0] knee gives way\n     [1] knee pain\n\nReturn JSON\n\nPOST:\nx'
+)
+S2_PICK = {"picks": [{"reaction": 0, "choice": 1}, {"reaction": 1, "choice": 1}]}
+
+
+def s2_calls():
+    return [
+        {"call_index": 0, "mode": "S2", "prompt": "FIND\n\nPOST:\nx",
+         "raw": json.dumps(S2_FIND), "normalised": json.dumps(S2_FIND)},
+        {"call_index": 1, "mode": "S2-pick", "prompt": S2_PICK_PROMPT,
+         "raw": json.dumps(S2_PICK), "normalised": json.dumps(S2_PICK)},
+    ]
+
+
+def s2_record(**checks):
+    base = {"rung0_step": "S2", "offsets": "context_unique", "negated": False,
+            "r0_negated": False, "rung0_retrieval": "dense",
+            "rung0_menu_order": "score", "label_source": "shortlist",
+            "code_source": "shortlist", "span_grounded": True}
+    base.update(checks)
+    return {"record_id": "D#1", "text": "pounding headache", "spans": [[96, 113]],
+            "sct": "162308004", "sct_label": "throbbing headache", "checks": base}
+
+
+def test_rung0_path_walks_find_retrieve_pick_resolve_for_one_record():
+    rec = s2_record(
+        candidates=[{"i": 0, "code": "1", "label": "pounding headache", "score": .9, "via": "dense"},
+                    {"i": 1, "code": "162308004", "label": "throbbing headache", "score": .8, "via": "dense"}],
+        span_untrimmed="pounding headache by the afternoon", span_trimmed=True)
+    p = rung0_path(rec, s2_calls())
+    steps = {s["id"]: s for s in p["steps"]}
+    assert [s["id"] for s in p["steps"]] == \
+        ["input", "find", "retrieve", "pick", "resolve", "trim", "output"]
+    assert steps["find"]["state"] == "done"
+    assert steps["find"]["mention"]["span_text"] == "pounding headache by the afternoon"
+    assert steps["find"]["call_index"] == 0
+    assert steps["retrieve"]["state"] == "done" and steps["retrieve"]["n"] == 2
+    assert steps["retrieve"]["retrieval"] == "dense"
+    assert steps["pick"]["state"] == "done"
+    assert steps["pick"]["reaction"] == 0 and steps["pick"]["choice"] == 1
+    assert steps["pick"]["chosen"]["label"] == "throbbing headache"
+    assert steps["pick"]["denied"] is False and steps["pick"]["call_index"] == 1
+    assert steps["resolve"]["sct"] == "162308004"
+    assert steps["trim"]["state"] == "done"
+    assert steps["trim"]["from"] == "pounding headache by the afternoon"
+    assert steps["trim"]["to"] == "pounding headache"
+    assert steps["output"]["text"] == "pounding headache"
+
+
+def test_rung0_path_names_the_slot0_fallback_when_the_model_never_picked():
+    """The B4 finding: `_fill_from_menu` writes menu line 0 when the reply
+    skipped the reaction. That must read as a FALLBACK, never as a pick."""
+    rec = s2_record(candidates=[{"i": 0, "code": "250102002", "label": "knee gives way",
+                                 "score": .87, "via": "dense"},
+                                {"i": 1, "code": "2", "label": "knee pain", "score": .8, "via": "dense"}],
+                    no_pick=True, pick_fallback="gap")
+    rec.update(text="knee", spans=[[43, 47]], sct="250102002", sct_label="knee gives way")
+    p = rung0_path(rec, s2_calls())
+    pick = next(s for s in p["steps"] if s["id"] == "pick")
+    assert pick["state"] == "fallback"
+    assert pick["reaction"] == 2 and pick["choice"] is None
+    assert pick["fallback"] == "gap" and pick["chosen"]["i"] == 0
+    assert "never answered" in pick["detail"]
+    trim = next(s for s in p["steps"] if s["id"] == "trim")
+    assert trim["state"] == "unchanged"
+
+
+def test_rung0_path_carries_the_denied_marker_the_pick_saw():
+    rec = s2_record(candidates=[{"i": 0, "code": "a", "label": "stomach pain", "score": .9, "via": "dense"},
+                                {"i": 1, "code": "300305002", "label": "stomach normal", "score": .8, "via": "dense"}],
+                    negated=True, r0_negated=True)
+    rec.update(text="no stomach pain", sct="300305002", sct_label="stomach normal")
+    p = rung0_path(rec, s2_calls())
+    steps = {s["id"]: s for s in p["steps"]}
+    assert steps["find"]["mention"]["negated"] is True
+    assert steps["pick"]["denied"] is True and steps["pick"]["choice"] == 1
+
+
+def test_rung0_path_without_a_menu_says_which_stations_the_step_has():
+    """Mode A / S0 have no retrieve and no pick — those stations are
+    `not_in_step`, never faked as done."""
+    rec = {"record_id": "D#0", "text": "rectal bleed", "spans": [[17, 29]],
+           "sct": "999999", "sct_label": None,
+           "checks": {"rung0_mode": "A", "offsets": "exact"}}
+    calls = [{"call_index": 0, "mode": "A", "prompt": "p", "raw": json.dumps(EXTRACT),
+              "normalised": json.dumps(EXTRACT)}]
+    p = rung0_path(rec, calls)
+    steps = {s["id"]: s for s in p["steps"]}
+    assert steps["find"]["state"] == "done"
+    assert steps["find"]["mention"]["span_text"] == "rectal bleed"
+    assert steps["retrieve"]["state"] == "not_in_step"
+    assert steps["pick"]["state"] == "not_in_step"
+    assert steps["resolve"]["sct"] == "999999"
+
+
+def test_rung0_path_reads_the_record_as_rung_0_left_it_not_as_rung_5_did(runner):
+    """Rung 5 withholds the code (sct -> None). The rung 0 stations describe
+    rung 0, so RESOLVE and OUTPUT must still carry the code it resolved."""
+    res = runner.start(text=TEXT, through_rung=6).result
+    rec = res["records"][0]
+    assert rec["sct"] is None and rec["checks"]["withheld"]["sct"]
+    steps = {s["id"]: s for s in rec["r0_path"]["steps"]}
+    assert steps["resolve"]["state"] == "done" and steps["resolve"]["sct"] == "999999"
+    assert steps["output"]["sct"] == "999999"
+
+
+def test_live_payload_carries_a_rung0_path_per_record(runner):
+    res = runner.start(text=TEXT, through_rung=1).result
+    p = res["records"][0]["r0_path"]
+    assert [s["id"] for s in p["steps"]][:2] == ["input", "find"]
+    assert next(s for s in p["steps"] if s["id"] == "find")["state"] == "done"
+
+
+# --- the diff against gold, for a corpus document (owner's round 2) ---------
+
+
+def test_corpus_document_view_pairs_every_gold_mention_with_its_prediction(runner):
+    """Found exact / found by overlap / missed, and spurious predictions —
+    the scorer's own pairing (`ladder.score._pair`), exact first, then
+    overlap over what is left, so the diff cannot disagree with the score."""
+    res = runner.start(doc_id="LIVE.1", through_rung=6).result
+    d = res["gold_diff"]
+    assert d["counts"] == {"gold": 2, "found_exact": 1, "found_overlap": 0,
+                           "missed": 1, "spurious": 0, "predictions": 1}
+    by = {p["gold"]["record_id"]: p for p in d["pairs"]}
+    hit = by["LIVE.1#0"]
+    assert hit["span"] == "exact" and hit["pred"] == "LIVE.1#0"
+    # rung 2 corrected the code; rung 5 then withheld it (BAND) — the answer
+    # the system HAS is right, and the diff says so rather than "no code"
+    assert hit["code"] == "withheld_correct"
+    assert hit["final_zone"] in ("ESCALATE", "ABSTAIN")
+    assert hit["pred_sct"] == "12063002"
+    miss = by["LIVE.1#1"]
+    assert miss["span"] == "missed" and miss["pred"] is None and miss["code"] is None
+    assert d["spurious"] == []
+
+
+def test_pasted_text_has_no_gold_diff(runner):
+    assert runner.start(text=TEXT, through_rung=1).result["gold_diff"] is None

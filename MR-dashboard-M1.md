@@ -58,6 +58,14 @@ absence renders as a stated degradation, never an error.
   nothing under `out/`, never appears in the runs list, refuses the test
   split, runs one at a time, and carries a "one document is not a
   measurement" caveat on every render. It is the one POST route.
+  **Round 2 (owner's review):** the view is per keyword — click a span in
+  the text or a chip to follow one record; rung 0 is shown station by
+  station (FIND → RETRIEVE → PICK → RESOLVE → TRIM → OUTPUT, from the
+  record's own checks and the two calls, a fallback shown as a fallback);
+  and a corpus document gets a diff against gold through the scorer's own
+  pairing (found exact / overlap / missed / spurious, code right or wrong,
+  a withheld right answer named as such), with the text coloured by
+  agreement.
 
 ### Hard constraints, each with a test
 
@@ -94,7 +102,7 @@ Still green after the refresh.
 
 ## Tests
 
-84 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
+93 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
 `test_dashboard_golden.py`, `test_dashboard_live.py`), all TDD'd. The live
 tests are CI-safe: scripted extractor and judge bound through the same
 `llm.for_rung` seam the run uses, the nine-concept registry fixture, rung 0's
