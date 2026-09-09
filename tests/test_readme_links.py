@@ -110,3 +110,23 @@ def test_three_checks_doc_describes_the_checks_that_exist() -> None:
         assert must in doc, must
     assert (ROOT / "docs" / "three-checks.md") in FILES, \
         "the link check must cover it too"
+
+
+def test_hero_figure_carries_verdicts_not_numbers() -> None:
+    """docs/figures/fig0-hero.png is the first thing a visitor sees. Its
+    per-rung notes were CADEC base-run literals typed into fig0.py, and by
+    2026-09-09 the ladder table beneath it quoted different figures for the
+    same rungs from the matrix and the held-out split. The hero states the
+    verdict per rung by colour; the table carries the numbers. Keep it so."""
+    src = (ROOT / "docs" / "figures" / "fig0.py").read_text()
+    block = src.split("RUNGS = [", 1)[1].split("]", 1)[0]
+    notes = re.findall(r'\(\s*"[^"]*",\s*\w+,\s*"([^"]*)"\s*\)', block)
+    assert len(notes) == 7, block
+    assert not any(re.search(r"\d", n) for n in notes), notes
+    readme = (ROOT / "README.md").read_text()
+    alt = re.search(r'fig0-hero\.png"[^>]*alt="([^"]*)"', readme, re.S).group(1)
+    # The alt text describes the drawing: the four legend categories, no counts.
+    for phrase in ("paid for itself", "changed nothing", "read by nothing",
+                   "no measured effect"):
+        assert phrase in alt, phrase
+    assert not re.search(r"\b(two|three|four|five)\b", alt), alt

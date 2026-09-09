@@ -57,7 +57,8 @@ exceptions, drawn by script:
 
 | figure | script | data |
 |---|---|---|
-| `fig0-hero`, `fig2-flat` | `fig0.py`, `fig2.py` | numbers inside the script, from `docs/decisions.md` |
+| `fig0-hero` | `fig0.py` | no numbers — one verdict colour per rung, matching the README table; `tests/test_readme_links.py` keeps it that way |
+| `fig2-flat` | `fig2.py` | numbers inside the script, from `docs/decisions.md` |
 | `figA`–`figE` | `build_geo_figures.py` | numbers inside the script, from the geo arm's decisions entries |
 
 Those three scripts still carry their numbers as literals. They predate the

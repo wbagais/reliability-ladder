@@ -1,6 +1,6 @@
 <p align="center">
   <img src="docs/figures/fig0-hero.png" width="820"
-       alt="Seven ladder rungs rendered as beads, coloured by what each layer bought: two paid for themselves, two cost tokens and changed nothing, three had no measured effect.">
+       alt="Seven ladder rungs rendered as beads, each coloured by what the layer bought: green paid for itself (check, refuse), amber cost tokens and changed nothing (vote), blue carries real signal read by nothing (judge), grey had no measured effect (extract, self-correct, person).">
 </p>
 
 <h1 align="center">The AI Reliability Ladder</h1>

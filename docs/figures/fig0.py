@@ -5,19 +5,22 @@ from matplotlib.patches import Circle, FancyBboxPatch
 
 GREEN, AMBER, GREY, RED, BLUE = "#2d9e5f", "#e8b13a", "#c9c9c9", "#c94f4f", "#4a7fb5"
 
-# rung 0..6 : (label, colour, note)
+# rung 0..6 : (label, colour, note). The colour IS the verdict; the notes are
+# deliberately empty. They used to carry CADEC base-run literals ("75-82% lane",
+# "38-41 -> 4-6 err / 100") and drifted from the README table beneath the image
+# within a week. Numbers live in the table and the article, once each.
 RUNGS = [
     ("0  extract",      GREY,  ""),
-    ("1  check",        GREEN, "free · 75-82% lane"),
-    ("2  self-correct", GREY,  "fired 2-3x, rescued none"),
-    ("3  vote",         AMBER, "net +1, -1, -1"),
-    ("4  judge",        BLUE,  "3.4-4.2x shown the menu \u00b7 read by nothing"),
-    ("5  refuse",       GREEN, "38-41 -> 4-6 err / 100"),
-    ("6  person",       GREY,  "177-187 of 230-238"),
+    ("1  check",        GREEN, ""),
+    ("2  self-correct", GREY,  ""),
+    ("3  vote",         AMBER, ""),
+    ("4  judge",        BLUE,  ""),
+    ("5  refuse",       GREEN, ""),
+    ("6  person",       GREY,  ""),
 ]
 
-fig, ax = plt.subplots(figsize=(11.2, 5.0))
-ax.set_xlim(0, 11.2); ax.set_ylim(0, 5.0); ax.axis("off")
+fig, ax = plt.subplots(figsize=(9.6, 5.0))
+ax.set_xlim(0, 9.6); ax.set_ylim(0, 5.0); ax.axis("off")
 fig.patch.set_facecolor("white")
 
 def bead(x, y, r, c, edge="#00000022"):
