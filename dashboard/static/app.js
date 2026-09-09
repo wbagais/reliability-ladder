@@ -1,4 +1,4 @@
-/* Ladder Workbench M1 — read-only frontend.
+/* Ladder Workbench — M1 read-only lens + the Live run tab (2026-09-09).
    Visual laws (spec): provenance footer on every figure/table/drill-down;
    per-rung numbers over the denominator the ledger names; could_not_run and
    absent measurements render as a HATCH, never a color or a zero; no chart
@@ -64,6 +64,7 @@ const S = {
   resultsRun: null, baseline: null, span: "exact",
   walkRun: null, walkDoc: null, walkSpan: "exact", walkGold: false,
   traceRun: null, traceSpan: "exact", traceFilter: null,
+  live: { options: null, job: null, timer: null },
 };
 
 /* ---------------- boot + tab bar ---------------- */
@@ -77,7 +78,7 @@ async function boot() {
     const b = document.createElement("button");
     b.textContent = t.label;
     b.dataset.id = t.id;
-    if (t.milestone !== "M1") {
+    if (!t.shipped) {
       b.className = "later";
       b.dataset.milestone = t.milestone;
     }
@@ -108,22 +109,24 @@ function showTab(t) {
   document.querySelectorAll(".tab").forEach((el) => (el.hidden = true));
   document.querySelectorAll(".tabbar button").forEach(
     (b) => b.classList.toggle("active", b.dataset.id === t.id));
-  if (t.milestone !== "M1") {
+  if (!t.shipped) {
     $("tab-later").hidden = false;
     $("later-title").textContent = t.label;
     $("later-note").textContent =
-      `Planned for milestone ${t.milestone}. M1 is the read-only lens: ` +
-      `no launcher, no writes. The tab bar and data layer are structured ` +
-      `so this lands without rework.`;
+      `Planned for milestone ${t.milestone}. Shipped so far: the M1 ` +
+      `read-only lens and the Live run tab (one document through the real ` +
+      `rungs, nothing written under out/). The tab bar and data layer are ` +
+      `structured so this lands without rework.`;
     return;
   }
   S.tab = t.id;
   $(`tab-${t.id}`).hidden = false;
   ({explorer: renderExplorer, results: renderResults,
-    walkthrough: renderWalkthrough, trace: renderTrace}[t.id])();
+    walkthrough: renderWalkthrough, trace: renderTrace, live: renderLive}[t.id])();
 }
 
 function wireControls() {
+  wireLive();
   $("results-run").onchange = (e) => { S.resultsRun = e.target.value; renderResults(); };
   $("results-baseline").onchange = (e) => { S.baseline = e.target.value || null; renderResults(); };
   $("results-span").onchange = (e) => { S.span = e.target.value; renderResults(); };
@@ -1259,6 +1262,247 @@ async function renderWalkDoc() {
         </dl></details>
     </div>`;
   }).join("") + provFooter(wt.provenance);
+}
+
+/* ================= Live run — one document, the real rungs ================= */
+
+const LIVE_EXAMPLE =
+  "Started the tablets three weeks ago for my knee. Since then constant " +
+  "nausea most mornings and a pounding headache by the afternoon, but so far " +
+  "no stomach pain, which is what I was warned about.";
+
+const RUNG_NAMES = { 0: "bare LLM", 1: "deterministic", 2: "self-correction",
+  3: "voting", 4: "LLM judge", 5: "abstention", 6: "human loop" };
+
+function wireLive() {
+  $("live-source").onchange = () => {
+    const corpus = $("live-source").value === "corpus";
+    $("live-split-wrap").hidden = !corpus;
+    $("live-doc-wrap").hidden = !corpus;
+    $("live-text").hidden = corpus;
+    if (corpus) liveFillDocs();
+  };
+  $("live-split").onchange = liveFillDocs;
+  $("live-run").onclick = liveStart;
+  $("live-through").onchange = liveDials;
+  if (!$("live-text").value) $("live-text").value = LIVE_EXAMPLE;
+}
+
+async function renderLive() {
+  if (S.live.options) return;
+  try {
+    const o = await api("/api/live/options");
+    S.live.options = o;
+    const th = $("live-through");
+    th.innerHTML = o.rung_order.map((n) =>
+      `<option value="${n}" ${n === 1 ? "selected" : ""}>rung ${n} — ${RUNG_NAMES[n] || ""}</option>`).join("");
+    const sp = $("live-split");
+    sp.innerHTML = o.splits_offered.map((s) => `<option value="${s}">${s}</option>`).join("");
+    if (!o.corpus_available) {
+      $("live-source").querySelector('[value="corpus"]').disabled = true;
+      $("live-source").title = "corpus unavailable on this machine";
+    }
+    if (!o.registry_available)
+      $("live-status").textContent = "no SNOMED index on this machine — rung 0's S2 pick and rung 1 will refuse";
+    liveDials();
+  } catch (e) {
+    $("live-result").innerHTML = `<div class="banner warn">${esc(e.message)}</div>`;
+  }
+}
+
+function liveDials() {
+  const o = S.live.options;
+  if (!o) return;
+  const through = Number($("live-through").value);
+  const run = o.rung_order.slice(0, o.rung_order.indexOf(through) + 1);
+  const bits = run.map((n) => {
+    const c = o.rungs[String(n)] || {};
+    let note = "";
+    if (n === 0) note = `step ${c.rung0_step ?? "bare"}, retrieval ${c.rung0_retrieval ?? "—"} → 1 find + 1 pick call (${o.models.extractor})`;
+    if (n === 1) note = `mode ${c.mode ?? "observe"} — free, no model`;
+    if (n === 2) note = `fires only on a rung-1 REJECT with a statable fact — one call per such record`;
+    if (n === 3) note = c.enabled === false ? "DISABLED in the manifest (a recorded state)"
+      : `k=${c.k ?? "?"} samples at temperature ${c.temperature ?? "?"} — ${c.k ?? "k"} more extractions of the whole text`;
+    if (n === 4) note = `judge ${o.models.judge}, menu ${c.menu ?? "off"} — one call per record`;
+    if (n === 5) note = `abstains on ${(c.abstain_zones || ["BAND"]).join("/")}${c.abstain_on_reject === false ? "" : " and REJECT"} — free`;
+    if (n === 6) note = `${c.mode ?? "simulated"} at ${c.minutes_per_record ?? "?"} min/record — a count, priced at the declared rate`;
+    return `<div><b>r${n}</b> ${esc(RUNG_NAMES[n])}: ${esc(note)}</div>`;
+  });
+  $("live-dials").innerHTML = bits.join("") +
+    `<div>temperature ${esc(o.temperature)} · calls go through .llm_cache, so the
+     same text twice is a hit (shown as such) · the extractor is a 20B reasoning
+     model: a cold rung-0 call takes tens of seconds to minutes${o.busy ? " · <b>a live run is in progress</b>" : ""}</div>`;
+}
+
+async function liveFillDocs() {
+  const split = $("live-split").value;
+  const sel = $("live-doc");
+  sel.innerHTML = `<option>loading…</option>`;
+  try {
+    const d = await api("/api/corpus/docs", { split });
+    sel.innerHTML = (d.docs || []).map((x) =>
+      `<option value="${esc(x.doc_id)}">${esc(x.doc_id)} (${x.n_mentions} gold)</option>`).join("")
+      || `<option value="">no documents</option>`;
+  } catch (e) {
+    sel.innerHTML = `<option value="">${esc(e.message)}</option>`;
+  }
+}
+
+async function liveStart() {
+  const body = { through_rung: Number($("live-through").value) };
+  if ($("live-source").value === "corpus") body.doc_id = $("live-doc").value;
+  else body.text = $("live-text").value;
+  $("live-result").innerHTML = "";
+  $("live-run").disabled = true;
+  $("live-status").textContent = "starting…";
+  try {
+    const r = await fetch("/api/live/run", { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.statusText);
+    S.live.job = j;
+    livePoll(j.job_id);
+  } catch (e) {
+    $("live-run").disabled = false;
+    $("live-status").textContent = "";
+    $("live-result").innerHTML = `<div class="banner warn">refused: ${esc(e.message)}</div>`;
+  }
+}
+
+function liveProgress(j) {
+  const p = j.progress || {};
+  const steps = j.order_run.map((n) => {
+    const cls = p.rungs_done.includes(n) ? "done" : (p.rung_running === n ? "running" : "");
+    const calls = p.calls && p.calls[String(n)] !== undefined ? ` · ${p.calls[String(n)]} call${p.calls[String(n)] === 1 ? "" : "s"}` : "";
+    return `<span class="step ${cls}">r${n} ${esc(RUNG_NAMES[n])}${calls}</span>`;
+  }).join("");
+  $("live-progress").innerHTML = `<div class="live-progress">${steps}
+    <span class="muted">${p.elapsed_s ?? 0}s</span></div>`;
+}
+
+async function livePoll(id) {
+  try {
+    const j = await api("/api/live/job", { id });
+    liveProgress(j);
+    if (j.status === "running") {
+      $("live-status").textContent = j.progress.rung_running !== null
+        ? `running rung ${j.progress.rung_running}…` : "running…";
+      S.live.timer = setTimeout(() => livePoll(id), 1500);
+      return;
+    }
+    $("live-run").disabled = false;
+    if (j.status === "error") {
+      $("live-status").textContent = "failed";
+      $("live-result").innerHTML = `<div class="banner warn">the run died — ${esc(j.error)}</div>`;
+      return;
+    }
+    $("live-status").textContent = `done in ${j.progress.elapsed_s}s`;
+    renderLiveResult(j.result);
+  } catch (e) {
+    $("live-run").disabled = false;
+    $("live-status").textContent = "";
+    $("live-result").innerHTML = `<div class="banner warn">${esc(e.message)}</div>`;
+  }
+}
+
+function renderLiveResult(res) {
+  const marks = [];
+  for (const r of res.records)
+    if (!r.dropped) for (const [a, b] of r.spans || [])
+      if (a >= 0) marks.push({ start: a, end: b, cls: "pred-span",
+        title: `${r.record_id} → ${r.sct ?? "no code"} (${r.zone})` });
+  if (res.gold)
+    for (const m of res.gold) for (const [a, b] of m.spans)
+      if (a >= 0) marks.push({ start: a, end: b,
+        cls: "gold-span" + (m.excluded ? " excluded" : ""),
+        title: `GOLD ${m.record_id} → ${m.sct.join(",") || "concept-less"}` });
+  const finalRung = res.order_run[res.order_run.length - 1];
+  const cards = res.records.map((r) => {
+    const tl = r.timeline || [];
+    const rows = tl.map((n) => `<tr class="${n.changed_this_rung ? "changed" : ""}">
+      <td class="l"><b>r${n.rung}</b> ${esc(RUNG_NAMES[n.rung])}</td>
+      <td class="l">${n.dropped_this_rung ? "<i>dropped</i>" : esc(n.sct ?? "no code")}
+        ${n.sct_label ? `<span class="muted">“${esc(n.sct_label)}”</span>` : ""}</td>
+      <td class="l">${n.zone ? `<span class="zone ${esc(n.zone)}">${esc(n.zone)}</span>` : "—"}
+        ${n.reason ? `<span class="muted">${esc(n.reason)}</span>` : ""}</td>
+      <td class="l">${n.r1_verdict ? `r1 ${esc(n.r1_verdict)}${n.r1_reason ? ` (${esc(n.r1_reason)})` : ""}` : ""}
+        ${n.r4_verdict ? ` · r4 ${esc(n.r4_verdict)}` : ""}</td>
+      <td class="l">${n.created_this_rung ? "created" : (n.changed_this_rung
+        ? "changed: " + esc((n.changed_fields || []).join(", ")) : "unchanged")}</td>
+      <td class="l">${res.gold
+        ? `<span class="outcome ${esc(n.outcome)}">${esc(n.outcome)}</span>
+           <span class="muted">/ ${esc(n.outcome_overlap)} overlap${n.gold_codes && n.gold_codes.length ? ` · gold ${esc(n.gold_codes.join(","))}` : ""}</span>`
+        : `<span class="muted">unscored — pasted text has no gold</span>`}</td></tr>`).join("");
+    return `<div class="record-card">
+      <div><b>${esc(r.record_id)}</b>
+        ${r.dropped ? '<span class="zone REJECT">dropped before the last rung</span>'
+          : `<span class="zone ${esc(r.zone)}">${esc(r.zone)}</span>`}
+        “${esc(r.text)}” → ${esc(r.sct ?? "no code")}
+        ${r.sct_label ? `<span class="muted">“${esc(r.sct_label)}”</span>` : ""}
+        ${r.checks && r.checks.withheld ? `<span class="muted">· withheld answer ${esc(r.checks.withheld.sct)}</span>` : ""}
+        ${r.checks && (r.checks.r0_negated ?? r.checks.negated) ? '<span class="chip signal" style="display:inline">denied in the text</span>' : ""}</div>
+      <table class="tl-table"><tr><th class="l">rung</th><th class="l">code after this rung</th>
+        <th class="l">zone</th><th class="l">verdicts</th><th class="l">this rung</th>
+        <th class="l">vs gold (exact / overlap)</th></tr>${rows}</table>
+      <details><summary>recorded checks</summary>
+        <pre class="raw">${esc(JSON.stringify(r.checks || {}, null, 1))}</pre></details>
+    </div>`;
+  }).join("") || `<div class="banner warn">rung 0 produced no records for this text
+    (see its aggregate and raw reply below — a parse failure or an empty answer is a real outcome)</div>`;
+
+  const panels = res.order_run.map((n) => {
+    const p = res.rungs[String(n)];
+    const cost = p.cost;
+    const agg = p.aggregate || {};
+    const calls = (p.calls || []).map((c) => `<details class="call-card">
+      <summary>call ${c.call_index} · <b>${esc(c.mode)}</b> · ${esc(c.model)}
+        · ${c.tokens_in}+${c.tokens_out} tok · ${Number(c.seconds).toFixed(1)}s
+        ${c.cached ? '<span class="badge cached">cached</span>' : ""}
+        ${c.timed_out ? '<span class="badge bad">timed out</span>' : ""}
+        ${c.truncated ? '<span class="badge bad">truncated</span>' : ""}
+        ${c.sample_index ? `<span class="badge">sample ${c.sample_index}</span>` : ""}
+        ${c.temperature ? `<span class="badge">t=${c.temperature}</span>` : ""}</summary>
+      <div class="muted">prompt (local-only, never exported):</div>
+      <pre class="raw">${esc(c.prompt)}</pre>
+      <div class="muted">raw reply:</div><pre class="raw">${esc(c.raw)}</pre>
+      ${c.normalised !== c.raw ? `<div class="muted">after the transport repairs (fence / brace / unwrap):</div><pre class="raw">${esc(c.normalised)}</pre>` : ""}
+    </details>`).join("");
+    const aggHtml = agg.disabled ? `<span class="zone NEW">disabled in the manifest — a recorded state, not a silent skip</span>`
+      : `<details><summary>aggregate the rung reported</summary><pre class="raw">${esc(JSON.stringify(agg, null, 1))}</pre></details>`;
+    const routed = n === 6 ? `<div class="card"><div class="big">${cost.routed_to_person}</div>
+        <div class="muted">routed to a person (the headline cost)</div></div>
+      <div class="card"><div class="big">${cost.human_minutes}</div>
+        <div class="muted">minutes at the declared rate</div></div>` : "";
+    return `<div class="rung-panel"><h4>r${n} ${esc(RUNG_NAMES[n])}
+      <span class="muted">· ${p.ledger.length} ledger row${p.ledger.length === 1 ? "" : "s"}
+      · wall ${cost.wall_s ?? "—"}s</span></h4>
+      <div class="cards">
+        <div class="card"><div class="big">${cost.tokens}</div><div class="muted">tokens (${cost.tokens_in} in + ${cost.tokens_out} out)</div></div>
+        <div class="card"><div class="big">${cost.api_calls}</div><div class="muted">model calls</div></div>
+        <div class="card"><div class="big">${cost.latency_p95_ms === null ? "·no value·" : (cost.latency_p95_ms / 1000).toFixed(1) + "s"}</div>
+          <div class="muted">latency p95 (cold calls only)</div></div>
+        ${routed}
+      </div>
+      ${aggHtml}
+      ${calls || `<div class="muted">no model calls — this rung has no model</div>`}
+    </div>`;
+  }).join("");
+
+  const pv = res.provenance;
+  $("live-result").innerHTML = `
+    ${caveatChips(res.caveats)}
+    <h3>the text <span class="muted">· ${esc(res.source === "corpus" ? res.doc_id + " (" + res.split + ")" : "pasted")}
+      · ran rungs ${res.order_run.join(",")} · ${res.calls_total} model call${res.calls_total === 1 ? "" : "s"}${res.calls_cached ? `, ${res.calls_cached} from cache` : ""}</span></h3>
+    <div class="doc-text">${highlight(res.text, marks)}</div>
+    <div class="muted">blue = records as rung ${finalRung} left them${res.gold ? "; green = gold" : ""}</div>
+    <h3>each record, rung by rung <span class="muted">(the state table the run wrote — a left bar marks a rung that changed the record)</span></h3>
+    ${cards}
+    <h3>each rung: cost and every model call</h3>
+    ${panels}
+    <div class="prov">live ${esc(pv.run_id)} · split ${esc(pv.split)} · backend ${esc(pv.backend)}
+      · manifest ${esc(pv.manifest_hash)} · models ${esc(JSON.stringify(pv.models))}
+      · temperature ${esc(pv.temperature)} · git ${esc(pv.git && pv.git.sha ? pv.git.sha.slice(0, 8) : "—")}${pv.git && pv.git.dirty ? " (dirty)" : ""}
+      · cache ${esc(pv.llm_cache)} · scratch deleted</div>`;
 }
 
 /* ================= R5 — traceability ================= */

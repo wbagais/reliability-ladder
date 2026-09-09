@@ -66,11 +66,20 @@ def client(tmp_path) -> TestClient:
 # --- C2: read-only, no run invocation ---------------------------------------
 
 
+#: The one non-GET route: the live run (2026-09-09). It spends model calls
+#: and writes to a scratch directory that is deleted, never to out/ — see
+#: tests/test_dashboard_live.py for what it may and may not do.
+NON_GET_ALLOWED = {"/api/live/run"}
+
+
 def test_every_route_is_get_only(client):
     for route in client.app.routes:
         methods = getattr(route, "methods", None)
-        if methods:
+        if methods and route.path not in NON_GET_ALLOWED:
             assert methods <= {"GET", "HEAD"}, f"{route.path} allows {methods}"
+    posts = {r.path for r in client.app.routes
+             if "POST" in (getattr(r, "methods", None) or set())}
+    assert posts == NON_GET_ALLOWED
 
 
 def test_no_dashboard_module_can_launch_anything():
@@ -566,3 +575,56 @@ def test_llm_view_is_not_exportable(client):
     r = client.get("/api/export/record_llm",
                    params={"run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"})
     assert r.status_code == 404
+
+
+# --- 2026-09-09 refresh: traced calls beat reconstruction --------------------
+
+
+def _write_calls(dir: Path, run_id: str, rung: int, rows: list[dict]) -> None:
+    (dir / f"{run_id}.r{rung}.calls.jsonl").write_text(
+        "\n".join(json.dumps(r) for r in rows) + "\n")
+
+
+def test_llm_view_serves_traced_calls_when_the_run_wrote_them(client, tmp_path):
+    """A run since 2026-09-03 leaves <run>.r<N>.calls.jsonl with the FULL
+    prompt and raw reply of every call. When it exists the view reads it —
+    the request-hash reconstruction is the fallback for older runs only."""
+    out = tmp_path / "out"
+    _write_calls(out, "syn-run-1", 0, [
+        {"call_index": 0, "rung": 0, "role": "extractor", "model": "ollama/x",
+         "mode": "find", "doc_id": "SYN.1", "prompt": "FIND\n\nPOST:\n" + SYN_TEXT,
+         "raw": '{"mentions": []}', "normalised": '{"mentions": []}',
+         "cached": False, "tokens_in": 10, "tokens_out": 3, "seconds": 1.5,
+         "timed_out": False, "truncated": False, "temperature": 0.0,
+         "sample_index": 0},
+        {"call_index": 1, "rung": 0, "role": "extractor", "model": "ollama/x",
+         "mode": "pick", "doc_id": "SYN.2", "prompt": "other doc",
+         "raw": "{}", "normalised": "{}", "cached": True, "tokens_in": 1,
+         "tokens_out": 1, "seconds": 0.0, "timed_out": False,
+         "truncated": False, "temperature": 0.0, "sample_index": 0},
+    ])
+    _write_calls(out, "syn-run-1", 4, [
+        {"call_index": 0, "rung": 4, "role": "judge", "model": "ollama/j",
+         "mode": "judge", "doc_id": "SYN.1",
+         "prompt": "JUDGE 1111111111 pretend ache", "raw": '{"span_ok": true}',
+         "normalised": '{"span_ok": true}', "cached": False, "tokens_in": 5,
+         "tokens_out": 2, "seconds": 0.2, "timed_out": False,
+         "truncated": False, "temperature": 0.0, "sample_index": 0},
+    ])
+    r = client.get("/api/run/record_llm", params={
+        "run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"}).json()
+    assert r["local_only"] is True
+    assert r["source"] == "call_trace"
+    assert [(c["rung"], c["status"]) for c in r["calls"]] == \
+        [(0, "traced"), (4, "traced")]
+    c0 = r["calls"][0]
+    assert c0["prompt"].endswith(SYN_TEXT) and c0["reply"] == '{"mentions": []}'
+    assert c0["cached"] is False and c0["prompt_tokens"] == 10
+    assert c0["call"] == "find"
+    assert "other doc" not in json.dumps(r), "another document's call leaked in"
+
+
+def test_llm_view_falls_back_to_reconstruction_without_call_traces(client):
+    r = client.get("/api/run/record_llm", params={
+        "run": "syn-run-1", "doc_id": "SYN.1", "spans": "32:44"}).json()
+    assert r["source"] == "reconstruction"

@@ -8,7 +8,7 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">Ladder Workbench <span class="pill">M1 · read-only</span></div>
+  <div class="brand">Ladder Workbench <span class="pill" title="M1 read-only lens + Live run; writes nothing under out/">M1 + live</span></div>
   <nav id="tabbar" class="tabbar"></nav>
 </header>
 
@@ -113,6 +113,37 @@
       <div class="col"><div id="trace-records" class="scrollbox"></div></div>
       <div class="col"><div id="trace-detail"></div></div>
     </div>
+  </section>
+
+  <section id="tab-live" class="tab" hidden>
+    <h2>Live run <span class="muted">one document through the real rungs — an
+      example of the mechanism, not a measurement</span></h2>
+    <div class="banner" id="live-intro">
+      The plan page's "Ladder demo" is a static picture over synthetic posts.
+      This tab runs the same ladder for real: your text (or a dev/pool document)
+      goes through <code>ladder.run.run_ladder</code> — rung 0 calls the
+      extractor, rung 1 checks the codes against the vocabulary, rung 2 states a
+      rejection back to the model, rung 3 votes, rung 4 asks the judge, rung 5
+      abstains, rung 6 prices the queue — into a scratch directory that is read
+      for this view and deleted. Nothing lands under <code>out/</code>, the runs
+      list never sees it, and the test split is refused.
+    </div>
+    <div class="controls">
+      <label>source <select id="live-source">
+        <option value="pasted">paste a text</option>
+        <option value="corpus">a corpus document (dev / pool)</option>
+      </select></label>
+      <label id="live-split-wrap" hidden>split <select id="live-split"></select></label>
+      <label id="live-doc-wrap" hidden>document <select id="live-doc"></select></label>
+      <label>through rung <select id="live-through"></select></label>
+      <button id="live-run">Run</button>
+      <span id="live-status" class="muted"></span>
+    </div>
+    <textarea id="live-text" rows="6" spellcheck="false"
+      placeholder="paste a patient-forum style post here (synthetic text is fine)"></textarea>
+    <div id="live-dials" class="muted"></div>
+    <div id="live-progress"></div>
+    <div id="live-result"></div>
   </section>
 
   <section id="tab-later" class="tab" hidden>

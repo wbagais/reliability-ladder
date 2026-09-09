@@ -1,5 +1,8 @@
-"""The read-only M1 API. Every route is GET (C2: this milestone launches
-nothing and writes nothing); every payload that carries a number carries
+"""The Workbench API. Every read route is GET; the ONE POST is the live run
+(`/api/live/run`, 2026-09-09), which runs a single document through the real
+rungs in-process into a scratch directory and writes nothing under `out/`
+(C2 still holds: nothing launches a process, nothing targets the test split,
+nothing produces a run). Every payload that carries a number carries
 provenance (C3) and the caveats its numbers demand (C4); exports live under
 /api/export/ and are scrubbed (C1); cost is three separate panels (C5).
 """
@@ -10,13 +13,14 @@ import io
 import json
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from dashboard import caveats as caveats_mod
 from dashboard import (corpus_views, dependencies, ledger_views, llm_view,
                        scoring, walkthrough)
+from dashboard.live import LiveError, LiveRunner
 from dashboard.provenance import provenance_for
 from dashboard.runsindex import RunInfo
 from dashboard.scrub import assert_clean, scrub_payload
@@ -26,21 +30,25 @@ from dashboard.util import format_span_param, parse_span_param
 STATIC_DIR = Path(__file__).parent / "static"
 
 #: The tab bar names later milestones so the layout is stable when they land
-#: (spec: structure the tab bar so they can be added). M1 ships the first four.
+#: (spec: structure the tab bar so they can be added). `shipped` is what the
+#: frontend reads; `milestone` is the label. M1 shipped the first four; the
+#: live run (2026-09-09) is the single-document half of M3's workbench.
 TABS = [
-    {"id": "explorer", "label": "Data explorer", "milestone": "M1"},
-    {"id": "results", "label": "Results", "milestone": "M1"},
-    {"id": "walkthrough", "label": "Walkthrough", "milestone": "M1"},
-    {"id": "trace", "label": "Traceability", "milestone": "M1"},
-    {"id": "workbench", "label": "Rung workbench", "milestone": "M3"},
-    {"id": "monitor", "label": "Run monitor", "milestone": "M3"},
-    {"id": "desk", "label": "Desk", "milestone": "M4"},
-    {"id": "demo", "label": "Demo", "milestone": "M2"},
+    {"id": "explorer", "label": "Data explorer", "milestone": "M1", "shipped": True},
+    {"id": "results", "label": "Results", "milestone": "M1", "shipped": True},
+    {"id": "walkthrough", "label": "Walkthrough", "milestone": "M1", "shipped": True},
+    {"id": "trace", "label": "Traceability", "milestone": "M1", "shipped": True},
+    {"id": "live", "label": "Live run", "milestone": "M3", "shipped": True},
+    {"id": "workbench", "label": "Rung workbench", "milestone": "M3", "shipped": False},
+    {"id": "monitor", "label": "Run monitor", "milestone": "M3", "shipped": False},
+    {"id": "desk", "label": "Desk", "milestone": "M4", "shipped": False},
+    {"id": "demo", "label": "Demo", "milestone": "M2", "shipped": False},
 ]
 
 
-def create_app(state: AppState) -> FastAPI:
+def create_app(state: AppState, live_runner: LiveRunner | None = None) -> FastAPI:
     app = FastAPI(title="Ladder Workbench", docs_url=None, redoc_url=None)
+    live = live_runner if live_runner is not None else LiveRunner(state)
 
     def _run(key: str) -> RunInfo:
         try:
@@ -80,11 +88,38 @@ def create_app(state: AppState) -> FastAPI:
 
     @app.get("/api/health")
     def health():
-        return {"ok": True, "milestone": "M1", "read_only": True}
+        return {"ok": True, "milestone": "M1+live", "read_only": True,
+                "writes_files": False, "live_run": True}
 
     @app.get("/api/tabs")
     def tabs():
-        return {"tabs": TABS, "active_milestone": "M1"}
+        return {"tabs": TABS, "active_milestone": "M1+live"}
+
+    # -- live run: one document, the real rungs, a scratch dir ----------------
+
+    @app.get("/api/live/options")
+    def live_options():
+        return {**live.options(), "provenance": _corpus_prov()}
+
+    @app.post("/api/live/run")
+    def live_run(body: dict = Body(...)):
+        try:
+            job = live.start(
+                text=body.get("text"), doc_id=body.get("doc_id"),
+                through_rung=int(body.get("through_rung", 6)),
+            )
+        except LiveError as exc:
+            raise HTTPException(exc.status, exc.detail)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(400, str(exc))
+        return job.public()
+
+    @app.get("/api/live/job")
+    def live_job(id: str):
+        try:
+            return live.job(id).public()
+        except LiveError as exc:
+            raise HTTPException(exc.status, exc.detail)
 
     # -- runs -----------------------------------------------------------------
 

@@ -250,3 +250,30 @@ a.export { font-size: .8rem; margin-right: .6rem; color: var(--accent); }
 .layer-nums td, .layer-nums th { padding: .15rem .5rem; }
 .depflow-scroll { overflow-x: auto; margin-top: .6rem;
   border-top: 1px dashed var(--line); padding-top: .5rem; }
+
+/* live run (2026-09-09) */
+#live-text {
+  width: 100%; box-sizing: border-box; background: var(--panel); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 6px; padding: .5rem; font: inherit;
+  font-size: .9rem; margin: .4rem 0;
+}
+#live-dials { font-size: .78rem; margin: .2rem 0 .6rem; }
+#live-dials code { font-size: .74rem; }
+.live-progress { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap;
+  margin: .5rem 0; font-size: .85rem; }
+.live-progress .step { border: 1px solid var(--line); border-radius: 999px;
+  padding: .1rem .55rem; color: var(--muted); }
+.live-progress .step.done { color: var(--z-accept); border-color: var(--z-accept); }
+.live-progress .step.running { color: var(--accent); border-color: var(--accent);
+  animation: livepulse 1.2s ease-in-out infinite; }
+@keyframes livepulse { 50% { opacity: .45; } }
+.tl-table td, .tl-table th { font-size: .78rem; padding: .15rem .45rem; }
+.tl-table td.l, .tl-table th.l { text-align: left; }
+.tl-table tr.changed td:first-child { border-left: 3px solid var(--accent); }
+.call-card { margin: .4rem 0; }
+.call-card summary { cursor: pointer; font-size: .85rem; }
+.call-card .badge { font-size: .68rem; border: 1px solid var(--line);
+  border-radius: 4px; padding: 0 .3rem; margin-left: .3rem; color: var(--muted); }
+.call-card .badge.cached { color: var(--z-abstain); border-color: var(--z-abstain); }
+.call-card .badge.bad { color: var(--o-incorrect); border-color: var(--o-incorrect); }
+.rung-panel { border-top: 1px dashed var(--line); padding-top: .5rem; margin-top: .6rem; }

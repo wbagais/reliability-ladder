@@ -304,3 +304,45 @@ def test_scrub_assert_clean_raises_on_leaked_text():
         scrub.assert_clean(json.dumps({"a": SYN_TEXT}), known_texts=[SYN_TEXT])
     scrub.assert_clean(json.dumps({"a": "just numbers 1 2 3"}),
                        known_texts=[SYN_TEXT])
+
+
+# --- 2026-09-09 refresh: the per-rung artifacts every run writes now -------
+
+
+def test_discover_runs_does_not_mistake_per_rung_snapshots_for_runs(tmp_path):
+    """Since 2026-09-03 a run also leaves <run>.r<N>.records.jsonl,
+    <run>.state.jsonl, <run>.r<N>.calls.jsonl and <run>.aggregates.json.
+    The b2-menu archive listed 219 "runs" of which 150 were rung snapshots."""
+    from dashboard.runsindex import discover_runs
+
+    d = tmp_path / "out"
+    d.mkdir()
+    for name in ("r.records.jsonl", "r.ledger.jsonl", "r.r0.records.jsonl",
+                 "r.r3.records.jsonl", "r.state.jsonl", "r.r0.calls.jsonl",
+                 "r.r4.calls.jsonl", "r.aggregates.json"):
+        (d / name).write_text("{}\n")
+    runs = discover_runs([(d, False)])
+    assert set(runs) == {"r"}, sorted(runs)
+    files = runs["r"].files
+    assert files["records"].name == "r.records.jsonl"
+    assert files["state"].name == "r.state.jsonl"
+    assert files["aggregates"].name == "r.aggregates.json"
+    assert files["r0.records"].name == "r.r0.records.jsonl"
+    assert files["r3.records"].name == "r.r3.records.jsonl"
+    assert files["r0.calls"].name == "r.r0.calls.jsonl"
+    assert files["r4.calls"].name == "r.r4.calls.jsonl"
+
+
+def test_default_sources_include_the_tracked_runs_archive(tmp_path):
+    """runs/archive/ has held the consolidated re-run's corpus-free four per
+    run since 2026-09-07 — it is on every clone, so a fresh checkout is not
+    an empty dashboard."""
+    from dashboard.state import AppState
+
+    (tmp_path / "runs" / "archive" / "c").mkdir(parents=True)
+    (tmp_path / "runs" / "archive" / "c" / "x.ledger.jsonl").write_text("")
+    state = AppState(repo_root=tmp_path)
+    assert (tmp_path / "out", False) == state.sources[0]
+    assert (tmp_path / "runs" / "archive", True) in state.sources
+    assert "x" in state.runs()
+    assert state.runs()["x"].archived is True

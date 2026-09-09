@@ -34,6 +34,13 @@ class AppState:
         self.repo_root = Path(repo_root)
         if sources is None:
             sources = [(self.repo_root / "out", False)]
+            # Tracked since 2026-09-07: aggregates, ledger, results.csv and
+            # the manifest copy of every consolidated-re-run run. Corpus-free
+            # by construction (tests/test_runs_archive.py refuses records,
+            # state and call files there), so a fresh clone has runs to show.
+            tracked = self.repo_root / "runs" / "archive"
+            if tracked.is_dir():
+                sources.append((tracked, True))
             archive = runsindex.main_checkout_archive(self.repo_root)
             local_archive = self.repo_root / "out" / "archive"
             if local_archive.is_dir():

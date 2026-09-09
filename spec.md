@@ -121,6 +121,22 @@ Criteria:
   mode.
 - Operator unlock required for any launch/write; absent in demo mode.
 
+### R2a — Live run (SHIPPED 2026-09-09): one document, the real rungs
+
+Not the launcher. A text the operator pastes, or a dev/pool document they
+pick, goes through `ladder.run.run_ladder` in-process — every rung's own
+`apply`, the model from the manifest through `llm.for_rung`, the same
+`.llm_cache` — up to a chosen rung, into a temporary directory that is read
+for the view and deleted. The view is the run's own files: the state table
+(code, zone, verdicts, what changed, outcome vs gold at every rung), every
+model call with its full prompt and raw reply, each rung's aggregate and the
+three cost measures. Criteria, each tested (`tests/test_dashboard_live.py`):
+nothing under `out/` and no run id in the runs list; the test split refused
+(C2); one live run at a time; a dead run reports its error; the
+`live_single_document` caveat on every render — one document is an example
+of the mechanism, never a measurement. The one POST route; C2's no-process
+test still holds (an import, not a child process).
+
 ### R3 — Results & comparison (read-only)
 
 Stories: per-rung table (coverage, answered accuracy, errors/100,
@@ -302,7 +318,8 @@ elsewhere, the run monitor included.
    dataset doubles as M1's test fixtures.
 3. **M3 workbench:** R2 (launcher, working manifest, cache pricing,
    promote) + run monitor at parity with the old pair (then delete
-   `docs/ladder-monitor.html`), manifest diff, V7–V9.
+   `docs/ladder-monitor.html`), manifest diff, V7–V9. **R2a (the
+   single-document live run) shipped first, 2026-09-09.**
 4. **M4 rest of R6:** desk, vocabulary inspector, retrieval explorer, gate
    probe, cache browser, decisions reader.
 

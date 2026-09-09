@@ -3,9 +3,11 @@
 A run is the family of files the pipeline writes beside each other:
 `<id>.records.jsonl`, `<id>.ledger.jsonl`, `<id>.results.csv`,
 `<id>.manifest.json`. The dashboard groups them by stem and never invents a
-fifth format. Sources are the checkout's own `out/` plus the main checkout's
-`out/archive/` (read-only baselines) — found through the worktree's `.git`
-file so no absolute path is baked into the repo.
+fifth format. Sources are the checkout's own `out/`, the TRACKED `runs/archive/` (the
+consolidated re-run's corpus-free four per run, on every clone since
+2026-09-07) and the main checkout's `out/archive/` (read-only baselines,
+found through the worktree's `.git` file so no absolute path is baked into
+the repo).
 
 The saved manifest copy does not record the split, so the split is INFERRED:
 the run's doc_ids against the frozen splits in `data/splits/`. A run whose
@@ -24,7 +26,29 @@ SUFFIXES = {
     "ledger": ".ledger.jsonl",
     "results": ".results.csv",
     "manifest": ".manifest.json",
+    # Since 2026-09-03 (plan item 12, ladder/trace.py) every run also leaves
+    # the per-record, per-rung state table and each rung's aggregate.
+    "state": ".state.jsonl",
+    "aggregates": ".aggregates.json",
 }
+
+#: `<run>.r<N>.records.jsonl` (the record set as rung N left it) and
+#: `<run>.r<N>.calls.jsonl` (every model call rung N made). Matched BEFORE the
+#: plain suffixes: `rerun-cadec-d0.r3.records.jsonl` ends in `.records.jsonl`
+#: too, and the b2-menu archive listed 219 "runs" of which 150 were these.
+PER_RUNG = re.compile(r"^(?P<stem>.+)\.r(?P<n>\d+)\.(?P<kind>records|calls)\.jsonl$")
+
+
+def classify(name: str) -> tuple[str, str] | None:
+    """(kind, stem) for an artifact filename, or None for anything else.
+    Kinds are the SUFFIXES keys plus `r<N>.records` / `r<N>.calls`."""
+    m = PER_RUNG.match(name)
+    if m:
+        return f"r{m.group('n')}.{m.group('kind')}", m.group("stem")
+    for kind, suffix in SUFFIXES.items():
+        if name.endswith(suffix):
+            return kind, name[: -len(suffix)]
+    return None
 
 
 @dataclass
@@ -50,22 +74,22 @@ def discover_runs(sources: list[tuple[Path, bool]]) -> dict[str, RunInfo]:
         for path in sorted(Path(root).rglob("*")):
             if not path.is_file():
                 continue
-            for kind, suffix in SUFFIXES.items():
-                if path.name.endswith(suffix):
-                    stem = path.name[: -len(suffix)]
-                    key = _key_for(stem, path.parent, runs)
+            hit = classify(path.name)
+            if hit is None:
+                continue
+            kind, stem = hit
+            key = _key_for(stem, path.parent, runs)
+            info = runs.get(key)
+            if info is None or info.dir != path.parent:
+                if info is not None and info.dir != path.parent:
+                    key = f"{path.parent.name}/{stem}"
                     info = runs.get(key)
-                    if info is None or info.dir != path.parent:
-                        if info is not None and info.dir != path.parent:
-                            key = f"{path.parent.name}/{stem}"
-                            info = runs.get(key)
-                        if info is None:
-                            info = RunInfo(run_id=stem, dir=path.parent,
-                                           archived=archived)
-                            runs[key] = info
-                    info.files[kind] = path
-                    info.mtime = max(info.mtime, path.stat().st_mtime)
-                    break
+                if info is None:
+                    info = RunInfo(run_id=stem, dir=path.parent,
+                                   archived=archived)
+                    runs[key] = info
+            info.files[kind] = path
+            info.mtime = max(info.mtime, path.stat().st_mtime)
     return runs
 
 

@@ -108,6 +108,19 @@
   Never fuse them into a currency figure.
 
 ## Current state
+- **The dashboard (`dashboard/`, `python -m dashboard`, loopback only) is
+  GitLab MR !22, refreshed 2026-09-09 to main.** A lens over `ladder.*` —
+  Data explorer, Results, Walkthrough, Traceability — plus a **Live run tab**
+  that runs ONE document (pasted, or a dev/pool doc; test refused) through
+  the real rungs via `ladder.run.run_ladder` into a scratch dir that is
+  deleted: an example of the mechanism, never a measurement, never under
+  `out/`. It is the one POST route. Extras (`fastapi`, `uvicorn`, `httpx`)
+  are commented in `requirements.txt`; CI has none, so the dashboard tests
+  `importorskip` — run them locally. Run discovery files `<run>.r<N>.*`
+  under the run (they used to list as 150 phantom runs) and reads the
+  tracked `runs/archive/`; R5 reads `.r<N>.calls.jsonl` before it
+  reconstructs a prompt. Launcher/monitor/desk/demo tabs are still
+  placeholders (`spec.md` M2–M4).
 - **All seven rungs exist** (rung 6 landed 2026-08-26, Phase E). The full
   ladder runs end to end, cold, in order `[0,1,2,3,4,5,6]`. 906 tests, CI green.
 - **EVERY RUN WRITES PER-RUNG ARTIFACTS NOW (2026-09-03, plan item 12,

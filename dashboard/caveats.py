@@ -42,6 +42,17 @@ CAVEATS: dict[str, str] = {
         "The test split is SPENT: phaseF-test-1 is the ladder's final test "
         "run. Test results are read-only displays; nothing is re-run."
     ),
+    "live_single_document": (
+        "LIVE RUN — one document through the real rungs, written to a scratch "
+        "directory and deleted. It is an example of the mechanism, not a "
+        "measurement: no F1, no run id in the runs list, nothing under out/. "
+        "The measured numbers are on the Results tab."
+    ),
+    "live_cache_hits": (
+        "Some of these calls were served from .llm_cache (the same prompt was "
+        "seen before). A cached call's latency is not the model's, and its "
+        "reply is the earlier one — change the text to see a cold call."
+    ),
 }
 
 

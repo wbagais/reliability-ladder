@@ -1,11 +1,22 @@
-"""R5 — prompt and raw-reply drill-down from `.llm_cache`.
+"""R5 — prompt and raw-reply drill-down.
 
-The cache stores REPLIES keyed by a hash of the exact request payload; the
-prompt itself is not retained on disk. So the drill-down RECONSTRUCTS the
-request through the rungs' own prompt builders (`ladder.rungs.r0` /
-`ladder.rungs.r4` — never a re-implementation) and looks the hash up. Any
-divergence — a config that drifted, a record the pick dropped, a cache that
-was pruned — renders as "not_retained", never as an empty reply (spec R5).
+TWO sources, tried in this order:
+
+1. `<run>.r<N>.calls.jsonl` — since 2026-09-03 (plan item 12,
+   `ladder/trace.py`) every run writes EVERY model call with its full prompt
+   and raw reply, cache hits included, with the document inferred. When the
+   run has these, the view reads them and nothing is reconstructed
+   (`source: "call_trace"`, status `traced`). Rung 4's prompt now has three
+   menu modes, and only the trace can say which one a call actually used.
+2. `.llm_cache` — for runs from before that date. The cache stores REPLIES
+   keyed by a hash of the exact request payload; the prompt itself is not
+   retained on disk. So the drill-down RECONSTRUCTS the request through the
+   rungs' own prompt builders (`ladder.rungs.r0` / `ladder.rungs.r4` — never
+   a re-implementation) and looks the hash up. Any divergence — a config that
+   drifted, a record the pick dropped, a cache that was pruned — renders as
+   "not_retained", never as an empty reply (spec R5). The rung 4 builder is
+   the BLIND prompt; a menu-shown judge call from an old run is not
+   reconstructable, which is one more reason the trace comes first.
 
 LOCAL-ONLY: these views carry corpus text and are excluded from every export
 path (C1). M1 reconstructs rung 0's extract+pick calls and rung 4's judge
@@ -57,9 +68,58 @@ def _lookup(state: AppState, spec: str, content: str) -> dict[str, Any]:
         return {"status": "not_retained", "model": spec, "note": str(exc)[:200]}
 
 
+def traced_calls(info: RunInfo, doc_id: str, rec) -> list[dict[str, Any]] | None:
+    """The document's calls from the run's own `.r<N>.calls.jsonl` files, or
+    None when the run wrote none (pre-2026-09-03). Per-record rungs (2 and 4)
+    are narrowed to the calls that carry this record's span text; rung 0 and
+    rung 3 work per document, so every call for the document is the answer."""
+    paths = sorted(
+        (int(k[1:].split(".")[0]), p) for k, p in info.files.items()
+        if k.endswith(".calls"))
+    if not paths:
+        return None
+    out: list[dict[str, Any]] = []
+    for rung, path in paths:
+        if not path.exists():
+            continue
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            if row.get("doc_id") != doc_id:
+                continue
+            if rung in (2, 4) and rec is not None and rec.text \
+                    and rec.text not in row.get("prompt", ""):
+                continue
+            out.append({
+                "rung": rung, "call": row.get("mode"), "status": "traced",
+                "model": row.get("model"), "role": row.get("role"),
+                "prompt": row.get("prompt", ""), "reply": row.get("raw", ""),
+                "normalised": row.get("normalised"),
+                "cached": bool(row.get("cached", False)),
+                "prompt_tokens": row.get("tokens_in"),
+                "completion_tokens": row.get("tokens_out"),
+                "latency_s": row.get("seconds"),
+                "truncated": bool(row.get("truncated", False)),
+                "timed_out": bool(row.get("timed_out", False)),
+                "temperature": row.get("temperature"),
+                "sample_index": row.get("sample_index", 0),
+                "call_index": row.get("call_index"),
+            })
+    return out
+
+
 def record_llm_payload(state: AppState, info: RunInfo, doc_id: str,
                        spans) -> dict[str, Any]:
     from ladder.rungs import r0
+
+    want = span_key(doc_id, spans)
+    rec = next((r for r in state.records(info)
+                if r.doc_id == doc_id and span_key(r.doc_id, r.spans) == want),
+               None)
+    traced = traced_calls(info, doc_id, rec)
+    if traced is not None:
+        return {"local_only": True, "source": "call_trace", "calls": traced}
 
     man = read_manifest_copy(info) or {}
     model = man.get("model", {})
@@ -70,15 +130,13 @@ def record_llm_payload(state: AppState, info: RunInfo, doc_id: str,
 
     corpus = state.corpus()
     calls: list[dict[str, Any]] = []
-    want = span_key(doc_id, spans)
     records = [r for r in state.records(info) if r.doc_id == doc_id]
-    rec = next((r for r in records
-                if span_key(r.doc_id, r.spans) == want), None)
 
     if corpus is None or doc_id not in corpus or extractor is None:
         note = ("corpus unavailable" if corpus is None or doc_id not in corpus
                 else "no extractor in the run's manifest copy")
-        return {"local_only": True, "calls": [], "note": note}
+        return {"local_only": True, "source": "reconstruction", "calls": [],
+                "note": note}
 
     source = corpus[doc_id].text
     base = {"S0": r0.S0_PROMPT, "S1": r0.S1_PROMPT, "S2": r0.FIND_PROMPT}.get(
@@ -117,4 +175,4 @@ def record_llm_payload(state: AppState, info: RunInfo, doc_id: str,
         entry = _lookup(state, judge_model, judge_prompt)
         calls.append({"rung": 4, "call": "judge", **entry})
 
-    return {"local_only": True, "calls": calls}
+    return {"local_only": True, "source": "reconstruction", "calls": calls}
