@@ -32,7 +32,7 @@ A supervised system does far better: CONORM [5], fine-tuned on 875 of CADEC's 1,
 
 ![Figure 1](figures/infoq-fig6-pipeline-flow.png)
 
-*Figure 1: The pipeline, left to right, on one illustrative post (CADEC is non-transferable). Teal: a model call; grey: deterministic code. Each card shows what that step produces for the example; a code appears for the first time in the last one. Image: the authors.*
+*Figure 1: The pipeline, read left to right and then down, on one illustrative post (CADEC is non-transferable). Teal: a model call; grey: deterministic code. Each card shows what that step produces for the example; a code appears for the first time in the last one. Image: the authors.*
 
 Behind the menu, a retriever with no model searches 227,554 keyword-to-code rows; codes are written as `271782001` |Drowsy|, SNOMED's bar notation, and F1 is *span-exact*, so a wrong boundary is both a false positive and a false negative.
 

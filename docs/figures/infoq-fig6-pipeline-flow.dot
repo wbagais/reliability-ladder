@@ -1,40 +1,51 @@
-// Figure 1 of docs/article-infoq-CADEC.md (2026-09-08): the pipeline left to right, one card
-// per step, each card showing what that step produces for ONE illustrative post — the flow
-// and the example in the same picture. Owner asked for "something between" the vertical
-// flowchart and a busy icon graphic. Colour key as fig7-pipeline-cadec.dot: teal #0c6469
-// a model acts, grey #3a464c deterministic code, green #2d6a4f the finished record.
-digraph pipeline_h {
-  bgcolor="white"; pad=0.15;
+// Figure 1 of docs/article-infoq-CADEC.md (2026-09-08): the pipeline in two rows of three
+// cards, each card showing what that step produces for ONE illustrative post — the flow and
+// the example in the same picture. Two rows at the owner's request, for page width.
+// Colour key as fig7-pipeline-cadec.dot: teal #0c6469 a model acts, grey #3a464c deterministic
+// code, green #2d6a4f the finished record.
+digraph pipeline_flow {
+  bgcolor="white"; rankdir=TB; splines=ortho; nodesep=0.35; ranksep=0.55; pad=0.15;
   node [shape=none fontname="Helvetica" margin=0];
+  edge [color="#3a464c" penwidth=1.8 arrowsize=1.0];
 
-  t [label=<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">
-  <TR>
-    <TD VALIGN="MIDDLE"><TABLE BORDER="1" COLOR="#3a464c" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" STYLE="rounded" WIDTH="130">
-      <TR><TD BGCOLOR="#eef1f2" ALIGN="LEFT" WIDTH="130" HEIGHT="40"><FONT POINT-SIZE="11.5" COLOR="#3a464c"><B>INPUT</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="8.5" COLOR="#3a464c">one forum post, whole</FONT><BR ALIGN="LEFT"/></TD></TR>
-      <TR><TD BGCOLOR="#fafbfb" ALIGN="LEFT" HEIGHT="105"><FONT POINT-SIZE="9.5" FACE="Courier">"...The first week I<BR ALIGN="LEFT"/>was a bit drowsy in<BR ALIGN="LEFT"/>the afternoons, and I<BR ALIGN="LEFT"/>still get drowsy if I<BR ALIGN="LEFT"/>take it late. No<BR ALIGN="LEFT"/>stomach trouble at<BR ALIGN="LEFT"/>all so far..."</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="7.5" COLOR="#7a5800">illustrative — CADEC is<BR ALIGN="LEFT"/>non-transferable</FONT><BR ALIGN="LEFT"/></TD></TR>
-    </TABLE></TD>
-    <TD WIDTH="20" VALIGN="MIDDLE"><FONT POINT-SIZE="8.5" COLOR="#3a464c">→</FONT></TD>
-    <TD VALIGN="MIDDLE"><TABLE BORDER="1" COLOR="#0c6469" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" STYLE="rounded" WIDTH="120">
-      <TR><TD BGCOLOR="#e3eeef" ALIGN="LEFT" WIDTH="120" HEIGHT="40"><FONT POINT-SIZE="11.5" COLOR="#0c6469"><B>1 · FIND</B></FONT><FONT POINT-SIZE="8.5" COLOR="#0c6469">   model call</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="8.5" COLOR="#3a464c">quote every reaction in the<BR ALIGN="LEFT"/>writer's words, denied ones too</FONT><BR ALIGN="LEFT"/></TD></TR>
-      <TR><TD BGCOLOR="#f4fafa" ALIGN="LEFT" HEIGHT="105"><FONT POINT-SIZE="10" FACE="Courier"><B>"bit drowsy"</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" FACE="Courier">"drowsy"</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" FACE="Courier">"stomach trouble"</FONT><FONT POINT-SIZE="7.5" COLOR="#3a464c">  denied</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="8" COLOR="#3a464c">three quotes<BR ALIGN="LEFT"/>words, no code</FONT><BR ALIGN="LEFT"/></TD></TR>
-    </TABLE></TD>
-    <TD WIDTH="20" VALIGN="MIDDLE"><FONT POINT-SIZE="8.5" COLOR="#3a464c">→</FONT></TD>
-    <TD VALIGN="MIDDLE"><TABLE BORDER="1" COLOR="#3a464c" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" STYLE="rounded" WIDTH="170">
-      <TR><TD BGCOLOR="#eef1f2" ALIGN="LEFT" WIDTH="170" HEIGHT="40"><FONT POINT-SIZE="11.5" COLOR="#3a464c"><B>RETRIEVE</B></FONT><FONT POINT-SIZE="8.5" COLOR="#3a464c">   no model</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="8.5" COLOR="#3a464c">embed each quote, list the<BR ALIGN="LEFT"/>20 nearest concept names</FONT><BR ALIGN="LEFT"/></TD></TR>
-      <TR><TD BGCOLOR="#fafbfb" ALIGN="LEFT" HEIGHT="105"><FONT POINT-SIZE="9.5" FACE="Courier"><B>[0] drowsy</B><BR ALIGN="LEFT"/>[1] dizziness - giddy<BR ALIGN="LEFT"/>[2] dizziness<BR ALIGN="LEFT"/>[3] gets drowsiness<BR ALIGN="LEFT"/>[4] bites self<BR ALIGN="LEFT"/>    ⋮<BR ALIGN="LEFT"/>[19] epidemic dropsy</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="8" COLOR="#3a464c">the menu for "bit drowsy"<BR ALIGN="LEFT"/>names, no codes</FONT><BR ALIGN="LEFT"/></TD></TR>
-    </TABLE></TD>
-    <TD WIDTH="20" VALIGN="MIDDLE"><FONT POINT-SIZE="8.5" COLOR="#3a464c">→</FONT></TD>
-    <TD VALIGN="MIDDLE"><TABLE BORDER="1" COLOR="#0c6469" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" STYLE="rounded" WIDTH="85">
-      <TR><TD BGCOLOR="#e3eeef" ALIGN="LEFT" WIDTH="85" HEIGHT="40"><FONT POINT-SIZE="11.5" COLOR="#0c6469"><B>2 · PICK</B></FONT><FONT POINT-SIZE="8.5" COLOR="#0c6469">   model call</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="8.5" COLOR="#3a464c">choose a line number,<BR ALIGN="LEFT"/>or null if nothing fits</FONT><BR ALIGN="LEFT"/></TD></TR>
-      <TR><TD BGCOLOR="#f4fafa" ALIGN="LEFT" HEIGHT="105"><FONT POINT-SIZE="16" FACE="Courier"><B>0</B></FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="8" COLOR="#3a464c">a position in the list<BR ALIGN="LEFT"/>still no code</FONT><BR ALIGN="LEFT"/></TD></TR>
-    </TABLE></TD>
-    <TD WIDTH="20" VALIGN="MIDDLE"><FONT POINT-SIZE="8.5" COLOR="#3a464c">→</FONT></TD>
-    <TD VALIGN="MIDDLE"><TABLE BORDER="1" COLOR="#2d6a4f" CELLBORDER="0" CELLSPACING="0" CELLPADDING="7" STYLE="rounded" WIDTH="125">
-      <TR><TD BGCOLOR="#e3f0e6" ALIGN="LEFT" WIDTH="125" HEIGHT="40"><FONT POINT-SIZE="11.5" COLOR="#2d6a4f"><B>RESOLVE</B></FONT><FONT POINT-SIZE="8.5" COLOR="#3a464c">   no model</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="8.5" COLOR="#3a464c">look the line up<BR ALIGN="LEFT"/>in the vocabulary</FONT><BR ALIGN="LEFT"/></TD></TR>
-      <TR><TD BGCOLOR="#f4f9f6" ALIGN="LEFT" HEIGHT="105"><FONT POINT-SIZE="10" FACE="Courier"><B>271782001</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10">|Drowsy|</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="8" COLOR="#3a464c">output: one quote + one code<BR ALIGN="LEFT"/>the first time a code exists</FONT><BR ALIGN="LEFT"/></TD></TR>
-    </TABLE></TD>
-  </TR>
-  <TR><TD COLSPAN="9" HEIGHT="10"></TD></TR>
-  <TR><TD COLSPAN="9" ALIGN="LEFT"><FONT POINT-SIZE="8.5" COLOR="#3a464c">Teal: a language model acts, two calls in all. Grey: deterministic code. Green: the finished record. The model quotes words and picks a line; it never sees or writes a code.</FONT></TD></TR>
+  input [label=<<TABLE BORDER="1" COLOR="#3a464c" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" STYLE="rounded" WIDTH="200">
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="LEFT" WIDTH="200" HEIGHT="40"><FONT POINT-SIZE="12.5" COLOR="#3a464c"><B>INPUT</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" COLOR="#3a464c">one forum post, whole</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD BGCOLOR="#fafbfb" ALIGN="LEFT" HEIGHT="110"><FONT POINT-SIZE="10" FACE="Courier">"...The first week I was a<BR ALIGN="LEFT"/>bit drowsy in the afternoons,<BR ALIGN="LEFT"/>and I still get drowsy if I<BR ALIGN="LEFT"/>take it late. No stomach<BR ALIGN="LEFT"/>trouble at all so far..."</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="8.5" COLOR="#7a5800">illustrative — CADEC is non-transferable</FONT><BR ALIGN="LEFT"/></TD></TR>
   </TABLE>>];
+
+  find [label=<<TABLE BORDER="1" COLOR="#0c6469" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" STYLE="rounded" WIDTH="200">
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="LEFT" WIDTH="200" HEIGHT="40"><FONT POINT-SIZE="12.5" COLOR="#0c6469"><B>1 · FIND</B></FONT><FONT POINT-SIZE="9.5" COLOR="#0c6469">   model call</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" COLOR="#3a464c">quote every reaction in the<BR ALIGN="LEFT"/>writer's words, denied ones too</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD BGCOLOR="#f4fafa" ALIGN="LEFT" HEIGHT="110"><FONT POINT-SIZE="11" FACE="Courier"><B>"bit drowsy"</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" FACE="Courier">"drowsy"</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="10" FACE="Courier">"stomach trouble"</FONT><FONT POINT-SIZE="8.5" COLOR="#3a464c">  denied</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#3a464c">three quotes<BR ALIGN="LEFT"/>words, no code</FONT><BR ALIGN="LEFT"/></TD></TR>
+  </TABLE>>];
+
+  retrieve [label=<<TABLE BORDER="1" COLOR="#3a464c" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" STYLE="rounded" WIDTH="200">
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="LEFT" WIDTH="200" HEIGHT="40"><FONT POINT-SIZE="12.5" COLOR="#3a464c"><B>RETRIEVE</B></FONT><FONT POINT-SIZE="9.5" COLOR="#3a464c">   no model</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" COLOR="#3a464c">embed each quote, list the<BR ALIGN="LEFT"/>20 nearest concept names</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD BGCOLOR="#fafbfb" ALIGN="LEFT" HEIGHT="110"><FONT POINT-SIZE="10" FACE="Courier"><B>[0] drowsy</B><BR ALIGN="LEFT"/>[1] dizziness - giddy<BR ALIGN="LEFT"/>[2] dizziness<BR ALIGN="LEFT"/>[3] gets drowsiness<BR ALIGN="LEFT"/>[4] bites self<BR ALIGN="LEFT"/>    ⋮<BR ALIGN="LEFT"/>[19] epidemic dropsy</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#3a464c">the menu for "bit drowsy"<BR ALIGN="LEFT"/>names, no codes</FONT><BR ALIGN="LEFT"/></TD></TR>
+  </TABLE>>];
+
+  pick [label=<<TABLE BORDER="1" COLOR="#0c6469" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" STYLE="rounded" WIDTH="200">
+    <TR><TD BGCOLOR="#e3eeef" ALIGN="LEFT" WIDTH="200" HEIGHT="40"><FONT POINT-SIZE="12.5" COLOR="#0c6469"><B>2 · PICK</B></FONT><FONT POINT-SIZE="9.5" COLOR="#0c6469">   model call</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" COLOR="#3a464c">choose a line number,<BR ALIGN="LEFT"/>or null if nothing fits</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD BGCOLOR="#f4fafa" ALIGN="LEFT" HEIGHT="110"><FONT POINT-SIZE="18" FACE="Courier"><B>0</B></FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#3a464c">a position in the list<BR ALIGN="LEFT"/>still no code</FONT><BR ALIGN="LEFT"/></TD></TR>
+  </TABLE>>];
+
+  resolve [label=<<TABLE BORDER="1" COLOR="#3a464c" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" STYLE="rounded" WIDTH="200">
+    <TR><TD BGCOLOR="#eef1f2" ALIGN="LEFT" WIDTH="200" HEIGHT="40"><FONT POINT-SIZE="12.5" COLOR="#3a464c"><B>RESOLVE</B></FONT><FONT POINT-SIZE="9.5" COLOR="#3a464c">   no model</FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" COLOR="#3a464c">look the line up<BR ALIGN="LEFT"/>in the vocabulary</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD BGCOLOR="#fafbfb" ALIGN="LEFT" HEIGHT="110"><FONT POINT-SIZE="11" FACE="Courier"><B>271782001</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="11">|Drowsy|</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#3a464c">the first time a code exists</FONT><BR ALIGN="LEFT"/></TD></TR>
+  </TABLE>>];
+
+  output [label=<<TABLE BORDER="1" COLOR="#2d6a4f" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" STYLE="rounded" WIDTH="200">
+    <TR><TD BGCOLOR="#e3f0e6" ALIGN="LEFT" WIDTH="200" HEIGHT="40"><FONT POINT-SIZE="12.5" COLOR="#2d6a4f"><B>OUTPUT</B></FONT><BR ALIGN="LEFT"/><FONT POINT-SIZE="9.5" COLOR="#3a464c">one record per quote</FONT><BR ALIGN="LEFT"/></TD></TR>
+    <TR><TD BGCOLOR="#f4f9f6" ALIGN="LEFT" HEIGHT="110"><FONT POINT-SIZE="10" FACE="Courier">quote: "bit drowsy"<BR ALIGN="LEFT"/>code:  271782001</FONT><BR ALIGN="LEFT"/><BR ALIGN="LEFT"/><FONT POINT-SIZE="9" COLOR="#3a464c">one quote + one code,<BR ALIGN="LEFT"/>ready for the layers above</FONT><BR ALIGN="LEFT"/></TD></TR>
+  </TABLE>>];
+
+  legend [shape=plaintext fontname="Helvetica" fontsize=10 fontcolor="#3a464c"
+          label=<Teal: a language model acts, two calls in all. Grey: deterministic code. Green: the finished record.<BR/>The model quotes words and picks a line; it never sees or writes a code.>];
+
+  { rank=same; input; find; retrieve; }
+  { rank=same; pick; resolve; output; }
+  input -> find; find -> retrieve;
+  retrieve -> pick;
+  pick -> resolve; resolve -> output;
+  input -> pick [style=invis]; find -> resolve [style=invis]; retrieve -> output [style=invis];
+  resolve -> legend [style=invis];
 }
