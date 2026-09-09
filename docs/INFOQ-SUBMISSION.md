@@ -52,7 +52,7 @@ The two charts read the tracked report; the tables are `.dot` files. See
 2. **Image copyright.** All three figures are the authors' own, generated from files in this repository; no third-party imagery. Keep it that way.
 3. **Editor access.** Enable full editor access for the editorial team on the uploaded document.
 4. **Proofreading pass.** Run a basic spell check before upload (`codespell docs/article-infoq-CADEC.md` found nothing on 2026-09-08). Spelling is British throughout; say so.
-5. **Author bios.** Both in (2026-09-08). Wejdan's uses she/her; Pushpdeep's was supplied in the first person and is written without pronouns until Pushpdeep says which to use.
+5. **Author bios.** Both in (2026-09-08). Wejdan's uses she/her; Pushpdeep's uses he/him.
 6. **The medRxiv reference.** The DOI answers 403 to automated fetches; open it once in a browser before submitting.
 
 ## What the takeaways must keep claiming
