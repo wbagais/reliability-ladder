@@ -174,8 +174,8 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 .livegrid .rules .hold{background:#c9a227;border-color:#8a6d15;color:#fff}.livegrid .rules .ship{background:#2d6a4f;border-color:#1f4d38;color:#fff}.livegrid .rules .nr{background:#f4f4f4;color:#999;border-style:dashed}
 .livegrid .legendbox{border:1px solid #bbb;background:#fafafa;padding:6px 10px;margin:8px 0;font-size:9pt}
 .livegrid table.legendv{border-collapse:collapse;margin:4px 0}.livegrid table.legendv td{border:none;padding:1px 8px 1px 0;font-size:9pt}.livegrid table.legendv td.pct{font-family:Consolas,monospace;text-align:right}.livegrid table.legendv tr.nr td{color:#999}
-.livegrid .lg{display:inline-block;width:auto;height:auto;background:none;font:600 7.5pt Consolas,monospace;border:1px solid;border-radius:8px;padding:0 5px;margin-left:4px;white-space:nowrap;vertical-align:middle}
-.livegrid .lg.missed{color:var(--gold);border-color:var(--gold);border-style:double}.livegrid .lg.spurious{color:var(--model);border-color:var(--model)}
+.livegrid .tg{display:inline-block;width:auto;height:auto;background:none;font:600 7.5pt Consolas,monospace;border:1px solid;border-radius:8px;padding:0 5px;margin-left:4px;white-space:nowrap;vertical-align:middle}
+.livegrid .tg.missed{color:var(--gold);border-color:var(--gold);border-style:double}.livegrid .tg.spurious{color:var(--model);border-color:var(--model)}
 .livegrid .prov{font:8.5pt Consolas,monospace;color:#555;margin-top:6px}
 .livegrid .doc-text{font:10.5pt/1.9 Consolas,Menlo,monospace;background:#fff;border:1px solid #bbb;padding:10px 12px;margin:4px 0 8px;white-space:pre-wrap;color:#222}
 .livegrid .gold-span{background:rgba(46,139,87,.16);border-bottom:2px solid #2e8b57}
@@ -186,7 +186,7 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 .livegrid .pred-span.differ{background:rgba(163,51,51,.18);border-bottom:2px solid #a33333}
 .livegrid .pred-span.spurious{background:rgba(106,79,191,.2);border-bottom:2px solid #6a4fbf}
 .livegrid .pred-span.selected{outline:2px solid #6a4fbf;outline-offset:1px}.livegrid .pred-span.dim{opacity:.45}
-.livegrid .lg.agree{color:#2e8b57;border-color:#2e8b57}.livegrid .lg.differ{color:#a33333;border-color:#a33333}
+.livegrid .tg.agree{color:#2e8b57;border-color:#2e8b57}.livegrid .tg.differ{color:#a33333;border-color:#a33333}
 .livegrid .mapspan{cursor:pointer}
 .shows{border:1px solid #999;border-left:4px solid #333;background:#fdf6e3;padding:8px 12px;margin:0 0 10px;font-size:10pt}
 </style>
@@ -24367,14 +24367,14 @@ function r0Table(d,sel){
  for(const p of d.pairs){const r=p.pred?byId[p.pred]:null;const g=p.gold;
   const cls=p.span_match==="missed"?"missed":(p.span_match==="exact"&&(p.code==="correct"||p.code==="withheld_correct"))?"agree":"differ";
   rows.push({pos:(g.spans||[[0]])[0][0],cls,rid:p.pred,
-   mention:'<td class="stack"><div class="g"><span class="who">gold</span>“'+diffWords(g.span,p.pred_span,"missing")+'” <span class="mut">'+esc(spansStr(g.spans))+'</span>'+(p.span_match==="missed"?' <span class="lg missed">gold only</span>':'')+'</div>'
+   mention:'<td class="stack"><div class="g"><span class="who">gold</span>“'+diffWords(g.span,p.pred_span,"missing")+'” <span class="mut">'+esc(spansStr(g.spans))+'</span>'+(p.span_match==="missed"?' <span class="tg missed">gold only</span>':'')+'</div>'
     +(r?'<div class="m"><span class="who">model</span>“'+diffWords(p.pred_span,g.span,"extra")+'” <span class="mut">'+esc(spansStr(r.spans))+'</span>'+(p.span_match==="exact"?'<span class="same">= same span</span>':'')+'</div>':'<div class="m none"><span class="who">model</span>— not quoted by the model</div>')+'</td>',
    menu:r?menuCell(r):'<td class="mut small">— no menu: nothing was retrieved for a span the model never quoted</td>',
    code:'<td class="stack"><div class="g"><span class="who">gold</span>'+(g.sct.length?g.sct.map((c,i)=>esc(c)+' <i>'+lab(g.labels[i]||"label unavailable")+'</i>').join(", "):"concept-less")+'</div>'
     +(r?'<div class="m'+(p.code&&/(^|_)correct$/.test(p.code)?"":" off")+'"><span class="who">model</span>'+(p.pred_sct?esc(p.pred_sct)+' <i>'+lab(p.pred_label||"?")+'</i>':"no code")+(p.code==="correct"||p.code==="withheld_correct"?'<span class="same">= same code</span>':'')+(p.withheld?' <span class="mut small">(withheld)</span>':'')+'</div>':'<div class="m none"><span class="who">model</span>—</div>')+'</td>'});}
  for(const s of d.spurious){const r=byId[s.record_id];
   rows.push({pos:(s.spans&&s.spans[0]||[0])[0]||0,cls:"spurious",rid:s.record_id,
-   mention:'<td class="stack"><div class="g none"><span class="who">gold</span>— no mention here <span class="lg spurious">model only</span></div><div class="m"><span class="who">model</span>“'+esc(s.span)+'” <span class="mut">'+esc(spansStr(r&&r.spans))+'</span></div></td>',
+   mention:'<td class="stack"><div class="g none"><span class="who">gold</span>— no mention here <span class="tg spurious">model only</span></div><div class="m"><span class="who">model</span>“'+esc(s.span)+'” <span class="mut">'+esc(spansStr(r&&r.spans))+'</span></div></td>',
    menu:r?menuCell(r):'<td class="mut">—</td>',
    code:'<td class="stack"><div class="g none"><span class="who">gold</span>—</div><div class="m"><span class="who">model</span>'+(s.sct?esc(s.sct)+' <i>'+lab(s.label||"?")+'</i>':"no code")+'</div></td>'});}
  if(!d.pairs.length&&!d.spurious.length) for(const r of d.records) rows.push({pos:(r.spans||[[0]])[0][0]||0,cls:"",rid:r.record_id,
@@ -24428,17 +24428,17 @@ function textBlock(d,sel){
   for(const r of d.records) for(const [a,b] of (r.spans||[])) marks.push({start:a,end:b,rid:r.record_id,cls:"pred-span "+(cls[r.record_id]||"")+(sel===r.record_id?" selected":(sel?" dim":"")),title:r.record_id+" → "+(r.final.sct||"no code")+" ("+r.final.zone+")"});
   const missed=new Set(d.pairs.filter(p=>p.span_match==="missed").map(p=>p.gold.record_id));
   for(const g of (d.gold_spans||[])) for(const [a,b] of (g.spans||[])) marks.push({start:a,end:b,cls:"gold-span"+(g.excluded?" excluded":"")+(missed.has(g.record_id)?" missed":""),title:"GOLD "+g.record_id+(missed.has(g.record_id)?" — gold only":"")});
-  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — a FiNER-139 filing excerpt (CC-BY-SA), '+d.words+' words · <span class="lg agree">agrees</span> <span class="lg differ">differs</span> <span class="lg spurious">model only</span> <span class="lg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text">'+highlightText(d.text,marks)+'</div>';}
+  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — a FiNER-139 filing excerpt (CC-BY-SA), '+d.words+' words · <span class="tg agree">agrees</span> <span class="tg differ">differs</span> <span class="tg spurious">model only</span> <span class="tg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text">'+highlightText(d.text,marks)+'</div>';}
  // no text: the span map
  const L=d.chars||Math.max(1,...d.records.flatMap(r=>(r.spans||[]).map(s=>s[1])),...d.pairs.flatMap(p=>(p.gold.spans||[]).map(s=>s[1])));
- const W=960,H=64,x0=6,x1=W-6,X=v=>x0+(x1-x0)*Math.min(v,L)/L;
+ const W=960,H=74,x0=44,x1=W-8,X=v=>x0+(x1-x0)*Math.min(v,L)/L;
  const s=S("0 0 "+W+" "+H); s.setAttribute("style","width:100%;height:auto;display:block;background:#fafafa;border:1px solid #ddd");
- E(s,"rect",{x:x0,y:22,width:x1-x0,height:8,fill:"#e4e4e4"});
- M(s,x0,12,d.corpus==="cadec"?"the post — "+d.words+" words, "+L+" characters — is not shown (CADEC is non-transferable); this is where its mentions sit":"the review — not on this machine; this is where the model's mentions sit",{"font-size":8.5,fill:"#555"});
- M(s,x0,H-4,"0",{"font-size":7.5,fill:"#777"}); M(s,x1,H-4,String(L),{"font-size":7.5,fill:"#777","text-anchor":"end"});
- T(s,x0,44,"gold",{"font-size":7.5,fill:"#2e8b57","font-weight":700}); T(s,x0,58,"model",{"font-size":7.5,fill:"#6a4fbf","font-weight":700});
- for(const p of d.pairs) for(const [a,b] of (p.gold.spans||[])) E(s,"rect",{x:X(a),y:36,width:Math.max(2,X(b)-X(a)),height:8,fill:"#2e8b57",opacity:p.span_match==="missed"?.35:.9,"data-title":p.gold.record_id});
- for(const r of d.records) for(const [a,b] of (r.spans||[])){const c=cls[r.record_id]||"";E(s,"rect",{x:X(a),y:50,width:Math.max(2,X(b)-X(a)),height:8,fill:c==="agree"?"#2e8b57":c==="spurious"?"#6a4fbf":"#a33333",opacity:sel&&sel!==r.record_id?.3:.9,stroke:sel===r.record_id?"#111":"none","stroke-width":1.2,class:"mapspan","data-rid":r.record_id});}
+ E(s,"rect",{x:x0,y:22,width:x1-x0,height:6,fill:"#e4e4e4"});
+ M(s,6,12,d.corpus==="cadec"?"the post — "+d.words+" words, "+L+" characters — is not shown (CADEC is non-transferable); this is where its mentions sit":"the review — not on this machine; this is where the model's mentions sit",{"font-size":8.5,fill:"#555"});
+ M(s,x0,H-3,"0",{"font-size":7.5,fill:"#777"}); M(s,x1,H-3,String(L)+" chars",{"font-size":7.5,fill:"#777","text-anchor":"end"});
+ T(s,6,41,"gold",{"font-size":7.5,fill:"#2e8b57","font-weight":700}); T(s,6,55,"model",{"font-size":7.5,fill:"#6a4fbf","font-weight":700});
+ for(const p of d.pairs) for(const [a,b] of (p.gold.spans||[])) E(s,"rect",{x:X(a),y:34,width:Math.max(2,X(b)-X(a)),height:8,fill:"#2e8b57",opacity:p.span_match==="missed"?.35:.9,"data-title":p.gold.record_id});
+ for(const r of d.records) for(const [a,b] of (r.spans||[])){const c=cls[r.record_id]||"";E(s,"rect",{x:X(a),y:48,width:Math.max(2,X(b)-X(a)),height:8,fill:c==="agree"?"#2e8b57":c==="spurious"?"#6a4fbf":"#a33333",opacity:sel&&sel!==r.record_id?.3:.9,stroke:sel===r.record_id?"#111":"none","stroke-width":1.2,class:"mapspan","data-rid":r.record_id});}
  const wrap=document.createElement("div"); wrap.appendChild(s);
  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> · span map · gold bar: annotated spans (faint = the model never quoted it) · model bar: green = agrees with gold, red = differs, violet = model only · click a bar to follow that row</div>'+wrap.innerHTML;}
 
