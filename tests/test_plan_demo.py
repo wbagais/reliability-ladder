@@ -262,3 +262,16 @@ def test_the_text_is_kept_only_for_a_redistributable_corpus():
                "rungs": {}, "rules_legend": [], "provenance": {}, "caveats": {}}
     assert "text" not in reduce_document(payload, corpus="cadec")
     assert reduce_document(payload, corpus="finer", keep_text=True)["text"] == payload["text"]
+
+
+def test_the_reducer_emits_word_positions_but_never_the_words():
+    """The page draws a post as blank blocks, one per word, with only the
+    quoted spans filled in. It needs each word's offsets — a count and a
+    length, not text."""
+    from scripts.plan_demo import reduce_document
+    post = "I was extremely sick, and slept."
+    payload = {"run_id": "x", "doc_id": "D.1", "split": "dev", "text": post, "order_run": [0], "records": [], "gold": [],
+               "gold_diff": {"pairs": [], "spurious": [], "counts": {}}, "rungs": {}, "rules_legend": [], "provenance": {}, "caveats": {}}
+    d = reduce_document(payload, corpus="cadec")
+    assert d["word_spans"] == [[0, 1], [2, 5], [6, 15], [16, 21], [22, 25], [26, 32]]
+    assert "text" not in d and "sick" not in json.dumps(d)

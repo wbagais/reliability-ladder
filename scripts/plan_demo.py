@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import json
 import pathlib
+import re
 import sys
 from typing import Callable
 
@@ -315,6 +316,8 @@ def reduce_document(payload: dict, corpus: str, keep_text: bool = False) -> dict
         "doc_id": payload["doc_id"], "corpus": corpus, "run": payload.get("run_id"), "split": payload.get("split"),
         "words": len(str(payload.get("text") or "").split()),
         "chars": len(str(payload.get("text") or "")),   # a count, never the text: the span map's scale
+        # each word's offsets, so the page can draw the post as blank blocks with only the quoted spans filled in
+        "word_spans": [[m.start(), m.end()] for m in re.finditer(r"\S+", str(payload.get("text") or ""))],
         "order_run": payload.get("order_run"), "records": recs, "pairs": pairs, "spurious": spurious,
         "counts": diff.get("counts"), "cost": cost, "legend": payload.get("rules_legend"),
         "calls_total": payload.get("calls_total"),
