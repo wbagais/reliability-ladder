@@ -31,6 +31,9 @@ from typing import Callable
 
 MAX_SPAN_WORDS = 7
 
+# corpora whose licence allows the document text on a published page
+REDISTRIBUTABLE = {"finer"}   # FiNER-139 is CC-BY-SA-4.0; CADEC is non-transferable; PsyTAR's text is not on this machine
+
 # The editorial part: which records, and what each one shows. Record ids are
 # the run's own (`<doc>#<index>`); a wrong id is an error, never a blank.
 SPEC: dict[str, list[dict]] = {
@@ -233,7 +236,7 @@ def _span(text):
     return withhold(text) if text else text
 
 
-def reduce_document(payload: dict, corpus: str) -> dict:
+def reduce_document(payload: dict, corpus: str, keep_text: bool = False) -> dict:
     """The Workbench's document payload (`dashboard.document_view.run_document_payload`,
     the same shape its Live tab draws) reduced to what a static page may carry:
     no post, no model call, no prose from the judge or the retry, spans within
@@ -308,9 +311,10 @@ def reduce_document(payload: dict, corpus: str) -> dict:
             cost[str(n)] = {"tokens": cst.get("tokens"), "n_calls": cst.get("api_calls"), "p95_ms": cst.get("latency_p95_ms")}
     pv = payload.get("provenance") or {}
     git = pv.get("git") or {}
-    return {
+    out = {
         "doc_id": payload["doc_id"], "corpus": corpus, "run": payload.get("run_id"), "split": payload.get("split"),
         "words": len(str(payload.get("text") or "").split()),
+        "chars": len(str(payload.get("text") or "")),   # a count, never the text: the span map's scale
         "order_run": payload.get("order_run"), "records": recs, "pairs": pairs, "spurious": spurious,
         "counts": diff.get("counts"), "cost": cost, "legend": payload.get("rules_legend"),
         "calls_total": payload.get("calls_total"),
@@ -320,6 +324,12 @@ def reduce_document(payload: dict, corpus: str) -> dict:
         "caveats": (list(payload["caveats"].values()) if isinstance(payload.get("caveats"), dict)
                     else [x["text"] if isinstance(x, dict) else str(x) for x in payload.get("caveats") or []]),
     }
+    if keep_text:
+        # only for a corpus whose licence allows redistribution (FiNER-139, CC-BY-SA)
+        out["text"] = payload.get("text")
+        out["gold_spans"] = [{"record_id": g["record_id"], "spans": g.get("spans"), "excluded": bool(g.get("excluded"))}
+                             for g in payload.get("gold") or []]
+    return out
 
 
 def build_documents(repo_root: pathlib.Path, run_key: str, doc_ids: list[str], corpus_name: str,
@@ -343,8 +353,11 @@ def build_documents(repo_root: pathlib.Path, run_key: str, doc_ids: list[str], c
         payload = run_document_payload(state, info, doc_id)
         if payload is None:
             raise KeyError(f"{doc_id} is not a document of {run_key} on this machine")
-        reduced = reduce_document(payload, corpus_name)
+        reduced = reduce_document(payload, corpus_name, keep_text=corpus_name in REDISTRIBUTABLE)
         reduced["provenance"]["git"] = git_sha
+        if corpus_name in REDISTRIBUTABLE:
+            out.append(reduced)
+            continue
         post = str(payload.get("text") or "")
         # C1: no 24-character window of the post survives, except inside a
         # quoted span the precedent allows (an annotated span or the model's
@@ -406,7 +419,7 @@ def build_documents_stripped(records: pathlib.Path, run: str, doc_ids: list[str]
             })
         if not recs:
             raise KeyError(f"{doc_id} is not a document of {run}")
-        out.append({"doc_id": doc_id, "corpus": corpus, "run": run, "split": "dev", "words": None,
+        out.append({"doc_id": doc_id, "corpus": corpus, "run": run, "split": "dev", "words": None, "chars": None,
                     "order_run": [0, 1, 2, 3, 4, 5, 6], "records": recs, "pairs": [], "spurious": [], "counts": None,
                     "cost": {}, "legend": None, "calls_total": None,
                     "provenance": {"run_id": run, "backend": None, "manifest": None, "git": None},

@@ -394,8 +394,13 @@ def test_the_demo_documents_are_the_workbench_view_of_real_documents_with_no_pos
     for t in data["demo"]:
         assert any(d["run"] == t["run"] and d["doc_id"] == t["id"].split("#")[0] for d in docs), t["id"]
     for d in docs:
-        assert "text" not in d
-        dumped = json.dumps(d)
+        # the excerpt is carried only for the redistributable corpus (FiNER-139, CC-BY-SA);
+        # a CADEC post or a PsyTAR review never reaches the page
+        if d["corpus"] == "finer":
+            assert isinstance(d.get("text"), str) and d["text"]
+        else:
+            assert "text" not in d and "gold_spans" not in d, d["doc_id"]
+        dumped = json.dumps({k: v for k, v in d.items() if k != "text"})
         for word in ("why", "prompt", "raw", "reply", "detail", "calls", "context"):
             assert f'"{word}"' not in dumped, (d["doc_id"], word)
         for r in d["records"]:

@@ -251,3 +251,14 @@ def test_reduce_document_keeps_the_grid_and_drops_every_word_of_the_post():
     assert d["legend"] == payload["rules_legend"]
     assert d["provenance"] == {"run_id": "toy-d0", "backend": "local-rf2", "manifest": "abc", "git": "deadbeef"}
     assert d["caveats"] == ["Rung 3 numbers are SAMPLES"]
+
+
+def test_the_text_is_kept_only_for_a_redistributable_corpus():
+    """FiNER-139 is CC-BY-SA and its excerpt may be shown; CADEC may not.
+    `keep_text` is an explicit choice per corpus, off by default."""
+    from scripts.plan_demo import reduce_document
+    payload = {"run_id": "x", "doc_id": "F.1", "split": "dev", "text": "The effective tax rate was 47.6 percent .",
+               "order_run": [0, 1], "records": [], "gold": [], "gold_diff": {"pairs": [], "spurious": [], "counts": {}},
+               "rungs": {}, "rules_legend": [], "provenance": {}, "caveats": {}}
+    assert "text" not in reduce_document(payload, corpus="cadec")
+    assert reduce_document(payload, corpus="finer", keep_text=True)["text"] == payload["text"]

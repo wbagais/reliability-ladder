@@ -174,9 +174,20 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 .livegrid .rules .hold{background:#c9a227;border-color:#8a6d15;color:#fff}.livegrid .rules .ship{background:#2d6a4f;border-color:#1f4d38;color:#fff}.livegrid .rules .nr{background:#f4f4f4;color:#999;border-style:dashed}
 .livegrid .legendbox{border:1px solid #bbb;background:#fafafa;padding:6px 10px;margin:8px 0;font-size:9pt}
 .livegrid table.legendv{border-collapse:collapse;margin:4px 0}.livegrid table.legendv td{border:none;padding:1px 8px 1px 0;font-size:9pt}.livegrid table.legendv td.pct{font-family:Consolas,monospace;text-align:right}.livegrid table.legendv tr.nr td{color:#999}
-.livegrid .lg{display:inline-block;font:600 7.5pt Consolas,monospace;border:1px solid;border-radius:8px;padding:0 5px;margin-left:4px;white-space:nowrap;vertical-align:middle}
+.livegrid .lg{display:inline-block;width:auto;height:auto;background:none;font:600 7.5pt Consolas,monospace;border:1px solid;border-radius:8px;padding:0 5px;margin-left:4px;white-space:nowrap;vertical-align:middle}
 .livegrid .lg.missed{color:var(--gold);border-color:var(--gold);border-style:double}.livegrid .lg.spurious{color:var(--model);border-color:var(--model)}
 .livegrid .prov{font:8.5pt Consolas,monospace;color:#555;margin-top:6px}
+.livegrid .doc-text{font:10.5pt/1.9 Consolas,Menlo,monospace;background:#fff;border:1px solid #bbb;padding:10px 12px;margin:4px 0 8px;white-space:pre-wrap;color:#222}
+.livegrid .gold-span{background:rgba(46,139,87,.16);border-bottom:2px solid #2e8b57}
+.livegrid .gold-span.missed{background:none;border-bottom:3px double #2e8b57}
+.livegrid .gold-span.excluded{background:none;border-bottom:2px dotted #999;color:#666}
+.livegrid .pred-span{cursor:pointer;background:rgba(106,79,191,.16);border-bottom:2px solid #6a4fbf}
+.livegrid .pred-span.agree{background:rgba(46,139,87,.28);border-bottom:2px solid #2e8b57}
+.livegrid .pred-span.differ{background:rgba(163,51,51,.18);border-bottom:2px solid #a33333}
+.livegrid .pred-span.spurious{background:rgba(106,79,191,.2);border-bottom:2px solid #6a4fbf}
+.livegrid .pred-span.selected{outline:2px solid #6a4fbf;outline-offset:1px}.livegrid .pred-span.dim{opacity:.45}
+.livegrid .lg.agree{color:#2e8b57;border-color:#2e8b57}.livegrid .lg.differ{color:#a33333;border-color:#a33333}
+.livegrid .mapspan{cursor:pointer}
 .shows{border:1px solid #999;border-left:4px solid #333;background:#fdf6e3;padding:8px 12px;margin:0 0 10px;font-size:10pt}
 </style>
 </head>
@@ -800,7 +811,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
   "heldout": "docs/decisions.md, 2026-08-26 Phase F entry (phaseF-test-1; raw artifacts deleted 2026-08-31)",
   "flow": "per record from the tracked <run>.ledger.jsonl (CADEC, FiNER: rung 1 verdict, rung 2 outcome, rung 4 verdict, rung 5 zone) and the PsyTAR cell's records.stripped.jsonl; totals and tokens from results.csv; changed and unreviewable from aggregates.json; changed_by_lane from rerun/cadec.json and rerun/finer.json (r3 by_lane) and, for PsyTAR, the stripped records' r3.changed",
   "demo": "scripts/plan_demo.py: CADEC and FiNER over the archived raw run (out/archive/\u2026, records per rung, state rows, the -judgemenu arm); PsyTAR over the tracked records.stripped.jsonl (no span text, no answer key on this machine); spans \u2264 7 words, labels from the registry",
-  "documents": "scripts/plan_demo.py --documents: dashboard.document_view.run_document_payload over the archived raw run (CADEC, FiNER), reduced \u2014 no post, no calls, no prose, spans \u2264 7 words, menus trimmed to 3 + the pick + the gold line; PsyTAR from the tracked stripped records"
+  "documents": "scripts/plan_demo.py --documents: dashboard.document_view.run_document_payload over the archived raw run (CADEC, FiNER), reduced \u2014 no post, no calls, no prose, spans \u2264 7 words, menus trimmed to 3 + the pick + the gold line; PsyTAR from the tracked stripped records; the FiNER excerpt itself is carried (CC-BY-SA); for CADEC and PsyTAR only the post's length and the span offsets"
  },
  "heldout": {
   "run": "phaseF-test-1",
@@ -7882,6 +7893,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 25,
+   "chars": 166,
    "order_run": [
     0,
     1,
@@ -8383,6 +8395,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 28,
+   "chars": 145,
    "order_run": [
     0,
     1,
@@ -8748,6 +8761,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 57,
+   "chars": 278,
    "order_run": [
     0,
     1,
@@ -9226,6 +9240,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 50,
+   "chars": 238,
    "order_run": [
     0,
     1,
@@ -10006,6 +10021,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 203,
+   "chars": 1067,
    "order_run": [
     0,
     1,
@@ -11274,6 +11290,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 28,
+   "chars": 157,
    "order_run": [
     0,
     1,
@@ -11986,6 +12003,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 48,
+   "chars": 269,
    "order_run": [
     0,
     1,
@@ -12486,6 +12504,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 195,
+   "chars": 1001,
    "order_run": [
     0,
     1,
@@ -14383,6 +14402,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 124,
+   "chars": 672,
    "order_run": [
     0,
     1,
@@ -15690,6 +15710,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 145,
+   "chars": 774,
    "order_run": [
     0,
     1,
@@ -16984,6 +17005,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 139,
+   "chars": 761,
    "order_run": [
     0,
     1,
@@ -18194,6 +18216,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "psytar-gpt-oss_20b-d0",
    "split": "dev",
    "words": null,
+   "chars": null,
    "order_run": [
     0,
     1,
@@ -18941,6 +18964,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "psytar-gpt-oss_20b-d0",
    "split": "dev",
    "words": null,
+   "chars": null,
    "order_run": [
     0,
     1,
@@ -19956,6 +19980,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "psytar-gpt-oss_20b-d0",
    "split": "dev",
    "words": null,
+   "chars": null,
    "order_run": [
     0,
     1,
@@ -20519,6 +20544,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "psytar-gpt-oss_20b-d0",
    "split": "dev",
    "words": null,
+   "chars": null,
    "order_run": [
     0,
     1,
@@ -20998,6 +21024,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-finer-d0",
    "split": "dev",
    "words": 417,
+   "chars": 2194,
    "order_run": [
     0,
     1,
@@ -22240,6 +22267,59 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "The dividend is payable on July 15 , 2020 to common stockholders of record as of the close of business on June 30 , 2020 . Preferred Stock - On May 1 , 2020 , the Board of Directors declared a cash dividend of $ 0.515625 per share of 8.25 % Series A preferred stock ; a cash dividend of $ 0.484375 per share of 7.75 % Series B preferred stock ; and a cash dividend of $ 0.53125 per share of 8.50 % Series C preferred stock . These amounts reflect dividends from March 1 , 2020 through May 31 , 2020 and are payable on June 1 , 2020 to preferred stockholders of record on May 15 , 2020 . Substantially all of these shares have one third vest as of the grant date and one third vesting on each of the first and second anniversaries of the grant date . One quarter of the shares vested as of the grant date and one quarter will vest on each of the first , second and third anniversaries of the grant date . Our chief executive officer was also granted up to 275,569 performance - based restricted stock units with a grant date fair value of $ 0.1 million that vest at the end of a four - year performance period based on our achievement of certain total stockholder return objectives . During the first quarter of 2020 , 143,096 shares were withheld by us from the net settlement of restricted common stock by employees for payment of withholding taxes . 41 Table of Contents ARBOR REALTY TRUST , INC . AND SUBSIDIARIES NOTES TO CONSOLIDATED FINANCIAL STATEMENTS ( Unaudited ) March 31 , 2020 A reconciliation of the numerator and denominator of our basic and diluted EPS computations ( $ in thousands , except share and per share data ) is as follows : ( 1 ) Net of preferred stock dividends . ( 4 ) The convertible senior unsecured notes impact diluted earnings per share if the average price of our common stock exceeds the conversion price , as calculated in accordance with the terms of the indenture , of which was antidilutive for March 31 , 2020 . Note 17 - Income Taxes As a REIT , we are generally not subject to U.S. federal income tax to the extent of our distributions to stockholders and as long as certain asset , income , distribution , ownership and administrative tests are met .",
+   "gold_spans": [
+    {
+     "record_id": "FINER.test.0021#0",
+     "spans": [
+      [
+       234,
+       238
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0021#1",
+     "spans": [
+      [
+       311,
+       315
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0021#2",
+     "spans": [
+      [
+       391,
+       395
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0021#3",
+     "spans": [
+      [
+       955,
+       962
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0021#4",
+     "spans": [
+      [
+       1218,
+       1225
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -22248,6 +22328,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-finer-d0",
    "split": "dev",
    "words": 395,
+   "chars": 2238,
    "order_run": [
     0,
     1,
@@ -22570,7 +22651,9 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
-   ]
+   ],
+   "text": "As provided below , the creation order settlement date may occur up to two business days after the creation order date . Unless otherwise agreed to by the Managing Owner and the Authorized Participant as provided in the next sentence , Creation Units are issued on the creation order settlement date as of 2:45 p.m. , Eastern Time , on the business day immediately following the creation order date at the applicable NAV per Share as of the closing time of the NYSE Arca or the last to close of the exchanges on which its futures contracts are traded , whichever is later , on the creation order date , but only if the required payment has been timely received . Upon submission of a creation order , the Authorized Participant may request the Managing Owner to agree to a creation order settlement date up to two business days after the creation order date . ( b ) Redemptions On any business day , an Authorized Participant may place an order with the Transfer Agent to redeem one or more Creation Units . Redemption orders must be placed by 10:00 a.m. , Eastern Time . As provided below , the redemption order settlement date may occur up to two business days after the redemption order date . Instead , individual Shareholders may only redeem Shares in integral multiples of 200,000 and only through an Authorized Participant . Unless otherwise agreed to by the Managing Owner and the Authorized Participant as provided in the next sentence , by placing a redemption order , an Authorized Participant agrees to deliver the Creation Units to be redeemed through DTC \u2019 s book - entry system to the Fund no later than the redemption order settlement date as of 2:45 p.m. , Eastern Time , on the business day immediately following the redemption order date . Upon submission of a redemption order , the Authorized Participant may request the Managing Owner to agree to a redemption order settlement date up to two business days after the redemption order date . The Managing Owner will distribute the cash redemption amount at the redemption order settlement date as of 2:45 p.m. , Eastern Time , on the redemption order settlement date through DTC to the account of the Authorized Participant as recorded on DTC \u2019 s book - entry system .",
+   "gold_spans": []
   },
   {
    "doc_id": "FINER.test.0059",
@@ -22578,6 +22661,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-finer-d0",
    "split": "dev",
    "words": 434,
+   "chars": 2437,
    "order_run": [
     0,
     1,
@@ -24135,6 +24219,59 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "We have constructed the only greenfield cokemaking facilities in the U.S. in approximately 30 years and are the only North American coke producer that utilizes heat recovery technology in the cokemaking process . Our logistics business consists of Convent Marine Terminal ( \u201c CMT \u201d ) , Kanawha River Terminal ( \u201c KRT \u201d ) , Sun Coke Lake Terminal ( \u201c Lake Terminal \u201d ) and Dismal River Terminal ( \u201c DRT \u201d ) and has collective capacity to mix and/or transload more than 40 million tons of coal and other aggregates annually and has total storage capacity of approximately 3 million tons . Incorporated in Delaware in 2010 and headquartered in Lisle , Illinois , we became a publicly - traded company in 2011 and our stock is listed on the New York Stock Exchange under the symbol \u201c SXC . \u201d Basis of Presentation The accompanying unaudited consolidated financial statements included herein have been prepared in accordance with accounting principles generally accepted in the U.S. ( \u201c GAAP \u201d ) for interim reporting . The results of operations for the period ended March 31 , 2020 are not necessarily indicative of the operating results expected for the entire year . These unaudited interim consolidated financial statements should be read in conjunction with the audited consolidated financial statements included in our Annual Report on Form 10-K for the year ended December 31 , 2019.2 . The remaining 37.6 percent limited partner interest in the Partnership was held by public unitholders . On June 28 , 2019 , the Company acquired all of the outstanding common units of the Partnership not already owned by Sun Coke ( the \" Simplification Transaction \" ) . As of January 1 , 2020 , the Partnership merged with and into Sun Coke Energy Partners Finance Corp. ( \" Finance Corp. \" ) , which is also a wholly - owned subsidiary of the Company . 6 Table of Contents 3 . Goodwill allocated to our Domestic Coke segment was $ 3.4 million at both March 31 , 2020 and December 31 , 2019 . The components of other intangible assets , net were as follows : Total amortization expense for intangible assets subject to amortization was $ 0.7 million and $ 2.7 million for the three months ended March 31 , 2020 and 2019 , respectively . The Company recorded income tax expense of $ 10.4 million for the three months ended March 31 , 2020 , resulting in an effective tax rate of 63.8 percent as compared to the 21.0 percent federal statutory rate .",
+   "gold_spans": [
+    {
+     "record_id": "FINER.test.0059#0",
+     "spans": [
+      [
+       1922,
+       1925
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0059#1",
+     "spans": [
+      [
+       2128,
+       2131
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0059#2",
+     "spans": [
+      [
+       2146,
+       2149
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0059#3",
+     "spans": [
+      [
+       2272,
+       2276
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "FINER.test.0059#4",
+     "spans": [
+      [
+       2368,
+       2372
+      ]
+     ],
+     "excluded": false
+    }
    ]
   }
  ]
@@ -24273,11 +24410,43 @@ function gridTable(d,sel){const cols=[1,2,3,4].filter(n=>(d.order_run||[]).inclu
  return '<table class="grid cells"><tr><th style="border:none;min-width:0"></th>'+head+'<th class="person-h">person<small>'+held+' of '+d.records.length+' queued</small></th></tr>'+rows+cost+'</table>';}
 function legendTable(d){const L=d.legend; if(!L) return '<div class="small legendbox"><b>person</b> · six rules · V strict vocabulary check · V+ loose vocabulary check · 3 all samples agree · 2 two of three · J blind judge · J+ menu-shown judge · <span class="rules"><span class="hold">V</span></span> holds · <span class="rules"><span class="ship">V</span></span> ships · <span class="rules"><span class="nr">V</span></span> not run</div>';
  return '<div class="legendbox"><div class="small"><b>person</b> · six rules · share of this document\'s records each holds</div><table class="legendv">'+L.map(x=>'<tr class="'+(x.share===null?"nr":"")+'"><td><span class="rules"><span class="'+(x.share===null?"nr":"")+'">'+esc(x.id)+'</span></span></td><td>'+esc(x.name)+'</td><td class="pct">'+(x.share===null?"not run":Math.round(100*x.share)+"%")+'</td></tr>').join("")+'</table><div class="small"><span class="rules"><span class="hold">V</span></span> holds it for a person · <span class="rules"><span class="ship">V</span></span> ships it · <span class="rules"><span class="nr">V</span></span> not run</div></div>';}
+/* the input: the excerpt itself where the licence allows it (FiNER-139), else a span map of the post —
+   its length, the annotators' spans and the model's spans at their offsets, and not one word of it */
+function pairClassOf(d){const cls={};for(const p of d.pairs){if(p.pred)cls[p.pred]=p.span_match==="missed"?"missed":(p.span_match==="exact"&&(p.code==="correct"||p.code==="withheld_correct"))?"agree":"differ";}for(const s of d.spurious)cls[s.record_id]="spurious";return cls;}
+function highlightText(text,marks){marks=marks.filter(m=>m.start>=0&&m.end>m.start).sort((a,b)=>a.start-b.start||b.end-a.end);
+ let out="",pos=0;const open=[];
+ const cuts=new Set([0,text.length]);for(const m of marks){cuts.add(m.start);cuts.add(m.end);}
+ const pts=[...cuts].sort((a,b)=>a-b);
+ for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1];if(b<=a)continue;const here=marks.filter(m=>m.start<=a&&m.end>=b);const seg=esc(text.slice(a,b));
+  if(!here.length){out+=seg;continue;}
+  const cls=here.map(m=>m.cls).join(" "),title=here.map(m=>m.title).join(" · "),rid=here.find(m=>m.rid)?here.find(m=>m.rid).rid:null;
+  out+='<span class="'+cls+'"'+(rid?' data-rid="'+esc(rid)+'"':'')+' title="'+esc(title)+'">'+seg+'</span>';}
+ return out;}
+function textBlock(d,sel){
+ const cls=pairClassOf(d);
+ if(d.text){const marks=[];
+  for(const r of d.records) for(const [a,b] of (r.spans||[])) marks.push({start:a,end:b,rid:r.record_id,cls:"pred-span "+(cls[r.record_id]||"")+(sel===r.record_id?" selected":(sel?" dim":"")),title:r.record_id+" → "+(r.final.sct||"no code")+" ("+r.final.zone+")"});
+  const missed=new Set(d.pairs.filter(p=>p.span_match==="missed").map(p=>p.gold.record_id));
+  for(const g of (d.gold_spans||[])) for(const [a,b] of (g.spans||[])) marks.push({start:a,end:b,cls:"gold-span"+(g.excluded?" excluded":"")+(missed.has(g.record_id)?" missed":""),title:"GOLD "+g.record_id+(missed.has(g.record_id)?" — gold only":"")});
+  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — a FiNER-139 filing excerpt (CC-BY-SA), '+d.words+' words · <span class="lg agree">agrees</span> <span class="lg differ">differs</span> <span class="lg spurious">model only</span> <span class="lg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text">'+highlightText(d.text,marks)+'</div>';}
+ // no text: the span map
+ const L=d.chars||Math.max(1,...d.records.flatMap(r=>(r.spans||[]).map(s=>s[1])),...d.pairs.flatMap(p=>(p.gold.spans||[]).map(s=>s[1])));
+ const W=960,H=64,x0=6,x1=W-6,X=v=>x0+(x1-x0)*Math.min(v,L)/L;
+ const s=S("0 0 "+W+" "+H); s.setAttribute("style","width:100%;height:auto;display:block;background:#fafafa;border:1px solid #ddd");
+ E(s,"rect",{x:x0,y:22,width:x1-x0,height:8,fill:"#e4e4e4"});
+ M(s,x0,12,d.corpus==="cadec"?"the post — "+d.words+" words, "+L+" characters — is not shown (CADEC is non-transferable); this is where its mentions sit":"the review — not on this machine; this is where the model's mentions sit",{"font-size":8.5,fill:"#555"});
+ M(s,x0,H-4,"0",{"font-size":7.5,fill:"#777"}); M(s,x1,H-4,String(L),{"font-size":7.5,fill:"#777","text-anchor":"end"});
+ T(s,x0,44,"gold",{"font-size":7.5,fill:"#2e8b57","font-weight":700}); T(s,x0,58,"model",{"font-size":7.5,fill:"#6a4fbf","font-weight":700});
+ for(const p of d.pairs) for(const [a,b] of (p.gold.spans||[])) E(s,"rect",{x:X(a),y:36,width:Math.max(2,X(b)-X(a)),height:8,fill:"#2e8b57",opacity:p.span_match==="missed"?.35:.9,"data-title":p.gold.record_id});
+ for(const r of d.records) for(const [a,b] of (r.spans||[])){const c=cls[r.record_id]||"";E(s,"rect",{x:X(a),y:50,width:Math.max(2,X(b)-X(a)),height:8,fill:c==="agree"?"#2e8b57":c==="spurious"?"#6a4fbf":"#a33333",opacity:sel&&sel!==r.record_id?.3:.9,stroke:sel===r.record_id?"#111":"none","stroke-width":1.2,class:"mapspan","data-rid":r.record_id});}
+ const wrap=document.createElement("div"); wrap.appendChild(s);
+ return '<div class="small" style="margin:6px 0 2px"><b>the input</b> · span map · gold bar: annotated spans (faint = the model never quoted it) · model bar: green = agrees with gold, red = differs, violet = model only · click a bar to follow that row</div>'+wrap.innerHTML;}
+
 function docView(d,sel,t){
  const pv=d.provenance||{};
- const postLine=d.corpus==="cadec"?'<b>the post is not shown</b> — CADEC is non-transferable; '+d.words+' words, spans and vocabulary labels only':d.corpus==="finer"?'a FiNER-139 filing excerpt, '+d.words+' words; spans are the numerals the model quoted':'PsyTAR — published stripped records: no text, no menu, no answer key on this machine';
+ const postLine=d.corpus==="cadec"?'spans and vocabulary labels only':d.corpus==="finer"?'spans are the numerals the model quoted':'PsyTAR — published stripped records: no text, no menu, no answer key on this machine';
  return '<div class="doc-head"><b>'+esc(d.doc_id)+'</b> <span class="mut">· '+esc(d.run)+' · '+esc(d.split||"")+' · '+d.records.length+' record'+(d.records.length===1?"":"s")+(d.counts?' · '+d.counts.gold+' gold mention'+(d.counts.gold===1?"":"s"):'')+'</span></div>'
-  +'<div class="small" style="margin:6px 0">'+postLine+' · click a keyword to follow one row</div>'
+  +textBlock(d,sel)+'<div class="small" style="margin:4px 0 6px">'+postLine+' · click a keyword to follow one row</div>'
   +r0Table(d,sel)+gridTable(d,sel)+'<div class="small">hover a cell for the full value · gray = the rung did nothing here · the three cost rows are the three measures, never fused</div>'+legendTable(d)
   +((d.caveats||[]).length?'<details style="margin:8px 0"><summary style="cursor:pointer;font-size:9.5pt;color:#444">notes on this view · '+d.caveats.length+'</summary>'+d.caveats.map(c=>'<div class="cav">'+esc(c)+'</div>').join("")+'</details>':'')
   +'<div class="prov">run '+esc(pv.run_id||d.run)+' · '+esc(d.doc_id)+' ('+esc(d.split||"")+') · ran rungs '+(d.order_run||[]).join(",")+(d.calls_total!=null?' · '+d.calls_total+' model calls':'')+' · backend '+esc(pv.backend||"—")+' · manifest '+esc(pv.manifest||"—")+' · git '+esc(pv.git||"—")+' · archived</div>';}
