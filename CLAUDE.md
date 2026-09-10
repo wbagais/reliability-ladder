@@ -7,8 +7,12 @@
   `<script id="plan-data">`, which `tests/test_plan_html.py` compares to `runs/archive/`, `matrix.csv`
   and the PsyTAR cell** — regenerate the block after a re-run, never type a number in. The demo's
   documents come from `scripts/plan_demo.py --documents` (the Workbench's own document builder over
-  the raw archive; no post, spans ≤ 7 words, labels); `scripts/plan_local.py` builds a copy WITH the
-  posts under `out/` only, for the licensee's screen — never commit or send it.
+  the raw archive; no post, spans ≤ 7 words, labels). **A CADEC document on the public page shows a
+  SYNTHETIC STAND-IN** (`scripts/plan_synth.py`, 2026-09-10): the real spans at the post's word
+  positions, invented review prose everywhere else, built from the reduced document and never the
+  post, labelled as such, and still run through the leak check against the post's windows. It
+  replaced grey blocks, which the owner found unreadable. `scripts/plan_local.py` builds a copy WITH
+  the real posts under `out/` only, for the licensee's screen — never commit or send it.
 - `docs/REPRODUCE.md` — how every article number is regenerated: re-score, re-derive, re-run
 - `docs/INFOQ-SUBMISSION.md` — the rules every edit to `docs/article-infoq-CADEC.md` must keep (word budget, takeaways, captions, the Word export); `tests/test_infoq_article.py` enforces the mechanical ones
 - `README.md` — the ladder, the three cost measures, the data licences

@@ -13,12 +13,14 @@
 <table align="center">
 <tr>
 <td align="center"><a href="docs/article-infoq-CADEC.md"><b>the article</b></a></td>
+<td align="center"><a href="https://ai-reliability-ladder-9baac5.gitlab.io/"><b>the plan page</b></a></td>
 <td align="center"><a href="docs/decisions.md"><b>the decision log</b></a></td>
 <td align="center"><a href="#the-three-checks"><b>the three checks</b></a></td>
 <td align="center"><a href="runs/archive/matrix-2026-09-07/"><b>the run archive</b></a></td>
 </tr>
 <tr>
 <td align="center"><sub>the InfoQ submission; the long cross-corpus version is <a href="docs/article-v3.md">article-v3</a></sub></td>
+<td align="center"><sub>the result, a demo of real records through the rungs, the figures — no install; source <a href="docs/plan.html">docs/plan.html</a></sub></td>
 <td align="center"><sub>every finding, dated, beside its corrections</sub></td>
 <td align="center"><sub>gatecheck · crosscheck · stagecheck</sub></td>
 <td align="center"><sub>~50 cells, re-scoreable from this repo</sub></td>
