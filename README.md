@@ -264,9 +264,11 @@ dashboard/      the Workbench — FastAPI over ladder.*, a vanilla-JS page, loop
 schemas/        the runner and vocabulary contracts
 manifest*.json  one manifest per corpus; every arm is a pinned one-key diff
 runs/archive/   the tracked, corpus-free run files every published number comes from
-scripts/        preflight · score_matrix · reproduce · the run and re-run protocols
+scripts/        preflight · score_matrix · reproduce · the run and re-run protocols ·
+                plan_demo and plan_local (the plan page's demo, and a local copy with the posts)
 tests/          against stubs — no network, no keys, no corpus
-docs/           the articles, the decision log, REPRODUCE, RUNNING, licences
+docs/           the articles, the decision log, REPRODUCE, RUNNING, licences,
+                plan.html (the published page — the study as measured, explorable with nothing installed)
 ```
 
 ## Documentation
@@ -274,10 +276,12 @@ docs/           the articles, the decision log, REPRODUCE, RUNNING, licences
 | | |
 |---|---|
 | [docs/article-infoq-CADEC.md](docs/article-infoq-CADEC.md) | the InfoQ submission; [docs/article-v3.md](docs/article-v3.md) is the long two-corpus version |
+| [docs/plan.html](docs/plan.html) | the published page: the result as measured, a demo of real records through the seven rungs, four generated figures, the architecture, the decision history, a glossary — one file, no install; every number in it is pinned to `runs/archive/` by `tests/test_plan_html.py` |
 | [docs/decisions.md](docs/decisions.md) | the durable record — every finding, dated, with its corrections beside it |
 | [docs/REPRODUCE.md](docs/REPRODUCE.md) | re-score, re-derive, re-run |
 | [docs/RUNNING.md](docs/RUNNING.md) | the CADEC and geo arms, watching a run, provenance, the ledger, the contracts |
 | [MR-dashboard-M1.md](MR-dashboard-M1.md) | the Workbench: tabs, constraints, tests |
+| [MR-plan-html-v19.md](MR-plan-html-v19.md) | the plan page: what was rewritten, what the demo draws, what stays off the page |
 | [docs/FINAL-RESULTS.md](docs/FINAL-RESULTS.md) | the matrix, cell by cell |
 | [docs/early-results.md](docs/early-results.md) | the superseded 2026-08-20 figures and the build checklist |
 | [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md) | what moved, when · the quickest way in is to break a number |
@@ -286,7 +290,7 @@ docs/           the articles, the decision log, REPRODUCE, RUNNING, licences
 
 | | |
 |---|---|
-| **GitLab** *(primary)* | [gitlab.com/pushpdeep/ai-reliability-ladder](https://gitlab.com/pushpdeep/ai-reliability-ladder) — CI publishes the [plan and demo](https://ai-reliability-ladder-9baac5.gitlab.io/) from here |
+| **GitLab** *(primary)* | [gitlab.com/pushpdeep/ai-reliability-ladder](https://gitlab.com/pushpdeep/ai-reliability-ladder) — CI publishes [the page](https://ai-reliability-ladder-9baac5.gitlab.io/) from here — the study, a real-record demo and the figures, readable with nothing installed |
 | **GitHub** *(mirror)* | [github.com/wbagais/reliability-ladder](https://github.com/wbagais/reliability-ladder) — the address the article prints |
 | **stagecheck** | [github.com/pushpdeep/stagecheck](https://github.com/pushpdeep/stagecheck) — installable on its own |
 
