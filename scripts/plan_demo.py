@@ -364,6 +364,11 @@ def build_documents(repo_root: pathlib.Path, run_key: str, doc_ids: list[str], c
             # LOCAL build (scripts/plan_local.py), which is written under out/ only
             out.append(reduced)
             continue
+        # the public page draws a synthetic stand-in around the quoted spans
+        # (scripts/plan_synth.py); it is built from the reduced document, never
+        # the post, and is checked against the post's windows below all the same
+        from scripts.plan_synth import public_document
+        reduced = public_document(reduced)
         post = str(payload.get("text") or "")
         # C1: no 24-character window of the post survives, except inside a
         # quoted span the precedent allows (an annotated span or the model's

@@ -179,6 +179,7 @@ mark{background:rgba(255,154,61,.3);color:#fff;padding:0 2px;border-radius:2px}
 .livegrid .prov{font:8.5pt Consolas,monospace;color:#555;margin-top:6px}
 .livegrid .doc-text{font:10.5pt/2 Calibri,"Segoe UI",Arial,sans-serif;background:#fff;border:1px solid #bbb;padding:10px 14px;margin:4px 0 8px;white-space:normal;color:#222}
 .livegrid .doc-text.redacted{line-height:2.1}
+.livegrid .doc-text.synthetic{color:#666}.livegrid .doc-text.synthetic .pred-span,.livegrid .doc-text.synthetic .gold-span{color:#121a1e}
 .livegrid .blk{display:inline-block;height:9px;background:#d9dde0;border-radius:2px;vertical-align:middle}
 .livegrid .redact-note{border:1px solid #c9a227;border-left:4px solid #c9a227;background:#fdf6e3;padding:6px 10px;margin:4px 0 6px;font-size:9.5pt}
 .livegrid .gold-span{background:rgba(46,139,87,.16);border-bottom:2px solid #2e8b57}
@@ -493,7 +494,7 @@ scripts/consolidated_rerun.sh cadec d3                                        # 
 <div class="pane" id="p-demo">
 <div class="paper" style="max-width:1100px">
 <h2 style="margin-top:0">Ladder demo — a document through the ladder, one example for every path</h2>
-<p>It opens on FiNER-139, whose text may be shown; CADEC's documents are redacted to their quoted spans, PsyTAR's to their verdicts. Pick a dataset, a path a record can take, and an example. Its document opens the way the Workbench's Live tab draws one: rung 0 against gold, mention by mention, then every record of the document by rungs 1 to 4 and the person column with the six shipping rules. The example's row is lit; click any keyword to follow another. Nothing is typed in: <code>scripts/plan_demo.py</code> calls the Workbench's own document builder over the archived run, and a test cross-checks every record against the tracked ledger.</p>
+<p>It opens on FiNER-139, whose text may be shown. A CADEC document shows a synthetic stand-in: its real annotated spans and the model's quotes at the positions the post had, invented words everywhere else, because the corpus is non-transferable. PsyTAR's documents are reduced to their verdicts. Pick a dataset, a path a record can take, and an example. Its document opens the way the Workbench's Live tab draws one: rung 0 against gold, mention by mention, then every record of the document by rungs 1 to 4 and the person column with the six shipping rules. The example's row is lit; click any keyword to follow another. Nothing is typed in: <code>scripts/plan_demo.py</code> calls the Workbench's own document builder over the archived run, and a test cross-checks every record against the tracked ledger.</p>
 <details style="margin:6px 0 10px"><summary style="cursor:pointer;font-size:10pt;color:#444">What is shown, and what is withheld</summary>
 <div class="note warn" style="margin:6px 0">CADEC is non-transferable, so the post is never shown: a record is its quoted span (at most seven words, the tracked report's own precedent), its vocabulary labels in |bars|, and every verdict; the judge's reasons are prose about the post and stay on the machine. FiNER-139 is CC-BY-SA; its spans are numerals. PsyTAR's raw run lives on the other owner's machine, so its documents come from the published records with the quoted text removed and no answer key: they show the path and every verdict, not whether the code was right. The page cannot run new text; the Workbench's Live tab is the tool for that.</div></details>
 <div id="demoRoot"></div>
@@ -805,7 +806,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
 <script id="plan-data" type="application/json">
 {
  "version": 19,
- "generated": "2026-09-09",
+ "generated": "2026-09-10",
  "sources": {
   "cadec": "runs/archive/consolidated-2026-09-03/rerun-cadec-d0.results.csv + rerun/cadec.json",
   "finer": "runs/archive/consolidated-2026-09-03/finer/rerun-finer-d0.results.csv + rerun/finer.json",
@@ -7896,58 +7897,78 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 25,
-   "chars": 166,
+   "chars": 130,
    "word_spans": [
     [
      0,
-     15
+     2
     ],
     [
-     16,
-     19
+     3,
+     6
     ],
     [
-     20,
+     7,
+     14
+    ],
+    [
+     15,
+     21
+    ],
+    [
+     22,
      27
     ],
     [
      28,
-     34
+     31
     ],
     [
-     35,
-     40
+     32,
+     35
     ],
     [
-     41,
+     36,
+     41
+    ],
+    [
+     42,
      45
     ],
     [
      46,
-     54
+     51
     ],
     [
-     55,
-     60
+     52,
+     56
     ],
     [
-     61,
-     73
+     57,
+     66
     ],
     [
-     74,
-     75
+     67,
+     71
     ],
     [
-     76,
-     79
+     72,
+     76
     ],
     [
-     80,
-     89
+     77,
+     81
     ],
     [
-     90,
+     82,
+     86
+    ],
+    [
+     87,
+     88
+    ],
+    [
+     89,
      94
     ],
     [
@@ -7956,47 +7977,27 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      99,
-     108
+     106
     ],
     [
-     109,
-     113
+     107,
+     112
     ],
     [
-     114,
-     115
+     113,
+     114
     ],
     [
-     116,
-     121
+     115,
+     118
     ],
     [
-     122,
-     125
+     119,
+     122
     ],
     [
-     126,
-     134
-    ],
-    [
-     135,
-     141
-    ],
-    [
-     142,
-     144
-    ],
-    [
-     145,
-     152
-    ],
-    [
-     153,
-     157
-    ],
-    [
-     158,
-     165
+     123,
+     130
     ]
    ],
    "order_run": [
@@ -8014,8 +8015,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "extreme rectal bleed",
      "spans": [
       [
-       20,
-       40
+       7,
+       27
       ]
      ],
      "negated": false,
@@ -8119,8 +8120,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "extremely sick",
      "spans": [
       [
-       80,
-       94
+       57,
+       71
       ]
      ],
      "negated": false,
@@ -8229,8 +8230,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "might not survive",
      "spans": [
       [
-       116,
-       133
+       89,
+       106
       ]
      ],
      "negated": false,
@@ -8349,8 +8350,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        28,
-        40
+        15,
+        27
        ]
       ]
      },
@@ -8374,8 +8375,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        80,
-        94
+        57,
+        71
        ]
       ]
      },
@@ -8395,8 +8396,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       "labels": [],
       "spans": [
        [
-        109,
-        133
+        82,
+        106
        ]
       ]
      },
@@ -8492,6 +8493,40 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "So far extreme rectal bleed for the first few weeks plus extremely sick most days felt I might not survive which I did not expect.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "ARTHROTEC.107#0",
+     "spans": [
+      [
+       15,
+       27
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "ARTHROTEC.107#1",
+     "spans": [
+      [
+       57,
+       71
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "ARTHROTEC.107#2",
+     "spans": [
+      [
+       82,
+       106
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -8500,7 +8535,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 28,
-   "chars": 145,
+   "chars": 131,
    "word_spans": [
     [
      0,
@@ -8512,107 +8547,107 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      11,
-     16
+     15
     ],
     [
-     17,
+     16,
      21
     ],
     [
      22,
-     24
+     23
     ],
     [
-     25,
-     27
+     24,
+     26
     ],
     [
-     28,
-     32
+     27,
+     29
     ],
     [
-     33,
-     40
+     30,
+     31
     ],
     [
-     41,
-     46
+     32,
+     35
     ],
     [
-     47,
+     36,
+     41
+    ],
+    [
+     42,
+     48
+    ],
+    [
+     49,
      51
     ],
     [
      52,
-     58
+     57
     ],
     [
-     59,
-     64
+     58,
+     59
     ],
     [
-     65,
-     67
+     60,
+     65
     ],
     [
-     68,
+     66,
+     68
+    ],
+    [
+     69,
      73
     ],
     [
      74,
-     78
+     81
     ],
     [
-     79,
-     88
+     82,
+     87
     ],
     [
-     89,
+     88,
      92
     ],
     [
      93,
-     100
+     96
     ],
     [
-     101,
-     106
+     97,
+     102
     ],
     [
-     107,
-     111
+     103,
+     104
     ],
     [
-     112,
-     113
+     105,
+     110
     ],
     [
-     114,
-     116
-    ],
-    [
-     117,
+     111,
      119
     ],
     [
      120,
-     128
+     123
     ],
     [
-     129,
+     124,
+     126
+    ],
+    [
+     127,
      131
-    ],
-    [
-     132,
-     135
-    ],
-    [
-     136,
-     138
-    ],
-    [
-     139,
-     144
     ]
    ],
    "order_run": [
@@ -8735,8 +8770,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "intense daily pain",
      "spans": [
       [
-       93,
-       111
+       74,
+       92
       ]
      ],
      "negated": false,
@@ -8850,8 +8885,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        107,
-        111
+        88,
+        92
        ]
       ]
      },
@@ -8972,6 +9007,30 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "Lower Back Pain again I am on a few other things as well. A month in plus intense daily pain for about a week. Honestly but so far.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "ARTHROTEC.139#0",
+     "spans": [
+      [
+       88,
+       92
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "ARTHROTEC.139#1",
+     "spans": [
+      [
+       0,
+       15
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -8980,235 +9039,235 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 57,
-   "chars": 278,
+   "chars": 280,
    "word_spans": [
     [
      0,
-     1
+     4
     ],
     [
-     2,
-     6
+     5,
+     9
     ],
     [
-     7,
-     15
+     10,
+     18
     ],
     [
-     16,
-     19
+     19,
+     24
     ],
     [
-     20,
-     22
+     25,
+     28
     ],
     [
-     23,
-     26
+     29,
+     32
     ],
     [
-     27,
-     34
+     33,
+     39
     ],
     [
-     35,
-     36
+     40,
+     42
     ],
     [
-     37,
-     41
+     43,
+     46
     ],
     [
-     42,
-     47
-    ],
-    [
-     48,
-     49
-    ],
-    [
-     50,
+     47,
      53
     ],
     [
      54,
-     60
+     58
     ],
     [
-     61,
-     65
+     59,
+     63
     ],
     [
-     66,
-     67
+     64,
+     69
     ],
     [
-     68,
+     70,
      71
     ],
     [
      72,
-     79
+     78
     ],
     [
-     80,
-     86
+     79,
+     81
     ],
     [
-     87,
-     91
+     82,
+     88
     ],
     [
-     92,
-     95
+     89,
+     90
     ],
     [
-     96,
-     97
+     91,
+     96
     ],
     [
-     98,
-     103
+     97,
+     99
     ],
     [
-     104,
-     107
+     100,
+     108
     ],
     [
-     108,
-     111
+     109,
+     112
     ],
     [
-     112,
-     117
+     113,
+     116
     ],
     [
-     118,
-     122
+     117,
+     119
     ],
     [
-     123,
-     131
+     120,
+     123
     ],
     [
-     132,
-     141
+     124,
+     127
     ],
     [
-     142,
-     143
+     128,
+     136
     ],
     [
-     144,
-     150
+     137,
+     145
     ],
     [
-     151,
+     146,
+     151
+    ],
+    [
+     152,
      153
     ],
     [
      154,
-     161
+     158
     ],
     [
-     162,
-     165
+     159,
+     163
     ],
     [
-     166,
+     164,
+     166
+    ],
+    [
+     167,
      170
     ],
     [
      171,
-     175
+     177
     ],
     [
-     176,
-     184
+     178,
+     183
     ],
     [
-     185,
+     184,
      187
     ],
     [
      188,
-     192
+     189
     ],
     [
-     193,
-     196
+     190,
+     194
     ],
     [
-     197,
-     201
+     195,
+     199
     ],
     [
-     202,
+     200,
+     202
+    ],
+    [
+     203,
      206
     ],
     [
      207,
-     209
+     213
     ],
     [
-     210,
-     212
+     214,
+     219
     ],
     [
-     213,
-     218
+     220,
+     222
     ],
     [
-     219,
-     220
+     223,
+     225
     ],
     [
-     221,
-     226
+     226,
+     229
     ],
     [
-     227,
-     231
+     230,
+     236
     ],
     [
-     232,
-     234
+     237,
+     240
     ],
     [
-     235,
-     239
+     241,
+     249
     ],
     [
-     240,
-     244
+     250,
+     254
     ],
     [
-     245,
-     253
+     255,
+     260
     ],
     [
-     254,
-     255
+     261,
+     265
     ],
     [
-     256,
-     258
+     266,
+     268
     ],
     [
-     259,
-     261
+     269,
+     271
     ],
     [
-     262,
-     264
+     272,
+     276
     ],
     [
-     265,
-     269
-    ],
-    [
-     270,
-     277
+     277,
+     280
     ]
    ],
    "order_run": [
@@ -9226,8 +9285,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "spotting",
      "spans": [
       [
-       7,
-       15
+       10,
+       18
       ]
      ],
      "negated": false,
@@ -9331,8 +9390,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "spotting",
      "spans": [
       [
-       123,
-       131
+       128,
+       136
       ]
      ],
      "negated": false,
@@ -9436,8 +9495,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "at my wits end",
      "spans": [
       [
-       259,
-       273
+       266,
+       280
       ]
      ],
      "negated": false,
@@ -9551,8 +9610,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        7,
-        15
+        10,
+        18
        ]
       ]
      },
@@ -9576,8 +9635,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        123,
-        140
+        128,
+        145
        ]
       ]
      },
@@ -9681,6 +9740,30 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "Well plus spotting which was not great. By the second box. Then after a couple of weeks. A month in honestly now and by the end spotting problems again I went back to the doctor about it. I went back to the doctor about it by the second box honestly also along with at my wits end",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "ARTHROTEC.57#0",
+     "spans": [
+      [
+       10,
+       18
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "ARTHROTEC.57#1",
+     "spans": [
+      [
+       128,
+       145
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -9689,7 +9772,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 50,
-   "chars": 238,
+   "chars": 265,
    "word_spans": [
     [
      0,
@@ -9697,199 +9780,199 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      3,
-     7
+     6
     ],
     [
-     8,
-     15
+     7,
+     9
     ],
     [
-     16,
-     18
+     10,
+     11
     ],
     [
-     19,
-     23
+     12,
+     14
     ],
     [
-     24,
-     27
+     15,
+     16
     ],
     [
-     28,
-     32
+     17,
+     20
     ],
     [
-     33,
-     37
+     21,
+     26
     ],
     [
-     38,
+     27,
+     30
+    ],
+    [
+     31,
+     38
+    ],
+    [
+     39,
      42
     ],
     [
      43,
-     45
+     46
     ],
     [
-     46,
-     48
+     47,
+     53
     ],
     [
-     49,
-     52
+     54,
+     57
     ],
     [
-     53,
-     54
+     58,
+     63
     ],
     [
-     55,
-     61
+     64,
+     72
     ],
     [
-     62,
-     65
-    ],
-    [
-     66,
-     71
-    ],
-    [
-     72,
+     73,
      76
     ],
     [
      77,
-     80
+     81
     ],
     [
-     81,
-     83
-    ],
-    [
-     84,
+     82,
      86
     ],
     [
      87,
-     94
+     90
     ],
     [
-     95,
-     99
+     91,
+     98
     ],
     [
-     100,
+     99,
      103
     ],
     [
      104,
-     111
+     109
     ],
     [
-     112,
+     110,
      117
     ],
     [
      118,
-     122
+     123
     ],
     [
-     123,
-     125
+     124,
+     128
     ],
     [
-     126,
-     127
+     129,
+     134
     ],
     [
-     128,
-     132
+     135,
+     138
     ],
     [
-     133,
-     136
+     139,
+     144
     ],
     [
-     137,
-     140
-    ],
-    [
-     141,
-     146
-    ],
-    [
-     147,
+     145,
      148
     ],
     [
      149,
-     151
+     150
     ],
     [
-     152,
-     155
+     151,
+     154
     ],
     [
-     156,
+     155,
      158
     ],
     [
      159,
-     160
+     161
     ],
     [
-     161,
-     164
+     162,
+     165
     ],
     [
-     165,
-     169
-    ],
-    [
-     170,
+     166,
      172
     ],
     [
      173,
-     184
+     177
     ],
     [
-     185,
+     178,
+     186
+    ],
+    [
+     187,
+     190
+    ],
+    [
+     191,
      195
     ],
     [
      196,
-     198
+     206
     ],
     [
-     199,
-     205
-    ],
-    [
-     206,
-     210
-    ],
-    [
-     211,
-     215
-    ],
-    [
-     216,
+     207,
      217
     ],
     [
      218,
-     221
+     223
     ],
     [
-     222,
-     226
+     224,
+     230
     ],
     [
-     227,
-     237
+     231,
+     235
+    ],
+    [
+     236,
+     241
+    ],
+    [
+     242,
+     245
+    ],
+    [
+     246,
+     249
+    ],
+    [
+     250,
+     255
+    ],
+    [
+     256,
+     265
     ]
    ],
    "order_run": [
@@ -9907,8 +9990,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "chronic pain",
      "spans": [
       [
-       87,
-       99
+       91,
+       103
       ]
      ],
      "negated": false,
@@ -10012,8 +10095,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "trigger point pain",
      "spans": [
       [
-       104,
-       122
+       110,
+       128
       ]
      ],
      "negated": false,
@@ -10122,8 +10205,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "drowsiness",
      "spans": [
       [
-       173,
-       183
+       196,
+       206
       ]
      ],
      "negated": true,
@@ -10227,8 +10310,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "grogginess",
      "spans": [
       [
-       185,
-       195
+       207,
+       217
       ]
      ],
      "negated": true,
@@ -10332,8 +10415,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "memory loss",
      "spans": [
       [
-       199,
-       210
+       224,
+       235
       ]
      ],
      "negated": true,
@@ -10446,8 +10529,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        87,
-        99
+        91,
+        103
        ]
       ]
      },
@@ -10467,8 +10550,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       "labels": [],
       "spans": [
        [
-        104,
-        122
+        110,
+        128
        ]
       ]
      },
@@ -10492,8 +10575,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        227,
-        236
+        256,
+        265
        ]
       ]
      },
@@ -10517,8 +10600,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        173,
-        183
+        196,
+        206
        ]
       ]
      },
@@ -10542,8 +10625,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        185,
-        195
+        207,
+        217
        ]
       ]
      },
@@ -10567,8 +10650,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        199,
-        210
+        224,
+        235
        ]
       ]
      },
@@ -10664,6 +10747,70 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "So far so I am a bit torn. The leaflet did not really say much. Honestly too then came the chronic pain again trigger point pain which has eased off a bit now by the second box. Honestly and with drowsiness grogginess again memory loss which was not great Neurontin",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "DICLOFENAC-SODIUM.6#0",
+     "spans": [
+      [
+       91,
+       103
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "DICLOFENAC-SODIUM.6#1",
+     "spans": [
+      [
+       110,
+       128
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "DICLOFENAC-SODIUM.6#2",
+     "spans": [
+      [
+       256,
+       265
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "DICLOFENAC-SODIUM.6#3",
+     "spans": [
+      [
+       196,
+       206
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "DICLOFENAC-SODIUM.6#4",
+     "spans": [
+      [
+       207,
+       217
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "DICLOFENAC-SODIUM.6#5",
+     "spans": [
+      [
+       224,
+       235
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -10672,7 +10819,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 203,
-   "chars": 1067,
+   "chars": 1003,
    "word_spans": [
     [
      0,
@@ -10684,222 +10831,234 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      11,
-     16
+     15
     ],
     [
-     17,
-     22
+     16,
+     21
     ],
     [
-     23,
-     27
+     22,
+     26
     ],
     [
-     28,
-     29
+     27,
+     32
     ],
     [
-     30,
-     35
+     33,
+     37
     ],
     [
-     36,
-     39
+     38,
+     42
     ],
     [
-     40,
-     44
+     43,
+     47
     ],
     [
-     45,
-     50
+     48,
+     54
     ],
     [
-     51,
-     53
+     55,
+     58
     ],
     [
-     54,
-     64
+     59,
+     63
     ],
     [
-     65,
-     73
+     64,
+     71
     ],
     [
-     74,
-     75
+     72,
+     77
     ],
     [
-     76,
-     80
+     78,
+     81
     ],
     [
-     81,
+     82,
      85
     ],
     [
      86,
-     89
+     92
     ],
     [
-     90,
-     91
+     93,
+     95
     ],
     [
-     92,
-     99
+     96,
+     104
     ],
     [
-     100,
-     103
+     105,
+     107
     ],
     [
-     104,
-     109
+     108,
+     113
     ],
     [
-     110,
-     114
+     114,
+     118
     ],
     [
-     115,
-     119
+     119,
+     123
     ],
     [
-     120,
-     122
+     124,
+     126
     ],
     [
-     123,
-     129
+     127,
+     128
     ],
     [
-     130,
+     129,
      135
     ],
     [
      136,
-     142
+     139
     ],
     [
-     143,
-     146
+     140,
+     147
     ],
     [
-     147,
-     150
+     148,
+     152
     ],
     [
-     151,
-     153
+     153,
+     157
     ],
     [
-     154,
-     158
+     158,
+     162
     ],
     [
-     159,
-     163
+     163,
+     165
     ],
     [
-     164,
-     171
+     166,
+     169
     ],
     [
-     172,
-     174
+     170,
+     176
     ],
     [
-     175,
-     178
+     177,
+     180
     ],
     [
-     179,
-     185
+     181,
+     186
     ],
     [
-     186,
-     193
+     187,
+     191
     ],
     [
-     194,
-     198
+     192,
+     196
     ],
     [
-     199,
+     197,
+     200
+    ],
+    [
+     201,
      204
     ],
     [
      205,
-     213
+     210
     ],
     [
-     214,
-     218
+     211,
+     214
     ],
     [
-     219,
-     226
+     215,
+     220
     ],
     [
-     227,
-     229
+     221,
+     225
     ],
     [
-     230,
-     234
+     226,
+     230
     ],
     [
-     235,
-     239
+     231,
+     235
     ],
     [
-     240,
-     244
+     236,
+     238
     ],
     [
-     245,
-     250
+     239,
+     240
     ],
     [
-     251,
-     258
+     241,
+     247
     ],
     [
-     259,
+     248,
+     251
+    ],
+    [
+     252,
+     259
+    ],
+    [
+     260,
      264
     ],
     [
      265,
-     267
+     271
     ],
     [
-     268,
-     272
+     272,
+     278
     ],
     [
-     273,
-     274
+     279,
+     282
     ],
     [
-     275,
-     281
-    ],
-    [
-     282,
+     283,
      288
     ],
     [
      289,
-     293
+     290
     ],
     [
-     294,
-     297
+     291,
+     296
     ],
     [
-     298,
+     297,
+     300
+    ],
+    [
+     301,
      305
     ],
     [
@@ -10908,438 +11067,442 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      311,
-     315
+     314
     ],
     [
-     316,
+     315,
+     322
+    ],
+    [
+     323,
      325
     ],
     [
      326,
-     333
+     327
     ],
     [
-     334,
-     340
+     328,
+     334
     ],
     [
-     341,
-     349
+     335,
+     338
     ],
     [
-     350,
-     355
+     339,
+     346
     ],
     [
-     356,
-     357
+     347,
+     353
     ],
     [
-     358,
-     361
+     354,
+     360
     ],
     [
-     362,
-     369
+     361,
+     363
     ],
     [
-     370,
-     373
+     364,
+     367
     ],
     [
-     374,
-     380
+     368,
+     371
     ],
     [
-     381,
-     387
+     372,
+     376
     ],
     [
-     388,
-     392
+     377,
+     381
     ],
     [
-     393,
+     382,
+     386
+    ],
+    [
+     387,
+     389
+    ],
+    [
+     390,
+     393
+    ],
+    [
+     394,
      397
     ],
     [
      398,
-     402
+     399
     ],
     [
-     403,
-     412
+     400,
+     405
     ],
     [
-     413,
+     406,
+     408
+    ],
+    [
+     409,
      417
     ],
     [
      418,
-     422
+     426
     ],
     [
-     423,
-     427
-    ],
-    [
-     428,
+     427,
      432
     ],
     [
      433,
-     439
+     436
     ],
     [
-     440,
+     437,
      441
     ],
     [
      442,
-     445
+     449
     ],
     [
-     446,
-     452
+     450,
+     455
     ],
     [
-     453,
-     458
+     456,
+     464
     ],
     [
-     459,
-     460
+     465,
+     470
     ],
     [
-     461,
-     465
-    ],
-    [
-     466,
-     471
-    ],
-    [
-     472,
+     471,
      475
     ],
     [
      476,
-     483
+     481
     ],
     [
-     484,
-     485
+     482,
+     486
     ],
     [
-     486,
+     487,
      491
     ],
     [
      492,
-     496
+     495
     ],
     [
-     497,
-     500
+     496,
+     498
     ],
     [
-     501,
-     506
+     499,
+     503
     ],
     [
-     507,
+     504,
      511
     ],
     [
      512,
-     516
+     514
     ],
     [
-     517,
+     515,
      521
     ],
     [
      522,
+     523
+    ],
+    [
+     524,
      528
     ],
     [
      529,
-     531
+     533
     ],
     [
-     532,
-     534
+     534,
+     541
     ],
     [
-     535,
-     539
+     542,
+     545
     ],
     [
-     540,
-     542
-    ],
-    [
-     543,
-     546
-    ],
-    [
-     547,
+     546,
      550
     ],
     [
      551,
-     554
+     553
     ],
     [
-     555,
-     557
+     554,
+     560
     ],
     [
-     558,
-     561
+     561,
+     563
     ],
     [
-     562,
+     564,
      567
     ],
     [
      568,
+     570
+    ],
+    [
+     571,
      575
     ],
     [
      576,
-     579
+     578
     ],
     [
-     580,
-     585
+     579,
+     582
     ],
     [
-     586,
+     583,
      588
     ],
     [
      589,
-     595
+     591
     ],
     [
-     596,
-     600
+     592,
+     594
     ],
     [
-     601,
-     602
+     595,
+     596
     ],
     [
-     603,
-     606
+     597,
+     601
     ],
     [
-     607,
+     602,
+     603
+    ],
+    [
+     604,
      609
     ],
     [
      610,
-     613
+     614
     ],
     [
-     614,
-     618
+     615,
+     617
     ],
     [
-     619,
+     618,
+     622
+    ],
+    [
+     623,
      626
     ],
     [
      627,
-     630
+     634
     ],
     [
-     631,
-     635
+     635,
+     636
     ],
     [
-     636,
-     647
+     637,
+     641
     ],
     [
-     648,
-     650
+     642,
+     646
     ],
     [
-     651,
-     652
+     647,
+     649
     ],
     [
-     653,
-     656
+     650,
+     653
     ],
     [
-     657,
-     661
+     654,
+     660
     ],
     [
-     662,
-     665
+     661,
+     666
     ],
     [
-     666,
-     670
+     667,
+     669
     ],
     [
-     671,
-     672
+     670,
+     674
     ],
     [
-     673,
-     676
-    ],
-    [
-     677,
+     675,
      679
     ],
     [
      680,
-     683
+     684
     ],
     [
-     684,
-     694
+     685,
+     689
     ],
     [
-     695,
-     696
+     690,
+     693
     ],
     [
-     697,
-     702
+     694,
+     697
     ],
     [
-     703,
+     698,
+     703
+    ],
+    [
+     704,
      707
     ],
     [
      708,
-     711
+     714
     ],
     [
-     712,
-     716
+     715,
+     719
     ],
     [
-     717,
-     721
+     720,
+     727
     ],
     [
-     722,
-     726
+     728,
+     731
     ],
     [
-     727,
-     732
+     732,
+     736
     ],
     [
-     733,
-     735
+     737,
+     739
     ],
     [
-     736,
-     738
+     740,
+     746
     ],
     [
-     739,
-     742
+     747,
+     751
     ],
     [
-     743,
-     747
+     752,
+     757
     ],
     [
-     748,
-     749
+     758,
+     759
     ],
     [
-     750,
-     753
+     760,
+     766
     ],
     [
-     754,
-     758
+     767,
+     769
     ],
     [
-     759,
-     761
+     770,
+     775
     ],
     [
-     762,
-     767
+     776,
+     779
     ],
     [
-     768,
-     770
+     780,
+     784
     ],
     [
-     771,
-     777
+     785,
+     789
     ],
     [
-     778,
-     781
-    ],
-    [
-     782,
-     787
-    ],
-    [
-     788,
+     790,
      793
     ],
     [
      794,
-     797
+     798
     ],
     [
-     798,
+     799,
+     802
+    ],
+    [
+     803,
      804
     ],
     [
      805,
-     810
+     814
     ],
     [
-     811,
-     813
-    ],
-    [
-     814,
+     815,
      817
     ],
     [
      818,
+     820
+    ],
+    [
+     821,
      823
     ],
     [
      824,
-     825
+     828
     ],
     [
-     826,
-     831
+     829,
+     841
     ],
     [
-     832,
-     834
+     842,
+     846
     ],
     [
-     835,
-     838
-    ],
-    [
-     839,
-     848
-    ],
-    [
-     849,
+     847,
      851
     ],
     [
@@ -11352,22 +11515,34 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      860,
-     863
+     862
     ],
     [
-     864,
-     870
+     863,
+     866
     ],
     [
-     871,
-     876
+     867,
+     869
     ],
     [
-     877,
-     886
+     870,
+     872
     ],
     [
-     887,
+     873,
+     877
+    ],
+    [
+     878,
+     882
+    ],
+    [
+     883,
+     887
+    ],
+    [
+     888,
      889
     ],
     [
@@ -11376,115 +11551,87 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      896,
-     899
+     898
     ],
     [
-     900,
+     899,
      902
     ],
     [
      903,
-     910
+     906
     ],
     [
-     911,
-     920
+     907,
+     911
     ],
     [
-     921,
-     925
+     912,
+     919
     ],
     [
-     926,
+     920,
+     924
+    ],
+    [
+     925,
      929
     ],
     [
      930,
-     937
+     934
     ],
     [
-     938,
-     940
+     935,
+     942
     ],
     [
-     941,
+     943,
      945
     ],
     [
      946,
-     950
+     947
     ],
     [
-     951,
-     953
+     948,
+     954
     ],
     [
-     954,
-     961
+     955,
+     958
     ],
     [
-     962,
-     967
+     959,
+     966
     ],
     [
-     968,
-     970
+     967,
+     973
     ],
     [
-     971,
-     976
+     974,
+     978
     ],
     [
-     977,
+     979,
+     981
+    ],
+    [
+     982,
      984
     ],
     [
      985,
-     988
+     995
     ],
     [
-     989,
-     994
+     996,
+     998
     ],
     [
-     995,
-     1004
-    ],
-    [
-     1005,
-     1011
-    ],
-    [
-     1012,
-     1014
-    ],
-    [
-     1015,
-     1019
-    ],
-    [
-     1020,
-     1028
-    ],
-    [
-     1029,
-     1035
-    ],
-    [
-     1036,
-     1044
-    ],
-    [
-     1045,
-     1054
-    ],
-    [
-     1055,
-     1057
-    ],
-    [
-     1058,
-     1066
+     999,
+     1003
     ]
    ],
    "order_run": [
@@ -11607,8 +11754,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "stiff neck",
      "spans": [
       [
-       17,
-       27
+       16,
+       26
       ]
      ],
      "negated": false,
@@ -11712,8 +11859,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "lower back pain",
      "spans": [
       [
-       104,
-       119
+       108,
+       123
       ]
      ],
      "negated": false,
@@ -11817,8 +11964,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "neck pain",
      "spans": [
       [
-       235,
-       244
+       226,
+       235
       ]
      ],
      "negated": false,
@@ -11922,8 +12069,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "muscle injury",
      "spans": [
       [
-       275,
-       288
+       265,
+       278
       ]
      ],
      "negated": false,
@@ -12130,8 +12277,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "pain",
      "spans": [
       [
-       971,
-       975
+       930,
+       934
       ]
      ],
      "negated": false,
@@ -12242,8 +12389,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        17,
-        27
+        16,
+        26
        ]
       ]
      },
@@ -12267,8 +12414,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        104,
-        119
+        108,
+        123
        ]
       ]
      },
@@ -12292,8 +12439,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        65,
-        72
+        64,
+        71
        ]
       ]
      },
@@ -12317,8 +12464,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        275,
-        288
+        265,
+        278
        ]
       ]
      },
@@ -12342,8 +12489,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        194,
-        198
+        192,
+        196
        ]
       ]
      },
@@ -12367,8 +12514,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        235,
-        244
+        226,
+        235
        ]
       ]
      },
@@ -12392,8 +12539,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        341,
-        348
+        315,
+        322
        ]
       ]
      },
@@ -12417,8 +12564,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        413,
-        422
+        377,
+        386
        ]
       ]
      },
@@ -12442,8 +12589,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        476,
-        483
+        442,
+        449
        ]
       ]
      },
@@ -12467,8 +12614,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        501,
-        516
+        476,
+        491
        ]
       ]
      },
@@ -12492,8 +12639,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        818,
-        822
+        794,
+        798
        ]
       ]
      },
@@ -12517,8 +12664,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        954,
-        961
+        912,
+        919
        ]
       ]
      },
@@ -12542,8 +12689,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        971,
-        975
+        930,
+        934
        ]
       ]
      },
@@ -12567,8 +12714,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        977,
-        984
+        935,
+        942
        ]
       ]
      },
@@ -12617,8 +12764,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        374,
-        387
+        347,
+        360
        ]
       ]
      },
@@ -12642,8 +12789,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        712,
-        721
+        680,
+        689
        ]
       ]
      },
@@ -12747,6 +12894,180 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "Lower back pain stiff neck again then last week anyway and then Lipitor which was not great. So followed by lower back pain so I called the surgery then last week by the second box along with pain for the first few weeks with neck pain so I called the surgery plus muscle injury for about a week. Now then came the Lipitor so I called the surgery muscle injury on and off plus Neck pain on and off a month in honestly honestly again and then LIPITOR again honestly still plus LOWER BACK PAIN and my wife noticed it before I did. Your mileage may vary of course it did do what it was meant to do I took a break from it over the weekend I went back to the doctor about it then with back pain for the first few weeks. Your mileage may vary of course then after a couple of weeks and then came the pain and I mentioned it at my next appointment. They said to keep an eye on it then last week a month in but and then Lipitor most days pain LIPITOR so I called the surgery anyway that is my experience so far.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.171#0",
+     "spans": [
+      [
+       16,
+       26
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#1",
+     "spans": [
+      [
+       108,
+       123
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#2",
+     "spans": [
+      [
+       64,
+       71
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#3",
+     "spans": [
+      [
+       265,
+       278
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#4",
+     "spans": [
+      [
+       192,
+       196
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#5",
+     "spans": [
+      [
+       226,
+       235
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#6",
+     "spans": [
+      [
+       315,
+       322
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#7",
+     "spans": [
+      [
+       377,
+       386
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#8",
+     "spans": [
+      [
+       442,
+       449
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#9",
+     "spans": [
+      [
+       476,
+       491
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#10",
+     "spans": [
+      [
+       794,
+       798
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#11",
+     "spans": [
+      [
+       912,
+       919
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#12",
+     "spans": [
+      [
+       930,
+       934
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#13",
+     "spans": [
+      [
+       935,
+       942
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#14",
+     "spans": [
+      [
+       0,
+       15
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#15",
+     "spans": [
+      [
+       347,
+       360
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.171#16",
+     "spans": [
+      [
+       680,
+       689
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -12755,7 +13076,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 28,
-   "chars": 157,
+   "chars": 163,
    "word_spans": [
     [
      0,
@@ -12775,42 +13096,42 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      22,
-     27
+     26
     ],
     [
-     28,
-     32
+     27,
+     31
     ],
     [
-     33,
-     36
+     32,
+     37
     ],
     [
-     37,
+     38,
      44
     ],
     [
      45,
-     47
+     50
     ],
     [
-     48,
-     53
+     51,
+     57
     ],
     [
-     54,
-     59
-    ],
-    [
-     60,
+     58,
      62
     ],
     [
      63,
-     75
+     67
     ],
     [
-     76,
+     68,
+     71
+    ],
+    [
+     72,
      79
     ],
     [
@@ -12827,47 +13148,47 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      97,
-     105
+     104
     ],
     [
-     106,
-     107
+     105,
+     108
     ],
     [
-     108,
-     112
-    ],
-    [
-     113,
+     109,
      114
     ],
     [
      115,
-     120
+     116
     ],
     [
-     121,
-     126
+     117,
+     122
     ],
     [
-     127,
-     130
+     123,
+     131
     ],
     [
-     131,
-     137
+     132,
+     140
     ],
     [
-     138,
+     141,
      144
     ],
     [
      145,
-     147
+     150
     ],
     [
-     148,
-     156
+     151,
+     155
+    ],
+    [
+     156,
+     163
     ]
    ],
    "order_run": [
@@ -12886,10 +13207,6 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "spans": [
       [
        0,
-       21
-      ],
-      [
-       22,
        26
       ]
      ],
@@ -13010,8 +13327,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
        21
       ],
       [
-       28,
-       32
+       27,
+       31
       ]
      ],
      "negated": false,
@@ -13124,8 +13441,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
        21
       ],
       [
-       37,
-       43
+       38,
+       44
       ]
      ],
      "negated": false,
@@ -13362,10 +13679,6 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       "spans": [
        [
         0,
-        21
-       ],
-       [
-        22,
         26
        ]
       ]
@@ -13396,8 +13709,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
         21
        ],
        [
-        37,
-        43
+        38,
+        44
        ]
       ]
      },
@@ -13427,8 +13740,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
         21
        ],
        [
-        28,
-        32
+        27,
+        31
        ]
       ]
      },
@@ -13477,8 +13790,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        148,
-        155
+        156,
+        163
        ]
       ]
      },
@@ -13574,6 +13887,68 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "severe muscle pain in hips legs again ankles again anyway then over the weekend recks my muscles severly for about a week. Honestly honestly but along with lipitor",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.24#0",
+     "spans": [
+      [
+       0,
+       26
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.24#1",
+     "spans": [
+      [
+       0,
+       21
+      ],
+      [
+       38,
+       44
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.24#2",
+     "spans": [
+      [
+       0,
+       21
+      ],
+      [
+       27,
+       31
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.24#3",
+     "spans": [
+      [
+       80,
+       104
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.24#4",
+     "spans": [
+      [
+       156,
+       163
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -13582,7 +13957,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 48,
-   "chars": 269,
+   "chars": 250,
    "word_spans": [
     [
      0,
@@ -13610,38 +13985,38 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      40,
-     50
+     49
     ],
     [
-     51,
-     55
+     50,
+     54
     ],
     [
-     56,
-     59
+     55,
+     60
     ],
     [
-     60,
+     61,
      64
     ],
     [
      65,
-     68
+     70
     ],
     [
-     69,
+     71,
      74
     ],
     [
      75,
-     76
+     78
     ],
     [
-     77,
-     83
+     79,
+     84
     ],
     [
-     84,
+     85,
      87
     ],
     [
@@ -13650,131 +14025,131 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      93,
-     101
+     95
     ],
     [
-     102,
-     106
+     96,
+     100
     ],
     [
-     107,
+     101,
+     105
+    ],
+    [
+     106,
      109
     ],
     [
      110,
-     112
+     114
     ],
     [
-     113,
+     115,
      117
     ],
     [
      118,
-     120
+     121
     ],
     [
-     121,
-     125
+     122,
+     128
     ],
     [
-     126,
-     130
+     129,
+     131
     ],
     [
-     131,
-     133
+     132,
+     135
     ],
     [
-     134,
-     139
+     136,
+     142
     ],
     [
-     140,
-     141
-    ],
-    [
-     142,
+     143,
      146
     ],
     [
      147,
-     152
+     148
     ],
     [
-     153,
-     158
+     149,
+     153
     ],
     [
-     159,
+     154,
      160
     ],
     [
      161,
-     167
+     165
     ],
     [
-     168,
-     172
+     166,
+     168
     ],
     [
-     173,
-     179
+     169,
+     177
     ],
     [
-     180,
+     178,
      185
     ],
     [
      186,
-     191
+     194
     ],
     [
-     192,
-     195
+     195,
+     197
     ],
     [
-     196,
-     204
+     198,
+     201
     ],
     [
-     205,
-     211
+     202,
+     208
     ],
     [
-     212,
-     215
+     209,
+     212
     ],
     [
-     216,
-     225
+     213,
+     214
     ],
     [
-     226,
-     236
+     215,
+     219
     ],
     [
-     237,
-     243
+     220,
+     223
     ],
     [
-     244,
-     246
+     224,
+     228
     ],
     [
-     247,
-     252
+     229,
+     232
     ],
     [
-     253,
-     256
+     233,
+     239
     ],
     [
-     257,
-     260
+     240,
+     244
     ],
     [
-     261,
-     268
+     245,
+     250
     ]
    ],
    "order_run": [
@@ -13793,10 +14168,6 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "spans": [
       [
        0,
-       39
-      ],
-      [
-       40,
        49
       ]
      ],
@@ -13906,8 +14277,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
        39
       ],
       [
-       51,
-       55
+       50,
+       54
       ]
      ],
      "negated": false,
@@ -14009,12 +14380,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     {
      "record_id": "LIPITOR.380#2",
      "span": "EXTREME AND EXCRUCIATING MUSCLE PAIN IN HIP",
-     "spans": [
-      [
-       0,
-       43
-      ]
-     ],
+     "spans": [],
      "negated": false,
      "r0": {
       "menu": [
@@ -14130,8 +14496,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
         39
        ],
        [
-        51,
-        55
+        50,
+        54
        ]
       ]
      },
@@ -14159,8 +14525,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
         39
        ],
        [
-        60,
-        63
+        61,
+        64
        ]
       ]
      },
@@ -14269,6 +14635,38 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "EXTREME AND EXCRUCIATING MUSCLE PAIN IN SHOULDERS NECK again HIP which was not great it went on like that for most of the month. By the second box I will update this if anything changes honestly by the second box I will see what the doctor says next.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.380#1",
+     "spans": [
+      [
+       25,
+       39
+      ],
+      [
+       50,
+       54
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.380#2",
+     "spans": [
+      [
+       25,
+       39
+      ],
+      [
+       61,
+       64
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -14277,38 +14675,42 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 195,
-   "chars": 1001,
+   "chars": 984,
    "word_spans": [
     [
      0,
-     7
+     2
     ],
     [
-     8,
-     15
+     3,
+     6
     ],
     [
-     16,
-     18
+     7,
+     11
     ],
     [
-     19,
-     23
+     12,
+     16
     ],
     [
-     24,
-     28
+     17,
+     20
     ],
     [
-     29,
-     31
+     21,
+     26
     ],
     [
-     32,
-     37
+     27,
+     32
     ],
     [
-     38,
+     33,
+     38
+    ],
+    [
+     39,
      43
     ],
     [
@@ -14317,142 +14719,138 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      49,
-     52
+     53
     ],
     [
-     53,
-     57
+     54,
+     60
     ],
     [
-     58,
-     64
+     61,
+     69
     ],
     [
-     65,
+     70,
+     72
+    ],
+    [
+     73,
      74
     ],
     [
      75,
-     76
+     81
     ],
     [
-     77,
-     80
+     82,
+     85
     ],
     [
-     81,
-     83
+     86,
+     94
     ],
     [
-     84,
-     90
+     95,
+     97
     ],
     [
-     91,
-     95
+     98,
+     101
     ],
     [
-     96,
-     99
+     102,
+     108
     ],
     [
-     100,
-     107
+     109,
+     112
     ],
     [
-     108,
-     113
+     113,
+     121
     ],
     [
-     114,
-     119
+     122,
+     125
     ],
     [
-     120,
-     122
+     126,
+     130
     ],
     [
-     123,
-     127
+     131,
+     135
     ],
     [
-     128,
-     136
+     136,
+     139
     ],
     [
-     137,
-     138
+     140,
+     148
     ],
     [
-     139,
-     143
+     149,
+     155
     ],
     [
-     144,
-     152
+     156,
+     161
     ],
     [
-     153,
-     159
+     162,
+     167
     ],
     [
-     160,
-     163
+     168,
+     172
     ],
     [
-     164,
-     169
+     173,
+     180
     ],
     [
-     170,
-     175
+     181,
+     191
     ],
     [
-     176,
-     183
-    ],
-    [
-     184,
+     192,
      194
     ],
     [
      195,
-     197
+     199
     ],
     [
-     198,
-     202
+     200,
+     209
     ],
     [
-     203,
-     212
+     210,
+     215
     ],
     [
-     213,
-     216
+     216,
+     221
     ],
     [
-     217,
-     222
+     222,
+     227
     ],
     [
-     223,
-     229
+     228,
+     240
     ],
     [
-     230,
-     242
+     241,
+     246
     ],
     [
-     243,
-     244
+     247,
+     255
     ],
     [
-     245,
-     253
-    ],
-    [
-     254,
+     256,
      261
     ],
     [
@@ -14469,34 +14867,30 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      276,
-     280
+     277
     ],
     [
-     281,
-     286
+     278,
+     281
     ],
     [
-     287,
-     288
+     282,
+     287
     ],
     [
-     289,
+     288,
      291
     ],
     [
      292,
-     295
-    ],
-    [
-     296,
      300
     ],
     [
      301,
-     303
+     305
     ],
     [
-     304,
+     306,
      308
     ],
     [
@@ -14513,318 +14907,334 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      326,
-     329
+     330
     ],
     [
-     330,
-     334
+     331,
+     333
     ],
     [
-     335,
+     334,
      340
     ],
     [
      341,
-     345
+     349
     ],
     [
-     346,
-     350
+     350,
+     354
     ],
     [
-     351,
-     355
+     355,
+     358
     ],
     [
-     356,
-     363
+     359,
+     361
     ],
     [
-     364,
-     368
+     362,
+     365
     ],
     [
-     369,
-     375
+     366,
+     369
     ],
     [
-     376,
-     380
+     370,
+     376
     ],
     [
-     381,
-     390
+     377,
+     381
     ],
     [
-     391,
-     394
+     382,
+     385
     ],
     [
-     395,
-     406
+     386,
+     391
     ],
     [
-     407,
-     411
+     392,
+     393
     ],
     [
-     412,
-     414
+     394,
+     398
     ],
     [
-     415,
+     399,
+     403
+    ],
+    [
+     404,
+     408
+    ],
+    [
+     409,
+     413
+    ],
+    [
+     414,
      418
     ],
     [
      419,
-     426
+     423
     ],
     [
-     427,
+     424,
      428
     ],
     [
      429,
-     433
+     432
     ],
     [
-     434,
-     436
+     433,
+     434
     ],
     [
-     437,
-     440
+     435,
+     438
     ],
     [
-     441,
+     439,
      443
     ],
     [
      444,
-     451
+     449
     ],
     [
-     452,
-     453
+     450,
+     454
     ],
     [
-     454,
-     457
+     455,
+     459
     ],
     [
-     458,
-     460
+     460,
+     463
     ],
     [
-     461,
-     465
+     464,
+     467
     ],
     [
-     466,
-     469
+     468,
+     472
     ],
     [
-     470,
-     473
-    ],
-    [
-     474,
+     473,
      478
     ],
     [
      479,
-     482
+     483
     ],
     [
-     483,
-     486
+     484,
+     494
     ],
     [
-     487,
-     497
+     495,
+     502
     ],
     [
-     498,
-     505
+     503,
+     506
     ],
     [
-     506,
-     509
+     507,
+     514
     ],
     [
-     510,
-     518
+     515,
+     517
     ],
     [
-     519,
-     520
+     518,
+     519
     ],
     [
-     521,
-     524
-    ],
-    [
-     525,
+     520,
      526
     ],
     [
      527,
-     532
+     530
     ],
     [
-     533,
-     536
+     531,
+     538
     ],
     [
-     537,
+     539,
      540
     ],
     [
      541,
-     542
+     546
     ],
     [
-     543,
-     547
+     547,
+     549
     ],
     [
-     548,
-     555
+     550,
+     554
     ],
     [
-     556,
-     559
+     555,
+     558
     ],
     [
-     560,
+     559,
+     560
+    ],
+    [
+     561,
      564
     ],
     [
      565,
-     570
+     569
     ],
     [
-     571,
-     574
+     570,
+     575
     ],
     [
-     575,
-     576
+     576,
+     580
     ],
     [
-     577,
-     585
+     581,
+     586
     ],
     [
-     586,
+     587,
      592
     ],
     [
      593,
-     596
+     594
     ],
     [
-     597,
-     603
+     595,
+     598
     ],
     [
-     604,
-     608
+     599,
+     602
     ],
     [
-     609,
-     610
+     603,
+     609
     ],
     [
-     611,
-     617
+     610,
+     614
     ],
     [
-     618,
-     624
+     615,
+     620
     ],
     [
-     625,
+     621,
+     622
+    ],
+    [
+     623,
      629
     ],
     [
      630,
-     637
+     632
     ],
     [
-     638,
-     640
+     633,
+     638
     ],
     [
-     641,
-     646
+     639,
+     647
     ],
     [
-     647,
-     649
+     648,
+     650
     ],
     [
-     650,
-     654
+     651,
+     660
     ],
     [
-     655,
-     657
+     661,
+     663
     ],
     [
-     658,
-     668
+     664,
+     667
     ],
     [
-     669,
-     670
+     668,
+     671
     ],
     [
-     671,
-     675
+     672,
+     677
     ],
     [
-     676,
+     678,
      680
     ],
     [
      681,
-     687
+     684
     ],
     [
-     688,
-     689
+     685,
+     688
     ],
     [
-     690,
-     692
+     689,
+     691
     ],
     [
-     693,
-     698
+     692,
+     694
     ],
     [
-     699,
-     700
+     695,
+     697
     ],
     [
-     701,
-     704
+     698,
+     702
     ],
     [
-     705,
-     708
+     703,
+     705
     ],
     [
-     709,
-     713
+     706,
+     709
     ],
     [
-     714,
-     716
+     710,
+     714
     ],
     [
-     717,
+     715,
+     717
+    ],
+    [
+     718,
      723
     ],
     [
@@ -14833,78 +15243,74 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      728,
-     730
+     731
     ],
     [
-     731,
-     733
+     732,
+     738
     ],
     [
-     734,
-     736
+     739,
+     740
     ],
     [
-     737,
-     742
+     741,
+     743
     ],
     [
-     743,
-     745
+     744,
+     746
     ],
     [
-     746,
-     752
+     747,
+     749
     ],
     [
-     753,
-     755
-    ],
-    [
-     756,
+     750,
      758
     ],
     [
      759,
-     761
+     760
     ],
     [
-     762,
-     767
+     761,
+     763
     ],
     [
-     768,
-     772
+     764,
+     771
     ],
     [
-     773,
+     772,
      776
     ],
     [
      777,
-     778
+     783
     ],
     [
-     779,
-     784
+     784,
+     786
     ],
     [
-     785,
-     789
+     787,
+     792
     ],
     [
-     790,
-     795
-    ],
-    [
-     796,
+     793,
      799
     ],
     [
      800,
-     802
+     804
     ],
     [
-     803,
+     805,
+     807
+    ],
+    [
+     808,
      809
     ],
     [
@@ -14913,151 +15319,143 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      815,
-     816
+     820
     ],
     [
-     817,
-     819
+     821,
+     825
     ],
     [
-     820,
-     824
-    ],
-    [
-     825,
+     826,
      828
     ],
     [
      829,
-     836
+     832
     ],
     [
-     837,
-     841
+     833,
+     834
     ],
     [
-     842,
-     845
+     835,
+     840
     ],
     [
-     846,
-     849
+     841,
+     847
     ],
     [
-     850,
+     848,
      852
     ],
     [
      853,
-     860
+     857
     ],
     [
-     861,
-     863
+     858,
+     861
     ],
     [
-     864,
-     868
+     862,
+     869
     ],
     [
-     869,
-     871
+     870,
+     874
     ],
     [
-     872,
-     876
+     875,
+     880
     ],
     [
-     877,
+     881,
      884
     ],
     [
      885,
-     888
+     889
     ],
     [
-     889,
-     892
+     890,
+     894
     ],
     [
-     893,
-     897
+     895,
+     901
     ],
     [
-     898,
-     905
+     902,
+     907
     ],
     [
-     906,
-     909
+     908,
+     911
     ],
     [
-     910,
-     917
+     912,
+     915
     ],
     [
-     918,
-     922
+     916,
+     921
     ],
     [
-     923,
-     926
+     922,
+     923
     ],
     [
-     927,
-     930
+     924,
+     929
     ],
     [
-     931,
-     935
+     930,
+     933
     ],
     [
-     936,
-     942
+     934,
+     944
     ],
     [
-     943,
-     945
+     945,
+     950
     ],
     [
-     946,
-     948
+     951,
+     953
     ],
     [
-     949,
-     958
+     954,
+     956
     ],
     [
-     959,
-     962
+     957,
+     961
     ],
     [
-     963,
-     966
+     962,
+     964
     ],
     [
-     967,
-     968
+     965,
+     970
     ],
     [
-     969,
-     978
+     971,
+     972
     ],
     [
-     979,
-     983
+     973,
+     975
     ],
     [
-     984,
-     986
+     976,
+     980
     ],
     [
-     987,
-     990
-    ],
-    [
-     991,
-     1000
+     981,
+     984
     ]
    ],
    "order_run": [
@@ -15075,8 +15473,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "HIGH CPK",
      "spans": [
       [
-       19,
-       27
+       12,
+       20
       ]
      ],
      "negated": false,
@@ -15180,8 +15578,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "mildly elevated",
      "spans": [
       [
-       58,
-       73
+       54,
+       69
       ]
      ],
      "negated": false,
@@ -15283,12 +15681,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Terrible muscle pain",
      "spans": [
       [
-       144,
-       159
+       140,
+       155
       ],
       [
-       170,
-       174
+       168,
+       172
       ]
      ],
      "negated": false,
@@ -15392,12 +15790,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "joint pain",
      "spans": [
       [
-       164,
-       169
-      ],
-      [
-       170,
-       174
+       162,
+       172
       ]
      ],
      "negated": false,
@@ -15501,12 +15895,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Burning sensations in neck shoulders",
      "spans": [
       [
-       176,
-       197
-      ],
-      [
-       198,
-       212
+       173,
+       209
       ]
      ],
      "negated": false,
@@ -15615,12 +16005,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Burning sensations in upper chest",
      "spans": [
       [
-       176,
-       197
+       173,
+       194
       ],
       [
-       217,
-       228
+       216,
+       227
       ]
      ],
      "negated": false,
@@ -15730,8 +16120,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Palpatations",
      "spans": [
       [
-       230,
-       242
+       228,
+       240
       ]
      ],
      "negated": false,
@@ -15835,8 +16225,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Insomnia",
      "spans": [
       [
-       245,
-       253
+       247,
+       255
       ]
      ],
      "negated": false,
@@ -15940,8 +16330,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Weight gain",
      "spans": [
       [
-       369,
-       380
+       370,
+       381
       ]
      ],
      "negated": false,
@@ -16045,8 +16435,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "weak",
      "spans": [
       [
-       461,
-       465
+       455,
+       459
       ]
      ],
      "negated": false,
@@ -16151,8 +16541,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "difficulty walking and driving",
      "spans": [
       [
-       487,
-       517
+       484,
+       514
       ]
      ],
      "negated": false,
@@ -16261,8 +16651,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "dying",
      "spans": [
       [
-       681,
-       686
+       672,
+       677
       ]
      ],
      "negated": false,
@@ -16367,8 +16757,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "miserable",
      "spans": [
       [
-       658,
-       667
+       651,
+       660
       ]
      ],
      "negated": false,
@@ -16481,8 +16871,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        19,
-        27
+        12,
+        20
        ]
       ]
      },
@@ -16506,12 +16896,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        32,
-        48
+        27,
+        43
        ],
        [
-        58,
-        73
+        54,
+        69
        ]
       ]
      },
@@ -16535,12 +16925,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        153,
-        159
+        149,
+        155
        ],
        [
-        170,
-        174
+        168,
+        172
        ]
       ]
      },
@@ -16564,12 +16954,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        164,
-        169
-       ],
-       [
-        170,
-        174
+        162,
+        172
        ]
       ]
      },
@@ -16593,12 +16979,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        176,
-        197
-       ],
-       [
-        198,
-        202
+        173,
+        199
        ]
       ]
      },
@@ -16622,12 +17004,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        176,
-        197
+        173,
+        194
        ],
        [
-        203,
-        212
+        200,
+        209
        ]
       ]
      },
@@ -16651,12 +17033,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        176,
-        197
+        173,
+        194
        ],
        [
-        217,
-        228
+        216,
+        227
        ]
       ]
      },
@@ -16680,8 +17062,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        230,
-        242
+        228,
+        240
        ]
       ]
      },
@@ -16705,8 +17087,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        245,
-        253
+        247,
+        255
        ]
       ]
      },
@@ -16730,8 +17112,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        461,
-        478
+        455,
+        472
        ]
       ]
      },
@@ -16755,8 +17137,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        487,
-        505
+        484,
+        502
        ]
       ]
      },
@@ -16780,8 +17162,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        586,
-        591
+        581,
+        586
        ]
       ]
      },
@@ -16805,8 +17187,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        872,
-        876
+        870,
+        874
        ]
       ]
      },
@@ -16830,8 +17212,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        893,
-        904
+        890,
+        901
        ]
       ]
      },
@@ -16949,6 +17331,166 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "So far plus HIGH CPK again Liver blood test most days mildly elevated so I called the surgery. By the second box honestly but then came the Terrible muscle again joint pain Burning sensations in neck shoulders again upper chest Palpatations again Insomnia which was not great I had never had anything like it your mileage may vary of course honestly also and by the end Weight gain for about a week then last week then last week and a few days later some weak all the time again with difficulty walking and driving so I called the surgery a month in then and a few days later some Zocor which I did not expect then after a couple of weeks followed by miserable on and off dying on and off so it is hard to say what is what. For the record I am in my fifties. I am writing this mostly so other people know so I kept going with it for a while though then over the weekend pain again and some over weight which was not great I asked the pharmacist about it so that is where I am with it.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.48#0",
+     "spans": [
+      [
+       12,
+       20
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#1",
+     "spans": [
+      [
+       27,
+       43
+      ],
+      [
+       54,
+       69
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#2",
+     "spans": [
+      [
+       149,
+       155
+      ],
+      [
+       168,
+       172
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#3",
+     "spans": [
+      [
+       162,
+       172
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#4",
+     "spans": [
+      [
+       173,
+       199
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#5",
+     "spans": [
+      [
+       173,
+       194
+      ],
+      [
+       200,
+       209
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#6",
+     "spans": [
+      [
+       173,
+       194
+      ],
+      [
+       216,
+       227
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#7",
+     "spans": [
+      [
+       228,
+       240
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#8",
+     "spans": [
+      [
+       247,
+       255
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#10",
+     "spans": [
+      [
+       455,
+       472
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#11",
+     "spans": [
+      [
+       484,
+       502
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#12",
+     "spans": [
+      [
+       581,
+       586
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#13",
+     "spans": [
+      [
+       870,
+       874
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.48#14",
+     "spans": [
+      [
+       890,
+       901
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -16957,7 +17499,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 124,
-   "chars": 672,
+   "chars": 629,
    "word_spans": [
     [
      0,
@@ -16965,50 +17507,70 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      7,
+     11
+    ],
+    [
+     12,
+     14
+    ],
+    [
+     15,
      20
     ],
     [
      21,
-     23
+     29
     ],
     [
-     24,
-     43
+     30,
+     35
     ],
     [
-     44,
-     57
+     36,
+     44
     ],
     [
-     58,
-     63
+     45,
+     49
     ],
     [
-     64,
-     73
+     50,
+     54
     ],
     [
-     74,
-     75
+     55,
+     59
     ],
     [
-     76,
-     77
+     60,
+     67
     ],
     [
-     78,
-     79
+     68,
+     72
     ],
     [
-     80,
-     87
+     73,
+     82
     ],
     [
-     88,
-     92
+     83,
+     85
     ],
     [
-     93,
+     86,
+     91
+    ],
+    [
+     92,
+     94
+    ],
+    [
+     95,
+     98
+    ],
+    [
+     99,
      102
     ],
     [
@@ -17017,322 +17579,330 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      106,
+     107
+    ],
+    [
+     108,
+     110
+    ],
+    [
+     111,
      112
     ],
     [
      113,
-     114
+     116
     ],
     [
-     115,
-     118
+     117,
+     122
     ],
     [
-     119,
-     125
+     123,
+     131
     ],
     [
-     126,
-     130
+     132,
+     137
     ],
     [
-     131,
-     134
+     138,
+     141
     ],
     [
-     135,
-     143
+     142,
+     146
     ],
     [
-     144,
-     150
+     147,
+     149
     ],
     [
-     151,
-     155
+     150,
+     160
     ],
     [
-     156,
+     161,
      164
     ],
     [
      165,
-     168
+     170
     ],
     [
-     169,
+     171,
      174
     ],
     [
      175,
-     176
+     178
     ],
     [
-     177,
-     182
+     179,
+     184
     ],
     [
-     183,
-     185
+     185,
+     188
     ],
     [
-     186,
-     196
+     189,
+     195
     ],
     [
-     197,
-     200
+     196,
+     202
     ],
     [
-     201,
-     206
+     203,
+     207
     ],
     [
-     207,
-     213
+     208,
+     212
     ],
     [
-     214,
-     220
+     213,
+     218
     ],
     [
-     221,
-     223
+     219,
+     221
     ],
     [
-     224,
-     225
+     222,
+     226
     ],
     [
-     226,
-     232
+     227,
+     230
     ],
     [
-     233,
-     238
+     231,
+     236
     ],
     [
-     239,
-     242
+     237,
+     241
     ],
     [
-     243,
-     247
+     242,
+     251
     ],
     [
-     248,
-     253
+     252,
+     258
     ],
     [
-     254,
-     256
-    ],
-    [
-     257,
+     259,
      261
     ],
     [
      262,
-     265
+     264
     ],
     [
-     266,
-     269
+     265,
+     268
     ],
     [
-     270,
-     273
+     269,
+     272
     ],
     [
-     274,
-     283
+     273,
+     275
     ],
     [
-     284,
-     290
+     276,
+     279
     ],
     [
-     291,
-     293
+     280,
+     286
     ],
     [
-     294,
-     297
+     287,
+     296
     ],
     [
-     298,
-     303
+     297,
+     301
     ],
     [
-     304,
+     302,
      306
     ],
     [
      307,
-     309
+     312
     ],
     [
-     310,
-     317
+     313,
+     314
     ],
     [
-     318,
-     321
+     315,
+     320
     ],
     [
-     322,
-     324
+     321,
+     323
     ],
     [
-     325,
-     331
+     324,
+     327
     ],
     [
-     332,
-     333
+     328,
+     332
     ],
     [
-     334,
-     336
-    ],
-    [
-     337,
+     333,
      340
     ],
     [
      341,
-     345
+     344
     ],
     [
-     346,
+     345,
      348
     ],
     [
      349,
-     353
+     354
     ],
     [
-     354,
-     356
+     355,
+     358
     ],
     [
-     357,
+     359,
      364
     ],
     [
      365,
-     373
+     367
     ],
     [
-     374,
-     377
+     368,
+     371
     ],
     [
-     378,
-     383
+     372,
+     378
     ],
     [
-     384,
-     389
+     379,
+     382
     ],
     [
-     390,
+     383,
      391
     ],
     [
      392,
+     395
+    ],
+    [
+     396,
      404
     ],
     [
      405,
-     414
+     407
     ],
     [
-     415,
+     408,
+     415
+    ],
+    [
+     416,
      419
     ],
     [
      420,
-     426
+     421
     ],
     [
-     427,
+     422,
+     431
+    ],
+    [
+     432,
      434
     ],
     [
      435,
-     436
+     437
     ],
     [
-     437,
-     441
+     438,
+     440
     ],
     [
-     442,
-     448
+     441,
+     445
     ],
     [
-     449,
-     456
+     446,
+     458
     ],
     [
-     457,
-     460
+     459,
+     465
     ],
     [
-     461,
-     466
+     466,
+     469
     ],
     [
-     467,
-     468
+     470,
+     475
     ],
     [
-     469,
-     474
+     476,
+     480
     ],
     [
-     475,
-     477
-    ],
-    [
-     478,
+     481,
      483
     ],
     [
      484,
-     488
+     492
     ],
     [
-     489,
+     493,
      495
     ],
     [
      496,
-     499
+     497
     ],
     [
-     500,
-     501
+     498,
+     504
     ],
     [
-     502,
-     506
+     505,
+     508
     ],
     [
-     507,
-     510
+     509,
+     516
     ],
     [
-     511,
-     513
+     517,
+     518
     ],
     [
-     514,
-     522
+     519,
+     523
     ],
     [
-     523,
+     524,
      528
     ],
     [
@@ -17341,58 +17911,70 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      532,
-     536
+     535
     ],
     [
-     537,
-     541
+     536,
+     542
     ],
     [
-     542,
-     544
+     543,
+     548
     ],
     [
-     545,
-     547
+     549,
+     552
     ],
     [
-     548,
-     555
+     553,
+     556
     ],
     [
-     556,
-     559
+     557,
+     561
     ],
     [
-     560,
+     562,
      563
     ],
     [
      564,
-     567
+     568
     ],
     [
-     568,
-     578
+     569,
+     573
     ],
     [
-     579,
-     581
+     574,
+     576
     ],
     [
-     582,
-     589
+     577,
+     579
     ],
     [
-     590,
-     595
+     580,
+     582
     ],
     [
-     596,
-     600
+     583,
+     586
     ],
     [
-     601,
+     587,
+     593
+    ],
+    [
+     594,
+     597
+    ],
+    [
+     598,
+     599
+    ],
+    [
+     600,
      605
     ],
     [
@@ -17401,59 +17983,19 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      609,
-     613
+     617
     ],
     [
-     614,
-     616
+     618,
+     621
     ],
     [
-     617,
-     618
+     622,
+     624
     ],
     [
-     619,
-     625
-    ],
-    [
-     626,
-     631
-    ],
-    [
-     632,
-     635
-    ],
-    [
-     636,
-     637
-    ],
-    [
-     638,
-     642
-    ],
-    [
-     643,
-     646
-    ],
-    [
-     647,
-     653
-    ],
-    [
-     654,
-     655
-    ],
-    [
-     656,
-     660
-    ],
-    [
-     661,
-     663
-    ],
-    [
-     664,
-     671
+     625,
+     629
     ]
    ],
    "order_run": [
@@ -17472,7 +18014,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "spans": [
       [
        0,
-       15
+       6
       ]
      ],
      "negated": false,
@@ -17576,8 +18118,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "lack of concentration",
      "spans": [
       [
-       16,
-       37
+       7,
+       14
       ]
      ],
      "negated": false,
@@ -17686,8 +18228,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "joint pain",
      "spans": [
       [
-       38,
-       48
+       15,
+       20
       ]
      ],
      "negated": false,
@@ -17791,8 +18333,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "abnormal liver function",
      "spans": [
       [
-       49,
-       72
+       21,
+       44
       ]
      ],
      "negated": false,
@@ -17896,8 +18438,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "unknown skin condition on hands",
      "spans": [
       [
-       80,
-       111
+       60,
+       91
       ]
      ],
      "negated": false,
@@ -18006,8 +18548,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "my fingertips",
      "spans": [
       [
-       183,
-       196
+       147,
+       160
       ]
      ],
      "negated": false,
@@ -18116,8 +18658,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "skin began to come",
      "spans": [
       [
-       243,
-       261
+       208,
+       226
       ]
      ],
      "negated": false,
@@ -18222,8 +18764,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "condition spread to",
      "spans": [
       [
-       274,
-       293
+       242,
+       261
       ]
      ],
      "negated": false,
@@ -18327,8 +18869,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "no problems",
      "spans": [
       [
-       511,
-       522
+       481,
+       492
       ]
      ],
      "negated": true,
@@ -18440,7 +18982,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       "spans": [
        [
         0,
-        15
+        6
        ]
       ]
      },
@@ -18464,8 +19006,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        16,
-        37
+        7,
+        14
        ]
       ]
      },
@@ -18489,8 +19031,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        38,
-        48
+        15,
+        20
        ]
       ]
      },
@@ -18514,8 +19056,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        49,
-        72
+        21,
+        44
        ]
       ]
      },
@@ -18539,8 +19081,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        88,
-        102
+        68,
+        82
        ]
       ]
      },
@@ -18564,12 +19106,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        186,
-        196
-       ],
-       [
-        197,
-        206
+        150,
+        170
        ]
       ]
      },
@@ -18593,8 +19131,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        243,
-        265
+        208,
+        230
        ]
       ]
      },
@@ -18618,8 +19156,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        357,
-        364
+        333,
+        340
        ]
       ]
      },
@@ -18643,8 +19181,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        449,
-        456
+        408,
+        415
        ]
       ]
      },
@@ -18755,6 +19293,100 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "Muscle lack of joint abnormal liver function most days plus unknown skin condition on hands on and off so I am a bit torn. Honestly still and then my fingertips got puffy for the first few weeks. Anyway with skin began to come off again with condition spread to on and off we are trying something else next month a month in but with lipitor for the first few weeks by the second box honestly and followed by lipitor and I mentioned it at my next appointment. Really and after that no problems so I called the surgery I went back to the doctor about it. Not sure I will stay on it by the second box a month in honestly now so far.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.70#0",
+     "spans": [
+      [
+       0,
+       6
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#1",
+     "spans": [
+      [
+       7,
+       14
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#2",
+     "spans": [
+      [
+       15,
+       20
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#3",
+     "spans": [
+      [
+       21,
+       44
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#4",
+     "spans": [
+      [
+       68,
+       82
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#5",
+     "spans": [
+      [
+       150,
+       170
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#7",
+     "spans": [
+      [
+       208,
+       230
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#8",
+     "spans": [
+      [
+       333,
+       340
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.70#9",
+     "spans": [
+      [
+       408,
+       415
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -18763,7 +19395,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 145,
-   "chars": 774,
+   "chars": 784,
    "word_spans": [
     [
      0,
@@ -18791,114 +19423,118 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      30,
-     33
+     35
     ],
     [
-     34,
-     42
+     36,
+     43
     ],
     [
-     43,
-     49
+     44,
+     50
     ],
     [
-     50,
-     53
+     51,
+     54
     ],
     [
-     54,
-     56
+     55,
+     57
     ],
     [
-     57,
-     59
+     58,
+     60
     ],
     [
-     60,
+     61,
      67
     ],
     [
      68,
-     69
-    ],
-    [
-     70,
      73
     ],
     [
      74,
-     78
+     77
     ],
     [
-     79,
-     81
+     78,
+     86
     ],
     [
-     82,
-     91
+     87,
+     89
     ],
     [
-     92,
-     95
+     90,
+     99
     ],
     [
-     96,
-     102
+     100,
+     105
     ],
     [
-     103,
-     104
+     106,
+     107
     ],
     [
-     105,
-     110
+     108,
+     111
     ],
     [
-     111,
-     114
+     112,
+     115
     ],
     [
-     115,
-     123
+     116,
+     122
     ],
     [
-     124,
+     123,
      126
     ],
     [
      127,
-     134
+     131
     ],
     [
-     135,
-     142
+     132,
+     139
     ],
     [
-     143,
-     147
+     140,
+     144
     ],
     [
-     148,
-     156
+     145,
+     149
     ],
     [
-     157,
-     159
+     150,
+     158
     ],
     [
-     160,
-     165
+     159,
+     160
     ],
     [
-     166,
-     179
+     161,
+     166
     ],
     [
-     180,
-     184
+     167,
+     169
     ],
     [
-     185,
+     170,
+     176
+    ],
+    [
+     177,
+     181
+    ],
+    [
+     182,
      186
     ],
     [
@@ -18907,443 +19543,439 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      191,
-     194
+     196
     ],
     [
-     195,
-     200
+     197,
+     202
     ],
     [
-     201,
-     204
+     203,
+     209
     ],
     [
-     205,
-     211
+     210,
+     214
     ],
     [
-     212,
-     216
+     215,
+     218
     ],
     [
-     217,
+     219,
      224
     ],
     [
      225,
-     228
+     226
     ],
     [
-     229,
-     232
+     227,
+     231
     ],
     [
-     233,
-     237
+     232,
+     238
     ],
     [
-     238,
-     240
+     239,
+     243
     ],
     [
-     241,
-     244
+     244,
+     253
     ],
     [
-     245,
-     254
+     254,
+     259
     ],
     [
-     255,
-     257
+     260,
+     270
     ],
     [
-     258,
-     268
-    ],
-    [
-     269,
+     271,
      273
     ],
     [
      274,
-     278
+     277
     ],
     [
-     279,
-     280
+     278,
+     281
     ],
     [
-     281,
-     291
+     282,
+     290
     ],
     [
-     292,
-     294
+     291,
+     296
     ],
     [
-     295,
-     301
+     297,
+     303
     ],
     [
-     302,
-     306
+     304,
+     308
     ],
     [
-     307,
-     312
+     309,
+     314
     ],
     [
-     313,
-     317
+     315,
+     319
     ],
     [
-     318,
-     322
+     320,
+     324
     ],
     [
-     323,
-     329
+     325,
+     327
     ],
     [
-     330,
+     328,
      331
     ],
     [
      332,
-     339
+     335
     ],
     [
-     340,
-     343
+     336,
+     340
     ],
     [
-     344,
-     352
+     341,
+     348
     ],
     [
-     353,
+     349,
+     353
+    ],
+    [
+     354,
+     358
+    ],
+    [
+     359,
      360
     ],
     [
      361,
-     365
+     366
     ],
     [
-     366,
-     368
+     367,
+     369
     ],
     [
-     369,
-     371
+     370,
+     378
     ],
     [
-     372,
-     379
+     379,
+     382
     ],
     [
-     380,
-     384
-    ],
-    [
-     385,
+     383,
      387
     ],
     [
      388,
-     392
+     393
     ],
     [
-     393,
-     398
+     394,
+     401
     ],
     [
-     399,
-     406
+     402,
+     407
     ],
     [
-     407,
+     408,
      409
     ],
     [
      410,
-     411
+     413
     ],
     [
-     412,
-     422
+     414,
+     417
     ],
     [
-     423,
-     428
+     418,
+     425
     ],
     [
-     429,
-     432
+     426,
+     427
     ],
     [
-     433,
+     428,
+     433
+    ],
+    [
+     434,
+     436
+    ],
+    [
+     437,
      441
     ],
     [
      442,
-     450
+     446
     ],
     [
-     451,
-     454
+     447,
+     451
     ],
     [
-     455,
-     457
+     452,
+     460
     ],
     [
-     458,
-     462
+     461,
+     466
     ],
     [
-     463,
-     465
+     467,
+     475
     ],
     [
-     466,
-     470
+     476,
+     478
     ],
     [
-     471,
-     473
+     479,
+     483
     ],
     [
-     474,
-     481
+     484,
+     489
     ],
     [
-     482,
-     486
-    ],
-    [
-     487,
-     491
-    ],
-    [
-     492,
+     490,
      493
     ],
     [
      494,
-     499
-    ],
-    [
-     500,
      501
     ],
     [
      502,
-     507
+     505
     ],
     [
-     508,
-     514
+     506,
+     509
     ],
     [
-     515,
-     518
+     510,
+     517
     ],
     [
-     519,
-     530
+     518,
+     526
     ],
     [
-     531,
-     535
+     527,
+     531
     ],
     [
-     536,
-     540
+     532,
+     537
     ],
     [
-     541,
-     545
+     538,
+     539
     ],
     [
-     546,
-     551
+     540,
+     546
     ],
     [
-     552,
-     553
+     547,
+     549
     ],
     [
-     554,
-     556
+     550,
+     555
     ],
     [
-     557,
+     556,
      559
     ],
     [
      560,
-     563
+     564
     ],
     [
-     564,
-     568
+     565,
+     569
     ],
     [
-     569,
-     573
+     570,
+     574
     ],
     [
-     574,
-     577
+     575,
+     580
     ],
     [
-     578,
-     581
-    ],
-    [
-     582,
+     581,
      583
     ],
     [
      584,
-     588
+     587
     ],
     [
-     589,
-     595
+     588,
+     594
     ],
     [
-     596,
-     600
+     595,
+     604
     ],
     [
-     601,
-     605
+     605,
+     609
     ],
     [
-     606,
-     611
+     610,
+     614
     ],
     [
-     612,
-     621
+     615,
+     620
     ],
     [
-     622,
-     625
+     621,
+     629
     ],
     [
-     626,
-     633
+     630,
+     632
     ],
     [
-     634,
-     638
+     633,
+     640
     ],
     [
-     639,
-     647
+     641,
+     643
     ],
     [
-     648,
-     649
+     644,
+     645
     ],
     [
-     650,
-     653
+     646,
+     652
     ],
     [
-     654,
-     658
+     653,
+     656
     ],
     [
-     659,
-     664
+     657,
+     665
     ],
     [
-     665,
-     667
-    ],
-    [
-     668,
+     666,
      670
     ],
     [
      671,
-     672
+     675
     ],
     [
-     673,
-     679
+     676,
+     680
     ],
     [
-     680,
-     682
+     681,
+     687
     ],
     [
-     683,
-     685
+     688,
+     691
     ],
     [
-     686,
-     688
+     692,
+     696
     ],
     [
-     689,
-     702
+     697,
+     699
     ],
     [
-     703,
-     706
+     700,
+     705
     ],
     [
-     707,
-     712
+     706,
+     718
     ],
     [
-     713,
-     714
+     719,
+     722
     ],
     [
-     715,
-     721
+     723,
+     724
     ],
     [
-     722,
-     726
+     725,
+     734
     ],
     [
-     727,
-     731
+     735,
+     737
     ],
     [
-     732,
-     738
+     738,
+     740
     ],
     [
-     739,
+     741,
      743
     ],
     [
      744,
-     752
+     748
     ],
     [
-     753,
-     756
-    ],
-    [
-     757,
+     749,
      761
     ],
     [
      762,
-     764
+     766
     ],
     [
-     765,
-     773
+     767,
+     771
+    ],
+    [
+     772,
+     776
+    ],
+    [
+     777,
+     779
+    ],
+    [
+     780,
+     784
     ]
    ],
    "order_run": [
@@ -19362,10 +19994,6 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "spans": [
       [
        0,
-       15
-      ],
-      [
-       16,
        29
       ]
      ],
@@ -19469,12 +20097,7 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     {
      "record_id": "LIPITOR.739#1",
      "span": "(8-word quote withheld)",
-     "spans": [
-      [
-       0,
-       42
-      ]
-     ],
+     "spans": [],
      "negated": false,
      "r0": {
       "menu": [
@@ -19577,8 +20200,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "Really bad in my thighs",
      "spans": [
       [
-       43,
-       66
+       44,
+       67
       ]
      ],
      "negated": false,
@@ -19683,12 +20306,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "joint pain",
      "spans": [
       [
-       195,
-       200
+       191,
+       196
       ],
       [
-       212,
-       216
+       210,
+       214
       ]
      ],
      "negated": false,
@@ -19792,12 +20415,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "muscle pain",
      "spans": [
       [
-       205,
-       211
-      ],
-      [
-       212,
-       216
+       203,
+       214
       ]
      ],
      "negated": false,
@@ -19901,8 +20520,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "thighs were",
      "spans": [
       [
-       295,
-       306
+       297,
+       308
       ]
      ],
      "negated": false,
@@ -20006,8 +20625,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "feel like",
      "spans": [
       [
-       564,
-       573
+       565,
+       574
       ]
      ],
      "negated": false,
@@ -20121,10 +20740,6 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       "spans": [
        [
         0,
-        22
-       ],
-       [
-        23,
         29
        ]
       ]
@@ -20153,8 +20768,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
         22
        ],
        [
-        34,
-        41
+        36,
+        43
        ]
       ]
      },
@@ -20178,8 +20793,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        82,
-        91
+        90,
+        99
        ]
       ]
      },
@@ -20203,8 +20818,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        127,
-        134
+        132,
+        139
        ]
       ]
      },
@@ -20228,12 +20843,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        195,
-        200
+        191,
+        196
        ],
        [
-        212,
-        216
+        210,
+        214
        ]
       ]
      },
@@ -20257,12 +20872,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        205,
-        211
-       ],
-       [
-        212,
-        216
+        203,
+        214
        ]
       ]
      },
@@ -20286,8 +20897,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        245,
-        254
+        244,
+        253
        ]
       ]
      },
@@ -20311,8 +20922,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        258,
-        268
+        260,
+        270
        ]
       ]
      },
@@ -20336,8 +20947,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        281,
-        289
+        282,
+        290
        ]
       ]
      },
@@ -20361,8 +20972,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        344,
-        351
+        341,
+        348
        ]
       ]
      },
@@ -20386,12 +20997,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        295,
-        301
+        297,
+        303
        ],
        [
-        318,
-        322
+        320,
+        324
        ]
       ]
      },
@@ -20415,8 +21026,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        393,
-        406
+        388,
+        401
        ]
       ]
      },
@@ -20440,8 +21051,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        487,
-        491
+        479,
+        483
        ]
       ]
      },
@@ -20465,8 +21076,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        626,
-        633
+        633,
+        640
        ]
       ]
      },
@@ -20490,8 +21101,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        683,
-        685
+        697,
+        699
        ]
       ]
      },
@@ -20515,8 +21126,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        689,
-        701
+        706,
+        718
        ]
       ]
      },
@@ -20632,6 +21243,182 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "Chronic pain in all my joints again muscles Really bad in my thighs again but followed by Pravachol which I did not expect and some Lipitor most days honestly a month in really then came the joint again muscle pain for about a week anyway plus arthritis again neuropathy on and off diabetic again thighs were again plus sore on and off plus Lipitor most days a month in honestly but plus heart disease which I did not expect. A month in then last week honestly again followed by pain which the leaflet did not mention honestly then after a couple of weeks and some feel like again we are trying something else next month followed by Lipitor so I called the surgery. Then last week though and some MS again fibromyalgia and I mentioned it at my next appointment. Then last week so far.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.739#0",
+     "spans": [
+      [
+       0,
+       29
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#1",
+     "spans": [
+      [
+       0,
+       22
+      ],
+      [
+       36,
+       43
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#2",
+     "spans": [
+      [
+       90,
+       99
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#3",
+     "spans": [
+      [
+       132,
+       139
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#4",
+     "spans": [
+      [
+       191,
+       196
+      ],
+      [
+       210,
+       214
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#5",
+     "spans": [
+      [
+       203,
+       214
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#6",
+     "spans": [
+      [
+       244,
+       253
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#7",
+     "spans": [
+      [
+       260,
+       270
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#8",
+     "spans": [
+      [
+       282,
+       290
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#9",
+     "spans": [
+      [
+       341,
+       348
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#10",
+     "spans": [
+      [
+       297,
+       303
+      ],
+      [
+       320,
+       324
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#11",
+     "spans": [
+      [
+       388,
+       401
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#12",
+     "spans": [
+      [
+       479,
+       483
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#13",
+     "spans": [
+      [
+       633,
+       640
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#14",
+     "spans": [
+      [
+       697,
+       699
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.739#15",
+     "spans": [
+      [
+       706,
+       718
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -20640,230 +21427,282 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
    "run": "rerun-cadec-d0",
    "split": "dev",
    "words": 139,
-   "chars": 761,
+   "chars": 654,
    "word_spans": [
     [
      0,
-     5
+     4
     ],
     [
-     6,
-     9
+     5,
+     8
     ],
     [
-     10,
-     16
+     9,
+     14
     ],
     [
-     17,
-     21
+     15,
+     19
     ],
     [
-     22,
+     20,
+     24
+    ],
+    [
+     25,
      27
     ],
     [
      28,
-     33
+     29
     ],
     [
-     34,
+     30,
      36
     ],
     [
      37,
-     46
+     40
     ],
     [
-     47,
-     49
+     41,
+     48
     ],
     [
-     50,
+     49,
      55
     ],
     [
      56,
-     62
+     60
     ],
     [
-     63,
-     68
+     61,
+     63
     ],
     [
-     69,
-     70
+     64,
+     67
     ],
     [
-     71,
-     77
+     68,
+     71
     ],
     [
-     78,
-     88
+     72,
+     78
     ],
     [
-     89,
+     79,
+     83
+    ],
+    [
+     84,
      90
     ],
     [
      91,
-     94
+     95
     ],
     [
-     95,
-     101
+     96,
+     103
     ],
     [
-     102,
+     104,
      109
     ],
     [
      110,
-     118
+     113
     ],
     [
-     119,
-     121
+     114,
+     117
     ],
     [
-     122,
-     125
+     118,
+     123
     ],
     [
-     126,
-     130
+     124,
+     128
     ],
     [
-     131,
-     140
+     129,
+     133
     ],
     [
-     141,
-     144
+     134,
+     137
     ],
     [
-     145,
-     149
+     138,
+     141
     ],
     [
-     150,
-     153
+     142,
+     147
     ],
     [
-     154,
-     163
+     148,
+     151
     ],
     [
-     164,
-     165
+     152,
+     157
     ],
     [
-     166,
+     158,
+     162
+    ],
+    [
+     163,
      170
     ],
     [
      171,
-     175
+     173
     ],
     [
-     176,
-     178
+     174,
+     177
     ],
     [
-     179,
+     178,
+     181
+    ],
+    [
+     182,
+     184
+    ],
+    [
+     185,
      186
     ],
     [
      187,
-     190
+     189
     ],
     [
-     191,
-     199
+     190,
+     191
     ],
     [
-     200,
-     202
+     192,
+     195
     ],
     [
-     203,
-     207
+     196,
+     200
     ],
     [
-     208,
-     212
+     201,
+     203
     ],
     [
-     213,
-     218
+     204,
+     206
     ],
     [
-     219,
-     225
+     207,
+     209
     ],
     [
-     226,
+     210,
+     214
+    ],
+    [
+     215,
+     217
+    ],
+    [
+     218,
+     221
+    ],
+    [
+     222,
+     226
+    ],
+    [
+     227,
      229
     ],
     [
      230,
-     237
+     234
     ],
     [
-     238,
+     235,
+     238
+    ],
+    [
+     239,
      242
     ],
     [
      243,
-     250
+     244
     ],
     [
-     251,
-     255
+     245,
+     248
     ],
     [
-     256,
+     249,
+     253
+    ],
+    [
+     254,
+     259
+    ],
+    [
+     260,
      264
     ],
     [
      265,
-     267
+     272
     ],
     [
-     268,
-     270
+     273,
+     279
     ],
     [
-     271,
-     273
+     280,
+     285
     ],
     [
-     274,
-     278
+     286,
+     291
     ],
     [
-     279,
-     283
-    ],
-    [
-     284,
-     292
-    ],
-    [
-     293,
+     292,
      295
     ],
     [
      296,
-     300
+     301
     ],
     [
-     301,
-     309
+     302,
+     305
     ],
     [
-     310,
+     306,
+     307
+    ],
+    [
+     308,
+     311
+    ],
+    [
+     312,
+     315
+    ],
+    [
+     316,
      317
     ],
     [
@@ -20872,234 +21711,266 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      321,
-     325
+     328
     ],
     [
-     326,
-     334
+     329,
+     333
     ],
     [
-     335,
-     341
+     334,
+     340
     ],
     [
-     342,
-     347
+     341,
+     343
     ],
     [
-     348,
-     351
+     344,
+     349
     ],
     [
-     352,
+     350,
      356
     ],
     [
      357,
-     359
+     361
     ],
     [
-     360,
-     368
+     362,
+     370
     ],
     [
-     369,
-     371
+     371,
+     374
     ],
     [
-     372,
+     375,
      378
     ],
     [
      379,
-     382
+     384
     ],
     [
-     383,
-     388
+     385,
+     389
     ],
     [
-     389,
-     392
+     390,
+     399
     ],
     [
-     393,
-     398
-    ],
-    [
-     399,
-     401
-    ],
-    [
-     402,
+     400,
      413
     ],
     [
      414,
-     420
+     417
     ],
     [
-     421,
-     423
+     418,
+     421
     ],
     [
-     424,
-     436
+     422,
+     427
     ],
     [
-     437,
-     440
+     428,
+     431
     ],
     [
-     441,
-     443
+     432,
+     437
     ],
     [
-     444,
-     446
+     438,
+     442
     ],
     [
-     447,
-     449
+     443,
+     450
     ],
     [
-     450,
-     453
+     451,
+     454
     ],
     [
-     454,
-     461
+     455,
+     459
     ],
     [
-     462,
+     460,
+     462
+    ],
+    [
+     463,
+     469
+    ],
+    [
+     470,
      471
     ],
     [
      472,
-     486
+     477
     ],
     [
-     487,
-     490
+     478,
+     480
     ],
     [
-     491,
-     493
+     481,
+     482
     ],
     [
-     494,
+     483,
+     487
+    ],
+    [
+     488,
+     489
+    ],
+    [
+     490,
      495
     ],
     [
      496,
-     498
+     500
     ],
     [
-     499,
-     501
+     501,
+     503
     ],
     [
-     502,
-     505
+     504,
+     508
     ],
     [
-     506,
-     513
+     509,
+     512
     ],
     [
-     514,
-     517
+     513,
+     520
     ],
     [
-     518,
-     527
+     521,
+     522
     ],
     [
-     528,
-     535
+     523,
+     525
     ],
     [
-     536,
-     544
+     526,
+     528
     ],
     [
-     545,
-     546
+     529,
+     530
     ],
     [
-     547,
-     552
+     531,
+     534
     ],
     [
-     553,
+     535,
+     540
+    ],
+    [
+     541,
+     547
+    ],
+    [
+     548,
+     550
+    ],
+    [
+     551,
      555
     ],
     [
      556,
-     560
+     557
     ],
     [
-     561,
-     565
+     558,
+     562
     ],
     [
-     566,
-     572
+     563,
+     564
     ],
     [
-     573,
-     579
+     565,
+     570
     ],
     [
-     580,
-     581
+     571,
+     575
     ],
     [
-     582,
-     585
+     576,
+     578
     ],
     [
-     586,
-     592
+     579,
+     583
     ],
     [
-     593,
-     595
+     584,
+     587
     ],
     [
-     596,
+     588,
+     596
+    ],
+    [
+     597,
      598
     ],
     [
      599,
-     610
+     604
     ],
     [
-     611,
-     614
+     605,
+     607
     ],
     [
-     615,
-     621
+     608,
+     611
     ],
     [
-     622,
-     625
+     612,
+     615
     ],
     [
-     626,
+     616,
+     622
+    ],
+    [
+     623,
+     624
+    ],
+    [
+     625,
+     627
+    ],
+    [
+     628,
      630
     ],
     [
      631,
-     635
+     633
     ],
     [
-     636,
-     638
-    ],
-    [
-     639,
+     634,
      641
     ],
     [
@@ -21108,95 +21979,11 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     ],
     [
      646,
-     651
+     649
     ],
     [
-     652,
-     656
-    ],
-    [
-     657,
-     660
-    ],
-    [
-     661,
-     664
-    ],
-    [
-     665,
-     674
-    ],
-    [
-     675,
-     682
-    ],
-    [
-     683,
-     685
-    ],
-    [
-     686,
-     688
-    ],
-    [
-     689,
-     692
-    ],
-    [
-     693,
-     699
-    ],
-    [
-     700,
-     702
-    ],
-    [
-     703,
-     707
-    ],
-    [
-     708,
-     711
-    ],
-    [
-     712,
-     719
-    ],
-    [
-     720,
-     724
-    ],
-    [
-     725,
-     726
-    ],
-    [
-     727,
-     733
-    ],
-    [
-     734,
-     736
-    ],
-    [
-     737,
-     740
-    ],
-    [
-     741,
-     746
-    ],
-    [
-     747,
-     750
-    ],
-    [
-     751,
-     754
-    ],
-    [
-     755,
-     760
+     650,
+     654
     ]
    ],
    "order_run": [
@@ -21218,8 +22005,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
        4
       ],
       [
-       22,
-       26
+       20,
+       24
       ]
      ],
      "negated": false,
@@ -21324,12 +22111,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "hip thigh pain",
      "spans": [
       [
-       6,
-       15
+       5,
+       14
       ],
       [
-       22,
-       26
+       20,
+       24
       ]
      ],
      "negated": false,
@@ -21435,12 +22222,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "knee pain",
      "spans": [
       [
-       17,
-       21
-      ],
-      [
-       22,
-       26
+       15,
+       24
       ]
      ],
      "negated": false,
@@ -21545,8 +22328,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "memory loss",
      "spans": [
       [
-       95,
-       106
+       84,
+       95
       ]
      ],
      "negated": false,
@@ -21648,8 +22431,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "fatigue",
      "spans": [
       [
-       110,
-       117
+       96,
+       103
       ]
      ],
      "negated": false,
@@ -21753,8 +22536,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "pain",
      "spans": [
       [
-       145,
-       149
+       129,
+       133
       ]
      ],
      "negated": false,
@@ -21858,8 +22641,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "muscle aches",
      "spans": [
       [
-       335,
-       347
+       273,
+       285
       ]
      ],
      "negated": false,
@@ -21963,8 +22746,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
      "span": "extremely uncomfortable",
      "spans": [
       [
-       462,
-       485
+       390,
+       413
       ]
      ],
      "negated": false,
@@ -22081,12 +22864,12 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        6,
-        15
+        5,
+        14
        ],
        [
-        22,
-        26
+        20,
+        24
        ]
       ]
      },
@@ -22114,8 +22897,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
         4
        ],
        [
-        22,
-        26
+        20,
+        24
        ]
       ]
      },
@@ -22139,8 +22922,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        56,
-        67
+        49,
+        60
        ]
       ]
      },
@@ -22164,8 +22947,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        95,
-        106
+        84,
+        95
        ]
       ]
      },
@@ -22189,8 +22972,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        110,
-        117
+        96,
+        103
        ]
       ]
      },
@@ -22214,8 +22997,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        145,
-        149
+        129,
+        133
        ]
       ]
      },
@@ -22239,8 +23022,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        179,
-        186
+        163,
+        170
        ]
       ]
      },
@@ -22264,8 +23047,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        326,
-        333
+        265,
+        272
        ]
       ]
      },
@@ -22289,8 +23072,8 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
       ],
       "spans": [
        [
-        335,
-        347
+        273,
+        285
        ]
       ]
      },
@@ -22401,6 +23184,108 @@ Every model call is keyed by model, messages, temperature, <code>max_tokens</cod
     "Rung 4's judge is granite4:micro-h (2B) judging a 20B extractor \u2014 the wrong way round, kept as the measured lesser evil (BioMistral-7B was rejected on the 240-record re-judge, 2026-08-25). Read rung 4's numbers with that stated.",
     "Human minutes are priced at the declared minutes_per_record rate \u2014 an illustration, never a measurement. The headline rung-6 cost is the COUNT of records routed to a person (decided 2026-08-26).",
     "A rung 1 rejection rate is meaningless without its backend: local-rf2 and OLS4 are NOT interchangeable (an OLS4-backed exists() calls 23.9% of CADEC gold nonexistent). The backend is in the provenance footer."
+   ],
+   "text": "Back hip thigh knee pain so I called the surgery Memory loss on and off really with memory loss fatigue which was not great with pain for the first few weeks plus Lipitor on and off so I am a bit torn so it is hard to say what is what and and a few days later some fatigue muscle aches which has eased off a bit now I am writing this mostly so other people know honestly too and after that extremely uncomfortable for the first few weeks your mileage may vary of course a month in I took a break from it over the weekend I am on a few other things as well I took a break from it over the weekend. A month in for the record I am in my fifties too for now.",
+   "synthetic": true,
+   "gold_spans": [
+    {
+     "record_id": "LIPITOR.8#1",
+     "spans": [
+      [
+       5,
+       14
+      ],
+      [
+       20,
+       24
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#2",
+     "spans": [
+      [
+       0,
+       4
+      ],
+      [
+       20,
+       24
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#3",
+     "spans": [
+      [
+       49,
+       60
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#4",
+     "spans": [
+      [
+       84,
+       95
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#5",
+     "spans": [
+      [
+       96,
+       103
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#6",
+     "spans": [
+      [
+       129,
+       133
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#7",
+     "spans": [
+      [
+       163,
+       170
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#8",
+     "spans": [
+      [
+       265,
+       272
+      ]
+     ],
+     "excluded": false
+    },
+    {
+     "record_id": "LIPITOR.8#9",
+     "spans": [
+      [
+       273,
+       285
+      ]
+     ],
+     "excluded": false
+    }
    ]
   },
   {
@@ -33536,7 +34421,7 @@ function pathOf(t){const lane=t.r1.verdict||"?";
  if(lane==="REJECT") return t.r2.outcome==="rescued"?"REJECT → rescued to BAND → held":"REJECT → still failing → held";
  return t.final.shipped?"ACCEPT → ships":lane+" → held";}
 const PATHS=["ACCEPT → ships","BAND → held","REJECT → rescued to BAND → held","REJECT → still failing → held"];
-let dSet="finer",dPath=null,dCur=0,dSel=null;   // opens on the corpus whose text may be shown; CADEC is one click away, redacted
+let dSet="finer",dPath=null,dCur=0,dSel=null;   // opens on the corpus whose text may be shown; CADEC is one click away, as a synthetic stand-in
 const lab=x=>x==null?"—":"|"+esc(x)+"|";
 const docOf=t=>PD.documents.find(d=>d.run===t.run&&d.doc_id===t.id.split("#")[0]);
 const zone=v=>'<span class="zn '+esc(v||"none")+'">'+esc(v||"—")+'</span>';
@@ -33634,11 +34519,13 @@ function redactedPost(d,sel){
 
 function textBlock(d,sel){
  const cls=pairClassOf(d);
- if(d.text){const marks=[]; const local=!!PD.local_text&&d.corpus!=="finer";
+ if(d.text){const marks=[]; const local=!!PD.local_text&&d.corpus!=="finer"; const synth=!!d.synthetic&&!local;
   for(const r of d.records) for(const [a,b] of (r.spans||[])) marks.push({start:a,end:b,rid:r.record_id,cls:"pred-span "+(cls[r.record_id]||"")+(sel===r.record_id?" selected":(sel?" dim":"")),title:r.record_id+" → "+(r.final.sct||"no code")+" ("+r.final.zone+")"});
   const missed=new Set(d.pairs.filter(p=>p.span_match==="missed").map(p=>p.gold.record_id));
   for(const g of (d.gold_spans||[])) for(const [a,b] of (g.spans||[])) marks.push({start:a,end:b,cls:"gold-span"+(g.excluded?" excluded":"")+(missed.has(g.record_id)?" missed":""),title:"GOLD "+g.record_id+(missed.has(g.record_id)?" — gold only":"")});
-  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — '+(local?'<b style="color:#a33333">the full post, LOCAL COPY — not for publication</b>, ':'a FiNER-139 filing excerpt (CC-BY-SA), ')+d.words+' words · <span class="tg agree">agrees</span> <span class="tg differ">differs</span> <span class="tg spurious">model only</span> <span class="tg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text">'+highlightText(d.text,marks)+'</div>';}
+  const head=local?'<b style="color:#a33333">the full post, LOCAL COPY — not for publication</b>, ':synth?'<b>a synthetic stand-in</b> for the post — the highlighted words are the real annotated spans and the model\'s quotes, at the positions the post had; every other word is invented, because CADEC is non-transferable · ':'a FiNER-139 filing excerpt (CC-BY-SA), ';
+  const foot=synth?'<div class="small" style="margin:2px 0 4px;color:#666">The words outside the highlights are not the post. To read the real one, build the local copy on a machine that holds the corpus: <code>python3 scripts/plan_local.py</code> writes it under <code>out/</code>, where git never sees it.</div>':'';
+  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — '+head+d.words+' words · <span class="tg agree">agrees</span> <span class="tg differ">differs</span> <span class="tg spurious">model only</span> <span class="tg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text'+(synth?' synthetic':'')+'">'+highlightText(d.text,marks)+'</div>'+foot;}
  // no text but the words' positions: the redacted post
  if(d.word_spans&&d.word_spans.length) return redactedPost(d,sel);
  // neither: the span map

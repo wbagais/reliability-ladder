@@ -397,10 +397,23 @@ def test_the_demo_documents_are_the_workbench_view_of_real_documents_with_no_pos
         # the excerpt is carried only for the redistributable corpus (FiNER-139, CC-BY-SA);
         # a CADEC post or a PsyTAR review never reaches the page
         if d["corpus"] == "finer":
-            assert isinstance(d.get("text"), str) and d["text"]
+            assert isinstance(d.get("text"), str) and d["text"] and "synthetic" not in d
+        elif d["corpus"] == "cadec":
+            # a CADEC document carries a SYNTHETIC stand-in (scripts/plan_synth.py): the real
+            # spans at the post's word positions, invented words everywhere else, marked as such
+            assert d.get("synthetic") is True and isinstance(d.get("text"), str), d["doc_id"]
+            assert len(d["text"].split()) == d["words"] == len(d["word_spans"]), d["doc_id"]
+            for r in d["records"]:
+                for a, b in r["spans"]:
+                    assert d["text"][a:b] in r["span"], (d["doc_id"], r["record_id"])
+            for g in d["gold_spans"]:
+                p = next(p for p in d["pairs"] if p["gold"]["record_id"] == g["record_id"])
+                for a, b in g["spans"]:
+                    assert d["text"][a:b] in p["gold"]["span"], (d["doc_id"], g["record_id"])
         else:
             assert "text" not in d and "gold_spans" not in d, d["doc_id"]
         dumped = json.dumps({k: v for k, v in d.items() if k != "text"})
+        assert d.get("local_text") is None and data.get("local_text") is None, "the local copy never reaches the tree"
         for word in ("why", "prompt", "raw", "reply", "detail", "calls", "context"):
             assert f'"{word}"' not in dumped, (d["doc_id"], word)
         for r in d["records"]:
