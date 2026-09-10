@@ -431,3 +431,12 @@ def test_the_demo_documents_are_the_workbench_view_of_real_documents_with_no_pos
             c = d["counts"]
             assert c["found_exact"] + c["found_overlap"] + c["missed"] == c["gold"] == len(d["pairs"])
             assert c["spurious"] == len(d["spurious"]) and c["predictions"] == len(d["records"])
+
+
+def test_the_demo_opens_on_cadec():
+    """The owner's call (2026-09-10): the demo opens on CADEC, the corpus the
+    article is about, now that its documents read as text (a synthetic
+    stand-in) rather than grey blocks."""
+    page = PAGE.read_text()
+    assert 'let dSet="cadec"' in page
+    assert "It opens on CADEC" in page
