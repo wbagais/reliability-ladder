@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ladder Workbench</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Ladder Workbench</div>
+  <nav id="tabbar" class="tabbar"></nav>
+  <details class="later" id="later"><summary>later</summary><div id="later-list"></div></details>
+</header>
+<div id="runstrip" class="runstrip">
+  <label>run <select id="run-pick"></select></label>
+  <span id="strip-split" class="muted"></span>
+  <label>span <select id="span-pick"><option value="exact">exact</option><option value="overlap">overlap</option></select></label>
+  <span id="strip-prov" class="muted"></span>
+  <label>compare with <select id="baseline-pick"><option value="">none</option></select></label>
+</div>
+
+<main id="main">
+  <section id="tab-explorer" class="tab" hidden>
+    <div class="controls data-filters">
+      <label>split <select id="data-split">
+        <option value="dev">dev</option>
+        <option value="pool">pool</option>
+        <option value="test">test (spent)</option>
+      </select></label>
+      <label>drug <select id="data-drug"><option value="">any</option></select></label>
+      <label class="docpick">document
+        <input id="data-doc" list="data-doc-list" placeholder="type to search…" autocomplete="off" spellcheck="false">
+        <datalist id="data-doc-list"></datalist>
+        <button id="data-doc-clear" class="linkish" title="clear the document" hidden>✕</button>
+      </label>
+      <label class="toggle"><input type="checkbox" id="data-show-excluded" checked> excluded</label>
+      <label class="toggle"><input type="checkbox" id="data-show-disc" checked> discontinuous</label>
+    </div>
+    <div id="data-summary" class="summary"></div>
+    <div id="data-warnings"></div>
+    <div id="spent-banner" class="banner warn" hidden>
+      SPENT SPLIT — phaseF-test-1 is final; test results are read-only
+      displays and nothing is re-run.
+    </div>
+    <div id="data-doc-view"></div>
+    <div id="data-table"></div>
+    <details id="data-reference" class="reference">
+      <summary class="muted">reference: corpus totals, splits, exclusions</summary>
+      <div id="explorer-warnings"></div>
+      <div class="cards small" id="explorer-stats"></div>
+      <div class="cols">
+        <div class="col"><h4>splits</h4><div id="splits-view"></div></div>
+        <div class="col"><h4>exclusions <span class="muted">declared, leave the denominator</span></h4>
+          <div id="exclusions" class="scrollbox"></div></div>
+      </div>
+    </details>
+  </section>
+
+  <section id="tab-results" class="tab" hidden>
+    <h2>Results</h2>
+    <div class="controls"><span id="results-export"></span></div>
+    <div id="results-notices"></div>
+    <div id="results-intro"></div>
+
+    <h3>1 · What shipped</h3>
+    <div id="results-headline"></div>
+    <div id="ci-chart"></div>
+
+    <h3>2 · How it got there <span class="muted">(from this run's own manifest copy and ledger)</span></h3>
+    <div id="dep-diagram"></div>
+
+    <h3>3 · The three result layers</h3>
+    <div id="layers-block"></div>
+    <div id="dumbbell"></div>
+
+    <h3>4 · Rungs 0 to 4, lane by lane <span class="muted">(every count from the run's own ledger; the three rung-1 lanes carried across)</span></h3>
+    <div id="lane-matrix"></div>
+
+    <h3>5 · What it cost <span class="muted">(C5 — three cost measures, never fused; usd carried alongside)</span></h3>
+    <div id="ladder-curve"></div>
+    <div id="cost-panels"></div>
+
+    <h3>6 · What ships and what goes to a person, under each rule <span class="muted">(rungs 5 and 6: each verdict read as a shipping rule over the same records)</span></h3>
+    <div id="rules-table"></div>
+
+    <h3>Per-rung stack table</h3>
+    <div id="results-table"></div>
+
+    <h3>7 · A document through the ladder <span class="muted">(the same grid as Live, from this run's own records, state rows and call traces)</span></h3>
+    <div class="controls"><label>document <select id="results-doc"></select></label></div>
+    <div id="results-doc-view"></div>
+  </section>
+
+  <section id="tab-live" class="tab" hidden>
+    <h2>Live run <span class="muted">one document through the real rungs — an
+      example of the mechanism, not a measurement</span></h2>
+    <div class="banner" id="live-intro">
+      The plan page's "Ladder demo" is a static picture over synthetic posts.
+      This tab runs the same ladder for real: your text (or a dev/pool document)
+      goes through <code>ladder.run.run_ladder</code> — rung 0 calls the
+      extractor, rung 1 checks the codes against the vocabulary, rung 2 states a
+      rejection back to the model, rung 3 votes, rung 4 asks the judge, rung 5
+      abstains, rung 6 prices the queue — into a scratch directory that is read
+      for this view and deleted. Nothing lands under <code>out/</code>, the runs
+      list never sees it, and the test split is refused.
+    </div>
+    <div class="controls">
+      <label>source <select id="live-source">
+        <option value="pasted">paste a text</option>
+        <option value="corpus">a corpus document (dev / pool)</option>
+      </select></label>
+      <label id="live-split-wrap" hidden>split <select id="live-split"></select></label>
+      <label id="live-doc-wrap" hidden>document <select id="live-doc"></select></label>
+      <label>through rung <select id="live-through"></select></label>
+      <button id="live-run">Run</button>
+      <span id="live-status" class="muted"></span>
+    </div>
+    <textarea id="live-text" rows="6" spellcheck="false"
+      placeholder="paste a patient-forum style post here (synthetic text is fine)"></textarea>
+    <div id="live-dials" class="muted"></div>
+    <div id="live-progress"></div>
+    <div id="live-result"></div>
+  </section>
+
+</main>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
