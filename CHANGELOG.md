@@ -10,7 +10,13 @@ is the index into it.
 
 ---
 
-## 2026-09-08
+## v1.0 — 2026-09-08
+
+**The state the InfoQ article cites.** Every number it prints was produced
+by this tag and can be re-derived from the run archive without a GPU or a
+corpus licence. Full notes, including the known limitations, in
+[`docs/RELEASE-v1.0.md`](docs/RELEASE-v1.0.md).
+
 
 **Published the matrix.** ~50 scoreable cells across 7 corpora and 5 model
 families, development and held-out splits, in
