@@ -130,6 +130,36 @@ PYTHONPATH=. python3 -m ladder.run --manifest manifest.finer.json ladder \
     --split test --limit 3 --plain
 ```
 
+## The Workbench
+
+A local web app over the same files the runs write, in three tabs. Nothing
+here computes a number its own way: scores come from `ladder.score`, records
+from `ladder.run`, and a live run goes through `ladder.run.run_ladder`.
+
+| tab | what it shows | needs |
+|---|---|---|
+| **Data** | a split at a glance; a document with its gold code on hover, or the document table with how the selected run did on each | the corpus, the SNOMED index |
+| **Results** | one batch run: what shipped, rungs 0 to 4 lane by lane, the six shipping rules over the batch, cost, and one document through the ladder | works from a clean clone on the tracked `runs/archive/`; right/wrong and the document view need the corpus and a copy of the run with records |
+| **Live** | one pasted text, or a dev/pool document, through the real rungs — rung 0 against gold, the grid of keywords by rungs 1 to 4, a "person" column of six rules | the corpus, the SNOMED index, ollama with both models |
+
+It binds to loopback only, refuses the test split, writes nothing under `out/`
+for a live run, and scrubs every export of corpus text.
+
+```bash
+.venv/bin/pip install fastapi==0.141.1 uvicorn==0.52.4 httpx==0.28.1   # local extras; nothing in the pipeline imports them
+.venv/bin/python -m dashboard                                          # http://127.0.0.1:8321
+```
+
+Results renders as soon as that starts. For Data and Live, do the CADEC arm's
+setup in [docs/RUNNING.md](docs/RUNNING.md#the-cadec-arm--five-preprocessing-steps):
+CADEC and a SNOMED CT RF2 release under `data/` (both licensed to you
+individually, neither can be fetched from here), the five preprocessing steps,
+and `ollama pull gpt-oss:20b`, `ollama pull ibm/granite4:micro-h`,
+`ollama pull granite-embedding:30m`. A live run of one post takes about 20 s
+through rungs 0 and 1 and about 30 s through all seven on a 20B extractor.
+The dashboard tests need the same three extras and are skipped in CI, which
+has none: run them locally with `pytest tests/test_dashboard_*.py`.
+
 ## Reproduce the findings
 
 Every published cell scores from this repository alone, with no corpus
@@ -230,6 +260,7 @@ ladder/         run.py (the runner) · schema.py (the record) · corpus_*.py (on
                 score.py · trace.py · analysis.py · provenance.py
 ladder/rungs/   r0 … r6, one file per rung; r7 is the type-compatibility check arm
 ladder/checks/  gate.py and cross.py, behind scripts/gatecheck.py and scripts/crosscheck.py
+dashboard/      the Workbench — FastAPI over ladder.*, a vanilla-JS page, loopback only
 schemas/        the runner and vocabulary contracts
 manifest*.json  one manifest per corpus; every arm is a pinned one-key diff
 runs/archive/   the tracked, corpus-free run files every published number comes from
@@ -246,6 +277,7 @@ docs/           the articles, the decision log, REPRODUCE, RUNNING, licences
 | [docs/decisions.md](docs/decisions.md) | the durable record — every finding, dated, with its corrections beside it |
 | [docs/REPRODUCE.md](docs/REPRODUCE.md) | re-score, re-derive, re-run |
 | [docs/RUNNING.md](docs/RUNNING.md) | the CADEC and geo arms, watching a run, provenance, the ledger, the contracts |
+| [MR-dashboard-M1.md](MR-dashboard-M1.md) | the Workbench: tabs, constraints, tests |
 | [docs/FINAL-RESULTS.md](docs/FINAL-RESULTS.md) | the matrix, cell by cell |
 | [docs/early-results.md](docs/early-results.md) | the superseded 2026-08-20 figures and the build checklist |
 | [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md) | what moved, when · the quickest way in is to break a number |
