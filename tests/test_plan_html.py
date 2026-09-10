@@ -368,3 +368,48 @@ def test_the_codes_voting_changed_per_lane_come_from_the_tracked_reports():
         assert flow["psytar"]["changed_by_lane"][lane] == psy.get(lane, 0), lane
     for corpus in flow:
         assert sum(flow[corpus]["changed_by_lane"].values()) == flow[corpus]["changed"], corpus
+
+
+# ---------------------------------------------------------------- the documents the demo draws
+
+def test_the_demo_documents_are_the_workbench_view_of_real_documents_with_no_post():
+    """The demo draws a document the way the Workbench's Live tab does. Every
+    document is one a demo example lives in; every record of it is a record
+    of the tracked ledger with the same rung 1 verdict and the same fate; no
+    quoted span exceeds the seven-word precedent; and nothing that could
+    carry the post — the post, a prompt, a reply, the judge's prose — has a
+    key in the block."""
+    from scripts.plan_demo import DOCS, MAX_SPAN_WORDS
+    data = _data()
+    docs = data["documents"]
+    ledgers = {"rerun-cadec-d0": _ledger_by_record(ARCHIVE / "rerun-cadec-d0.ledger.jsonl"),
+               "rerun-finer-d0": _ledger_by_record(ARCHIVE / "finer" / "rerun-finer-d0.ledger.jsonl")}
+    stripped = {}
+    with sorted(PSYTAR.glob("*.records.stripped.jsonl"))[0].open() as fh:
+        for line in fh:
+            r = json.loads(line)
+            stripped[r["record_id"]] = r
+    want = {(run, d) for run, ids in DOCS.items() for d in ids}
+    assert {(d["run"], d["doc_id"]) for d in docs} == want
+    for t in data["demo"]:
+        assert any(d["run"] == t["run"] and d["doc_id"] == t["id"].split("#")[0] for d in docs), t["id"]
+    for d in docs:
+        assert "text" not in d
+        dumped = json.dumps(d)
+        for word in ("why", "prompt", "raw", "reply", "detail", "calls", "context"):
+            assert f'"{word}"' not in dumped, (d["doc_id"], word)
+        for r in d["records"]:
+            assert len(r["span"].split()) <= MAX_SPAN_WORDS or r["span"].endswith("quote withheld)") or r["span"] == "(not published)", r["record_id"]
+            if d["run"] in ledgers:
+                rows = ledgers[d["run"]][r["record_id"]]
+                assert rows[1]["verdict"] == r["r1"]["verdict"], r["record_id"]
+                assert (rows[5]["zone"] == "VERIFIED") == (r["final"]["zone"] == "VERIFIED"), r["record_id"]
+            else:
+                s = stripped[r["record_id"]]
+                assert s["checks"]["r1_verdict"] == r["r1"]["verdict"] and s["zone"] == r["final"]["zone"], r["record_id"]
+        for p in d["pairs"]:
+            assert len(p["gold"]["span"].split()) <= MAX_SPAN_WORDS or p["gold"]["span"].endswith("quote withheld)")
+        if d["counts"]:
+            c = d["counts"]
+            assert c["found_exact"] + c["found_overlap"] + c["missed"] == c["gold"] == len(d["pairs"])
+            assert c["spurious"] == len(d["spurious"]) and c["predictions"] == len(d["records"])

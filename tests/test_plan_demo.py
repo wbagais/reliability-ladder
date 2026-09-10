@@ -179,3 +179,75 @@ def test_a_stripped_records_file_gives_the_path_and_verdicts_but_no_span_and_no_
     assert "prose" not in json.dumps(t)
     with pytest.raises(KeyError):
         build_demo_stripped(path, "x", [{"id": "P.9#9", "case": "c", "shows": "s"}], corpus="psytar", labels=LABELS.get)
+
+
+# ---------------------------------------------------------------- the document view
+
+def test_reduce_document_keeps_the_grid_and_drops_every_word_of_the_post():
+    """The demo shows a document the way the Workbench's Live tab does — rung 0
+    against gold, then the grid of records by rungs 1-4 and the person column —
+    from the Workbench's own payload (`dashboard.document_view`). What must not
+    reach the page: the post itself, the model calls, the judge's prose, any
+    quoted span over the seven-word precedent."""
+    from scripts.plan_demo import reduce_document
+    post = "I was extremely sick and initially felt I might not survive the week at all"
+    payload = {
+        "run_id": "toy-d0", "source": "run", "doc_id": "D.1", "split": "dev", "text": post,
+        "order_run": [0, 1, 2, 3, 4, 5, 6],
+        "records": [{
+            "record_id": "D.1#0", "doc_id": "D.1", "text": "extremely sick", "spans": [[6, 20]], "sct": None,
+            "sct_label": "sickness", "zone": "ESCALATE", "reason": "queued_for_review", "confidence": 1.0,
+            "checks": {"r1_verdict": "BAND", "reason_band": "colloquial_no_lexical_match", "r0_negated": False,
+                       "r2": {"outcome": "unchanged", "why": post}, "r3": {"k": 3, "seen": 3, "raw": ["100", "100", "100"], "was": "100", "winner": "100"},
+                       "r4_verdict": "fail", "r4_confidence": 0.1, "r4": {"why": post, "best": None},
+                       "candidates": [{"i": 0, "code": "100", "label": "symptom very severe", "score": .9}]},
+            "timeline": [{"rung": 0, "sct": "100", "zone": "NEW", "text": "extremely sick", "spans": [[6, 20]], "r1_verdict": None, "outcome": "incorrect", "outcome_overlap": "incorrect", "gold_codes": ["213257006"]},
+                         {"rung": 6, "sct": None, "zone": "ESCALATE", "text": "extremely sick", "spans": [[6, 20]], "r1_verdict": "BAND", "outcome": "abstained", "outcome_overlap": "abstained", "gold_codes": ["213257006"]}],
+            "r0_path": {"steps": [{"id": "find", "state": "done", "detail": post, "negated": False},
+                                  {"id": "retrieve", "state": "done", "retrieval": "dense", "candidates": [{"i": 0, "code": "100", "label": "symptom very severe", "score": .9}]},
+                                  {"id": "pick", "state": "done", "choice": 0, "chosen": {"i": 0, "code": "100", "label": "symptom very severe"}, "detail": post},
+                                  {"id": "trim", "state": "unchanged"}]},
+            "rules": [{"id": "V", "name": "strict vocabulary check says ACCEPT", "state": "hold", "value": "BAND", "note": "colloquial_no_lexical_match"},
+                      {"id": "J", "name": "blind judge says pass", "state": "hold", "value": "fail", "note": post},
+                      {"id": "J+", "name": "menu-shown judge says pass", "state": "not_run", "value": None, "note": "menu-shown judge not run"}],
+            "person": {"held": 2, "run": 2, "share": 1.0}}],
+        "gold": [{"record_id": "D.1#0", "text": "extremely sick", "spans": [[6, 20]], "sct": ["213257006"], "gold_kind": "single", "excluded": False},
+                 {"record_id": "D.1#1", "text": "one two three four five six seven eight", "spans": [[40, 70]], "sct": ["1"], "gold_kind": "single", "excluded": False}],
+        "gold_diff": {"pairs": [{"gold": {"record_id": "D.1#0", "text": "extremely sick", "spans": [[6, 20]], "sct": ["213257006"], "gold_kind": "single"},
+                                 "gold_labels": ["Generally unwell"], "span": "exact", "pred": "D.1#0", "pred_text": "extremely sick", "pred_spans": [[6, 20]],
+                                 "pred_sct": "100", "pred_label": "sickness", "final_zone": "ESCALATE", "withheld": True, "code": "withheld_incorrect"},
+                                {"gold": {"record_id": "D.1#1", "text": "one two three four five six seven eight", "spans": [[40, 70]], "sct": ["1"], "gold_kind": "single"},
+                                 "gold_labels": ["X"], "span": "missed", "pred": None, "pred_text": None, "pred_spans": None, "pred_sct": None, "pred_label": None, "final_zone": None, "withheld": False, "code": None}],
+                      "spurious": [], "counts": {"gold": 2, "found_exact": 1, "found_overlap": 0, "missed": 1, "spurious": 0, "predictions": 1}},
+        "gold_diff_by_rung": {"6": {}},
+        "rungs": {"0": {"aggregate": {}, "ledger": [], "calls": [{"prompt": post, "raw": post}], "cost": {"tokens": 100, "api_calls": 2, "latency_p95_ms": 500.0}},
+                  "3": {"aggregate": {}, "ledger": [], "calls": [{"prompt": post}], "cost": {"tokens": 7000, "api_calls": 6, "latency_p95_ms": 8000.0}}},
+        "menu_judge": None,
+        "rules_legend": [{"id": "V", "name": "strict vocabulary check says ACCEPT", "held": 1, "run": 1, "share": 1.0}],
+        "calls_total": 3, "calls_cached": 0, "state_available": True,
+        "provenance": {"run_id": "toy-d0", "backend": "local-rf2", "manifest_hash": "abc", "git": {"sha": "deadbeef", "dirty": False}},
+        "caveats": [{"key": "k", "text": "Rung 3 numbers are SAMPLES"}], "local_only": True,
+    }
+    d = reduce_document(payload, corpus="cadec")
+    dumped = json.dumps(d)
+    assert "the week" not in dumped and "survive" not in dumped, "post prose reached the page"
+    for word in ("prompt", "raw", "why", "detail", "calls"):
+        assert f'"{word}"' not in dumped, word
+    assert "text" not in d, "the post itself is never carried"
+    assert d["doc_id"] == "D.1" and d["words"] == len(post.split()) and d["corpus"] == "cadec"
+    r = d["records"][0]
+    assert r["record_id"] == "D.1#0" and r["span"] == "extremely sick" and r["r1"] == {"verdict": "BAND", "reason": "no lexical match"}
+    assert r["r3"] == {"votes": {"100": 3}, "k": 3, "seen": 3, "changed": False, "tie": False}
+    assert r["r4"] == {"verdict": "fail", "confidence": 0.1, "best": None}
+    assert r["r0"]["menu"][0] == {"i": 0, "label": "symptom very severe", "gold": False} and r["r0"]["menu_n"] == 1 and r["r0"]["pick"] == {"state": "done", "choice": 0}
+    assert [x["id"] for x in r["rules"]] == ["V", "J", "J+"] and r["rules"][0] == {"id": "V", "state": "hold", "value": "BAND"}
+    assert r["person"] == {"held": 2, "run": 2}
+    p0, p1 = d["pairs"]
+    assert p0["gold"] == {"record_id": "D.1#0", "span": "extremely sick", "sct": ["213257006"], "labels": ["Generally unwell"], "spans": [[6, 20]]}
+    assert p0["span_match"] == "exact" and p0["code"] == "withheld_incorrect" and p0["pred"] == "D.1#0"
+    assert p1["gold"]["span"] == "(8-word quote withheld)" and p1["span_match"] == "missed" and p1["pred"] is None
+    assert d["counts"] == payload["gold_diff"]["counts"]
+    assert d["cost"]["3"] == {"tokens": 7000, "n_calls": 6, "p95_ms": 8000.0} and "1" not in d["cost"]
+    assert d["legend"] == payload["rules_legend"]
+    assert d["provenance"] == {"run_id": "toy-d0", "backend": "local-rf2", "manifest": "abc", "git": "deadbeef"}
+    assert d["caveats"] == ["Rung 3 numbers are SAMPLES"]
