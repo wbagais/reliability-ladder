@@ -31,6 +31,8 @@ ARMS = [
     ("manifest.finer.json", "manifest.finer.judgemenu.json"),
     ("manifest.finer.json", "manifest.finer.judgeshuffle.json"),
     ("manifest.finer.json", "manifest.finer.ctxmenu.json"),
+    ("manifest.finer.json", "manifest.finer.nofallback.json"),
+    ("manifest.finer.json", "manifest.finer.shufflemenu.json"),
 ]
 
 

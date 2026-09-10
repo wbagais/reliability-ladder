@@ -23,6 +23,8 @@ ARMS = {
     "manifest.sapbertarm.json": "manifest.json",
     "manifest.spine.cadec.json": "manifest.json",
     "manifest.finer.ctxmenu.json": "manifest.finer.json",
+    "manifest.finer.nofallback.json": "manifest.finer.json",
+    "manifest.finer.shufflemenu.json": "manifest.finer.json",
     "manifest.finer.judgemenu.json": "manifest.finer.json",
     "manifest.finer.judgeshuffle.json": "manifest.finer.json",
     "manifest.finer.llama.json": "manifest.finer.json",
