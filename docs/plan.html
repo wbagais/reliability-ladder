@@ -479,11 +479,9 @@ scripts/consolidated_rerun.sh cadec d3                                        # 
 <div class="pane" id="p-demo">
 <div class="paper" style="max-width:1100px">
 <h2 style="margin-top:0">Ladder demo — a document through the ladder, one example for every path</h2>
-<p>The same view the Workbench's Live tab draws for a document, frozen for the archived run. Pick a dataset, a path a record can take — ACCEPT ships, BAND is held, a REJECT is retried once and rescued or not — and an example; its document opens with that record's row lit and its neighbours around it. Rung 0 is shown against gold, mention by mention: what the annotators marked over what the model quoted, the menu it retrieved and the line it picked, the gold code over the model's. Then the grid: every record of the document by rungs 1 to 4, and the person column with the six shipping rules. Nothing is typed in: <code>scripts/plan_demo.py</code> calls the Workbench's own document builder over the run's files, and a test cross-checks every record against the tracked ledger.</p>
-<div class="note warn" style="margin:10px 0">
-<b>What you see, and what you cannot</b>
-CADEC is non-transferable, so the post is never shown: a record is its <b>quoted span</b> (at most seven words, the tracked report's own precedent), its <b>vocabulary labels</b> in |bars|, and every verdict. The judge's reasons are prose about the post and stay on the machine. FiNER-139 is CC-BY-SA; its spans are numerals. PsyTAR's raw run lives on the other owner's machine, so its documents come from the published records with the quoted text removed and no answer key: they show the path and every verdict, not whether the code was right. The page cannot run new text: it is a static file with no model, no index and no corpus, and the runner takes a split identifier by design; the Workbench's Live tab is the tool for that.
-</div>
+<p>Pick a dataset, a path a record can take, and an example. Its document opens the way the Workbench's Live tab draws one: rung 0 against gold, mention by mention, then every record of the document by rungs 1 to 4 and the person column with the six shipping rules. The example's row is lit; click any keyword to follow another. Nothing is typed in: <code>scripts/plan_demo.py</code> calls the Workbench's own document builder over the archived run, and a test cross-checks every record against the tracked ledger.</p>
+<details style="margin:6px 0 10px"><summary style="cursor:pointer;font-size:10pt;color:#444">What is shown, and what is withheld</summary>
+<div class="note warn" style="margin:6px 0">CADEC is non-transferable, so the post is never shown: a record is its quoted span (at most seven words, the tracked report's own precedent), its vocabulary labels in |bars|, and every verdict; the judge's reasons are prose about the post and stay on the machine. FiNER-139 is CC-BY-SA; its spans are numerals. PsyTAR's raw run lives on the other owner's machine, so its documents come from the published records with the quoted text removed and no answer key: they show the path and every verdict, not whether the code was right. The page cannot run new text; the Workbench's Live tab is the tool for that.</div></details>
 <div id="demoRoot"></div>
 </div>
 </div>
@@ -493,11 +491,11 @@ CADEC is non-transferable, so the post is never shown: a record is its <b>quoted
 <h2 style="margin-top:0">Ladder flow — the run in four figures</h2>
 <p>Each figure carries one finding and nothing else. Every width, height and position is a count from the run's tracked files, and <code>tests/test_plan_html.py</code> recomputes them; nothing is typed in and nothing moves.</p>
 
-<h3>A · Where the batch goes</h3>
-<p><b>The free check sorts the batch once; the paid rungs change what a record says, never where it goes; refusal is the only rung that reshapes the picture.</b> Three datasets on one scale. Ribbon width is records. Dark ends of the last two bars are the right answers among them.</p>
+<h3>A · The dataflow of one run</h3>
+<p><b>The free check sorts the batch once; the paid rungs change what a record says, never where it goes; refusal is the only rung that reshapes the picture.</b> Each box is a rung, what it does and what it costs per record; the streams between them are records, to scale; a dashed route is one the ladder allows and this run did not take. Three datasets on one scale. Dark ends of the last two bars are the right answers among them.</p>
 <div id="figSankey"></div>
 <div id="bfHiNote" style="font-size:10pt;color:#333;margin:4px 0 0;min-height:1.2em"></div>
-<p class="figcap">Teal sliver at rung 3: records whose code the vote changed. Judge shading at rung 4: solid = pass, faint = fail, faintest = unjudged. FiNER's ACCEPT lane is empty by construction, so nothing ships. Sources: the run ledgers (CADEC, FiNER) and the published stripped records (PsyTAR).</p>
+<p class="figcap">FiNER's ACCEPT lane is empty by construction, so its ship route is dashed at 0; PsyTAR produced no REJECT, so rung 2 had nothing to retry. Sources: the run ledgers (CADEC, FiNER) and the published stripped records (PsyTAR).</p>
 
 <h3>B · What each rung bought, against what it cost</h3>
 <p><b>The right-answer count is flat through three paid rungs that spend nearly everything; refusal then decides how many of those right answers ship and how many a person receives.</b></p>
@@ -24279,9 +24277,9 @@ function docView(d,sel,t){
  const pv=d.provenance||{};
  const postLine=d.corpus==="cadec"?'<b>the post is not shown</b> — CADEC is non-transferable; '+d.words+' words, spans and vocabulary labels only':d.corpus==="finer"?'a FiNER-139 filing excerpt, '+d.words+' words; spans are the numerals the model quoted':'PsyTAR — published stripped records: no text, no menu, no answer key on this machine';
  return '<div class="doc-head"><b>'+esc(d.doc_id)+'</b> <span class="mut">· '+esc(d.run)+' · '+esc(d.split||"")+' · '+d.records.length+' record'+(d.records.length===1?"":"s")+(d.counts?' · '+d.counts.gold+' gold mention'+(d.counts.gold===1?"":"s"):'')+'</span></div>'
-  +(d.caveats||[]).map(c=>'<div class="cav">'+esc(c)+'</div>').join("")
   +'<div class="small" style="margin:6px 0">'+postLine+' · click a keyword to follow one row</div>'
   +r0Table(d,sel)+gridTable(d,sel)+'<div class="small">hover a cell for the full value · gray = the rung did nothing here · the three cost rows are the three measures, never fused</div>'+legendTable(d)
+  +((d.caveats||[]).length?'<details style="margin:8px 0"><summary style="cursor:pointer;font-size:9.5pt;color:#444">notes on this view · '+d.caveats.length+'</summary>'+d.caveats.map(c=>'<div class="cav">'+esc(c)+'</div>').join("")+'</details>':'')
   +'<div class="prov">run '+esc(pv.run_id||d.run)+' · '+esc(d.doc_id)+' ('+esc(d.split||"")+') · ran rungs '+(d.order_run||[]).join(",")+(d.calls_total!=null?' · '+d.calls_total+' model calls':'')+' · backend '+esc(pv.backend||"—")+' · manifest '+esc(pv.manifest||"—")+' · git '+esc(pv.git||"—")+' · archived</div>';}
 function renderDemo(){
  const inSet=PD.demo.filter(t=>t.corpus===dSet);
@@ -24313,43 +24311,56 @@ function bfPath(x1,y1,h1,x2,y2,h2){const c=(x1+x2)/2;return "M"+x1+","+y1+" C"+c
 const T=(s,x,y,txt,o)=>E(s,"text",Object.assign({x,y,"font-size":10,"font-family":"Calibri,Arial",fill:"#222"},o||{}),txt);
 const M=(s,x,y,txt,o)=>E(s,"text",Object.assign({x,y,"font-size":10,"font-family":"Consolas,monospace",fill:"#111"},o||{}),txt);
 
-/* Figure A — where the batch goes: one Sankey per dataset, the same scale, stacked */
+/* Figure A — a dataflow diagram of one run: rung boxes say what the rung does and costs; the streams between
+   them are records, to scale; routes the ladder could take but did not are dashed and labelled 0 */
+const RDESC={0:["read the post, quote each reaction, pick a menu line","find → retrieve → pick → resolve"],1:["eight deterministic checks sort every record","judges, moves none"],2:["a REJECT is retried once, the failure stated as a fact","only a REJECT reaches it"],3:["three samples, majority on the code","changes codes, not lanes"],4:["a second model rules pass or fail","read by nothing downstream"],5:["ACCEPT ships; the rest is held","the only rung that reshapes the batch"],6:["a person settles what was held","the count is the cost"]};
 function sankey(k,W){const f=PD.flow[k],n=f.n,nmax=Math.max(...DS.map(d=>PD.flow[d[0]].n));
- const top=44,PH=190,colW=118,X0=96,NW=14,GAP=8,H=top+PH+40,scale=PH/(nmax+2*GAP);
+ const top=82,PH=170,colW=130,X0=118,BW=118,GAP=8,H=top+PH+58,scale=PH/(nmax+2*GAP);
  const cx=i=>X0+i*colW;
  const s=S("0 0 "+W+" "+H); s.setAttribute("style","width:100%;height:auto;display:block"); s.dataset.corpus=k;
- T(s,0,top+PH/2,f.label.split(" · ")[0],{"font-size":13,"font-weight":700});
- T(s,0,top+PH/2+14,n+" records",{"font-size":9.5,fill:"#555","font-family":"Consolas,monospace"});
- for(let i=0;i<7;i++){M(s,cx(i),16,"R"+i,{"font-weight":700,"font-size":11});T(s,cx(i)+22,16,RN[i],{"font-weight":700,fill:f.tokens[String(i)]>0?BF.teal:"#5a6b73","font-size":10.5});
-  M(s,cx(i),29,f.tokens[String(i)]>0?fmt(f.tokens[String(i)])+" tok/rec":"free",{"font-size":8.5,fill:f.tokens[String(i)]>0?BF.teal:"#2d6a4f"});}
+ T(s,0,top+PH/2-4,f.label.split(" · ")[0],{"font-size":13,"font-weight":700});
+ T(s,0,top+PH/2+10,n+" records · "+f.docs+" documents",{"font-size":8.5,fill:"#555","font-family":"Consolas,monospace"});
+ // the rung boxes: a header strip above the streams
+ for(let i=0;i<7;i++){const paid=f.tokens[String(i)]>0,x=cx(i)-8;
+  E(s,"rect",{x,y:8,width:BW+8,height:62,fill:paid?"#e6f0f1":"#eef0f1",stroke:paid?BF.teal:"#8a949a","stroke-width":1});
+  M(s,x+6,22,"R"+i,{"font-weight":700,"font-size":11}); T(s,x+26,22,RN[i],{"font-weight":700,fill:paid?BF.teal:"#3a464c","font-size":10.5});
+  const fo=E(s,"foreignObject",{x:x+4,y:26,width:BW,height:44});
+  const dv=document.createElement("div"); dv.setAttribute("xmlns","http://www.w3.org/1999/xhtml"); dv.style.cssText="font:8.2px Calibri,Arial;line-height:1.2;color:#333"; dv.innerHTML=esc(RDESC[i][0])+'<br><span style="color:'+(paid?BF.teal:"#2d6a4f")+';font-family:Consolas,monospace">'+(paid?fmt(f.tokens[String(i)])+" tok/rec":"free")+'</span>'; fo.appendChild(dv);}
  const nodes={}; const node=(key,col,y,h,color,label,sub)=>{nodes[key]={x:cx(col),y,h,col}; if(h<=0)return;
   E(s,"rect",{x:cx(col),y,width:NW,height:Math.max(h,1.5),fill:color,rx:2});
   if(label){M(s,cx(col)+NW+4,y+Math.min(h/2+4,h+10),label,{"font-size":9.5,"font-weight":700}); if(sub)T(s,cx(col)+NW+4,y+Math.min(h/2+15,h+21),sub,{"font-size":8.5,fill:"#555"});}};
+ const NW=14;
  const L=f.lanes, L2={ACCEPT:L.ACCEPT,BAND:L.BAND+f.rescued,REJECT:L.REJECT-f.rescued};
  node("r0",0,top+GAP*scale,n*scale,BF.all,n+"",f.right0+" right");
  let y=top; const lane1Y={},lane2Y={};
  for(const c of ["ACCEPT","BAND","REJECT"]){lane1Y[c]=y; node("r1"+c,1,y,L[c]*scale,BF.lane[c],c+" "+L[c]); y+=L[c]*scale+GAP*scale;}
  y=top; for(const c of ["ACCEPT","BAND","REJECT"]){lane2Y[c]=y; for(const col of [2,3,4]) node("r"+col+c,col,y,L2[c]*scale,BF.lane[c],col===4&&L2[c]!==L[c]?c+" "+L2[c]:null); y+=L2[c]*scale+GAP*scale;}
- for(const c of ["ACCEPT","BAND","REJECT"]){const ch=(f.changed_by_lane||{})[c]||0; if(ch>0){const h=Math.max(ch*scale,1.5); E(s,"rect",{x:cx(3),y:lane2Y[c]+L2[c]*scale-h,width:NW,height:h,fill:BF.teal}); T(s,cx(3)+NW+4,lane2Y[c]+L2[c]*scale-h/2+3.5,ch+" changed",{"font-size":8.5,fill:BF.teal});}
-  const j=f.judge[c]; let yy=lane2Y[c]; for(const [v,op] of [["pass",1],["fail",.45],["unjudged",.15]]){const h=j[v]*scale; if(h>0){E(s,"rect",{x:cx(4),y:yy,width:NW,height:h,fill:BF.lane[c],opacity:op}); yy+=h;}}}
+ for(const c of ["ACCEPT","BAND","REJECT"]){const ch=(f.changed_by_lane||{})[c]||0; if(ch>0){const hh=Math.max(ch*scale,1.5); E(s,"rect",{x:cx(3),y:lane2Y[c]+L2[c]*scale-hh,width:NW,height:hh,fill:BF.teal}); T(s,cx(3)+NW+4,lane2Y[c]+L2[c]*scale-hh/2+3.5,ch+" changed",{"font-size":8.5,fill:BF.teal});}
+  const j=f.judge[c]; let yy=lane2Y[c]; for(const [v,op] of [["pass",1],["fail",.45],["unjudged",.15]]){const hh=j[v]*scale; if(hh>0){E(s,"rect",{x:cx(4),y:yy,width:NW,height:hh,fill:BF.lane[c],opacity:op}); yy+=hh;}}}
  const yS=top, yH=top+f.ships*scale+GAP*scale;
  node("r5ships",5,yS,f.ships*scale,BF.ships,"ships "+f.ships,f.ships?f.ship_right+" right":null);
  node("r5held",5,yH,f.held*scale,BF.held,"held "+f.held,f.person_right+" right");
  node("r6",6,yH,f.held*scale,BF.person,"to a person "+f.held,f.unreviewable?f.unreviewable+" unreviewable":null);
- // right/wrong inside the two end nodes: dark = right
  if(f.ships){E(s,"rect",{x:cx(5),y:yS+(f.ships-f.ship_right)*scale,width:NW,height:f.ship_right*scale,fill:"#1a3d2c"});}
  E(s,"rect",{x:cx(5),y:yH+(f.held-f.person_right)*scale,width:NW,height:f.person_right*scale,fill:"#7a5800"});
  for(const key in nodes){nodes[key]._o=0;nodes[key]._i=0;}
- const ribbon=(a,b,count,color,key)=>{if(count<=0)return;const A=nodes[a],B=nodes[b],h=count*scale;
-  E(s,"path",{d:bfPath(A.x+NW,A.y+A._o,h,B.x,B.y+B._i,h),fill:color,opacity:.32,class:"bfrib","data-key":key}); A._o+=h; B._i+=h;};
+ const ribbon=(a,b,count,color,key)=>{if(count<=0)return;const A=nodes[a],B=nodes[b],hh=count*scale;
+  E(s,"path",{d:bfPath(A.x+NW,A.y+A._o,hh,B.x,B.y+B._i,hh),fill:color,opacity:.32,class:"bfrib","data-key":key}); A._o+=hh; B._i+=hh;};
+ // a route the ladder allows and this run did not take: dashed, labelled 0
+ const ghost=(a,b,label)=>{const A=nodes[a],B=nodes[b]; if(!A||!B)return; const y1=A.y+Math.max(A.h,1.5),y2=B.y+Math.max(B.h,1.5)/2; const c=(A.x+NW+B.x)/2;
+  E(s,"path",{d:"M"+(A.x+NW)+","+y1+" C"+c+","+y1+" "+c+","+y2+" "+B.x+","+y2,fill:"none",stroke:"#8a949a","stroke-width":1.2,"stroke-dasharray":"4 3"});
+  T(s,c,(y1+y2)/2-4,label,{"font-size":8,fill:"#666","text-anchor":"middle"});};
  for(const c of ["ACCEPT","BAND","REJECT"]) ribbon("r0","r1"+c,L[c],BF.lane[c],"r0-"+c);
  for(const c of ["ACCEPT","BAND","REJECT"]) ribbon("r1"+c,"r2"+c,c==="REJECT"?L.REJECT-f.rescued:L[c],BF.lane[c],"r1-"+c);
- ribbon("r1REJECT","r2BAND",f.rescued,BF.lane.BAND,"rescue");
+ if(f.rescued) ribbon("r1REJECT","r2BAND",f.rescued,BF.lane.BAND,"rescue"); else if(L.REJECT) ghost("r1REJECT","r2BAND","0 rescued");
+ if(!L.REJECT){ghost("r1BAND","r2REJECT","0 REJECT: nothing for rung 2");}
  for(const col of [2,3]) for(const c of ["ACCEPT","BAND","REJECT"]) ribbon("r"+col+c,"r"+(col+1)+c,L2[c],BF.lane[c],"r"+col+"-"+c);
  ribbon("r4ACCEPT","r5ships",f.to5.ACCEPT.ships,BF.ships,"r4-ACCEPT");
  for(const c of ["BAND","REJECT"]) ribbon("r4"+c,"r5held",f.to5[c].held,BF.held,"r4-"+c);
+ if(!f.ships) ghost("r4ACCEPT","r5ships","0 ship: the lane never fired");
  ribbon("r5held","r6",f.held,BF.person,"r5-held");
  if(f.ships){const A=nodes.r5ships;E(s,"path",{d:"M"+(A.x+NW)+","+A.y+" L"+(A.x+NW+60)+","+A.y+" L"+(A.x+NW+60)+","+(A.y+A.h)+" L"+(A.x+NW)+","+(A.y+A.h)+" Z",fill:BF.ships,opacity:.32});T(s,A.x+NW+64,A.y+A.h/2+4,"shipped",{fill:"#2d6a4f","font-weight":700,"font-size":9});}
+ T(s,X0,top+PH+GAP*scale+30,"a dashed route is one the ladder allows that this run did not take · teal sliver at rung 3: codes the vote changed · rung 4 shading: solid pass, faint fail",{"font-size":8.5,fill:"#555"});
  return s;}
 function renderBatch(){const host=$("figSankey"); if(!host)return; host.innerHTML="";
  DS.forEach(d=>{const s=sankey(d[0],980); host.appendChild(s);});
