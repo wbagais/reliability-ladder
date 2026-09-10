@@ -1,7 +1,14 @@
 # Working notes for Claude Code
 
 ## Read these first
-- `docs/plan.html` — plan, architecture, and the reasoning behind every design choice
+- `docs/plan.html` — the published page (GitLab Pages copies it with `docs/figures`): the result as
+  measured, a demo of real records through the rungs, four generated figures, the architecture as
+  built, the decision history, a glossary. **Every number it draws comes from one JSON block,
+  `<script id="plan-data">`, which `tests/test_plan_html.py` compares to `runs/archive/`, `matrix.csv`
+  and the PsyTAR cell** — regenerate the block after a re-run, never type a number in. The demo's
+  documents come from `scripts/plan_demo.py --documents` (the Workbench's own document builder over
+  the raw archive; no post, spans ≤ 7 words, labels); `scripts/plan_local.py` builds a copy WITH the
+  posts under `out/` only, for the licensee's screen — never commit or send it.
 - `docs/REPRODUCE.md` — how every article number is regenerated: re-score, re-derive, re-run
 - `docs/INFOQ-SUBMISSION.md` — the rules every edit to `docs/article-infoq-CADEC.md` must keep (word budget, takeaways, captions, the Word export); `tests/test_infoq_article.py` enforces the mechanical ones
 - `README.md` — the ladder, the three cost measures, the data licences
@@ -348,9 +355,11 @@
   results. The CADEC track imported none of it. Do not reintroduce its numbers:
   nothing in this repo is runnable that would reproduce them. Git history at
   `e938f8d` if you ever need them.
-- Numbers in `docs/plan.html` are still illustrative placeholders EXCEPT where a
-  "measured" note says otherwise. Everything measured so far is in
-  `docs/decisions.md` and `docs/article-iterations.md`.
+- `docs/plan.html` carries no illustrative numbers since v19 (2026-09-10): its data block is
+  pinned to the tracked archive by a test, and the prose ranges are the three draws of the
+  consolidated re-run. Three flow designs were rejected by the owner on the way — falling dots,
+  a bar per rung, an animated Sankey — for carrying no information; what stands is still figures
+  that each state one finding. Do not add motion or decoration to the page.
 
 ## Done — do not redo these
 - `ladder/vocab.py` wired in as a global resource, formalised as

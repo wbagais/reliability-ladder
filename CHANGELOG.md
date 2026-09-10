@@ -10,6 +10,20 @@ is the index into it.
 
 ---
 
+## 2026-09-10
+
+**The plan page rewritten (v19).** The page GitLab Pages serves had been
+quoting a superseded run since 2026-08-28 — a shipped share, an error rate
+and a routing count that the consolidated re-run replaced — from a
+hand-typed array nothing checked. Every number on it now comes from one data
+block that `tests/test_plan_html.py` compares to `runs/archive/`,
+`matrix.csv` and the PsyTAR cell. The demo shows real records of the first
+draw the way the Workbench's Live tab draws a document (the post redacted to
+its quoted spans for CADEC, the excerpt shown for FiNER); the flow is four
+still figures generated from the run; the simulated triage desk is gone.
+`scripts/plan_local.py` builds a copy with the full posts under `out/` only.
+Write-up: [`MR-plan-html-v19.md`](MR-plan-html-v19.md).
+
 ## v1.0 — 2026-09-08
 
 **The state the InfoQ article cites.** Every number it prints was produced
