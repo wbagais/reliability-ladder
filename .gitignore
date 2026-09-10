@@ -125,3 +125,6 @@ final-summary.md
 # and docs/REPRODUCE.md names it at the root.
 final-*.csv
 final-summary.md
+
+# Office lock files (Word keeps one open beside a .docx it is editing)
+~$*

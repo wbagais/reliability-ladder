@@ -206,13 +206,17 @@
   0.252/0.253/0.276, S2 = base 0.393/0.393/0.434. S2 leads S1 by 14 pts exact
   at 2x tokens — no longer "close". No earlier-run number remains in either
   article; `docs/article-v3-CADEC.md` is the single-corpus version.
-- **B4 (break the slot-0 prior) is DONE but UNMERGED** on branch
-  `claude/reliability-ladder-b4-slot0-7784eb`: the attractor was
-  `_fill_from_menu`'s fallback writing menu line 0 (74 of 77 predictions),
-  NOT the model (its own slot-0 rate 1.3% vs 0.72% chance); the shuffle arm
-  was rejected 3/3 because a per-mention permutation under a BATCHED pick
-  aliases indices across the call. The article carries the correction; the
-  code and its two manifests are only on that branch.
+- **B4 (break the slot-0 prior) is DONE and MERGED (2026-09-10, with three
+  other stale branches).** The attractor was `_fill_from_menu`'s fallback
+  writing menu line 0 (74 of 77 predictions), NOT the model (its own slot-0
+  rate 1.3% vs 0.72% chance); the shuffle arm was rejected 3/3 because a
+  per-mention permutation under a BATCHED pick aliases indices across the
+  call. `rung0_menu_order: "shuffle"` and `ladder.menuorder.permuted` are on
+  main; `manifest.finer.shufflemenu.json` and `manifest.finer.nofallback.json`
+  are test-pinned one-key diffs of `manifest.finer.json`, regenerated from the
+  current base at the merge (the branch's copies predated the gate, the judge
+  menu and tau's retirement). `rung0_pick_fallback` is declared in the FiNER
+  manifests and deliberately not in `manifest.json`, with a test saying so.
 - **Rung 6 is a rung with two modes and no model.** The queue is rung 5's
   abstained residue (`checks.withheld` preserved). `simulated` prices the queue
   at `minutes_per_record` into the ledger's `human_minutes` — no answer
@@ -544,24 +548,27 @@ column, never folded into correct — headline denominators unchanged;
      still lose to what it displaced. **ONE DRAW** — three needs FOUR runs
      (both sides at d1 and d2) at ~78 min each. FiNER's own run-to-run spread
      has never been measured.
-   - **THE SLOT-0 ATTRACTOR, and it is the session's sharpest result.**
-     `AccrualForEnvironmentalLossContingencies` is **menu slot 0** (the menu is
-     `sorted(set(tags))`) and is predicted **57 of 292** times against **2 in
-     gold** — **19.5% of all predictions are the list's first line.** The
-     context arm is the free position-vs-semantics discriminator: it moves the
-     tag to median slot 92 and the prediction count falls **57 → 3**, and in
-     BOTH arms every single one of those predictions was taken while the tag
-     sat at slot 0. The model takes it **iff** it is first. So the context arm
-     is TWO effects, not one failure: it killed the attractor (a real fix) and
-     amplified the positional prior (20.4% → 50.2% slot-0 picks), net negative.
-     **NEXT EXPERIMENT, and it is not a better ranker: break the position prior
-     — a slot 0 that is never a valid answer, or a per-mention permutation with
-     a fixed seed.** Composes with CADEC rather than contradicting it: there the
-     menu is retrieval-score-ordered, so the same prior lands on the BEST
-     candidate, which is why alphabetising it cost 10-12pt.
-     `out/harness/finermiscode.py`. Also: of 113 matched spans 68 are miscoded
-     and **0 are abstentions**, 79.4% of wrong tags share no leading word with
-     gold, and 13 predictions are CONCEPT_LESS against 0 in gold.
+   - **~~THE SLOT-0 ATTRACTOR~~ — SUPERSEDED 2026-09-01 by B4. IT WAS OUR OWN
+     FALLBACK RULE, NOT THE MODEL. DO NOT REQUOTE THE NUMBERS BELOW AS A CLAIM
+     ABOUT THE MODEL.** What was recorded: `AccrualForEnvironmentalLossContingencies`
+     is **menu slot 0** (the menu is `sorted(set(tags))`) and is predicted
+     **57 of 292** times against **2 in gold** — 19.5% of all predictions —
+     while under the context arm it falls to 3, all 3 at slot 0. Every one of
+     those numbers stands as arithmetic over the artifacts. **The attribution
+     does not.** `r0._fill_from_menu` (landed 2026-08-28, two days earlier)
+     fills any record the pick left uncoded with MENU POSITION 0, so it writes
+     the alphabetically-first tag whatever the ordering is. Re-measured on
+     2026-09-01 over a reproduced dev split: **74 of 77 such predictions are
+     the fallback and 3 are the model; the model's own slot-0 rate is 1.3%
+     against a 0.72% chance rate.** The "predicted 3 times, all 3 while first"
+     discriminator is the same artefact from the other side. **There is no
+     position prior at slot 0, and the arm that went looking for one is
+     rejected** — see the two 2026-09-01 B4 entries in `docs/decisions.md`.
+     What survives unchanged: of 113 matched spans 68 are miscoded and **0 are
+     abstentions**, 79.4% of wrong tags share no leading word with gold, and 13
+     predictions are CONCEPT_LESS against 0 in gold. CADEC is untouched — there
+     the menu is retrieval-score-ordered, so position 0 is the best candidate
+     and the fallback is measured sound (+0.015 exact).
 4. **The published artifact is the ARTICLE now**, not the build log.
    `docs/article.html` serves the existing URL; `docs/article-build-log.html`
    is archived as `docs/versions/article-build-log-v2-2026-08-28.html`.
@@ -686,11 +693,43 @@ end of `docs/decisions.md`.
     row readable. torch/transformers are LATE imports; the default `granite`
     path needs neither.
 
-- **Break the slot-0 position prior on FiNER** (added 2026-08-30, the highest
-  value untried FiNER experiment — see the slot-0 attractor entry in
-  `docs/decisions.md`). NOT a better ranker: a slot 0 that is never a valid
-  answer, or a per-mention permutation under a fixed seed. The model takes menu
-  line one iff it is line one, 19.5% of all predictions.
+- **~~Break the slot-0 position prior on FiNER~~ — DONE 2026-09-01, REJECTED,
+  and it refuted the finding it was built to fix** (two decisions entries same
+  date). `rung0_menu_order: "shuffle"`, a per-mention permutation keyed by
+  (manifest.seed, record_id) through blake2b; `manifest.finer.shufflemenu.json`
+  is a test-pinned one-key diff and **ships OFF**. Three draws, base first on a
+  shared cache.
+  - **THERE WAS NO POSITION PRIOR.** 74 of the base's 77 attractor predictions
+    are `r0._fill_from_menu` writing menu position 0; the model chose it 3
+    times, a 1.3% slot-0 rate against 0.72% chance. The prediction was
+    pre-registered before the run, which is the only reason the null is
+    readable — the attractor fell 77 → 2 exactly as predicted, and that is what
+    exposed the lane.
+  - **The arm still lost hard and the mechanism is an artefact it created:**
+    coding accuracy 0.425 → 0.058, F1 exact 0.213 → 0.029, paired
+    **−0.1841 [−0.2531, −0.1094]**, detection byte-identical. The pick is
+    BATCHED (`rung0_pick_batch: 7`) and `rung0_retrieval: full` means every
+    mention in a call sees the SAME menu, so a PER-MENTION permutation puts
+    seven orderings in one prompt: **26.0% of the arm's mis-codes read the
+    right concept off a sibling's permutation, against a 3.7% null, p =
+    0.0005.** If anyone revisits option-order randomisation here, permute per
+    CALL, not per mention.
+  - **All three base draws are byte-identical and all three arm draws are
+    byte-identical.** No document was refused on any of the six runs. Report
+    "three draws, one outcome" — the interval is the paired bootstrap over
+    documents and the draws contribute nothing to it.
+  - **`rung0_pick_fallback` IS NOW DECLARED** in `manifest.finer.json` and its
+    arm copies, at the value the code has used since 2026-08-28, so no number
+    moves. It was ON and UNDECLARED — the recurring defect class inverted.
+    `manifest.finer.nofallback.json` prices it: 2.7 s on a warm cache (the rule
+    fires after the pick reply), answered records 313 → 239, **the lane is 74
+    records carrying ONE distinct code**, and switching it off costs F1 exact
+    −0.0084 [−0.0279, +0.0000]. It converts 2 of 74 writes here. `manifest.json`
+    is deliberately untouched, with a test saying so.
+  - **THE REUSABLE LESSON: a metric over a rung's OUTPUT must be decomposed by
+    which LANE produced each row.** A rung's own defaults are in that output and
+    do not look different from the model's answers. `checks.pick_fallback` was
+    on every record the whole time; nobody grouped by it.
 
 ## Conventions
 - One file per rung, one owner per file. Append to schemas, never reorder.

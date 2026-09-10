@@ -78,3 +78,52 @@ def context_ranked(
         return cands
     order = sorted(range(len(cands)), key=lambda n: -scored[n])
     return [{**cands[n], "i": pos, "context_rank": pos} for pos, n in enumerate(order)]
+
+
+# --- B4: breaking the position prior instead of feeding it -------------------
+#
+# The context ranker above was built to give the menu a MEANINGFUL order. It
+# worked as a ranker and lost as a system, and the diagnostic that explained
+# why named the real defect: the model takes menu line one because it is line
+# one. `AccrualForEnvironmentalLossContingencies` is alphabetically first, sits
+# at slot 0 in every FiNER record, and is predicted 57 times in 292 against 2
+# in gold. Under the context arm its median slot is 92 and it is predicted 3
+# times — all 3 while it happened to be first.
+#
+# So the next intervention is not a better ranker. It is to stop any single tag
+# owning slot 0. A per-mention permutation does exactly that and NOTHING else:
+# the answer set is untouched, menu recall stays 1.000, and no option is added
+# that is not a valid answer. It is also the option-order-bias literature's own
+# mitigation.
+
+import hashlib
+import random
+
+
+def permuted(cands: list[dict[str, Any]], key: str | None,
+             seed: int = 0) -> list[dict[str, Any]]:
+    """`cands` in a per-mention pseudo-random order, renumbered.
+
+    The permutation is a pure function of `(seed, key)` through blake2b —
+    NOT through `hash()`, which is salted per process, and which would make two
+    runs of the same configuration incomparable and every paired draw a
+    different experiment.
+
+    Returns the input unchanged when there is no menu or no key, for the same
+    reason `context_ranked` does: an ordering that cannot be computed must cost
+    the ORDER and never the document.
+
+    Each candidate carries `shuffled_from`, its slot before the permutation, so
+    a run's artifacts can be checked for the thing an ablation cannot see —
+    that the arm moved anything at all. A held-fixed layer and a dead arm both
+    print a delta of zero.
+    """
+    if not cands or key is None or not str(key).strip():
+        return cands
+    digest = hashlib.blake2b(f"{int(seed)}|{key}".encode("utf-8"),
+                             digest_size=8).digest()
+    rng = random.Random(int.from_bytes(digest, "big"))
+    order = list(range(len(cands)))
+    rng.shuffle(order)
+    return [{**cands[n], "i": pos, "shuffled_from": n}
+            for pos, n in enumerate(order)]

@@ -114,7 +114,11 @@ DEFAULTS: dict[str, Any] = {
     #: that anchors on early items looks better than it reads. "alpha"
     #: re-sorts the same candidates alphabetically: if F1 holds, the pick
     #: reads content; if it drops, position was doing work. An arm.
-    "rung0_menu_order": "score",  # "score" | "alpha"
+    #: "context" ranks by the words around the mention (2026-08-30, REJECTED).
+    #: "shuffle" permutes per mention under the manifest seed (2026-09-01, B4)
+    #: — not a better order, an attempt to make position carry no information
+    #: at all, because 19.5% of FiNER's predictions are the menu's first line.
+    "rung0_menu_order": "score",  # "score" | "alpha" | "context" | "shuffle"
     #: How many reactions go into ONE pick call. Measured on the dev split
     #: 2026-08-27 over three independent draws: `no_pick` — the reply simply
     #: omits a reaction's number — runs 0.0% at 4-7 reactions per call and
@@ -1124,7 +1128,7 @@ def _merged_candidates(search, span: str, labels: list[str], k: int) -> list[dic
     return out
 
 
-MENU_ORDERS = ("score", "alpha", "context")
+MENU_ORDERS = ("score", "alpha", "context", "shuffle")
 
 # How much of the document either side of the span the `context` order reads.
 # Not a sentence: a FiNER document is ten concatenated sentences and the
@@ -1149,15 +1153,29 @@ def _span_context(source: str, spans, window: int = CONTEXT_WINDOW) -> str:
     return source[max(0, min(starts) - window): max(ends) + window]
 
 
+def _menu_seed(cfg: dict) -> int:
+    """The permutation's seed, from the manifest's existing top-level `seed`.
+
+    The arm is a ONE-KEY diff, so it does not get to bring a new key with it.
+    `seed` is already declared and already governs the corpus draw; reusing it
+    means the permutation is stated in the manifest rather than buried here.
+    """
+    try:
+        return int((cfg.get("manifest") or {}).get("seed", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 def _order_menu(cands: list[dict], which: str, context: str | None = None,
-                embed=None) -> list[dict]:
+                embed=None, key: str | None = None, seed: int = 0) -> list[dict]:
     """The menu in its declared order, renumbered. S2 only — S1's menus are
     the model's own names' codes, typically two or three lines.
 
     `context` / `embed` are read only by the `context` order (2026-08-30, off
-    by default). Without an embedder that order is a no-op rather than an
-    error: the arm is per-mention and inside the document loop, so a missing
-    dependency must cost the ORDER, not the run.
+    by default). `key` / `seed` are read only by `shuffle` (2026-09-01, B4, off
+    by default). Without an embedder, or without a key, those orders are a
+    no-op rather than an error: the arm is per-mention and inside the document
+    loop, so a missing dependency must cost the ORDER, not the run.
     """
     if which not in MENU_ORDERS:
         raise ValueError(
@@ -1176,6 +1194,10 @@ def _order_menu(cands: list[dict], which: str, context: str | None = None,
         from ladder.menuorder import context_ranked
 
         cands = context_ranked(cands, context, embed)
+    elif which == "shuffle":
+        from ladder.menuorder import permuted
+
+        cands = permuted(cands, key, seed)
     return cands
 
 
@@ -1259,6 +1281,10 @@ def _step_pick(doc_id, source, llm, cfg, meta, step):
             # The span carries no query on a numeric corpus; the sentence does.
             context=_span_context(source, rec.spans) if menu_order == "context" else None,
             embed=cfg.get("menu_embedder") if menu_order == "context" else None,
+            # Per MENTION, not per run: one shuffle for the whole run would
+            # only move the attractor to a different tag and leave it there.
+            key=rec.record_id if menu_order == "shuffle" else None,
+            seed=_menu_seed(cfg) if menu_order == "shuffle" else 0,
         )
         # The free reranker runs per mention here; "llm" batches several
         # mentions into one call and runs below, once the whole document's
