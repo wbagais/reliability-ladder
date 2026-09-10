@@ -519,3 +519,28 @@ table.cells tr.cost.first td { padding-top: .4rem; }
 .runstrip select { max-width: 24rem; }
 .subset-docs { margin-top: .4rem; font-size: .84rem; }
 .subset-docs a { color: var(--accent); }
+
+/* Results 4 and 6 (2026-09-09, sketch section 6) */
+table.flowm { border-collapse: separate; border-spacing: .4rem .3rem; width: 100%; font-size: .78rem; background: none; }
+table.flowm th { font-weight: 500; text-align: left; vertical-align: top; padding: .3rem .5rem; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); }
+table.flowm th small { display: block; font-weight: 400; color: var(--muted); font-size: .7rem; }
+table.flowm td { vertical-align: top; padding: 0; border: none; background: none; }
+table.flowm td.src { vertical-align: middle; }
+.lane { border-radius: 4px; padding: .3rem .5rem; border-left: 4px solid; min-height: 2.2rem; font-size: .78rem; }
+.lane.ACCEPT { border-color: var(--z-accept); background: color-mix(in srgb, var(--z-accept) 14%, transparent); }
+.lane.BAND { border-color: var(--z-band); background: color-mix(in srgb, var(--z-band) 16%, transparent); }
+.lane.REJECT { border-color: var(--z-reject); background: color-mix(in srgb, var(--z-reject) 12%, transparent); }
+.lane.none { border-color: var(--muted); background: color-mix(in srgb, var(--muted) 10%, transparent); }
+.lane.dash { border-left-style: dashed; background: transparent; color: var(--muted); }
+.lane.src { border-left-style: solid; border-color: var(--line); color: var(--ink); }
+table.rulesb { border-collapse: collapse; width: 100%; font-size: .82rem; margin: .4rem 0 .2rem; background: none; }
+table.rulesb td { padding: .28rem .5rem .28rem 0; vertical-align: middle; white-space: nowrap; border: none; text-align: left; }
+table.rulesb td.bar { width: 100%; white-space: normal; }
+table.rulesb tr.on td { font-weight: 600; }
+table.rulesb tr.nr td { color: var(--muted); }
+table.rulesb td.n { font-family: ui-monospace, Menlo, monospace; text-align: right; min-width: 4.4em; }
+.pbar { display: flex; height: .8rem; border-radius: 3px; overflow: hidden; background: var(--line); }
+.pbar i { display: block; height: 100%; }
+.pbar .r { background: var(--gold); } .pbar .w { background: var(--bad); } .pbar .u { background: var(--model); } .pbar .p { background: var(--held); }
+.sw { display: inline-block; width: .9rem; height: .6rem; border-radius: 2px; vertical-align: -1px; }
+.sw.r { background: var(--gold); } .sw.w { background: var(--bad); } .sw.u { background: var(--model); } .sw.p { background: var(--held); }

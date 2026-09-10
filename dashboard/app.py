@@ -229,6 +229,15 @@ def create_app(state: AppState, live_runner: LiveRunner | None = None) -> FastAP
         }
         return payload
 
+    @app.get("/api/run/rules")
+    def run_rules(run: str):
+        """The six shipping rules over the whole run (Figure 3 as a table)."""
+        info = _run(run)
+        payload = dependencies.rules_over_run(state, info)
+        payload["provenance"] = _prov(info)
+        payload["caveats"] = _caveats(info)
+        return payload
+
     @app.get("/api/run/flow")
     def run_flow(run: str, span_match: str = Query("exact")):
         info = _run(run)

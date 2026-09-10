@@ -432,13 +432,14 @@ async function renderResults() {
     `<a class="export" href="/api/export/figure?run=${encodeURIComponent(run)}&span_match=${span}" target="_blank">export SVG</a>
      <a class="export" href="/api/export/results?run=${encodeURIComponent(run)}" target="_blank">export CSV</a>
      <a class="export" href="/api/export/records?run=${encodeURIComponent(run)}&span_match=${span}" target="_blank">export records (scrubbed)</a>`;
-  const [res, costs, scoreEx, scoreOv, flow, dep] = await Promise.all([
+  const [res, costs, scoreEx, scoreOv, flow, dep, rules] = await Promise.all([
     api("/api/run/results", { run }),
     api("/api/run/costs", { run }),
     api("/api/run/score", { run, span_match: "exact" }),
     api("/api/run/score", { run, span_match: "overlap" }),
     api("/api/run/flow", { run, span_match: span }),
     api("/api/run/dependencies", { run }),
+    api("/api/run/rules", { run }),
   ]);
   const score = span === "overlap" ? scoreOv : scoreEx;
   let base = null, cmp = null;
@@ -458,10 +459,10 @@ async function renderResults() {
   renderDependencies(dep, cv);
   renderLayers(scoreEx, scoreOv, cv);
   renderDumbbell(run, base, scoreEx, scoreOv);
-  renderFlow(flow, dep);
+  renderLaneMatrix(dep, rules);
   renderLadderCurve(res, costs);
   renderCostPanels(costs, cv);
-  renderHumanBlock(flow, costs, res, cv);
+  renderRulesTable(rules, costs);
   renderResultsTable(res, dep);
 }
 
@@ -1023,82 +1024,6 @@ async function renderDumbbell(run, base, scoreEx, scoreOv) {
     ${gapLine}${provFooter(entries[0].s.provenance)}</div>`;
 }
 
-function renderFlow(flow, dep) {
-  const el = $("flow-chart");
-  const v = flow.rung1_verdicts || {};
-  const total = flow.n_records || 1;
-  const r1mode = dep ? dep.r1_mode : "observe";
-  const w = 760, h = 290, colw = 160, x1 = 10, x2 = 265, x3 = 520;
-  const scale = (n) => (n / total) * 180;
-  function col(x, items, title, subtitle) {
-    let g = `<text x="${x}" y="16" font-size="11" font-weight="bold">${title}</text>
-      <text x="${x}" y="30" font-size="9" class="svgmuted">${subtitle}</text>`;
-    let y = 42;
-    // side labels for thin bars collide when consecutive bars are thin —
-    // track the last label baseline and push each next one below it
-    let lastSideLabelY = 30;
-    for (const it of items) {
-      const bh = Math.max(2, scale(it.n));
-      g += `<rect x="${x}" y="${y}" width="${colw}" height="${bh}"
-        fill="${it.fill}" ${it.hatch ? 'fill="url(#hatch)"' : ""}>
-        <title>${it.label}: ${it.n}${it.tip ? " — " + it.tip : ""}</title></rect>`;
-      if (bh > 12) {
-        g += `<text x="${x + 6}" y="${y + bh / 2 + 4}" font-size="10"
-          fill="#fff">${it.label} ${it.n}</text>`;
-      } else {
-        const ly = Math.max(y + bh / 2 + 4, lastSideLabelY + 11);
-        lastSideLabelY = ly;
-        g += `<line x1="${x + colw}" y1="${y + bh / 2}" x2="${x + colw + 3}"
-          y2="${ly - 3}" stroke="var(--hatch-a)" stroke-width="1"/>
-          <text x="${x + colw + 5}" y="${ly}" font-size="9">${it.label} ${it.n}</text>`;
-      }
-      y += bh + 6;
-      lastSideLabelY = Math.max(lastSideLabelY, 30);
-    }
-    return g;
-  }
-  const scored = flow.scored;
-  // Stage 1 — extraction + judgement: rung 0 made the records, rung 1
-  // judged them (observe mode: a verdict, not a route).
-  let g = col(x1, [
-    { label: "ACCEPT", n: v.ACCEPT || 0, fill: "var(--z-accept)",
-      tip: "vocabulary uses these very words" },
-    { label: "BAND", n: v.BAND || 0, fill: "var(--z-band)",
-      tip: "plausible, unverifiable by code alone" },
-    { label: "REJECT", n: v.REJECT || 0, fill: "var(--z-reject)",
-      tip: "provably wrong" },
-  ], `1 · extracted &amp; judged (${total})`,
-     `rung 0 made the records; rung 1 ${r1mode === "gate" ?
-       "ROUTED them (gate mode)" : "judged them (verdict only, no routing)"}`);
-  // Stage 2 — disposition: rung 5 withdraws, rung 6 routes the residue.
-  g += col(x2, [
-    { label: "shipped", n: flow.shipped.n, fill: "var(--z-verified)",
-      tip: "rung 5 kept it — this is the system's answer" },
-    { label: "escalated", n: flow.escalated.n, fill: "var(--z-escalate)",
-      tip: "rung 5 withdrew it; rung 6 routed it to a person" },
-    { label: "open", n: flow.open.n, fill: "var(--hatch-a)",
-      tip: "no disposition recorded" },
-  ], "2 · disposition",
-     "rung 5 withdraws (ABSTAIN); rung 6 routes the residue (ESCALATE)");
-  // Stage 3 — scored against gold (no rung: the evaluation, outside the run).
-  g += col(x3, scored ? [
-    { label: "shipped correct", n: flow.shipped.correct, fill: "var(--o-correct)" },
-    { label: "shipped wrong", n: flow.shipped.wrong, fill: "var(--o-incorrect)" },
-    { label: "withheld-correct", n: flow.escalated.withheld_correct, fill: "var(--o-abstained)",
-      tip: "routed to a person although the withheld answer was already right — rung 5's price" },
-    { label: "unlocatable", n: flow.escalated.unlocatable, fill: "var(--hatch-a)",
-      tip: "(-1,-1) spans — a span-keyed desk cannot review these" },
-    { label: "escalated other", n: flow.escalated.n - flow.escalated.withheld_correct - flow.escalated.unlocatable, fill: "var(--z-escalate)" },
-  ] : [{ label: "needs corpus to split", n: total, fill: "var(--hatch-a)", hatch: true }],
-    "3 · scored against gold",
-    "not a rung — the evaluation layer, exclusions applied");
-  el.innerHTML = `<div class="chart">${svgOpen(w, h)}${g}</svg>
-    <div class="muted">abstention's bill is a count: ${flow.escalated.n} of
-    ${total} routed to a person${scored ? `; ${flow.escalated.withheld_correct}
-    withheld answers were already correct` : ""}</div>
-    ${provFooter(flow.provenance)}</div>`;
-}
-
 function renderResultsTable(res, dep) {
   const el = $("results-table");
   const dens = {};
@@ -1225,33 +1150,7 @@ function renderCostPanels(costs, cv) {
     caveatChips(pick(cv, ["minutes_declared"])) + provFooter(costs.provenance);
 }
 
-function renderHumanBlock(flow, costs, res, cv) {
-  const el = $("human-block");
-  const scored = flow.scored;
-  const q = flow.escalated;
-  const r6row = (res.rows || []).find((r) => String(r.rung) === "6");
-  el.innerHTML = `<div class="cards">
-    <div class="card"><div class="big">${q.n}
-      <span class="muted" style="font-size:1rem">of ${flow.n_records} ·
-      ${pctOf(q.n, flow.n_records)}</span></div>
-      <div class="muted">records in the rung-6 queue — the COUNT is the
-      headline cost${r6row && r6row.reviews_per_100 != null ?
-        ` (${r6row.reviews_per_100} per 100 cases)` : ""}</div></div>
-    <div class="card"><div class="big">${scored ? q.withheld_correct : "—"}</div>
-      <div class="muted">withheld answers that were already correct — what
-      rung 5 pays for its shipped accuracy${scored ? "" :
-        " (needs the corpus to score)"}</div></div>
-    <div class="card"><div class="big">${q.unlocatable}</div>
-      <div class="muted">unlocatable (-1,-1) records a span-keyed desk cannot
-      review — they stay escalated</div></div>
-    </div>` +
-    caveatChips(pick(cv, ["minutes_declared", "oracle_ceiling", "spent_test"])) +
-    provFooter(flow.provenance);
-}
-
-/* ================= R4 — walkthrough ================= */
-
-/* ================= Live run — one document, the real rungs ================= */
+/* ================= Live — one document, the real rungs ================= */
 
 const LIVE_EXAMPLE =
   "Started the tablets three weeks ago for my knee. Since then constant " +
@@ -1687,6 +1586,70 @@ function drawGrid(root, res, st) {
   root.querySelectorAll("tr[data-rule]").forEach((el) => {
     el.onclick = () => { const id = el.dataset.rule; st.rule = (st.rule === id) ? null : id; redraw(); };
   });
+}
+
+/* ---- Results 4: rungs 0-4 lane by lane, from the ledger ---- */
+
+function renderLaneMatrix(dep, rules) {
+  const el = $("lane-matrix");
+  const vf = dep.verdict_flow || { buckets: [], total: 0 };
+  const lanes = rules.lanes_r3 || {};
+  const fromRecords = rules.votes_from === "records";
+  const r2 = (dep.flow_map && dep.flow_map.buckets.find((b) => b.verdict === "REJECT") || {}).r2;
+  const total = vf.total || 0;
+  const pct = (n, d) => d ? `${Math.round(100 * n / d)}%` : "—";
+  const votes = (lane, n) => {
+    const v = lanes[lane] || {};
+    if (!Object.keys(v).length) return `<span class="muted">rung 3 did not run</span>`;
+    return fromRecords
+      ? `all ${pct(v.all || 0, n)} · two ${pct(v.two || 0, n)} · none ${pct(v.none || 0, n)}<br><span class="small">no vote ${pct(v.no_vote || 0, n)}</span>`
+      : `voted ${pct(v.voted || 0, n)} · tie ${pct(v.tie || 0, n)}<br><span class="small">no vote ${pct(v.no_vote || 0, n)} · from the ledger: voted covers all and 2 of 3</span>`;
+  };
+  const r4 = (b) => `pass ${b.r4.pass} · fail ${b.r4.fail}${b.r4.parse_failed ? ` · unparsed ${b.r4.parse_failed}` : ""}${b.r4.absent ? ` · not judged ${b.r4.absent}` : ""}`;
+  const laneRow = (b) => `<tr>
+    <td><div class="lane ${b.verdict}">rung 1 · ${esc(b.verdict)} ${b.n}</div></td>
+    <td><div class="lane ${b.verdict} ${b.verdict === "REJECT" && r2 ? "" : "dash"}">${b.verdict === "REJECT" && r2
+      ? `${r2.reject} offered · ${r2.correctable} correctable · ${r2.attempted} attempted · ${r2.rescued} rescued` : "bypassed"}</div></td>
+    <td><div class="lane ${b.verdict}">${votes(b.verdict, b.n)}${dep.verdict_flow.r3_changed_known === false ? "" : `<br><span class="small">changed ${b.r3_changed}</span>`}</div></td>
+    <td><div class="lane ${b.verdict}">${r4(b)}</div></td></tr>`;
+  const allv = lanes.all || {};
+  el.innerHTML = `<table class="flowm">
+    <tr><th>r0 bare LLM<small>${total} records<br>${dep.flow_source === "ledger" ? "from the ledger (no records file on this machine)" : "from the records"}</small></th>
+      <th>r1 deterministic<small>${esc(dep.r1_mode || "observe")} — ${dep.r1_mode === "gate" ? "ROUTES" : "judges, does not route"}<br>free</small></th>
+      <th>r2 self-correction<small>fires on a statable REJECT only</small></th>
+      <th>r3 voting<small>${Object.keys(allv).length ? (fromRecords
+        ? `all agree ${pct(allv.all || 0, total)} · 2 agree ${pct(allv.two || 0, total)} · none ${pct(allv.none || 0, total)} · no vote ${pct(allv.no_vote || 0, total)}`
+        : `voted ${pct(allv.voted || 0, total)} · tie ${pct(allv.tie || 0, total)} · no vote ${pct(allv.no_vote || 0, total)}`) : "did not run"}</small></th>
+      <th>r4 LLM judge<small>${vf.buckets.length ? `pass ${vf.buckets.reduce((a, b) => a + b.r4.pass, 0)} · fail ${vf.buckets.reduce((a, b) => a + b.r4.fail, 0)} · unparsed ${vf.buckets.reduce((a, b) => a + b.r4.parse_failed, 0)}` : "did not run"}<br>1 call per record</small></th></tr>
+    <tr><td class="src" rowspan="${Math.max(1, vf.buckets.length)}"><div class="lane dash src">${total} records<br><span class="small">one lane per rung-1 word</span></div></td>
+    ${vf.buckets.length ? laneRow(vf.buckets[0]).replace(/^<tr>/, "") : "<td colspan=4 class='muted'>no rung 1 rows</td></tr>"}
+    ${vf.buckets.slice(1).map(laneRow).join("")}
+  </table>
+  <div class="muted">rungs 0 to 4, one column each, the three rung-1 lanes carried across · rungs 5 and 6 are section 6 below: what each rule ships and sends to a person${dep.flow_source === "ledger" ? " · the ledger cannot say which vote changed a code or how many of three samples agreed; a copy with records can" : ""}</div>`;
+}
+
+/* ---- Results 6: the six shipping rules over the batch, Figure 3 as a table ---- */
+
+function renderRulesTable(rules, costs) {
+  const el = $("rules-table");
+  const total = rules.total || 0;
+  const rows = rules.rules.map((r) => {
+    if (!r.run) return `<tr class="nr"><td><span class="rules"><span class="nr">${esc(r.id)}</span></span></td><td>${esc(r.name)}</td>
+      <td class="bar"><div class="pbar"></div></td><td class="n muted" colspan="3">not run — ${esc(r.note || "")}</td></tr>`;
+    const w = (n) => total ? `${(100 * n / total).toFixed(1)}%` : "0%";
+    const bar = r.right !== null
+      ? `<i class="r" style="width:${w(r.right)}" title="ships, right: ${r.right}"></i><i class="w" style="width:${w(r.wrong)}" title="ships, wrong: ${r.wrong}"></i><i class="p" style="width:${w(r.held)}" title="to a person: ${r.held}"></i>`
+      : `<i class="u" style="width:${w(r.ships)}" title="ships: ${r.ships} (right/wrong needs the records and the corpus)"></i><i class="p" style="width:${w(r.held)}" title="to a person: ${r.held}"></i>`;
+    return `<tr class="${r.own ? "on" : ""}"><td><span class="rules"><span class="${r.own ? "hold" : ""}">${esc(r.id)}</span></span></td>
+      <td>${esc(r.name)}${r.own ? ' <span class="small">· this run\'s rule</span>' : ""}</td>
+      <td class="bar"><div class="pbar">${bar}</div></td>
+      <td class="n">${r.ships} ship${r.right !== null ? `<span class="small"> · ${r.right} right</span>` : ""}</td>
+      <td class="n">${r.held} person</td><td class="n">${total ? Math.round(100 * r.held / total) : 0}%</td></tr>`;
+  }).join("");
+  const q6 = costs && costs.per_rung && costs.per_rung["6"];
+  el.innerHTML = `<div class="small">${total} records · <span class="sw r"></span> ships, right · <span class="sw w"></span> ships, wrong · <span class="sw u"></span> ships, right/wrong unknown here · <span class="sw p"></span> to a person${rules.scorable ? "" : " · right/wrong needs the records and the corpus on this machine"}</div>
+    <table class="rulesb">${rows}</table>
+    <div class="muted">the run's own rule in bold: what it shipped and sent to a person${q6 && q6.human_minutes ? ` · ${q6.human_minutes} minutes at the declared rate, an illustration` : ""} · the other rows are the same records under the other verdicts — Figure 3's move</div>`;
 }
 
 /* ---- Results drill-down: this run's document through the same grid ---- */

@@ -49,7 +49,11 @@ record's journey is Results' section 7, reached from a ribbon's
   by most missed). Totals, splits and exclusions behind a reference
   disclosure. Colour tokens now follow one-colour-one-meaning across the
   dashboard.
-- **Results** — a narrative in six sections; runs from this checkout's
+- **Results** (redesign step 5) — section 4 is rungs 0 to 4 lane by lane,
+  from the ledger so a corpus-free clone draws it; section 6 is the six
+  shipping rules over the batch with a bar per rule (Figure 3 as a table),
+  the run's own rule in bold; the V2 journey chart and the human block are
+  gone. A narrative in seven sections; runs from this checkout's
   `out/`, the **tracked `runs/archive/`** (new) and the main checkout's
   `out/archive/`; headline with bootstrap CIs; the integrated rung-flow
   diagram with actual and possible paths, clickable subsets; per-layer
@@ -119,7 +123,7 @@ Still green after the refresh.
 
 ## Tests
 
-109 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
+113 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
 `test_dashboard_golden.py`, `test_dashboard_live.py`), all TDD'd. The live
 tests are CI-safe: scripted extractor and judge bound through the same
 `llm.for_rung` seam the run uses, the nine-concept registry fixture, rung 0's

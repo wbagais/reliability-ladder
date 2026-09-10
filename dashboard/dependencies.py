@@ -120,6 +120,227 @@ def verdict_flow(records, r1_mode: str) -> dict[str, Any]:
     }
 
 
+def per_record_from_ledger(entries) -> dict[str, dict[str, Any]]:
+    """One dict per record from the ledger's one-row-per-record-per-rung —
+    the join a corpus-free copy of a run can still make. `verdict` is rung
+    1's word, moved to the zone rung 2 left when rung 2 rescued the record
+    (the record itself reads that way); `r3` is the ledger's vote outcome
+    (voted · tie · not_resampled — the ledger does not say unanimous from
+    2-of-3); `r4` the judge's word or parse_failed; `zone` the last zone."""
+    recs: dict[str, dict[str, Any]] = {}
+    for e in sorted(entries, key=lambda x: x.rung):
+        rid = e.record_id
+        if not rid or "#" not in rid:
+            continue  # per-document rows (rung 0, rung 3's samples) and config rows
+        r = recs.setdefault(rid, {"record_id": rid, "doc_id": e.doc_id, "verdict": None,
+                                  "rescued": False, "r3": None, "r4": None, "r4_menu": None,
+                                  "zone": None, "r5": None, "r6": None})
+        if e.rung == 1 and e.verdict:
+            r["verdict"] = e.verdict
+        elif e.rung == 2 and e.outcome == "rescued":
+            r["rescued"] = True
+            r["verdict"] = e.zone or r["verdict"]
+        elif e.rung == 3 and e.outcome in ("voted", "tie", "not_resampled"):
+            r["r3"] = e.outcome
+        elif e.rung == 4:
+            r["r4"] = e.verdict if e.verdict else ("parse_failed" if e.outcome == "parse_failed" else None)
+            r["r4_menu"] = e.extra.get("menu")
+        elif e.rung == 5:
+            r["r5"] = e.outcome
+        elif e.rung == 6:
+            r["r6"] = e.outcome
+        if e.zone and e.zone != "CONFIG":
+            r["zone"] = e.zone
+    return recs
+
+
+def verdict_flow_from_ledger(entries, r1_mode: str) -> dict[str, Any]:
+    """`verdict_flow` from the ledger instead of the records — the same
+    buckets, so a tracked corpus-free copy of a run draws the same flow.
+    What only a record knows (whether rung 3 CHANGED its code) is stated
+    unknown, never zero-as-a-fact."""
+    buckets: dict[str, dict[str, Any]] = {}
+    for r in per_record_from_ledger(entries).values():
+        verdict = r["verdict"] or "none"
+        b = buckets.setdefault(verdict, {
+            "verdict": verdict, "n": 0, "settled": 0, "abstained": 0,
+            "open": 0, "queued": 0, "r3_changed": 0,
+            "r4": {"pass": 0, "fail": 0, "parse_failed": 0, "absent": 0},
+        })
+        b["n"] += 1
+        if r["zone"] in ("VERIFIED", "RESOLVED"):
+            b["settled"] += 1
+        elif r["zone"] in ("ESCALATE", "ABSTAIN"):
+            b["abstained"] += 1
+            if r["zone"] == "ESCALATE":
+                b["queued"] += 1
+        else:
+            b["open"] += 1
+        if r["r4"] is None:
+            b["r4"]["absent"] += 1
+        else:
+            b["r4"][r["r4"]] = b["r4"].get(r["r4"], 0) + 1
+    order = ["ACCEPT", "BAND", "REJECT", "none"]
+    return {
+        "mode": r1_mode, "total": sum(b["n"] for b in buckets.values()),
+        "buckets": [buckets[k] for k in order if k in buckets],
+        "r3_changed_known": False,
+    }
+
+
+#: The six shipping rules, in the Live grid's legend order.
+RULE_NAMES = [
+    ("V", "strict vocabulary check says ACCEPT"),
+    ("V+", "loose vocabulary check says ACCEPT"),
+    ("3", "all 3 voting samples agree"),
+    ("2", "2 of 3 voting samples agree"),
+    ("J", "blind judge says pass"),
+    ("J+", "menu-shown judge says pass"),
+]
+
+
+def rules_over_run(state: AppState, info: RunInfo) -> dict[str, Any]:
+    """Figure 3 as a table: each of the six verdicts read as a shipping rule
+    over the whole run — how many records it ships and how many it holds
+    for a person, and when the records and the corpus are on this machine,
+    how many of the shipped are right. From the ledger alone the loose
+    vocabulary check, unanimity among the votes and the menu-shown judge
+    cannot be answered and read NOT RUN. Also the vote agreement per rung-1
+    lane, for the flow's rung 3 column."""
+    entries = state.ledger_entries(info)
+    per = per_record_from_ledger(entries)
+    records = state.records(info)
+    by_id = {r.record_id: r for r in records}
+    source = "records" if records else "ledger"
+    man = read_manifest_copy(info) or {}
+    menu_on = (man.get("rungs", {}).get("4", {}) or {}).get("menu", "off") not in (None, "off")
+    r5 = man.get("rungs", {}).get("5", {}) or {}
+    own_zones = set(r5.get("abstain_zones", ["BAND"])) | ({"REJECT"} if r5.get("abstain_on_reject", True) else set())
+    vocab = state.registry()
+
+    # right/wrong per record, when scorable
+    outcome_of: dict[str, str] = {}
+    scorable = False
+    if records and state.corpus() is not None:
+        try:
+            from dashboard import scoring
+            ann = scoring.annotate_records(state, info, "exact")
+            if ann:
+                scorable = True
+                for rec, a in zip(records, ann):
+                    outcome_of[rec.record_id] = a.get("outcome")
+        except Exception:
+            scorable = False
+
+    def decide(rid: str, r: dict) -> dict[str, str | None]:
+        """rule id -> ship | hold | None (not run) for one record."""
+        rec = by_id.get(rid)
+        c = (rec.checks or {}) if rec is not None else {}
+        out: dict[str, str | None] = {}
+        v = r["verdict"]
+        out["V"] = None if v is None else ("ship" if v == "ACCEPT" else "hold")
+        if v is None or rec is None or vocab is None:
+            out["V+"] = None      # a rule half-answerable is not run at all
+        elif v == "ACCEPT":
+            out["V+"] = "ship"
+        elif v == "BAND" and (rec.sct or (c.get("withheld") or {}).get("sct")):
+            sct = rec.sct if rec.sct is not None else (c.get("withheld") or {}).get("sct")
+            try:
+                out["V+"] = "ship" if vocab.lexical_match(rec.text or "", str(sct), mode="contained") else "hold"
+            except Exception:
+                out["V+"] = "hold"
+        else:
+            out["V+"] = "hold"
+        r3 = (c.get("r3") or {}) if rec is not None else {}
+        if rec is not None and r3:
+            raw = [x for x in (r3.get("raw") or []) if x]
+            k = int(r3.get("k") or 3)
+            seen = int(r3.get("seen") or 0)
+            out["3"] = "ship" if (seen >= 2 and len(raw) == k and len(set(raw)) == 1) else "hold"
+        else:
+            out["3"] = None
+        out["2"] = None if r["r3"] is None else ("ship" if r["r3"] == "voted" else "hold")
+        j = r["r4"]
+        jd = None if j is None else ("ship" if j == "pass" else "hold")
+        if menu_on:
+            out["J"], out["J+"] = None, jd
+        else:
+            out["J"], out["J+"] = jd, None
+        return out
+
+    tally = {rid: {"ships": 0, "held": 0, "right": 0, "wrong": 0, "run": False}
+             for rid, _ in RULE_NAMES}
+    lanes: dict[str, dict[str, int]] = {}
+    for rid, r in per.items():
+        d = decide(rid, r)
+        for rule_id, verdict in d.items():
+            t = tally[rule_id]
+            if verdict is None:
+                continue
+            t["run"] = True
+            if verdict == "ship":
+                t["ships"] += 1
+                if scorable:
+                    t["right" if outcome_of.get(rid) == "correct" else "wrong"] += 1
+            else:
+                t["held"] += 1
+        # vote agreement per rung-1 lane: from the record when it carries the
+        # votes (all / two / none / no vote), from the ledger otherwise
+        lane = r["verdict"] or "none"
+        rec = by_id.get(rid)
+        r3c = ((rec.checks or {}).get("r3") or {}) if rec is not None else {}
+        if r3c:
+            raw = [x for x in (r3c.get("raw") or []) if x]
+            k = int(r3c.get("k") or 3)
+            seen = int(r3c.get("seen") or 0)
+            if seen < 2:
+                cat = "no_vote"
+            elif r3c.get("tie"):
+                cat = "none"
+            elif len(raw) == k and len(set(raw)) == 1:
+                cat = "all"
+            else:
+                cat = "two"
+        elif r["r3"] is not None:
+            cat = {"voted": "voted", "tie": "tie", "not_resampled": "no_vote"}[r["r3"]]
+        else:
+            cat = None
+        if cat is not None:
+            for key in (lane, "all"):
+                lanes.setdefault(key, {})
+                lanes[key][cat] = lanes[key].get(cat, 0) + 1
+
+    ran = {e.rung for e in entries if e.outcome != "disabled"}
+    why_not = {
+        "V": "rung 1 did not run",
+        "V+": ("rung 1 did not run" if 1 not in ran else
+               "needs the records and the vocabulary index (a contained lexical match per record)"),
+        "3": ("rung 3 did not run" if 3 not in ran else
+              "needs the records (which samples agreed); the ledger says voted or tie only"),
+        "2": "rung 3 did not run",
+        "J": ("rung 4 did not run" if 4 not in ran else "this run judged with the menu shown, not blind"),
+        "J+": ("rung 4 did not run" if 4 not in ran else
+               "this run judged blind; the menu-shown judge is the Live tab's second pass"),
+    }
+    rules = []
+    for rule_id, name in RULE_NAMES:
+        t = tally[rule_id]
+        own = (rule_id == "V" and own_zones == {"BAND", "REJECT"})
+        rules.append({
+            "id": rule_id, "name": name, "run": t["run"],
+            "ships": t["ships"] if t["run"] else None,
+            "held": t["held"] if t["run"] else None,
+            "right": t["right"] if (t["run"] and scorable) else None,
+            "wrong": t["wrong"] if (t["run"] and scorable) else None,
+            "own": own,
+            "note": None if t["run"] else why_not[rule_id],
+        })
+    return {"total": len(per), "source": source, "scorable": scorable,
+            "rules": rules, "lanes_r3": lanes,
+            "votes_from": "records" if any(
+                ((by_id.get(rid).checks or {}).get("r3")) for rid in per if by_id.get(rid)) else "ledger"}
+
+
 def flow_map(vf: dict[str, Any], r1_mode: str, rungs_cfg: dict,
              rescued: int, eligible: dict[str, int]) -> dict[str, Any]:
     """The integrated diagram's data: per bucket, the ACTUAL path this run
@@ -326,6 +547,10 @@ def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
                 if name in ("r2_offered", "r2_attempted") else label),
         })
 
+    # The crosstab from the records when the run has them, from the ledger
+    # when it does not (a tracked copy is corpus-free by design) — the same
+    # buckets either way, so a fresh clone draws the same flow.
+    vf = verdict_flow(records, r1_mode) if records else verdict_flow_from_ledger(entries, r1_mode)
     return {
         "rung_order": rung_order,
         "run_kind": run_kind,
@@ -333,9 +558,10 @@ def dependencies_payload(state: AppState, info: RunInfo) -> dict[str, Any]:
         "r1_mode": r1_mode,
         "nodes": nodes,
         "edges": edges,
-        "verdict_flow": verdict_flow(records, r1_mode),
+        "flow_source": "records" if records else "ledger",
+        "verdict_flow": vf,
         "flow_map": flow_map(
-            verdict_flow(records, r1_mode), r1_mode, rungs_cfg, rescued,
+            vf, r1_mode, rungs_cfg, rescued,
             {"reject": len(rejects), "correctable": len(correctable),
              "attempted": attempted}),
         "denominators": denominators,
