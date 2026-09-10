@@ -336,7 +336,7 @@ def reduce_document(payload: dict, corpus: str, keep_text: bool = False) -> dict
 
 
 def build_documents(repo_root: pathlib.Path, run_key: str, doc_ids: list[str], corpus_name: str,
-                    **state_overrides) -> list[dict]:
+                    keep_text: bool = False, **state_overrides) -> list[dict]:
     """Local only: the Workbench's own document builder over the archived raw
     run, reduced for the page and checked against the post it came from.
     `state_overrides` (corpus=, exclusion_rows=, registry=) point the
@@ -356,9 +356,12 @@ def build_documents(repo_root: pathlib.Path, run_key: str, doc_ids: list[str], c
         payload = run_document_payload(state, info, doc_id)
         if payload is None:
             raise KeyError(f"{doc_id} is not a document of {run_key} on this machine")
-        reduced = reduce_document(payload, corpus_name, keep_text=corpus_name in REDISTRIBUTABLE)
+        keep = keep_text or corpus_name in REDISTRIBUTABLE
+        reduced = reduce_document(payload, corpus_name, keep_text=keep)
         reduced["provenance"]["git"] = git_sha
-        if corpus_name in REDISTRIBUTABLE:
+        if keep:
+            # a page that keeps the text is either the redistributable corpus or a
+            # LOCAL build (scripts/plan_local.py), which is written under out/ only
             out.append(reduced)
             continue
         post = str(payload.get("text") or "")

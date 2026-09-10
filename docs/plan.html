@@ -33611,13 +33611,13 @@ function redactedPost(d,sel){
  // the spans whose words the page may show, with their text
  const shown=[];
  // a span may be discontinuous: its words are indexed across every segment, in order
- const add=(segs,text,extra)=>{const covered=(d.word_spans||[]).filter(x=>segs.some(([a,b])=>x[0]>=a&&x[1]<=b)); const words=text.split(/\s+/); shown.push(Object.assign({segs,text,covered,words},extra));};
+ const add=(segs,text,extra)=>{const covered=(d.word_spans||[]).filter(x=>segs.some(([a,b])=>x[0]<b&&x[1]>a)); const words=text.split(/\s+/); shown.push(Object.assign({segs,text,covered,words},extra));};
  for(const p of d.pairs){if(p.gold.spans&&p.gold.span&&!p.gold.span.endsWith("withheld)"))add(p.gold.spans,p.gold.span,{kind:"gold",missed:p.span_match==="missed",rid:p.gold.record_id});}
  for(const r of d.records){
   // a quote rung 1 could not locate at its offsets is not printed there: the offsets are wrong, and that is the record's finding
   if(r.r1&&r.r1.span_grounded===false)continue;
   if(r.span&&!r.span.endsWith("withheld)")&&r.span!=="(not published)")add(r.spans||[],r.span,{kind:"model",cls:cls[r.record_id]||"",rid:r.record_id});}
- const covers=(sp,w)=>sp.segs.some(([a,b])=>w[0]>=a&&w[1]<=b);
+ const covers=(sp,w)=>sp.segs.some(([a,b])=>w[0]<b&&w[1]>a);
  const wordText=(w,sp)=>{const i=sp.covered.findIndex(x=>x[0]===w[0]); return i>=0&&i<sp.words.length?sp.words[i]:null;};
  let out="";
  for(const w of (d.word_spans||[])){
@@ -33632,11 +33632,11 @@ function redactedPost(d,sel){
 
 function textBlock(d,sel){
  const cls=pairClassOf(d);
- if(d.text){const marks=[];
+ if(d.text){const marks=[]; const local=!!PD.local_text&&d.corpus!=="finer";
   for(const r of d.records) for(const [a,b] of (r.spans||[])) marks.push({start:a,end:b,rid:r.record_id,cls:"pred-span "+(cls[r.record_id]||"")+(sel===r.record_id?" selected":(sel?" dim":"")),title:r.record_id+" → "+(r.final.sct||"no code")+" ("+r.final.zone+")"});
   const missed=new Set(d.pairs.filter(p=>p.span_match==="missed").map(p=>p.gold.record_id));
   for(const g of (d.gold_spans||[])) for(const [a,b] of (g.spans||[])) marks.push({start:a,end:b,cls:"gold-span"+(g.excluded?" excluded":"")+(missed.has(g.record_id)?" missed":""),title:"GOLD "+g.record_id+(missed.has(g.record_id)?" — gold only":"")});
-  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — a FiNER-139 filing excerpt (CC-BY-SA), '+d.words+' words · <span class="tg agree">agrees</span> <span class="tg differ">differs</span> <span class="tg spurious">model only</span> <span class="tg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text">'+highlightText(d.text,marks)+'</div>';}
+  return '<div class="small" style="margin:6px 0 2px"><b>the input</b> — '+(local?'<b style="color:#a33333">the full post, LOCAL COPY — not for publication</b>, ':'a FiNER-139 filing excerpt (CC-BY-SA), ')+d.words+' words · <span class="tg agree">agrees</span> <span class="tg differ">differs</span> <span class="tg spurious">model only</span> <span class="tg missed">gold only</span> · green underline = an annotated span</div><div class="doc-text">'+highlightText(d.text,marks)+'</div>';}
  // no text but the words' positions: the redacted post
  if(d.word_spans&&d.word_spans.length) return redactedPost(d,sel);
  // neither: the span map
