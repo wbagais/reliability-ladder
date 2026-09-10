@@ -62,8 +62,7 @@ function svgOpen(w, h) {
 const S = {
   tabs: [], runs: [], tab: "results",
   resultsRun: null, baseline: null, span: "exact",
-  walkRun: null, walkDoc: null, walkSpan: "exact", walkGold: false,
-  traceRun: null, traceSpan: "exact", traceFilter: null,
+  run: null,
   resultsDoc: { doc: null, result: null, selected: null, col: null, rule: null },
   live: { options: null, job: null, timer: null, result: null, selected: null, rung: null },
 };
@@ -75,23 +74,24 @@ async function boot() {
   S.tabs = tabs.tabs; S.runs = runs.runs;
   const bar = $("tabbar");
   bar.innerHTML = "";
-  for (const t of S.tabs) {
+  for (const t of S.tabs.filter((x) => x.shipped)) {
     const b = document.createElement("button");
     b.textContent = t.label;
     b.dataset.id = t.id;
-    if (!t.shipped) {
-      b.className = "later";
-      b.dataset.milestone = t.milestone;
-    }
     b.onclick = () => showTab(t);
     bar.appendChild(b);
   }
-  fillRunSelect($("results-run"), S.runs);
-  fillRunSelect($("results-baseline"), S.runs, true);
-  fillRunSelect($("walk-run"), S.runs);
-  fillRunSelect($("trace-run"), S.runs);
-  const def = S.runs.length ? S.runs[0].key : null;
-  S.resultsRun = S.walkRun = S.traceRun = def;
+  $("later-list").innerHTML = S.tabs.filter((x) => !x.shipped).map((t) =>
+    `<div><b>${esc(t.label)}</b> <span class="muted">${esc(t.milestone)}</span></div>`).join("") +
+    `<div class="muted small">planned; the data layer is shaped so they land without rework</div>`;
+  // ONE run for the whole app: the newest run on this corpus's splits that
+  // carries records (a tracked copy is corpus-free; a matrix cell from
+  // another corpus is newer on disk)
+  fillRunSelect($("run-pick"), S.runs);
+  fillRunSelect($("baseline-pick"), S.runs, true);
+  const first = S.runs.find((r) => (r.split === "dev" || r.split === "pool") && r.files.includes("records"))
+    || S.runs.find((r) => r.split === "dev" || r.split === "pool") || S.runs[0];
+  setRun(first ? first.key : null);
   wireControls();
   showTab(S.tabs.find((t) => t.id === "explorer"));
 }
@@ -106,40 +106,38 @@ function fillRunSelect(sel, runs, optional) {
   }
 }
 
+/* the run strip: one run, one span mode, one baseline, read by Data and
+   Results — absent on Live, which has a text, not a run */
+function setRun(key) {
+  S.run = key; S.resultsRun = key; D.run = key;
+  S.resultsDoc.doc = null; S.resultsDoc.result = null;
+  if (key) $("run-pick").value = key;
+  const r = S.runs.find((x) => x.key === key);
+  $("strip-split").textContent = r ? `· ${r.split}${r.archived ? " · archived" : ""}${r.files.includes("records") ? "" : " · no records file"}` : "";
+  $("strip-prov").textContent = "";
+  if (key) api("/api/run/results", { run: key }).then((d) => {
+    const p = d.provenance || {};
+    $("strip-prov").textContent = `· ${p.backend ?? "—"} · manifest ${p.manifest_hash ?? "—"}`;
+  }).catch(() => {});
+}
+
 function showTab(t) {
   document.querySelectorAll(".tab").forEach((el) => (el.hidden = true));
   document.querySelectorAll(".tabbar button").forEach(
     (b) => b.classList.toggle("active", b.dataset.id === t.id));
-  if (!t.shipped) {
-    $("tab-later").hidden = false;
-    $("later-title").textContent = t.label;
-    $("later-note").textContent =
-      `Planned for milestone ${t.milestone}. Shipped so far: the M1 ` +
-      `read-only lens and the Live run tab (one document through the real ` +
-      `rungs, nothing written under out/). The tab bar and data layer are ` +
-      `structured so this lands without rework.`;
-    return;
-  }
   S.tab = t.id;
+  $("runstrip").hidden = t.id === "live";
   $(`tab-${t.id}`).hidden = false;
-  ({explorer: renderExplorer, results: renderResults,
-    walkthrough: renderWalkthrough, trace: renderTrace, live: renderLive}[t.id])();
+  ({explorer: renderExplorer, results: renderResults, live: renderLive}[t.id])();
 }
 
 function wireControls() {
   wireLive();
-  $("results-run").onchange = (e) => { S.resultsRun = e.target.value; S.resultsDoc.doc = null; S.resultsDoc.result = null; renderResults(); };
-  $("results-doc").onchange = (e) => { S.resultsDoc.doc = e.target.value || null; renderResultsDoc(); };
-  $("results-baseline").onchange = (e) => { S.baseline = e.target.value || null; renderResults(); };
-  $("results-span").onchange = (e) => { S.span = e.target.value; renderResults(); };
   wireData();
-  $("walk-run").onchange = (e) => { S.walkRun = e.target.value; S.walkDoc = null; renderWalkthrough(); };
-  $("walk-doc").onchange = (e) => { S.walkDoc = e.target.value; renderWalkDoc(); };
-  $("walk-span").onchange = (e) => { S.walkSpan = e.target.value; renderWalkDoc(); };
-  $("walk-gold").onchange = (e) => { S.walkGold = e.target.checked; renderWalkDoc(); };
-  $("trace-run").onchange = (e) => {
-    S.traceRun = e.target.value; S.traceFilter = null; renderTrace(); };
-  $("trace-span").onchange = (e) => { S.traceSpan = e.target.value; renderTrace(); };
+  $("run-pick").onchange = (e) => { setRun(e.target.value); showTab(S.tabs.find((t) => t.id === S.tab)); };
+  $("span-pick").onchange = (e) => { S.span = e.target.value; if (S.tab === "results") renderResults(); };
+  $("baseline-pick").onchange = (e) => { S.baseline = e.target.value || null; if (S.tab === "results") renderResults(); };
+  $("results-doc").onchange = (e) => { S.resultsDoc.doc = e.target.value || null; renderResultsDoc(); };
 }
 
 function debounce(fn, ms) {
@@ -177,7 +175,6 @@ const D = { split: "dev", drug: "", doc: null, run: null, docs: [], sort: "doc_i
 function wireData() {
   $("data-split").onchange = (e) => { D.split = e.target.value; D.doc = null; renderExplorer(); };
   $("data-drug").onchange = (e) => { D.drug = e.target.value; renderDataBody(); };
-  $("data-run").onchange = (e) => { D.run = e.target.value || null; renderExplorer(); };
   $("data-show-excluded").onchange = (e) => { D.showExcluded = e.target.checked; renderDataBody(); };
   $("data-show-disc").onchange = (e) => { D.showDisc = e.target.checked; renderDataBody(); };
   const inp = $("data-doc");
@@ -187,14 +184,7 @@ function wireData() {
 }
 
 async function renderExplorer() {
-  if (!$("data-run").options.length) {
-    fillRunSelect($("data-run"), S.runs, true);
-    // the newest run ON THIS CORPUS's splits — a matrix cell from another
-    // corpus is newer on disk and would read as "everything missed"
-    const first = S.runs.find((r) => (r.split === "dev" || r.split === "pool") && r.files.includes("records"))
-      || S.runs.find((r) => r.split === "dev" || r.split === "pool") || S.runs[0];
-    if (first) { $("data-run").value = first.key; D.run = first.key; }
-  }
+  D.run = S.run;
   $("spent-banner").hidden = D.split !== "test";
   let d;
   try {
@@ -699,7 +689,7 @@ function subsetDetail(dep, bucket) {
   const rows = [];
   rows.push(`<b>${esc(bucket)}</b>: ${b.n} of ${fm.total} records
     (${pctOf(b.n, fm.total)} of the batch) —
-    ${trace("open in Traceability", { verdict: bucket })}`);
+    ${trace("documents", { verdict: bucket })}`);
   if (b.through_r2 && b.r2)
     rows.push(`r2: ${b.r2.reject} offered · ${b.r2.correctable} correctable ·
       ${b.r2.attempted} attempted · ${b.r2.rescued} rescued`);
@@ -753,13 +743,21 @@ function renderDependencies(dep, cv, sel) {
     };
   });
   el.querySelectorAll(".trace-link").forEach((a) => {
-    a.onclick = (ev) => {
+    a.onclick = async (ev) => {
       ev.preventDefault();
-      S.traceRun = S.resultsRun;
-      S.traceFilter = JSON.parse(a.dataset.params);
-      const t = S.tabs.find((x) => x.id === "trace");
-      $("trace-run").value = S.traceRun;
-      showTab(t);
+      const params = JSON.parse(a.dataset.params);
+      let box = el.querySelector("#subset-docs");
+      if (!box) { box = document.createElement("div"); box.id = "subset-docs"; box.className = "subset-docs"; a.closest(".dep-card, .card, div").appendChild(box); }
+      box.innerHTML = `<span class="muted">loading…</span>`;
+      try {
+        const d = await api("/api/run/records", { run: S.resultsRun, span_match: S.span, ...params });
+        const docs = {};
+        for (const r of d.records) (docs[r.doc_id] = docs[r.doc_id] || []).push(r);
+        const items = Object.entries(docs).sort((x, y) => y[1].length - x[1].length);
+        box.innerHTML = `<div class="small">${d.records.length} record${d.records.length === 1 ? "" : "s"} in ${items.length} document${items.length === 1 ? "" : "s"} — click one to see it through the ladder (section 7)</div>` +
+          items.map(([doc, recs]) => `<a href="#" class="doc-link" data-doc="${esc(doc)}">${esc(doc)} <span class="muted">${recs.length}</span></a>`).join(" · ");
+        box.querySelectorAll(".doc-link").forEach((l) => (l.onclick = (e2) => { e2.preventDefault(); openResultsDoc(l.dataset.doc); }));
+      } catch (err) { box.innerHTML = `<span class="bad">${esc(err.message)}</span>`; }
     };
   });
 }
@@ -1253,102 +1251,6 @@ function renderHumanBlock(flow, costs, res, cv) {
 
 /* ================= R4 — walkthrough ================= */
 
-async function renderWalkthrough() {
-  if (!S.walkRun) return;
-  const docs = await api("/api/run/docs", { run: S.walkRun });
-  const sel = $("walk-doc");
-  sel.innerHTML = "";
-  for (const d of docs.docs) {
-    const o = document.createElement("option");
-    o.value = d.doc_id;
-    const oc = Object.entries(d.outcomes).map(([k, v]) => `${k[0]}${v}`).join(" ");
-    o.textContent = `${d.doc_id} (${d.n_records} rec${oc ? " · " + oc : ""})`;
-    sel.appendChild(o);
-  }
-  $("walk-caveats").innerHTML = caveatChips(docs.caveats);
-  S.walkDoc = S.walkDoc && docs.docs.some((d) => d.doc_id === S.walkDoc)
-    ? S.walkDoc : (docs.docs[0] && docs.docs[0].doc_id);
-  sel.value = S.walkDoc || "";
-  renderWalkDoc();
-}
-
-async function renderWalkDoc() {
-  if (!S.walkRun || !S.walkDoc) { $("walk-records").innerHTML = ""; return; }
-  const wt = await api("/api/run/walkthrough",
-    { run: S.walkRun, doc_id: S.walkDoc, span_match: S.walkSpan });
-  const textEl = $("walk-doc-text");
-  if (wt.text) {
-    const marks = [];
-    for (const r of wt.records)
-      for (const [a, b] of r.spans)
-        if (a >= 0) marks.push({ start: a, end: b, cls: "pred-span",
-          title: `${r.record_id} → ${r.sct ?? "no code"} (${r.zone})` });
-    if (S.walkGold && wt.gold_mentions)
-      for (const m of wt.gold_mentions)
-        for (const [a, b] of m.spans)
-          if (a >= 0) marks.push({ start: a, end: b,
-            cls: "gold-span" + (m.excluded ? " excluded" : ""),
-            title: `GOLD ${m.record_id} → ${m.sct.join(",") || "concept-less"}` });
-    textEl.innerHTML = `<div class="doc-text">${highlight(wt.text, marks)}</div>
-      <div class="muted">blue = this run's records; green = gold overlay
-      (toggle)</div>`;
-  } else {
-    textEl.innerHTML = `<div class="banner warn">document text unavailable
-      (corpus not on this machine) — panels below still render from recorded
-      checks</div>`;
-  }
-  const stateLabel = { changed: "changed", judged: "judged",
-    did_not_fire: "did not fire", did_not_run: "did not run (recorded)",
-    not_in_run: "not in run" };
-  $("walk-records").innerHTML = wt.records.map((r) => {
-    const tl = r.timeline.map((n, i) =>
-      (i ? '<div class="tl-link"></div>' : "") +
-      `<div class="tl-node ${n.state}" title="${esc(n.detail)}">
-        <div class="tl-dot"></div><div>r${n.rung}</div>
-        <div class="muted">${esc(stateLabel[n.state] || n.state)}</div></div>`).join("");
-    const g = r.gold;
-    const goldLine = g ? (g.matched
-      ? `<span class="outcome ${g.outcome}">${g.outcome}</span>
-         <span class="muted">gold ${g.gold_sct ? g.gold_sct.join(", ") : "—"}
-         (${S.walkSpan})${g.withheld_outcome ? ` · withheld answer would be ${g.withheld_outcome}` : ""}</span>`
-      : `<span class="outcome ${g.outcome === "excluded" ? "abstained" : "incorrect"}">${g.outcome}</span>`)
-      : `<span class="muted">unscored (no corpus)</span>`;
-    const p = r.panels;
-    return `<div class="record-card">
-      <div><b>${esc(r.record_id)}</b>
-        ${r.unlocatable ? '<span class="zone REJECT" title="(-1,-1) spans">unlocatable — schema-invalid</span>' : ""}
-        <span class="zone ${esc(r.zone)}">${esc(r.zone)}</span>
-        “${esc(r.text)}” → ${esc(r.sct ?? "no code")}
-        ${r.sct_label ? `<span class="muted">“${esc(r.sct_label)}”</span>` : ""}
-        · final: <b>${esc(r.final.state)}</b> · ${goldLine}</div>
-      <div class="timeline">${tl}</div>
-      <details><summary>per-rung panels (recorded checks — no re-derivation)</summary>
-        <dl class="kv">
-        <dt>r0</dt><dd>step ${esc(p.r0.rung0_step ?? "—")}, retrieval
-          ${esc(p.r0.rung0_retrieval ?? "—")}, ${p.r0.n_candidates} candidates,
-          negated ${esc(p.r0.r0_negated ?? p.r0.negated ?? "—")}</dd>
-        <dt>r1</dt><dd>verdict ${esc(p.r1.verdict ?? "—")}
-          ${p.r1.reason ? `(${esc(p.r1.reason)})` : ""}; lexical
-          ${esc(p.r1.lexical_match ?? "—")}, exists ${esc(p.r1.sct_exists ?? "—")},
-          active ${esc(p.r1.sct_active ?? "—")}</dd>
-        <dt>r2</dt><dd>${p.r2.fired ? esc(p.r2.outcome || "fired") :
-          `did not fire — ${esc(p.r2.why)}`}</dd>
-        <dt>r3</dt><dd>${esc(p.r3.outcome ?? "")} seen ${esc(p.r3.seen ?? "—")}/${esc(p.r3.k ?? "—")}
-          ${p.r3.single_sample ? " · single-sample (withheld by rule)" : ""}
-          ${p.r3.votes ? " · votes " + esc(JSON.stringify(p.r3.votes)) : ""}</dd>
-        <dt>r4</dt><dd>${p.r4.verdict === null || p.r4.verdict === undefined ?
-          "no verdict" : `${esc(p.r4.verdict)} conf ${esc(p.r4.confidence)}`}
-          ${p.r4.why ? ` — “${esc(p.r4.why)}”` : ""}</dd>
-        <dt>r5</dt><dd>${p.r5.withheld ?
-          `withdrew; withheld answer ${esc(p.r5.withheld.sct)} conf ${esc(p.r5.withheld.confidence)}` :
-          "kept"}</dd>
-        <dt>r6</dt><dd>${p.r6 ? esc(JSON.stringify(p.r6)) :
-          (r.zone === "ESCALATE" ? "queued for a person (count is the cost)" : "—")}</dd>
-        </dl></details>
-    </div>`;
-  }).join("") + provFooter(wt.provenance);
-}
-
 /* ================= Live run — one document, the real rungs ================= */
 
 const LIVE_EXAMPLE =
@@ -1827,118 +1729,6 @@ function openResultsDoc(docId) {
   S.resultsDoc.doc = docId;
   $("results-doc").value = docId;
   renderResultsDoc();
-}
-
-/* ================= R5 — traceability ================= */
-
-async function renderTrace() {
-  if (!S.traceRun) return;
-  const run = S.traceRun, span = S.traceSpan;
-  const score = await api("/api/run/score", { run, span_match: span });
-  const agg = $("trace-aggregates");
-  if (!score.available) {
-    agg.innerHTML = `<div class="banner warn">${esc(score.reason)} — record
-      list below still works, outcomes unscored.</div>` +
-      provFooter(score.provenance);
-    listRecords();
-    return;
-  }
-  const s = score.score;
-  const order = ["correct", "outdated", "abstained", "incorrect", "modernised"];
-  agg.innerHTML = `<div class="cards">` + order.map((o) =>
-    `<div class="card rowbtn" data-outcome="${o}">
-      <div class="big outcome ${o}">${s[o]}</div>
-      <div class="muted">${o} — click for the records</div></div>`).join("") +
-    `</div>` + caveatChips(score.caveats) + provFooter(score.provenance);
-  agg.querySelectorAll("[data-outcome]").forEach(
-    (el) => (el.onclick = () => listRecords(el.dataset.outcome)));
-  listRecords();
-}
-
-async function listRecords(outcome) {
-  const f = S.traceFilter || {};
-  const body = await api("/api/run/records",
-    { run: S.traceRun, span_match: S.traceSpan, outcome,
-      verdict: f.verdict, disposition: f.disposition });
-  const filterChip = (f.verdict || f.disposition)
-    ? `<div class="caveat">subset from the flow diagram:
-       ${f.verdict ? `rung 1 verdict ${esc(f.verdict)}` : ""}
-       ${f.disposition ? ` · disposition ${esc(f.disposition)}` : ""}
-       (${body.records.length} records)
-       <a href="#" id="trace-clear">clear</a></div>`
-    : "";
-  $("trace-records").innerHTML = filterChip +
-    `<table><tr><th class="l">record</th><th class="l">spans</th>
-     <th class="l">zone</th><th class="l">code</th><th class="l">outcome</th></tr>` +
-    body.records.map((r) =>
-      `<tr class="rowbtn" data-doc="${esc(r.doc_id)}" data-spans="${esc(r.span_param)}">
-       <td class="l">${esc(r.record_id)}</td>
-       <td class="l">${r.unlocatable ? "unlocatable" : esc(r.span_param)}</td>
-       <td class="l"><span class="zone ${esc(r.zone)}">${esc(r.zone)}</span></td>
-       <td class="l">${esc(r.sct ?? "—")}</td>
-       <td class="l outcome ${esc(r.outcome ?? "")}">${esc(r.outcome ?? "unscored")}</td></tr>`).join("") +
-    `</table>` + provFooter(body.provenance);
-  $("trace-records").querySelectorAll("tr[data-doc]").forEach((tr) =>
-    (tr.onclick = () => recordDetail(tr.dataset.doc, tr.dataset.spans)));
-  const clear = $("trace-clear");
-  if (clear) clear.onclick = (ev) => {
-    ev.preventDefault();
-    S.traceFilter = null;
-    listRecords(outcome);
-  };
-}
-
-async function recordDetail(docId, spans) {
-  const el = $("trace-detail");
-  el.innerHTML = `<div class="muted">loading…</div>`;
-  try {
-    const [d, llm] = await Promise.all([
-      api("/api/run/record", { run: S.traceRun, doc_id: docId, spans,
-        span_match: S.traceSpan }),
-      api("/api/run/record_llm", { run: S.traceRun, doc_id: docId, spans }),
-    ]);
-    const r = d.record;
-    const ledger = `<table><tr><th>rung</th><th class="l">outcome</th>
-      <th class="l">reason</th><th class="l">verdict</th><th>tok in</th>
-      <th>tok out</th><th>calls</th><th>ms</th><th>usd</th><th>min</th>
-      <th class="l">denominator</th></tr>` +
-      d.ledger_rows.map((x) => `<tr${x.evaluable === "could_not_run" ? ' class="hatch"' : ""}>
-        <td>${x.rung}</td><td class="l">${esc(x.outcome)}${x.per_document ? " (per-document)" : ""}</td>
-        <td class="l">${esc(x.reason ?? "")}</td><td class="l">${esc(x.verdict ?? "")}</td>
-        <td>${x.tokens_in}</td><td>${x.tokens_out}</td><td>${x.api_calls}</td>
-        <td>${x.latency_ms.toFixed(0)}</td><td>${x.usd}</td><td>${x.human_minutes}</td>
-        <td class="l">${esc(x.denominator ?? "")}</td></tr>`).join("") + `</table>`;
-    const calls = (llm.calls || []).map((c) => c.status === "retained"
-      ? `<details open><summary>rung ${c.rung} ${esc(c.call)} — ${esc(c.model)}
-          (${c.prompt_tokens}+${c.completion_tokens} tok, ${c.latency_s}s${c.truncated ? ", TRUNCATED" : ""})</summary>
-          <div class="muted">prompt (local-only, excluded from exports):</div>
-          <pre class="raw">${esc(c.prompt)}</pre>
-          <div class="muted">raw reply:</div><pre class="raw">${esc(c.reply)}</pre></details>`
-      : `<div class="muted">rung ${c.rung} ${esc(c.call ?? "")}: not retained
-          ${c.note ? `(${esc(c.note)})` : "— cache holds no entry for this exact request"}</div>`
-    ).join("") || `<div class="muted">${esc(llm.note ?? "no calls reconstructable")}</div>`;
-    const gold = d.gold ? `<dl class="kv"><dt>exact</dt>
-        <dd class="outcome ${esc(d.gold.exact.outcome)}">${esc(d.gold.exact.outcome)}</dd>
-        <dt>overlap</dt>
-        <dd class="outcome ${esc(d.gold.overlap.outcome)}">${esc(d.gold.overlap.outcome)}</dd></dl>`
-      : `<div class="muted">unscored (no corpus)</div>`;
-    el.innerHTML = `<div class="record-card">
-      <h3>${esc(r.record_id)} <span class="zone ${esc(r.zone)}">${esc(r.zone)}</span>
-        ${r.unlocatable ? '<span class="zone REJECT">unlocatable — schema-invalid</span>' : ""}</h3>
-      <div>“${esc(r.text)}” → ${esc(r.sct ?? "no code")}
-        ${r.sct_label ? `(“${esc(r.sct_label)}”)` : ""}</div>
-      <h4>outcome vs gold</h4>${gold}
-      <h4>ledger rows <span class="muted">(hatched = could_not_run)</span></h4>${ledger}
-      <h4>checks (recorded)</h4>
-      <details><summary>show</summary><pre class="raw">${esc(JSON.stringify(r.checks, null, 1))}</pre></details>
-      <h4>zone history</h4>
-      <pre class="raw">${esc(JSON.stringify(r.history, null, 1))}</pre>
-      <h4>prompt &amp; raw reply <span class="muted">(from .llm_cache; misses
-        say "not retained", never an empty reply)</span></h4>${calls}
-      ${provFooter(d.provenance)}</div>`;
-  } catch (err) {
-    el.innerHTML = `<div class="banner warn">${esc(err.message)}</div>`;
-  }
 }
 
 boot().catch((e) => {

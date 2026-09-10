@@ -88,7 +88,7 @@ body {
   border: 1px solid var(--accent); border-radius: 999px;
   padding: .05rem .5rem; margin-left: .4rem; vertical-align: middle;
 }
-.tabbar { display: flex; gap: .25rem; flex-wrap: wrap; }
+.tabbar { display: flex; gap: 1.4rem; flex-wrap: wrap; flex: 1; }
 .tabbar button {
   border: none; background: none; color: var(--ink); font: inherit;
   padding: .35rem .7rem; border-radius: 6px; cursor: pointer;
@@ -497,3 +497,25 @@ table.cells tr.cost.first td { padding-top: .4rem; }
 .legendv td.pct { font-family: ui-monospace, Menlo, monospace; text-align: right; min-width: 3.2em; }
 .legendv tr.on td { color: var(--accent); font-weight: 600; }
 .legendv tr.nr td { color: var(--muted); }
+
+/* the top bar (2026-09-09): three words, an underline, "later" at the far right */
+.topbar { gap: 1.6rem; }
+.brand { font-weight: 600; }
+.tabbar button {
+  font: inherit; font-size: .95rem; background: none; border: none; color: var(--muted);
+  padding: .25rem 0; border-bottom: 2px solid transparent; border-radius: 0; cursor: pointer;
+}
+.tabbar button:hover { color: var(--ink); }
+.tabbar button.active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 500; background: none; }
+.later { position: relative; font-size: .82rem; color: var(--muted); }
+.later summary { cursor: pointer; list-style: none; }
+.later summary::-webkit-details-marker { display: none; }
+.later summary::after { content: " ▾"; }
+.later[open] > div { position: absolute; right: 0; top: 1.6rem; background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: .5rem .8rem; min-width: 14rem; z-index: 6; line-height: 1.6; color: var(--ink); }
+.runstrip { display: flex; gap: .8rem; align-items: center; flex-wrap: wrap; padding: .35rem 1rem;
+  border-bottom: 1px solid var(--line); background: var(--panel); font-size: .84rem; }
+.runstrip label { display: inline-flex; gap: .35rem; align-items: center; }
+.runstrip select { max-width: 24rem; }
+.subset-docs { margin-top: .4rem; font-size: .84rem; }
+.subset-docs a { color: var(--accent); }

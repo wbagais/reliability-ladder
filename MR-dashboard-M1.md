@@ -29,6 +29,15 @@ Nothing is re-implemented and no file format is invented. Every heavyweight
 source (corpus, SNOMED index, `.llm_cache`, Ollama) is optional — its
 absence renders as a stated degradation, never an error.
 
+### The bar (redesign step 4)
+
+Three tabs — Data · Results · Live — an underline for the active one, no
+pills; the planned pages under one "later" menu. One run strip beneath
+(run, split, span, backend, manifest, compare with), read by Data and
+Results, hidden on Live. Walkthrough and Traceability are retired: a
+record's journey is Results' section 7, reached from a ribbon's
+"documents" link or the picker.
+
 ### Tabs
 
 - **Data** (redesigned 2026-09-09, step 1 of the owner's sketch) — a row of
@@ -50,13 +59,7 @@ absence renders as a stated degradation, never an error.
   from the run's own records, state rows, call traces and snapshots;
   nothing re-run. Older runs without a state table show the final state
   and say so.
-- **Walkthrough** — per-record rung timeline with "did not fire" ≠ "did not
-  run"; per-rung panels from recorded `checks` and ledger rows only.
-- **Traceability** — outcome card → records → one record's ledger rows,
-  checks, zone history, prompts and raw replies. **Prompts now come from
-  the run's own `<run>.r<N>.calls.jsonl`** when it wrote them (every run
-  since 2026-09-03); hash-lookup reconstruction is the fallback for older
-  runs and is labelled as such.
+
 - **Live run** (new, 2026-09-09) — paste a text, or pick a dev/pool
   document, choose the rung to stop at, and the ladder runs **for real**:
   `run_ladder` in-process, every rung's own `apply`, the manifest's models
@@ -116,7 +119,7 @@ Still green after the refresh.
 
 ## Tests
 
-108 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
+109 dashboard tests (`tests/test_dashboard_core.py`, `test_dashboard_app.py`,
 `test_dashboard_golden.py`, `test_dashboard_live.py`), all TDD'd. The live
 tests are CI-safe: scripted extractor and judge bound through the same
 `llm.for_rung` seam the run uses, the nine-concept registry fixture, rung 0's

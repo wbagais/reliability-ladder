@@ -29,16 +29,14 @@ from dashboard.util import format_span_param, parse_span_param
 
 STATIC_DIR = Path(__file__).parent / "static"
 
-#: The tab bar names later milestones so the layout is stable when they land
-#: (spec: structure the tab bar so they can be added). `shipped` is what the
-#: frontend reads; `milestone` is the label. M1 shipped the first four; the
-#: live run (2026-09-09) is the single-document half of M3's workbench.
+#: Three tabs (owner's redesign, 2026-09-09): Data, Results, Live — and the
+#: later milestones under one "later" menu, not in the bar. Walkthrough and
+#: Traceability retired 2026-09-09: Results' document drill-down draws what
+#: they drew, through the Live grid, from the run's own artifacts.
 TABS = [
-    {"id": "explorer", "label": "Data explorer", "milestone": "M1", "shipped": True},
+    {"id": "explorer", "label": "Data", "milestone": "M1", "shipped": True},
     {"id": "results", "label": "Results", "milestone": "M1", "shipped": True},
-    {"id": "walkthrough", "label": "Walkthrough", "milestone": "M1", "shipped": True},
-    {"id": "trace", "label": "Traceability", "milestone": "M1", "shipped": True},
-    {"id": "live", "label": "Live run", "milestone": "M3", "shipped": True},
+    {"id": "live", "label": "Live", "milestone": "M3", "shipped": True},
     {"id": "workbench", "label": "Rung workbench", "milestone": "M3", "shipped": False},
     {"id": "monitor", "label": "Run monitor", "milestone": "M3", "shipped": False},
     {"id": "desk", "label": "Desk", "milestone": "M4", "shipped": False},
@@ -88,12 +86,12 @@ def create_app(state: AppState, live_runner: LiveRunner | None = None) -> FastAP
 
     @app.get("/api/health")
     def health():
-        return {"ok": True, "milestone": "M1+live", "read_only": True,
+        return {"ok": True, "milestone": "redesign-2026-09-09", "read_only": True,
                 "writes_files": False, "live_run": True}
 
     @app.get("/api/tabs")
     def tabs():
-        return {"tabs": TABS, "active_milestone": "M1+live"}
+        return {"tabs": TABS, "active_milestone": "redesign-2026-09-09"}
 
     # -- live run: one document, the real rungs, a scratch dir ----------------
 

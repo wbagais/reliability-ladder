@@ -109,12 +109,17 @@
 
 ## Current state
 - **The dashboard (`dashboard/`, `python -m dashboard`, loopback only) is
-  GitLab MR !22, refreshed 2026-09-09 to main.** A lens over `ladder.*` —
-  Data explorer, Results, Walkthrough, Traceability — plus a **Live run tab**
-  that runs ONE document (pasted, or a dev/pool doc; test refused) through
-  the real rungs via `ladder.run.run_ladder` into a scratch dir that is
-  deleted: an example of the mechanism, never a measurement, never under
-  `out/`. It is the one POST route. Extras (`fastapi`, `uvicorn`, `httpx`)
+  GitLab MR !22, refreshed 2026-09-09 to main and REDESIGNED the same day
+  from the owner's sketch (the Workbench Redesign Sketch artifact).** Three
+  tabs: **Data** (filters, a document with the code on hover, or the table
+  with an "in run" column), **Results** (the batch run; section 7 draws one
+  document through the grid from the run's own artifacts), **Live** (ONE
+  document, pasted or a dev/pool doc, through the real rungs via
+  `ladder.run.run_ladder` into a scratch dir that is deleted — never a
+  measurement, never under `out/`; the one POST route). The grid: rung 0 as
+  a table against gold, rungs 1-4 in their own words, a "person" column of
+  six shipping rules. One colour, one meaning. Walkthrough and Traceability
+  are gone. Extras (`fastapi`, `uvicorn`, `httpx`)
   are commented in `requirements.txt`; CI has none, so the dashboard tests
   `importorskip` — run them locally. Run discovery files `<run>.r<N>.*`
   under the run (they used to list as 150 phantom runs) and reads the

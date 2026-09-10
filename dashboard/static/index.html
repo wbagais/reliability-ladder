@@ -8,9 +8,17 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">Ladder Workbench <span class="pill" title="M1 read-only lens + Live run; writes nothing under out/">M1 + live</span></div>
+  <div class="brand">Ladder Workbench</div>
   <nav id="tabbar" class="tabbar"></nav>
+  <details class="later" id="later"><summary>later</summary><div id="later-list"></div></details>
 </header>
+<div id="runstrip" class="runstrip">
+  <label>run <select id="run-pick"></select></label>
+  <span id="strip-split" class="muted"></span>
+  <label>span <select id="span-pick"><option value="exact">exact</option><option value="overlap">overlap</option></select></label>
+  <span id="strip-prov" class="muted"></span>
+  <label>compare with <select id="baseline-pick"><option value="">none</option></select></label>
+</div>
 
 <main id="main">
   <section id="tab-explorer" class="tab" hidden>
@@ -26,7 +34,6 @@
         <datalist id="data-doc-list"></datalist>
         <button id="data-doc-clear" class="linkish" title="clear the document" hidden>✕</button>
       </label>
-      <label>run <select id="data-run"></select></label>
       <label class="toggle"><input type="checkbox" id="data-show-excluded" checked> excluded</label>
       <label class="toggle"><input type="checkbox" id="data-show-disc" checked> discontinuous</label>
     </div>
@@ -51,15 +58,8 @@
   </section>
 
   <section id="tab-results" class="tab" hidden>
-    <h2>Results &amp; comparison</h2>
-    <div class="controls">
-      <label>run <select id="results-run"></select></label>
-      <label>baseline <select id="results-baseline"><option value="">none</option></select></label>
-      <label>span <select id="results-span">
-        <option value="exact">exact</option><option value="overlap">overlap</option>
-      </select></label>
-      <span id="results-export"></span>
-    </div>
+    <h2>Results</h2>
+    <div class="controls"><span id="results-export"></span></div>
     <div id="results-notices"></div>
     <div id="results-intro"></div>
 
@@ -90,36 +90,6 @@
     <h3>7 · A document through the ladder <span class="muted">(the same grid as Live, from this run's own records, state rows and call traces)</span></h3>
     <div class="controls"><label>document <select id="results-doc"></select></label></div>
     <div id="results-doc-view"></div>
-  </section>
-
-  <section id="tab-walkthrough" class="tab" hidden>
-    <h2>Example walkthrough</h2>
-    <div class="controls">
-      <label>run <select id="walk-run"></select></label>
-      <label>document <select id="walk-doc"></select></label>
-      <label>span <select id="walk-span">
-        <option value="exact">exact</option><option value="overlap">overlap</option>
-      </select></label>
-      <label><input type="checkbox" id="walk-gold"> gold overlay</label>
-    </div>
-    <div id="walk-caveats"></div>
-    <div id="walk-doc-text"></div>
-    <div id="walk-records"></div>
-  </section>
-
-  <section id="tab-trace" class="tab" hidden>
-    <h2>Traceability <span class="muted">any number → its records → ledger, checks, prompt &amp; raw reply</span></h2>
-    <div class="controls">
-      <label>run <select id="trace-run"></select></label>
-      <label>span <select id="trace-span">
-        <option value="exact">exact</option><option value="overlap">overlap</option>
-      </select></label>
-    </div>
-    <div id="trace-aggregates"></div>
-    <div class="cols">
-      <div class="col"><div id="trace-records" class="scrollbox"></div></div>
-      <div class="col"><div id="trace-detail"></div></div>
-    </div>
   </section>
 
   <section id="tab-live" class="tab" hidden>
@@ -153,10 +123,6 @@
     <div id="live-result"></div>
   </section>
 
-  <section id="tab-later" class="tab" hidden>
-    <h2 id="later-title"></h2>
-    <p class="muted" id="later-note"></p>
-  </section>
 </main>
 
 <script src="/static/app.js"></script>

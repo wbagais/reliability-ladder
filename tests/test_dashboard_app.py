@@ -715,3 +715,17 @@ def test_run_document_refuses_unknown_document_and_run(client):
 
 def test_run_document_is_never_exportable(client):
     assert client.get("/api/export/document", params={"run": "syn-run-1", "doc_id": "SYN.2"}).status_code == 404
+
+
+# --- the top bar (2026-09-09, sketch section 2): three tabs, the rest "later"
+
+
+def test_the_tab_bar_is_three_tabs_and_the_placeholders_are_later(client):
+    body = client.get("/api/tabs").json()
+    shipped = [t for t in body["tabs"] if t["shipped"]]
+    later = [t for t in body["tabs"] if not t["shipped"]]
+    assert [t["label"] for t in shipped] == ["Data", "Results", "Live"]
+    assert [t["id"] for t in shipped] == ["explorer", "results", "live"]
+    assert sorted(t["label"] for t in later) == ["Demo", "Desk", "Run monitor", "Rung workbench"]
+    assert "walkthrough" not in {t["id"] for t in body["tabs"]}
+    assert "trace" not in {t["id"] for t in body["tabs"]}
