@@ -103,7 +103,7 @@ NOTE
    4-8B model holds usefully. Cutting the example to its first ~600 characters
    is the change.
 
-   prep_corpus.py now predicts a 4.8% ceiling here, so even a perfect
+   gatecheck now predicts a 4.8% ceiling here, so even a perfect
    extractor gives a thin lane. This is worth 45 minutes and not more.
 NOTE
    run "python3 - <<'PY'

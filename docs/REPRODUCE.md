@@ -285,8 +285,9 @@ To run the ladder on a corpus of your own:
    an independent source. `docs/three-checks.md` explains both.
 2. **An adapter** `ladder/corpus_<name>.py` exposing `load_corpus(root, …)`
    and `read_split(splits_dir, split)` in the shape of `ladder/corpus.py`
-   (gold keyed by span, `GoldMention`). `scripts/prep_corpus.py` reads a
-   corpus and drafts its arm, refusing to guess what it cannot measure.
+   (gold keyed by span, `GoldMention`). `scripts/gatecheck.py --manifest <m>
+   --write` reads the corpus and fills in what it can measure — split sizes
+   and gate codes from your own gold — and lists what it will not guess.
 3. **A manifest** copied from the nearest one, naming the corpus root, the
    split directory, the vocabulary index and the prompts block; a vocabulary
    index in SNOMED's schema (`scripts/build_*_index.py` are the three

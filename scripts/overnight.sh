@@ -194,7 +194,7 @@ case "$phase" in
    log "  its numbers incomparable with every cell run before."
    log "  Two fixes failed. Untried: LINNAEUS's few-shot example is a WHOLE"
    log "  RESEARCH PAPER where CADEC's is a two-line forum post. Capping it at"
-   log "  600 characters is the change. prep_corpus predicts a 4.8% ceiling"
+   log "  600 characters is the change. gatecheck predicts a 4.8% ceiling"
    log "  here, so even a perfect extractor gives a thin lane."
    python3 - <<'PY' 2>&1 | tee -a "$LOG"
 import pathlib

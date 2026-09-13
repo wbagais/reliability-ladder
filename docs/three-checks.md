@@ -64,9 +64,15 @@ identical, and a tool that guessed would be inventing the more interesting of
 two answers. Nor what the entity *is*: no span statistic says whether a corpus
 is about organisms or diseases.
 
-`scripts/prep_corpus.py` is the neighbouring tool that drafts a whole arm — a
-manifest, the adapter registration, the nine things a new corpus has to
-declare — and it calls the same profile.
+`--write` fills in what the corpus itself can answer — the split sizes and the
+gate codes, taken from your own gold rather than inherited — and leaves the
+rest in the signature list. The nine things a new corpus has to declare are in
+[CONTRIBUTING.md](../CONTRIBUTING.md); `crosscheck` verifies eight of them.
+
+*(`scripts/prep_corpus.py` was the single-file version of this, superseded when
+the profiling moved into `ladder/checks/gate.py` and deleted on 2026-09-10. It
+had kept its own copy of the same calculation — two copies that would disagree
+one day with nothing to say which was right.)*
 
 ## crosscheck — is this arm wired as it is declared?
 
