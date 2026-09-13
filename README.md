@@ -228,7 +228,7 @@ tools came out of that.
 | [`crosscheck`](scripts/crosscheck.py) | is it wired as it is declared? | the first line of every run | yes |
 | [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | after | **no, deliberately** |
 
-`stagecheck` is a separate, installable package — 43 tests, no dependencies,
+`stagecheck` is a separate, installable package — 62 tests, no dependencies,
 MIT. It records the two things a pipeline usually does not: **the bet a stage
 makes**, and **the records it could not judge**. A stage that judged 40 of 100
 records and reports 95% accuracy has reported a rate over an unnamed set.

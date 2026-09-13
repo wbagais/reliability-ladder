@@ -106,7 +106,7 @@ reached a rented card first:
 
 ## stagecheck — did the run mean anything?
 
-Its own repository, and it stays that way: 43 tests, no dependencies, MIT, and
+Its own repository, and it stays that way: 62 tests, no dependencies, MIT, and
 it knows nothing about corpora, vocabularies or language models. It records
 the two things a pipeline usually does not — **the bet a stage makes**, and
 **the records it could not judge**. A stage that judged 40 of 100 records and
@@ -115,10 +115,16 @@ refuses to let that go unrecorded. The boundary with the other two is
 deliberate: everything corpus-shaped lives here, everything stage-shaped lives
 there, so it is usable outside this study.
 
-Three gaps found while running the matrix are recorded in
-[TODO-provenance.md](TODO-provenance.md), none built: a stage should record
-what it *was* as well as what it did, hardware is part of the configuration,
-and a stage should assert things about its own configuration before it runs.
+Three gaps found while running the matrix were recorded in
+[TODO-provenance.md](TODO-provenance.md) and **all three are built** as of
+2026-09-10. `Ledger(run={...})` stamps what a run WAS — model, commit, host,
+GPU — onto every row rather than a header, because rows get filtered and
+concatenated and a header survives neither. `merge()` refuses to pool two
+ledgers whose stamps differ, and refuses when either is missing, since absence
+is not agreement. `confirm()` checks a stage's declared invariants BEFORE it
+runs, reporting every one instead of raising on the first, because several can
+be wrong at once. stagecheck still interprets no key: a model name and
+`{"kettle": "boiled"}` are carried identically.
 
 ## Tests
 
