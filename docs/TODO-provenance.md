@@ -1,5 +1,14 @@
 # stagecheck — provenance gaps found while running the matrix
 
+> **All three are now implemented**, in `stagecheck` commit `82adb88`: a run
+> stamp carried on every row, `Ledger.merge()` refusing to pool two ledgers
+> whose stamps disagree, and `confirm()` checking a stage's configuration before
+> the spend. 62 tests. This file is kept as the record of what the failures
+> were and why each fix took the shape it did — the reasoning is the part worth
+> preserving, not the to-do list.
+>
+> The fourth section, on publishing full records, remains a deliberate deferral.
+
 *Both come from a real failure on 2026-09-06. Neither is built. Recorded here
 rather than in code because the tool is complete to its current design and the
 evidence for changing it is one day old.*

@@ -51,9 +51,9 @@ provenance recorded on every run.
 |---|---|---|
 | [`gatecheck`](scripts/gatecheck.py) | should this corpus be run at all? | predicts the check's ceiling from the answer key alone, before any GPU time |
 | [`crosscheck`](scripts/crosscheck.py) | is it wired as declared? | reads nine declared facts back from independent sources |
-| [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | a separate installable package, 43 tests, no dependencies |
+| [`stagecheck`](https://github.com/pushpdeep/stagecheck) | did the run mean anything? | a separate installable package, 62 tests, no dependencies |
 
-126 tests across the three. Every test in `gatecheck` and `crosscheck` was
+114 tests across the three. Every test in `gatecheck` and `crosscheck` was
 written from a defect that reached a rented GPU first, and each is made to fail
 on that defect before being confirmed to pass on the fix.
 

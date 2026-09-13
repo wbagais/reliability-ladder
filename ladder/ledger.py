@@ -48,15 +48,28 @@ class Entry:
     # showing where the record actually is. Reporting reads verdicts for rung 1
     # and zones for everything else.
     verdict: str | None = None
+    # Appended 2026-09-10. WHAT THE RUN WAS, as opposed to what the rung did:
+    # model, git sha, host. Measured need — the same corpus, model and seed
+    # gave 23 records on a CPU-split model and 22 on a GPU-resident one,
+    # because floating-point addition is not associative and a near-tie at the
+    # sampling step resolves differently. Two machines are two experiments and
+    # nothing in the ledger said so. On the ROW and not in a header: rows are
+    # filtered, concatenated and pasted between files, and a header survives
+    # none of that.
+    run: dict[str, Any] = field(default_factory=dict)
 
 
 class Ledger:
     """Append-only JSONL writer + the aggregations every report needs."""
 
-    def __init__(self, path: str | os.PathLike, run_id: str, append: bool = False):
+    def __init__(self, path: str | os.PathLike, run_id: str, append: bool = False,
+                 run: dict[str, Any] | None = None):
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.run_id = run_id
+        #: The run stamp, carried onto every row. A caller passing nothing gets
+        #: exactly the previous behaviour.
+        self.run: dict[str, Any] = dict(run or {})
         self._fh = self.path.open("a" if append else "w", encoding="utf-8")
         self.rows: list[Entry] = []
 
@@ -95,6 +108,7 @@ class Ledger:
             human_minutes=human_minutes,
             verdict=verdict,
             extra=extra,
+            run=dict(self.run),
         )
         self.rows.append(e)
         self._fh.write(json.dumps(asdict(e), ensure_ascii=False) + "\n")
