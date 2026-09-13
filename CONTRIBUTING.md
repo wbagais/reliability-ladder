@@ -103,6 +103,19 @@ PYTHONPATH=. python3 scripts/crosscheck.py --quiet --manifest 'manifest*.json'
 PYTHONPATH=.:tests python3 -m pytest tests/test_crosscheck.py tests/test_gatecheck.py -q
 ```
 
+**On the full suite — cap the model timeout, or it looks like a hang.** Four
+contract tests call a real model. They exist because rung 0's two entry points
+diverged for months without anyone noticing, and a stub would not have caught
+it. The per-call timeout is 180 seconds — nothing on a rented GPU, minutes on a
+laptop:
+
+```bash
+LADDER_TIMEOUT=10 PYTHONPATH=.:tests python3 -m pytest tests -q   # 1,370 in ~77s
+```
+
+Under the cap those four skip with a stated reason. Run without it on a machine
+that generates quickly.
+
 ## Two things that will not work, and why
 
 **A corpus we cannot license.** CADEC is non-transferable — each person accepts
