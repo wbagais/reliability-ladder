@@ -68,6 +68,32 @@ for pair in $ALL_CORPORA; do
     continue
   fi
 
+  # THE GATE. One second per arm, checked once rather than once per cell.
+  #
+  # On 2026-09-06 twelve cells ran with another corpus's task description —
+  # asking for adverse drug reactions in documents about places, species and
+  # diseases — and every one produced a complete, well-formed results table.
+  # At LGL's 45 seconds a document that was hours of card time spent on numbers
+  # that had to be thrown away. crosscheck reads every declared fact back from
+  # an independent source and would have caught it before the first document.
+  #
+  # A FAILING ARM IS SKIPPED, NOT FATAL: one broken manifest should not stop
+  # five good ones, and the skip is recorded the same way a failed cell is.
+  # SKIP_CROSSCHECK=1 for the case where you know a check fires and want the
+  # run anyway — a model absent from this machine, say.
+  if [ -z "${SKIP_CROSSCHECK:-}" ]; then
+    if ! PYTHONPATH=. python3 scripts/crosscheck.py --quiet \
+         --manifest "$manifest" >/tmp/xcheck.$$ 2>&1; then
+      echo "  SKIP $corpus — crosscheck failed:"
+      grep -E "FAIL|declared|found" /tmp/xcheck.$$ | head -6 | sed 's/^/    /'
+      echo "$corpus: crosscheck" >> "$OUT/failures.txt"
+      rm -f /tmp/xcheck.$$
+      fail_n=$((fail_n+1))
+      continue
+    fi
+    rm -f /tmp/xcheck.$$
+  fi
+
   for model in $MODELS; do
     short=$(echo "$model" | sed 's|.*/||; s|:|_|g')
     for d in $(seq 0 $((DRAWS-1))); do
