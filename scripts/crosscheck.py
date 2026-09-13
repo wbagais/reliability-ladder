@@ -35,13 +35,22 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 from ladder.checks import Arm, report
 from ladder.checks import cross
+from ladder.checks import external
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[1])
-    ap.add_argument("--manifest", nargs="+", required=True)
+    ap.add_argument("--manifest", nargs="+", default=[],
+                    help="one or more manifests; omit with --external-only")
     ap.add_argument("--quiet", action="store_true",
                     help="one line per manifest unless something fails")
+    ap.add_argument("--external", action="store_true",
+                    help="also check what this repo ASSERTS about packages it "
+                         "does not contain — declared in external.json, read "
+                         "back from a local clone. Four such assertions were "
+                         "wrong at once on 2026-09-08 and nothing saw them.")
+    ap.add_argument("--external-only", action="store_true",
+                    help="the external claims and nothing else")
     a = ap.parse_args()
 
     paths: list[str] = []
@@ -49,6 +58,8 @@ def main() -> int:
         paths += sorted(glob.glob(pattern)) or [pattern]
 
     total = 0
+    if a.external_only:
+        paths = []
     for path in paths:
         try:
             arm = Arm.load(path)
@@ -56,6 +67,11 @@ def main() -> int:
         except Exception as exc:
             print(f"\n  ── {path}\n   ! could not check: {exc}\n")
             total += 1
+
+    if a.external or a.external_only:
+        root = pathlib.Path(__file__).resolve().parent.parent
+        total += report("external claims",
+                        external.run(root / "external.json", root), a.quiet)
 
     print()
     print(f"  {total} check(s) failed. Each is a fact declared in one place and "

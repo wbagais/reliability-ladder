@@ -1,0 +1,68 @@
+{
+  "_note": [
+    "Facts this repository asserts about software it does not contain.",
+    "",
+    "WHY THIS FILE EXISTS. On 2026-09-08, within one hour: docs/RELEASE-v1.0.md",
+    "said stagecheck had 43 tests (it has 62); its pyproject.toml still said",
+    "version 0.1.0 after gaining relations, a CLI, a dashboard and three",
+    "provenance features; docs/TODO-provenance.md listed three gaps as",
+    "outstanding when all three were implemented; and the README's link pointed",
+    "at gitlab.com when the canonical remote was github.com.",
+    "",
+    "Four facts about another package, written down here, never read back.",
+    "That is the same defect crosscheck exists to catch — a load-bearing fact",
+    "recorded once cannot be checked — except it crosses a repository boundary,",
+    "which crosscheck could not see past.",
+    "",
+    "HOW A CLAIM IS CHECKED. Three ways at once:",
+    "  1. is it TRUE of the package (read from a local clone, no network)",
+    "  2. does every document in `cited_in` actually contain it",
+    "  3. does any document contradict it with a different value",
+    "A claim that is true but absent from the docs is drift waiting to happen;",
+    "a claim in the docs that is not declared here cannot be checked at all."
+  ],
+
+  "stagecheck": {
+    "repo": "https://github.com/pushpdeep/stagecheck",
+    "local": "~/Documents/stagecheck",
+    "why": "the one tool from this study that is separately installable, so its facts travel further than anything else here",
+    "claims": [
+      {
+        "kind": "version",
+        "value": "0.6.0",
+        "cited_in": [],
+        "note": "read from pyproject.toml. Was 0.1.0 until 2026-09-08 — the version had not moved since the first scaffold while the package grew a CLI, a dashboard, relations and three provenance features."
+      },
+      {
+        "kind": "tests",
+        "value": 62,
+        "cited_in": ["docs/RELEASE-v1.0.md"],
+        "note": "the number quoted in the release notes. It said 43 until an hour before the tag, because nobody had run the suite from this side."
+      },
+      {
+        "kind": "dependencies",
+        "value": 0,
+        "cited_in": ["docs/RELEASE-v1.0.md", "README.md"],
+        "note": "'no dependencies' is claimed in two places and is the reason the package is usable outside this study. If one is ever added, both sentences become false."
+      },
+      {
+        "kind": "url",
+        "value": "https://github.com/pushpdeep/stagecheck",
+        "cited_in": ["README.md", "docs/RELEASE-v1.0.md", "CONTRIBUTING.md"],
+        "note": "the README pointed at gitlab.com for days. A dead link on the one installable thing."
+      },
+      {
+        "kind": "symbol",
+        "value": "confirm",
+        "cited_in": [],
+        "note": "docs/TODO-provenance.md described this as unbuilt future work after it had shipped. Asserting the symbol exists keeps that file honest."
+      },
+      {
+        "kind": "symbol",
+        "value": "merge",
+        "cited_in": [],
+        "note": "Ledger.merge() refuses to pool two ledgers whose run stamps disagree — the second of the three provenance gaps, and also shipped."
+      }
+    ]
+  }
+}
