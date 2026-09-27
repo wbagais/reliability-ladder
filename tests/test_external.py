@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import shutil
 import subprocess
 import sys
 
@@ -184,6 +185,9 @@ def test_a_missing_cited_file_fails(pkg, docs):
     assert only(r, "cited in GONE.md").status == FAIL
 
 
+@pytest.mark.skipif(shutil.which("git") is None,
+                    reason="no git binary — python:*-slim has none, and the "
+                           "fixture below needs `git init` to set one up")
 def test_a_url_must_match_a_real_remote(pkg, docs):
     """The README pointed at gitlab.com while the remote was github.com — a
     dead link on the one installable thing here."""
