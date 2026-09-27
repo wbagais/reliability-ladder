@@ -9,22 +9,22 @@
 ## Key takeaways
 
 - Reliability layers do not make a model more accurate; they say which answers to trust, so judge them on right answers over all records.
-- Start with a free check: matching answers' words to the vocabulary's own names sorted them by trustworthiness; three paid layers changed one answer, each having little to act on or going unread.
+- Start with a free check: matching answers' words to the vocabulary's own names sorted them by trustworthiness; three paid layers changed one answer, each acted on little or went unread.
 - Ask the model to read, never to remember: it picked well from a menu of candidates but invented 13 to 18 percent of codes it recalled.
-- Make repeat runs a validation step: rerun identical inputs, measure how far answers move and set the difference you accept; ours agreed on 70 percent.
+- Make repeat runs a validation step: rerun identical inputs, measure the drift and set what you accept; ours agreed on 70 percent.
 - Study the data before adding layers: our biggest gains came from annotation conventions, not medicine; no layer recovers what the model never read.
 
 ---
 
 ## The theory we set out to test
 
-Clinical notes, incident reports, support tickets and forum posts are prose, and a language model can read them. What it produces is not dependable. Ours was right about one answer in three on the task below and reported full confidence on two thirds of its answers; wherever a wrong answer costs something, that is unusable.
+Clinical notes, incident reports, support tickets and forum posts are prose a language model can read. What it produces is not dependable. Ours was right about one answer in three and reported full confidence on two thirds of its answers; wherever a wrong answer costs something, that is unusable.
 
-We tested six layers, checks wrapped around the model, that each evaluate its output and flag what is wrong so that it can be put right: check each answer against something deterministic, send provable failures back to the model [1], sample it several times and vote [2], have a second model judge it [3], withhold what cannot be corroborated, and send the rest to a person. The theory we set out to test is the one that justifies stacking them: each layer catches errors the layers below missed, so accuracy rises with every layer added. We ran all six on the same records, each priced, with the free check entered as a competitor. The theory did not hold. The layers sorted the answers by how far to trust them and corrected almost none.
+We tested six layers, checks wrapped around the model, that flag what is wrong so it can be fixed: check each answer against something deterministic, send provable failures back to the model [1], sample it several times and vote [2], have a second model judge it [3], withhold unconfirmed answers, and send the rest to a person. The theory we set out to test is the one that justifies stacking them: each layer catches errors the layers below missed, so accuracy rises with every layer added. We ran all six on the same records, each priced, with the free check entered as a competitor. The theory did not hold. The layers sorted the answers by how far to trust them and corrected almost none.
 
-Testing it needs a graded task, so we chose an annotated corpus: CADEC, the CSIRO Adverse Drug Event Corpus [4], 1,250 forum posts about two drugs, every adverse reaction marked as a span, the writer's exact words such as `"rectal bleed"`, and given a SNOMED CT code. A gold answer for every mention lets us score each layer's verdicts instead of trusting them. We did not build a CADEC system or tune for it: the aim was to evaluate open-weight models and measure how much each layer raises their accuracy, and CADEC is the instrument.
+Testing it needs a graded task, so we chose an annotated corpus: CADEC, the CSIRO Adverse Drug Event Corpus [4], 1,250 forum posts about two drugs, every adverse reaction marked as a span, the writer's exact words such as `"rectal bleed"`, and given a SNOMED CT code. A gold answer for every mention lets us score each layer's verdicts instead of trusting them — and that assumes gold is the only right answer, which is not always true. Running one development document through the pipeline, the span `"extremely sick"` is gold-coded `213257006` |Generally unwell|; the model answered `39104002` |Illness| — an equally active, equally general reading that shares no wording with the span or with gold's own name. Naming either is a real answer; only one is scored correct. We did not build a CADEC system or tune for it: the aim was to evaluate open-weight models and measure how much each layer raises their accuracy, and CADEC is the instrument.
 
-A supervised system does far better: CONORM [5], fine-tuned on 875 of CADEC's 1,250 files, reaches an end-to-end F1 of 0.72 under lenient span matching, against our zero-shot extractor's 0.47 to 0.50 on the development split (0.39 to 0.43 span-exact). We are not competing with it: it needs those annotated files, and still cannot say which of its answers to trust. Our held-out split was spent once, 60 documents, one run; every other number is development-side and says so. Two things would move the absolute numbers: the judge is small, and CADEC, public since 2015, is almost certainly in its training data. The comparisons between layers should hold.
+A supervised system does far better: CONORM [5], fine-tuned on 875 of CADEC's 1,250 files, reaches end-to-end F1 0.72 under lenient span matching, against our zero-shot extractor's 0.47 to 0.50 on the development split (0.39 to 0.43 span-exact). We are not competing with it: it needs those files, and still cannot say which answers to trust. Our held-out split was spent once, 60 documents, one run; every other number is development-side. Two things would move the absolute numbers: the judge is small, and CADEC, public since 2015, is likely in its training data. The comparisons between layers should hold.
 
 ## The system under test: the model reads, the vocabulary knows
 
@@ -42,7 +42,7 @@ We chose this shape by measuring the alternatives on 40 development documents, t
 
 *Figure 2: F1 of the extractor alone under three ways of getting the code, one dot per cold run, with tokens per run and unparseable replies beneath. Image: the authors.*
 
-Recalling the code is not weak but broken: eight to twelve times worse than naming the concept. It answered `null` on up to 38 percent of records, and of the codes it committed to, 13 to 18 percent exist in no SNOMED release.
+Recalling the code is broken: eight to twelve times worse than naming the concept. It answered `null` on up to 38 percent of records, and of committed codes, 13 to 18 percent exist in no SNOMED release.
 
 That is the extractor the six layers sit on. Before measuring what a layer adds, we had to know how much its output moves between runs of the same inputs.
 
@@ -63,21 +63,21 @@ We ran the extraction step three times, cold, on the same 40 documents. Two runs
 
 Where all three found the same span, they agreed on the code 84 percent of the time, so what moves between runs is mostly the reading, not the coding. We did not ask why those 22 were coded differently, and should have.
 
-The variation is a property of this model: four other families run three times each, llama3.1:8b, mistral:7b-instruct, qwen3:8b and granite4:micro-h, returned byte-identical output every time. Our extractor, gpt-oss:20b, is the only mixture-of-experts model of the five and the only one that varied. Why, we could not settle: the diverging request, sent alone eight times, returns one reply; it moves only inside a full run. We kept it for its 6.5 extra points of F1 over llama3.1:8b.
+The variation is a property of this model: four other families run three times each, llama3.1:8b, mistral:7b-instruct, qwen3:8b and granite4:micro-h, returned byte-identical output. Our extractor, gpt-oss:20b, is the only mixture-of-experts model, and the only one that varied. Why, we could not settle: the diverging request, sent alone eight times, returns one reply; it moves only inside a full run. We kept it for its 6.5 extra points of F1 over llama3.1:8b.
 
 From then on every change was measured on three runs and reported as the range across them.
 
 ## What each layer bought, and what it charged
 
-**The two free layers sorted and withheld without changing an answer; of the three paid ones, self-correction almost never fired, voting did not help, and the judge worked but nothing read its verdict.**
+**The two free layers sorted and withheld without changing an answer; of the three paid ones, self-correction barely fired, voting did not help, and the judge worked but nothing read its verdict.**
 
 Development split, three runs of 40 documents; figures below are ranges across the runs:
 
-- **Vocabulary check, 0 tokens. Did its job.** It gives each answer one of three verdicts. REJECT: the code does not exist or the span is not in the post. ACCEPT: the span's words match one of the concept's own names, `"chronic pain"` against |Chronic pain|. BAND: neither, so plausible but unprovable either way. ACCEPT was 76 to 82 percent correct and BAND 27 to 30 percent, a 2.7 to 2.8× separation. The check can prove an answer wrong, never right, and its ceiling is that only 32 percent of annotated mentions are worded so a perfect answer could land in ACCEPT.
-- **Self-correction, about 1,500 tokens. Barely exercised.** It fires only on REJECT, restating the failure to the model as a fact ("code 999999 does not exist"). It fired two or three times per run and corrected nothing: unmeasured, not refuted.
-- **Voting, 411,000–432,000 tokens. Did not help.** Three samples of the extractor, majority wins. It changed about 27 codes a run, as many right-to-wrong as wrong-to-right: net −1 to +1, destroying 2 to 5 right answers. The voter is the answerer, so a vote carries no information the answer lacked.
-- **Second-model judge, 84,000–88,000 tokens. Worked once shown the menu; nothing read its verdict.** A second, smaller model, 3.2B parameters against the extractor's 20B, is asked whether each answer is right. Shown only the span and a nine-digit code, it barely told right from wrong. Shown the menu the extractor chose from, it separates 3.4 to 4.2×, more sharply than the free check, and can say *the right answer is not on this menu*. No later layer reads its verdict.
-- **Refusal, 0 tokens. Held.** It passes answers that meet a chosen verdict and holds the rest for a person. On ACCEPT, our measured setting, 21 to 23 percent of records pass at 0.74 to 0.82 accuracy. A confidence threshold was tried and retired: the extractor's confidence is 1.0 on two thirds of answers, right or wrong.
+- **Vocabulary check, 0 tokens. Did its job.** It gives each answer one of three verdicts. REJECT: the code does not exist, or the span is not in the post. `2714004`, claimed as |Pale skin|, is in no SNOMED release. ACCEPT: the span's words match one of the vocabulary's own names. `"chronic pain"` matches |Chronic pain|. BAND: the span's words match none of the vocabulary's names, so the check has no evidence either way. `"bit drowsy"` against |Drowsy| happens to be right; `"truck hit"` against |Injury due to motor vehicle accident| is a fabricated finding — the check cannot tell the two apart. ACCEPT was 76 to 82 percent correct and BAND 27 to 30 percent, a 2.7 to 2.8× separation. The check can prove an answer wrong, never right, and its ceiling is that only 32 percent of annotated mentions are worded so a perfect answer could land in ACCEPT.
+- **Self-correction, about 1,500 tokens. Barely exercised.** It fires only on REJECT, restating the failure as a fact ("code 999999 does not exist"). It fired two or three times per run and corrected nothing: unmeasured, not refuted.
+- **Voting, 411,000–432,000 tokens. Did not help.** Three samples of the extractor, majority wins. It changed about 27 codes a run, as many right-to-wrong as wrong-to-right: net −1 to +1, destroying 2 to 5 right answers. The voter is the answerer, so a vote adds no new information.
+- **Second-model judge, 84,000–88,000 tokens. Worked once shown the menu; nothing read its verdict.** A second, smaller model, 3.2B against the extractor's 20B, is asked whether each answer is right. Shown only the span and a nine-digit code, it barely told right from wrong. Shown the menu the extractor chose from, it separates 3.4 to 4.2×, more sharply than the free check, and can say *the right answer is not on this menu*. No later layer reads its verdict.
+- **Refusal, 0 tokens. Held.** It passes answers meeting a chosen verdict and holds the rest for a person. On ACCEPT, our measured setting, 21 to 23 percent of records pass at 0.74 to 0.82 accuracy. A confidence threshold was tried and retired: the extractor's confidence is 1.0 on two thirds of answers, right or wrong.
 - **A person. Not measured.** What refusal holds back goes to a reviewer, whose decisions are corrections a later model can be trained on.
 
 Then we removed the three paid layers and replayed refusal: **the set that refusal passed differed by one record on the first run and by none on the other two.**
@@ -94,9 +94,9 @@ Voting's and the judge's verdicts are good for diagnosis, not repair: a split vo
 
 Three things hold.
 
-First, any verdict raises the accuracy of what passes, because withholding is a layer's only lever. No rule ships more than the 88 right answers the extractor found, so every gain in accuracy is paid for in right answers held back. Accuracy alone flatters any withholding layer. *Yield*, right answers as a share of all records, cannot be flattered, so we report both.
+First, any verdict raises the accuracy of what passes: withholding is a layer's only lever. No rule ships more than the 88 right answers the extractor found, so every gain in accuracy costs right answers held back. Accuracy alone flatters any withholding layer. *Yield*, right answers as a share of all records, cannot be flattered, so we report both.
 
-Second, the price differs by verdict. ACCEPT is the most precise rule and the most expensive: moving to it removes 128 errors at the cost of 49 right answers and 177 records for a person, because the check can endorse only the 32 percent of mentions whose wording matches the vocabulary. The menu-shown judge's verdict is informed rather than lexical, and it is the one rule whose F1 beats shipping everything, 0.420 against 0.397.
+Second, the price differs by verdict. ACCEPT is the most precise rule and the most expensive: moving to it removes 128 errors at the cost of 49 right answers and 177 records for a person, because it can endorse only the 32 percent whose wording matches the vocabulary. The menu-shown judge's verdict is informed rather than lexical, and its F1 alone beats shipping everything, 0.420 against 0.397.
 
 Third, the verdicts nest rather than add. Nearly everything the free check endorses, the judge endorses too, so a second verdict mostly confirms the first and can only remove records, never recover one the first held back; that is why removing the paid layers changed one record. Where every verdict agrees the answers are almost all right; where only a vote does, almost all wrong. Each verdict is a different trade between errors, lost answers and reviews; we recommend none.
 
@@ -110,9 +110,9 @@ The held-out split, run once, tells the same story. Before any check, one answer
 
 *Figure 4: Where the development split's 226 annotated mentions go through the shipped extractor, gpt-oss:20b, first run. Each bar is what the stage above kept; the dotted steps are what each stage lost. Teal: a model call; grey: deterministic code. Image: the authors.*
 
-Once a mention is found, the pipeline is reliable: the right concept reaches the menu for 93 percent of found spans and the model picks it 81 percent of the time. The loss is at finding. Nearly half the annotated mentions are never quoted as the annotators marked them, and none of the reasons are medical: single words like `"sore"` go untouched, boundaries stretch, `"extreme rectal bleed"` for `"rectal bleed"`, and figures of speech are read literally, `"at my wits end"` coded as |Wanders at night|. Two domain-adapted models did not help; a worked example and a denied-reactions rule did.
+Once found, the pipeline is reliable: the right concept reaches the menu for 93 percent of found spans and the model picks it 81 percent of the time. The loss is at finding. Nearly half the annotated mentions are never quoted as the annotators marked them, and none of the reasons are medical: single words like `"sore"` go untouched, boundaries stretch, `"extreme rectal bleed"` for `"rectal bleed"`, and figures of speech are read literally, `"at my wits end"` coded as |Wanders at night|. Two domain-adapted models did not help; a worked example and a denied-reactions rule did.
 
-**No layer can add a mention.** Every layer above the extractor checks, re-asks, votes on, judges or withholds an answer the extractor already gave; none can find a mention it missed. So the most any stack can ever get right is what the extractor found in the first place: on the held-out split, just over half the annotated mentions, a detection F1 of 0.521. The one way past that ceiling is a second reader: a different model family shown the post and the first model's spans, asked what was missed. We did not build it. Its additions would be proposals, needing the same measurement as the extractor's.
+**No layer can add a mention.** Every layer above the extractor checks, re-asks, votes on, judges or withholds an answer the extractor gave; none can find a mention it missed. So the most any stack can ever get right is what the extractor found: on the held-out split, just over half the annotated mentions, a detection F1 of 0.521. The one way past that ceiling is a second reader: a different model family shown the post and the first model's spans, asked what was missed. We did not build it. Its additions would need the same measurement as the extractor's.
 
 ## Does it hold beyond CADEC?
 
@@ -121,15 +121,15 @@ Once a mention is found, the pipeline is reliable: the right concept reaches the
 Seven further corpora, four model families; for each lesson, does the data agree?
 
 - **Layers sort, they do not fix.** Agrees. On PsyTAR the paid layers changed nothing in any run.
-- **Start with the free check.** Holds where the vocabulary's names are evidence and reverses where they are not. Clinical vocabularies behave as SNOMED did; gazetteers do not: a place name matches the vocabulary and is still the wrong place, and on one news corpus the check endorses the answers more likely to be wrong. On financial tag names it never fires.
+- **Start with the free check.** Holds where the vocabulary's names are evidence and reverses where they are not. Clinical vocabularies behave as SNOMED did; gazetteers do not: a place name can match and still be the wrong place, and on one news corpus the check endorses the more-likely-wrong answers. On financial tag names it never fires.
 - **Ask the model to read, never to remember.** Not re-tested; every corpus used the menu.
-- **Make repeat runs a validation step.** Agrees. Every other family repeated itself exactly; our extractor's one instability elsewhere was refusing a document on one run of three.
-- **Study the data before adding layers.** Agrees, with a change: where the model loses is not the same everywhere. On CADEC it loses at reading; on the financial corpus it read well and coded badly, and its worst error was a habit, picking the menu's first line, not a gap in domain knowledge.
+- **Make repeat runs a validation step.** Agrees. Every other family repeated itself exactly; our extractor's one instability was refusing a document on one run of three.
+- **Study the data before adding layers.** Agrees, with a change: where the model loses is not the same everywhere. On CADEC it loses at reading; on the financial corpus it read well and coded badly, and its worst error was a habit, picking the menu's first line, not domain ignorance.
 
 Two more findings met the same test:
 
-- **Self-correction barely fires.** Sharpened. On PsyTAR the check wrongly rejects some right codes in the answer key, so self-correction had work; it fired zero times, because the check never rejects what the model actually writes.
-- **A fact recorded once will be wrong silently.** Repeated. Seventeen matrix cells ran with the wrong prompt or the wrong model, caught only because each run also saved the configuration it received.
+- **Self-correction barely fires.** Sharpened. On PsyTAR the check wrongly rejects some right codes, so self-correction had work; it fired zero times, because the check never rejects what the model writes.
+- **A fact recorded once will be wrong silently.** Repeated. Seventeen matrix cells ran with the wrong prompt or model, caught only because each run saved the configuration it received.
 
 The judge, the nesting of verdicts and the diagnostic use of split votes were measured on CADEC only.
 
@@ -137,22 +137,22 @@ The judge, the nesting of verdicts and the diagnostic use of split votes were me
 
 **Every layer passed its own tests. The two defects that mattered sat between the layers and inside the metric.**
 
-The first was the unread verdicts. The second was the metric: voting overwrote codes without re-running the vocabulary check, so records shipped marked *verified* for a code they no longer held. Fixing that moved the held-out F1 from 0.204 to 0.204, because precision and recall cannot tell an unwarranted answer from a wrong one. **We built six layers to decide which answers to trust, then scored them with a metric that cannot see the difference.**
+The first was the unread verdicts. The second was the metric: voting overwrote codes without re-running the check, so records shipped marked *verified* for a code no longer held. Fixing that moved the held-out F1 from 0.204 to 0.204, because precision and recall cannot tell unwarranted from wrong. **We built six layers to decide which answers to trust, then scored them with a metric that cannot see the difference.**
 
-Both defects share a shape: a load-bearing fact recorded once, so nothing could disagree with it. Three checks built from that lesson, gatecheck, crosscheck and stagecheck, are reached from the repository below.
+Both defects share a shape: a load-bearing fact recorded once, so nothing could disagree with it. Three checks from that lesson, gatecheck, crosscheck and stagecheck, are reached from the repository below.
 
 ## What to do on Monday
 
 **What transfers is not the layers but six practices, each earned above.**
 
-- **Read the data before you add a layer.** Our two largest gains were a worked example in the corpus's conventions and a rule for denied reactions; no layer and no domain model supplied either.
-- **Never ask the model for an identifier.** Have it quote and pick; let a lookup produce the code. Asked to recall codes, it invented them 13 to 18 percent of the time and scored ten times worse.
-- **Anchor confidence in something that does not resample**: a vocabulary, a schema, a compiler. Test it on the answer key, where every rejection is false by construction, and on your own vocabulary, where it may reverse.
+- **Read the data before you add a layer.** Our two largest gains were a worked example in the corpus's conventions and a rule for denied reactions; no layer supplied either.
+- **Never ask the model for an identifier.** Have it quote and pick; let a lookup produce the code. Asked to recall codes, it invented 13 to 18 percent of the time and scored ten times worse.
+- **Anchor confidence in something that does not resample**: a vocabulary, a schema, a compiler. Test it on the answer key, where every rejection is false by construction, and on yours, where it may reverse.
 - **Measure your floor before any improvement.** Three runs minimum, reported as a range, and decide in advance what difference you will accept.
-- **Treat disagreement as a to-do list.** A split vote, a judge's *not on this menu*, a mention coded differently on a repeat run: each marks where the task is underspecified. Read them offline; do not pay for them online.
-- **Find the reader of every field a layer writes, and check your metric can see the defect you prevent.** A forty-line search found three verdicts nothing read; yield beside accuracy shows what a withholding layer hides.
+- **Treat disagreement as a to-do list.** A split vote, a judge's *not on this menu*, a mention coded differently on a repeat run: each flags an underspecified task. Read them offline; do not pay for them online.
+- **Find the reader of every field a layer writes, and confirm the metric sees the prevented defect.** A forty-line search found three verdicts nothing read; yield beside accuracy shows what a withholding layer hides.
 
-We set out believing that stacking reliability layers buys reliability. Measured end to end, they sorted the answers by how far to trust them and fixed almost none: worth a great deal, and not what we bought them for. The model reads. Almost everything else belongs to code, and one choice to you.
+We set out believing that stacking reliability layers buys reliability. Measured end to end, they sorted answers by trust and fixed almost none: worth a great deal, not what we bought them for. The model reads. Almost everything else belongs to code, and one choice to you.
 
 ---
 
